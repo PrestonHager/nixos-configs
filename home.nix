@@ -89,9 +89,9 @@
     #   org.gradle.daemon.idletimeout=3600000
     # '';
 
-    ".config/nvim/init.lua".source = "profiles/prestonh/.config/nvim/init.lua";
-    ".config/nvim/lua/config/lazy.lua".source = "profiles/prestonh/.config/nvim/lua/config/lazy.lua";
-    ".config/nvim/lua/plugins/spec1.lua".source = "profiles/prestonh/.config/nvim/lua/plugins/spec1.lua";
+    ".config/nvim/init.lua".source = profiles/prestonh/.config/nvim/init.lua;
+    ".config/nvim/lua/config/lazy.lua".source = profiles/prestonh/.config/nvim/lua/config/lazy.lua;
+    ".config/nvim/lua/plugins/spec1.lua".source = profiles/prestonh/.config/nvim/lua/plugins/spec1.lua;
   };
 
   # Home Manager can also manage your environment variables through
