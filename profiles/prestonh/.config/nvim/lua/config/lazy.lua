@@ -23,5 +23,7 @@ require("lazy").setup({
   install = { colorscheme = { "habamax" } },
   -- automatically check for plugin updates
   checker = { enabled = true },
+  -- diable luarocks (unless a plugin needs it)
+  opts = { rocks = { enabled = false } },
 })
 
