@@ -13,7 +13,7 @@
   # You should not change this value, even if you update Home Manager. If you do
   # want to update the value, then make sure to first check the Home Manager
   # release notes.
-  home.stateVersion = "23.11"; # Please read the comment before changing.
+  home.stateVersion = "24.05"; # Please read the comment before changing.
 
   # The home.packages option allows you to install Nix packages into your
   # environment.
@@ -65,6 +65,15 @@
 #    ];
 #  };
 
+  # Setup local git configuration
+  programs.git = {
+    userName = "Preston Hager";
+    userEmail = "preston@hagerfamily.com";
+    aliases = {
+      ap = "add -p";
+    };
+  };
+
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
   # plain files is through 'home.file'.
   home.file = {
@@ -72,12 +81,17 @@
     # # the Nix store. Activating the configuration will then make '~/.screenrc' a
     # # symlink to the Nix store copy.
     # ".screenrc".source = dotfiles/screenrc;
+    ".zshrc".source = dotfiles/zshrc;
 
     # # You can also set the file content immediately.
     # ".gradle/gradle.properties".text = ''
     #   org.gradle.console=verbose
     #   org.gradle.daemon.idletimeout=3600000
     # '';
+
+#    ".config/nvim/init.lua".source = "profiles/prestonh/.config/nvim/init.lua";
+#    ".config/nvim/lua/config/lazy.lua".source = "profiles/prestonh/.config/nvim/lua/config/lazy.lua";
+#    ".config/nvim/lua/plugins/spec1.lua".source = "profiles/prestonh/.config/nvim/lua/plugins/spec1.lua";
   };
 
   # Home Manager can also manage your environment variables through

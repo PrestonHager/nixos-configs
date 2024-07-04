@@ -113,10 +113,9 @@
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-    neovim # Editor
+    neovim      # Editor
     kitty
     wget
-    git
     dmenu
     lm_sensors
     pasystray
@@ -132,6 +131,15 @@
 
   # Enable zsh
   programs = {
+    git = {
+      enable = true;
+      package = pkgs.git;
+      config = {
+        credential.helper = "${
+            pkgs.git.override { withLibsecret = true; }
+          }/bin/git-credential-libsecret";
+      };
+    };
     zsh = {
       enable = true;
       autosuggestions.enable = true;
