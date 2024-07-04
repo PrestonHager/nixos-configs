@@ -81,7 +81,7 @@
     # # the Nix store. Activating the configuration will then make '~/.screenrc' a
     # # symlink to the Nix store copy.
     # ".screenrc".source = dotfiles/screenrc;
-    ".zshrc".source = dotfiles/zshrc;
+    "~/.zshrc".source = dotfiles/zshrc;
 
     # # You can also set the file content immediately.
     # ".gradle/gradle.properties".text = ''
@@ -89,9 +89,9 @@
     #   org.gradle.daemon.idletimeout=3600000
     # '';
 
-#    ".config/nvim/init.lua".source = "profiles/prestonh/.config/nvim/init.lua";
-#    ".config/nvim/lua/config/lazy.lua".source = "profiles/prestonh/.config/nvim/lua/config/lazy.lua";
-#    ".config/nvim/lua/plugins/spec1.lua".source = "profiles/prestonh/.config/nvim/lua/plugins/spec1.lua";
+    ".config/nvim/init.lua".source = "profiles/prestonh/.config/nvim/init.lua";
+    ".config/nvim/lua/config/lazy.lua".source = "profiles/prestonh/.config/nvim/lua/config/lazy.lua";
+    ".config/nvim/lua/plugins/spec1.lua".source = "profiles/prestonh/.config/nvim/lua/plugins/spec1.lua";
   };
 
   # Home Manager can also manage your environment variables through
