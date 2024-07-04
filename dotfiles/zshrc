@@ -1,0 +1,40 @@
+# Add path of the theme
+fpath+=($HOME/.zsh/pure)
+autoload -U promptinit; promptinit
+
+# Lines configured by zsh-newuser-install
+HISTFILE=~/.histfile
+HISTSIZE=1000
+SAVEHIST=1000
+bindkey -e
+# End of lines configured by zsh-newuser-install
+# The following lines were added by compinstall
+zstyle :compinstall filename '/home/prestonh/.zshrc'
+
+autoload -Uz compinit
+compinit
+# End of lines added by compinstall
+
+# Enable zoxide and fuzzy-finder (fzf)
+eval "$(zoxide init zsh --cmd cd)"
+
+alias ls=lsd
+
+# This should probably be the last line in this file
+prompt pure
+
+# The Fuck
+eval $(thefuck --alias)
+
+# Custom aliases
+alias ll="ls -la"
+alias lt="ls -latr"
+
+# Map all the vi's to neovim
+alias vim="nvim"
+alias vi="nvim"
+
+# Exclude certain directories when using the `tree` command
+export TREE_EXCLUDE="target"
+alias tree="tree -I '$TREE_EXCLUDE'"
+
