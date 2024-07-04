@@ -26,9 +26,10 @@ prompt pure
 # The Fuck
 eval $(thefuck --alias)
 
-# Custom aliases
-alias ll="ls -la"
+# Custom ls aliases
 alias lt="ls -latr"
+alias lll="l --color=always | less -R"
+alias ltl="lt --color=always | less -R"
 
 # Map all the vi's to neovim
 alias vim="nvim"
