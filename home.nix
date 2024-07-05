@@ -89,15 +89,15 @@
     # '';
 
     # zsh rc file
-    ".zshrc".source = dotfiles/zshrc;
+    ".zshrc".source = profiles/prestonh/zshrc;
 
     # Neovim configuration
-    ".config/nvim/init.lua".source = profiles/prestonh/.config/nvim/init.lua;
-    ".config/nvim/lua/config/lazy.lua".source = profiles/prestonh/.config/nvim/lua/config/lazy.lua;
-    ".config/nvim/lua/plugins/spec1.lua".source = profiles/prestonh/.config/nvim/lua/plugins/spec1.lua;
+    ".config/nvim/init.lua".source = profiles/prestonh/config/nvim/init.lua;
+    ".config/nvim/lua/config/lazy.lua".source = profiles/prestonh/config/nvim/lua/config/lazy.lua;
+    ".config/nvim/lua/plugins/spec1.lua".source = profiles/prestonh/config/nvim/lua/plugins/spec1.lua;
 
     # Kitty terminal configuration
-    ".config/kitty/kitty.conf".source = profiles/prestonh/.config/kitty/kitty.conf;
+    ".config/kitty/kitty.conf".source = profiles/prestonh/config/kitty/kitty.conf;
   };
 
   # Home Manager can also manage your environment variables through
