@@ -67,7 +67,7 @@
   #   vivaldi.
   programs.chromium = {
     enable = true;
-    package = pkgs.chromium;
+    package = pkgs.brave;
     extensions = [
       # { id = "cjpalhdlnbpafiamejdnhcphjbkeiagm"; }
     ];
