@@ -22,7 +22,7 @@
     zoxide
     fzf
     lsd
-    gcc
+#    gcc
     xclip
 
     python313Full
