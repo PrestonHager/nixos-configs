@@ -115,10 +115,10 @@
   environment.systemPackages = with pkgs; [
     neovim      # Editor
     kitty       # Terminal
-    dmenu
+    dmenu       # Menu for i3 using $mod+d
     lm_sensors  # Sensor library for many platforms
                 # Used in i3-status files
-    pasystray
+    pasystray   # Pulse Audio System Tray
   ];
 
   # Configure default terminal emulator and editor

@@ -19,24 +19,24 @@
   # environment.
   home.packages = with pkgs; [
     # Add packages to just this user
-    zoxide
-    fzf
-    lsd
-#    gcc
-    xclip
-
-    python313Full
-    poetry
-    python311Packages.pyopengl
-
-    nodejs_22
-    nodenv
-
-    thefuck
-
-    tree
-
-    gh    # GitHub CLI
+#    zoxide
+#    fzf
+#    lsd
+    gcc
+#    xclip
+#
+#    python313Full
+#    poetry
+#    python311Packages.pyopengl
+#
+#    nodejs_22
+#    nodenv
+#
+#    thefuck
+#
+#    tree
+#
+#    gh    # GitHub CLI
 
     # Custom NeoVim configuration (package is installed by system configuration)
 #    (neovim.override {
@@ -65,16 +65,16 @@
   # You can also change package to one of the following:
   #   chromium, google-chrome, google-chrome-beta, google-chrome-dev, brave, or
   #   vivaldi.
-#  programs.chromium = {
-#    enable = true;
-#    package = pkgs.chromium;
-#    extensions = [
-#      # { id = "cjpalhdlnbpafiamejdnhcphjbkeiagm"; }
-#    ];
-#    commandLineArgs = [
-#      # "--argumentHere"
-#    ];
-#  };
+  programs.chromium = {
+    enable = true;
+    package = pkgs.chromium;
+    extensions = [
+      # { id = "cjpalhdlnbpafiamejdnhcphjbkeiagm"; }
+    ];
+    commandLineArgs = [
+      # "--argumentHere"
+    ];
+  };
 
   # Setup local git configuration
   programs.git = {
