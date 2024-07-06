@@ -103,7 +103,7 @@
     ".zshrc".source = profiles/prestonh/zshrc;
 
     # i3 and i3status-rust configuration files
-#    ".config/i3/config".source = profiles/prestonh/config/i3/config;
+    ".config/i3/config".source = profiles/prestonh/config/i3/config;
     ".config/i3status-rust/config.toml".source =
     profiles/prestonh/config/i3status-rust/config.toml;
 
