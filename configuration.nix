@@ -114,10 +114,10 @@
   # $ nix search wget
   environment.systemPackages = with pkgs; [
     neovim      # Editor
-    kitty
-    wget
+    kitty       # Terminal
     dmenu
-    lm_sensors
+    lm_sensors  # Sensor library for many platforms
+                # Used in i3-status files
     pasystray
   ];
 

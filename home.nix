@@ -36,7 +36,16 @@
 
     tree
 
-    gh
+    gh    # GitHub CLI
+
+    # Custom NeoVim configuration (package is installed by system configuration)
+#    (neovim.override {
+#      configure = {
+#        customRC = ''
+#          
+#        '';
+#      };
+#    })
 
     # # It is sometimes useful to fine-tune packages, for example, by applying
     # # overrides. You can do that directly here, just don't forget the
@@ -92,6 +101,11 @@
 
     # zsh rc file
     ".zshrc".source = profiles/prestonh/zshrc;
+
+    # i3 and i3status-rust configuration files
+    ".config/i3/config".source = profiles/prestonh/config/i3/config;
+    ".config/i3status-rust/config.toml".source =
+    profiles/prestonh/config/i3status-rust/config.toml;
 
     # Neovim configuration
     ".config/nvim/init.lua".source = profiles/prestonh/config/nvim/init.lua;
