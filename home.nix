@@ -19,24 +19,24 @@
   # environment.
   home.packages = with pkgs; [
     # Add packages to just this user
-#    zoxide
-#    fzf
-#    lsd
+    zoxide
+    fzf
+    lsd
     gcc
-#    xclip
-#
-#    python313Full
-#    poetry
-#    python311Packages.pyopengl
-#
-#    nodejs_22
-#    nodenv
-#
-#    thefuck
-#
-#    tree
-#
-#    gh    # GitHub CLI
+    xclip
+
+    python313Full
+    poetry
+    python311Packages.pyopengl
+
+    nodejs_22
+    nodenv
+
+    thefuck
+
+    tree
+
+    gh    # GitHub CLI
 
     # Custom NeoVim configuration (package is installed by system configuration)
 #    (neovim.override {
