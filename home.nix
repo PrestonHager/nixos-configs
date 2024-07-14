@@ -22,6 +22,7 @@
     zoxide
     fzf
     lsd
+
     gcc
     xclip
 
@@ -60,7 +61,7 @@
     enable = true;
     package = pkgs.brave;
     extensions = [
-      # { id = "cjpalhdlnbpafiamejdnhcphjbkeiagm"; }
+      { id = "nngceckbapebfimnlniiiahkandclblb"; }
     ];
     commandLineArgs = [
       # "--argumentHere"
