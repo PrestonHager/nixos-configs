@@ -9,21 +9,22 @@
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
       ./users.nix
-      inputs.home-manager.nixosModules.default
+#      inputs.home-manager.nixosModules.default
     ];
 
   users.main = {
     enable = true;
     username = "prestonh";
     name = "Preston Hager";
+#    home-manager = import ../home/home.nix;
   };
 
-  home-manager = {
-    extraSpecialArgs = { inherit inputs; };
-    users = {
-      "prestonh" = import ./home.nix;
-    };
-  };
+#  home-manager = {
+#    extraSpecialArgs = { inherit inputs; };
+#    users = {
+#      "prestonh" = import ./home.nix;
+#    };
+#  };
 
   # Bootloader.
   boot.loader.systemd-boot.enable = true;
@@ -129,7 +130,6 @@
     TERMINAL = "kitty";
   };
 
-  # Enable zsh
   programs = {
     git = {
       enable = true;
@@ -140,18 +140,19 @@
           }/bin/git-credential-libsecret";
       };
     };
+    # Enable zsh
     zsh = {
       enable = true;
       autosuggestions.enable = true;
       zsh-autoenv.enable = true;
       syntaxHighlighting.enable = true;
     };
-    nix-ld = {
-      enable = true;
-      libraries = with pkgs; [
-        # Insert libraries to add to the system
-      ];
-    };
+#    nix-ld = {
+#      enable = true;
+#      libraries = with pkgs; [
+#        # Insert libraries to add to the system
+#      ];
+#    };
  };
 
  # Some programs need SUID wrappers, can be configured further or are
@@ -170,7 +171,7 @@
     extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
     config.common.default = [ "*" ];
   };
-  services.flatpak.enable = true;
+#  services.flatpak.enable = true;
 
   # Enable the OpenSSH daemon.
   # services.openssh.enable = true;

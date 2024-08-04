@@ -6,17 +6,20 @@
       main = {
         enable = lib.mkEnableOption "Enable the main user";
         username = lib.mkOption {
-          default = "user";
           description = ''
             username
           '';
         };
         name = lib.mkOption {
-          default = "User";
           description = ''
             First (Last) name of the user
           '';
         };
+        home-manager = lib.mkOption {
+          default = null;
+          description = ''
+            Import a home-manager configuration
+          '';
       };
     };
   };
@@ -28,6 +31,12 @@
       extraGroups = [ "networkmanager" "wheel" ];
       packages = with pkgs; [];
       shell = pkgs.zsh;
+    };
+    home-manager = lib.mkIf (${config.users.main.home-manager} != null) {
+      extraSpecialArgs = { inherit inputs; };
+      users = {
+        "${config.users.main.username}" = ${config.users.main.home-manager};
+      };
     };
   };
 }

@@ -19,7 +19,7 @@
     nixosConfigurations.default = nixpkgs.lib.nixosSystem {
       specialArgs = {inherit inputs;};
       modules = [
-        ./configuration.nix
+        ./nixos
         inputs.home-manager.nixosModules.default
         ({ pkgs, ... }: {
           nixpkgs.overlays = [ rust-overlay.overlays.default ];
