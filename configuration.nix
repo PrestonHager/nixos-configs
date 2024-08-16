@@ -30,7 +30,7 @@
   boot.loader.systemd-boot.configurationLimit = 15;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  networking.hostName = "nixos"; # Define your hostname.
+  networking.hostName = "server02"; # Define your hostname.
 
   # Enable networking
   networking.networkmanager.enable = true;
@@ -64,62 +64,58 @@
   };
 
   # Configure keymap in X11
-  services = {
-    xserver = {
-      enable = true;
-      autorun = true;
-      xkb.layout = "us";
-      desktopManager = {
-        xterm.enable = false;
-        xfce.enable = false;
-      };
-      windowManager.i3 = {
-        enable = true;
-        extraPackages = with pkgs; [
-          i3status-rust
-          pasystray
-        ];
-      };
-    };
-    displayManager = {
-      defaultSession = "none+i3";
-    };
-    pipewire = {
-      enable = true;
-      alsa = {
-        enable = true;
-        support32Bit = true;
-      };
-      pulse.enable = true;
-    };
-  };
-
-  # This is needed for the audio to work in some apps
-  nixpkgs.config.pulseaudio = true;
+#  services = {
+#    xserver = {
+#      enable = true;
+#      autorun = true;
+#      xkb.layout = "us";
+#      desktopManager = {
+#        xterm.enable = false;
+#        xfce.enable = false;
+#      };
+#      windowManager.i3 = {
+#        enable = true;
+#        extraPackages = with pkgs; [
+#          i3status-rust
+#          pasystray
+#        ];
+#      };
+#    };
+#    displayManager = {
+#      defaultSession = "none+i3";
+#    };
+#    pipewire = {
+#      enable = true;
+#      alsa = {
+#        enable = true;
+#        support32Bit = true;
+#      };
+#      pulse.enable = true;
+#    };
+#  };
+#
+#  # This is needed for the audio to work in some apps
+#  nixpkgs.config.pulseaudio = true;
 
   # Configure zsh for the global user
   users.defaultUserShell=pkgs.zsh;
 
   # Enable fonts local and from the nerd fonts package
-  fonts = {
-    fontDir.enable = true;
-    packages = with pkgs; [
-      (nerdfonts.override {
-        fonts = [ "Hack" ];
-      })
-    ];
-  };
+#  fonts = {
+#    fontDir.enable = true;
+#    packages = with pkgs; [
+#      (nerdfonts.override {
+#        fonts = [ "Hack" ];
+#      })
+#    ];
+#  };
 
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
     neovim # Editor
-    kitty
     wget
     git
-    dmenu
-    lm_sensors
-    pasystray
   ];
 
   # Configure default terminal emulator and editor
@@ -157,12 +153,12 @@
   # List services that you want to enable:
 
   # Enable flatpak so we can install third-party apps
-  xdg.portal = {
-    enable = true;
-    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
-    config.common.default = [ "*" ];
-  };
-  services.flatpak.enable = true;
+#  xdg.portal = {
+#    enable = true;
+#    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+#    config.common.default = [ "*" ];
+#  };
+#  services.flatpak.enable = true;
 
   # Enable the OpenSSH daemon.
   # services.openssh.enable = true;
