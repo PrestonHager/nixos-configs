@@ -1,4 +1,5 @@
 # .gitignore
+cmsg.txt
 
 # NixOS files
 result
