@@ -3,3 +3,6 @@
 # NixOS files
 result
 
+# Local configuration files
+nixos/network.nix
+

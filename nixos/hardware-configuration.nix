@@ -13,6 +13,8 @@
   boot.kernelModules = [ "kvm-amd" ];
   boot.extraModulePackages = [ ];
 
+  hardware.enableRedistributableFirmware = true;
+
   fileSystems."/" =
     { device = "/dev/disk/by-uuid/a2c4b613-bf83-4af4-81ba-4aa0338a2e2c";
       fsType = "ext4";

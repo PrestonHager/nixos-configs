@@ -8,8 +8,9 @@
   imports =
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
+      ./network.nix
       ./users.nix
-#      inputs.home-manager.nixosModules.default
+      inputs.home-manager.nixosModules.default
     ];
 
   users.main = {
@@ -19,12 +20,12 @@
 #    home-manager = import ../home/home.nix;
   };
 
-#  home-manager = {
-#    extraSpecialArgs = { inherit inputs; };
-#    users = {
-#      "prestonh" = import ./home.nix;
-#    };
-#  };
+  home-manager = {
+    extraSpecialArgs = { inherit inputs; };
+    users = {
+      "prestonh" = import ../home/home.nix;
+    };
+  };
 
   # Bootloader.
   boot.loader.systemd-boot.enable = true;
@@ -32,9 +33,6 @@
   boot.loader.efi.canTouchEfiVariables = true;
 
   networking.hostName = "nixos"; # Define your hostname.
-
-  # Enable networking
-  networking.networkmanager.enable = true;
 
   # Enable experimental features
   nix.settings.experimental-features = [ "nix-command" "flakes" ];

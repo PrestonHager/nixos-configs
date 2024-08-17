@@ -92,23 +92,23 @@
     # '';
 
     # zsh rc file
-    ".zshrc".source = profiles/prestonh/zshrc;
+    ".zshrc".source = ../profiles/prestonh/zshrc;
 
     # i3 and i3status-rust configuration files
-    ".config/i3/config".source = profiles/prestonh/config/i3/config;
+    ".config/i3/config".source = ../profiles/prestonh/config/i3/config;
     ".config/i3status-rust/config.toml".source =
-      profiles/prestonh/config/i3status-rust/config.toml;
+      ../profiles/prestonh/config/i3status-rust/config.toml;
 
     # Neovim configuration
-    ".config/nvim/init.lua".source = profiles/prestonh/config/nvim/init.lua;
+    ".config/nvim/init.lua".source = ../profiles/prestonh/config/nvim/init.lua;
     ".config/nvim/lua/config/lazy.lua".source =
-      profiles/prestonh/config/nvim/lua/config/lazy.lua;
+      ../profiles/prestonh/config/nvim/lua/config/lazy.lua;
     ".config/nvim/lua/plugins/spec1.lua".source =
-      profiles/prestonh/config/nvim/lua/plugins/spec1.lua;
+      ../profiles/prestonh/config/nvim/lua/plugins/spec1.lua;
 
     # Kitty terminal configuration
     ".config/kitty/kitty.conf".source =
-      profiles/prestonh/config/kitty/kitty.conf;
+      ../profiles/prestonh/config/kitty/kitty.conf;
   };
 
   # Home Manager can also manage your environment variables through
