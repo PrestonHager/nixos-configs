@@ -5,7 +5,31 @@ let
 in {
   options = {
     users = {
-      main = {
+      extra = {
+        enable = lib.mkEnableOption "Enable the main user";
+        username = lib.mkOption {
+          type = lib.types.str;
+          example = "jaydoe";
+          description = ''
+            username
+          '';
+        };
+        name = lib.mkOption {
+          type = lib.types.str;
+          example = "Jay Doe";
+          description = ''
+            First (Last) name of the user
+          '';
+        };
+        home-manager = lib.mkOption {
+          type = lib.types.nullOr lib.types.path;
+          default = null;
+          description = ''
+            Import a home-manager configuration
+          '';
+        };
+      };
+       main = {
         enable = lib.mkEnableOption "Enable the main user";
         username = lib.mkOption {
           type = lib.types.str;
@@ -36,6 +60,13 @@ in {
     users.users.${config.users.main.username} = {
       isNormalUser = true;
       description = "${config.users.main.name}";
+      extraGroups = [ "networkmanager" "wheel" ];
+      packages = with pkgs; [];
+      shell = pkgs.zsh;
+    };
+    users.users.${config.users.extra.username} = {
+      isNormalUser = true;
+      description = "${config.users.extra.name}";
       extraGroups = [ "networkmanager" "wheel" ];
       packages = with pkgs; [];
       shell = pkgs.zsh;

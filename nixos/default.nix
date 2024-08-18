@@ -12,17 +12,25 @@
       inputs.home-manager.nixosModules.default
     ];
 
-  users.main = {
-    enable = true;
-    username = "prestonh";
-    name = "Preston Hager";
-#    home-manager = import ../home/home.nix;
+  users = {
+    main = {
+      enable = true;
+      username = "prestonh";
+      name = "Preston Hager";
+#      home-manager = import ../home/home.nix;
+    };
+    extra = {
+      enable = true;
+      username = "dylanh";
+      name = "Dylan Hager";
+    };
   };
 
   home-manager = {
     extraSpecialArgs = { inherit inputs; };
     users = {
       "prestonh" = import ../home/home.nix;
+      "dylanh" = import ../home/dylanh.nix;
     };
   };
 
