@@ -13,7 +13,7 @@
   # You should not change this value, even if you update Home Manager. If you do
   # want to update the value, then make sure to first check the Home Manager
   # release notes.
-  home.stateVersion = "23.11"; # Please read the comment before changing.
+  home.stateVersion = "24.05"; # Please read the comment before changing.
 
   # The home.packages option allows you to install Nix packages into your
   # environment.
@@ -22,6 +22,7 @@
     zoxide
     fzf
     lsd
+
     gcc
     xclip
 
@@ -35,6 +36,9 @@
     thefuck
 
     tree
+
+    gh    # GitHub CLI
+    gnupg
 
     # # It is sometimes useful to fine-tune packages, for example, by applying
     # # overrides. You can do that directly here, just don't forget the
@@ -54,16 +58,25 @@
   # You can also change package to one of the following:
   #   chromium, google-chrome, google-chrome-beta, google-chrome-dev, brave, or
   #   vivaldi.
-#  programs.chromium = {
-#    enable = true;
-#    package = pkgs.chromium;
-#    extensions = [
-#      # { id = "cjpalhdlnbpafiamejdnhcphjbkeiagm"; }
-#    ];
-#    commandLineArgs = [
-#      # "--argumentHere"
-#    ];
-#  };
+  programs.chromium = {
+    enable = true;
+    package = pkgs.brave;
+    extensions = [
+      { id = "nngceckbapebfimnlniiiahkandclblb"; }
+    ];
+    commandLineArgs = [
+      # "--argumentHere"
+    ];
+  };
+
+  # Setup local git configuration
+  programs.git = {
+    userName = "Preston Hager";
+    userEmail = "preston@hagerfamily.com";
+    aliases = {
+      ap = "add -p";
+    };
+  };
 
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
   # plain files is through 'home.file'.
@@ -78,6 +91,25 @@
     #   org.gradle.console=verbose
     #   org.gradle.daemon.idletimeout=3600000
     # '';
+
+    # zsh rc file
+    ".zshrc".source = ../profiles/prestonh/zshrc;
+
+    # i3 and i3status-rust configuration files
+    ".config/i3/config".source = ../profiles/prestonh/config/i3/config;
+    ".config/i3status-rust/config.toml".source =
+      ../profiles/prestonh/config/i3status-rust/config.toml;
+
+    # Neovim configuration
+    ".config/nvim/init.lua".source = ../profiles/prestonh/config/nvim/init.lua;
+    ".config/nvim/lua/config/lazy.lua".source =
+      ../profiles/prestonh/config/nvim/lua/config/lazy.lua;
+    ".config/nvim/lua/plugins/spec1.lua".source =
+      ../profiles/prestonh/config/nvim/lua/plugins/spec1.lua;
+
+    # Kitty terminal configuration
+    ".config/kitty/kitty.conf".source =
+      ../profiles/prestonh/config/kitty/kitty.conf;
   };
 
   # Home Manager can also manage your environment variables through
