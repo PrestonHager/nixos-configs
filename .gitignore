@@ -1,0 +1,10 @@
+# .gitignore
+cmsg.txt
+
+# NixOS files
+result
+flake.lock
+
+# Local configuration files
+nixos/network.nix
+

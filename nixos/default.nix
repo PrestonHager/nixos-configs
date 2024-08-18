@@ -8,7 +8,9 @@
   imports =
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
+      ./network.nix
       ./users.nix
+      ./desktop.nix
       inputs.home-manager.nixosModules.default
     ];
 
@@ -16,12 +18,13 @@
     enable = true;
     username = "prestonh";
     name = "Preston Hager";
+#    home-manager = import ../home/home.nix;
   };
 
   home-manager = {
     extraSpecialArgs = { inherit inputs; };
     users = {
-      "prestonh" = import ./home.nix;
+      "prestonh" = import ../home/home.nix;
     };
   };
 
@@ -31,9 +34,6 @@
   boot.loader.efi.canTouchEfiVariables = true;
 
   networking.hostName = "server02"; # Define your hostname.
-
-  # Enable networking
-  networking.networkmanager.enable = true;
 
   # Enable experimental features
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
@@ -63,59 +63,14 @@
     LC_TIME = "en_US.UTF-8";
   };
 
-  # Configure keymap in X11
-#  services = {
-#    xserver = {
-#      enable = true;
-#      autorun = true;
-#      xkb.layout = "us";
-#      desktopManager = {
-#        xterm.enable = false;
-#        xfce.enable = false;
-#      };
-#      windowManager.i3 = {
-#        enable = true;
-#        extraPackages = with pkgs; [
-#          i3status-rust
-#          pasystray
-#        ];
-#      };
-#    };
-#    displayManager = {
-#      defaultSession = "none+i3";
-#    };
-#    pipewire = {
-#      enable = true;
-#      alsa = {
-#        enable = true;
-#        support32Bit = true;
-#      };
-#      pulse.enable = true;
-#    };
-#  };
-#
-#  # This is needed for the audio to work in some apps
-#  nixpkgs.config.pulseaudio = true;
-
   # Configure zsh for the global user
   users.defaultUserShell=pkgs.zsh;
-
-  # Enable fonts local and from the nerd fonts package
-#  fonts = {
-#    fontDir.enable = true;
-#    packages = with pkgs; [
-#      (nerdfonts.override {
-#        fonts = [ "Hack" ];
-#      })
-#    ];
-#  };
 
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-    neovim # Editor
-    wget
-    git
+    neovim      # Editor
+    tmux        # Terminal multiplexer
   ];
 
   # Configure default terminal emulator and editor
@@ -126,23 +81,33 @@
     TERMINAL = "kitty";
   };
 
-  # Enable zsh
   programs = {
+    git = {
+      enable = true;
+      package = pkgs.git;
+      config = {
+        credential.helper = "${
+            pkgs.git.override { withLibsecret = true; }
+          }/bin/git-credential-libsecret";
+        commit.gpgsign = true;
+      };
+    };
+    # Enable zsh
     zsh = {
       enable = true;
       autosuggestions.enable = true;
       zsh-autoenv.enable = true;
       syntaxHighlighting.enable = true;
     };
-    nix-ld = {
-      enable = true;
-      libraries = with pkgs; [
-        # Insert libraries to add to the system
-      ];
-    };
+#    nix-ld = {
+#      enable = true;
+#      libraries = with pkgs; [
+#        # Insert libraries to add to the system
+#      ];
+#    };
  };
 
- # Some programs need SUID wrappers, can be configured further or are
+  # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
   # programs.mtr.enable = true;
   # programs.gnupg.agent = {
@@ -151,15 +116,6 @@
   # };
 
   # List services that you want to enable:
-
-  # Enable flatpak so we can install third-party apps
-#  xdg.portal = {
-#    enable = true;
-#    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
-#    config.common.default = [ "*" ];
-#  };
-#  services.flatpak.enable = true;
-
   # Enable the OpenSSH daemon.
   # services.openssh.enable = true;
   # Optional: use these settings for Public Key authentication only which is
