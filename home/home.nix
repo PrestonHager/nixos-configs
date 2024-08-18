@@ -24,18 +24,6 @@
     fzf
     lsd
 
-    gcc
-    xclip
-
-    python313Full
-    poetry
-    python311Packages.pyopengl
-
-    nodejs_22
-    nodenv
-
-    thefuck
-
     tree
 
     gh    # GitHub CLI
@@ -54,21 +42,6 @@
     #   echo "Hello, ${config.home.username}!"
     # '')
   ];
-
-  # Add the brave browser
-  # You can also change package to one of the following:
-  #   chromium, google-chrome, google-chrome-beta, google-chrome-dev, brave, or
-  #   vivaldi.
-  programs.chromium = {
-    enable = true;
-    package = pkgs.brave;
-    extensions = [
-      { id = "nngceckbapebfimnlniiiahkandclblb"; }
-    ];
-    commandLineArgs = [
-      # "--argumentHere"
-    ];
-  };
 
   # Setup local git configuration
   programs.git = {
