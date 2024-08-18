@@ -1,5 +1,5 @@
 # Add path of the theme
-fpath+=($HOME/.zsh/pure)
+fpath+=($HOME/.nix-profile/share/zsh/site-functions)
 autoload -U promptinit; promptinit
 
 # Lines configured by zsh-newuser-install

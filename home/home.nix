@@ -19,6 +19,7 @@
   # environment.
   home.packages = with pkgs; [
     # Add packages to just this user
+    pure-prompt
     zoxide
     fzf
     lsd
@@ -77,6 +78,17 @@
       ap = "add -p";
     };
   };
+
+  # Setup zsh themes
+#  programs.zsh = {
+#    plugins = [
+#      {
+#        name = "pure";
+#        src = pkgs.pure-prompt;
+#        file = "share/zsh-pure/pure.zsh-theme";
+#      }
+#    ];
+#  };
 
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
   # plain files is through 'home.file'.

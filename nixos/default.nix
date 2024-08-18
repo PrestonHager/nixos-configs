@@ -8,9 +8,7 @@
   imports =
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
-      ./network.nix
       ./users.nix
-      ./desktop.nix
       inputs.home-manager.nixosModules.default
     ];
 
@@ -34,6 +32,8 @@
   boot.loader.efi.canTouchEfiVariables = true;
 
   networking.hostName = "server02"; # Define your hostname.
+
+  networking.networkmanager.enable = true;
 
   # Enable experimental features
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
@@ -65,6 +65,16 @@
 
   # Configure zsh for the global user
   users.defaultUserShell=pkgs.zsh;
+
+  # Enable fonts local and from the nerd fonts package
+  fonts = {
+    fontDir.enable = true;
+    packages = with pkgs; [
+      (nerdfonts.override {
+        fonts = [ "Hack" ];
+      })
+    ];
+  };
 
   # List packages installed in system profile. To search, run:
   # $ nix search wget
