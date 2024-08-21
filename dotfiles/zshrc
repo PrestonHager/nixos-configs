@@ -23,8 +23,10 @@ alias ls=lsd
 # This should probably be the last line in this file
 prompt pure
 
-# The Fuck
-eval $(thefuck --alias)
+# Source thefuck from optional file
+if [[ -a $HOME/.zshrc.d/.zshrc-thefuck ]]; then
+  source $HOME/.zshrc.d/.zshrc-thefuck
+fi
 
 # Custom ls aliases
 alias lt="ls -latr"

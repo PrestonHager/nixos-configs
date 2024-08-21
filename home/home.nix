@@ -79,6 +79,9 @@
 
     # zsh rc file
     ".zshrc".source = ../profiles/prestonh/zshrc;
+    # Optional zshrc-thefuck file
+    # Add this when you want thefuck installed, remove when not
+    ".zshrc.d/.zshrc-thefuck".source = ../profiles/prestonh/zshrc-thefuck;
 
     # i3 and i3status-rust configuration files
     ".config/i3/config".source = ../profiles/prestonh/config/i3/config;
