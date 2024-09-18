@@ -4,6 +4,7 @@
 
 { config, pkgs, inputs, ... }:
 
+pkgs.callPackage ../build.nix { }
 {
   imports =
     [ # Include the results of the hardware scan.
