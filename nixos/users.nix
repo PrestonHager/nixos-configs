@@ -1,4 +1,4 @@
-{ config, pkgs, lib ? pkgs.lib, ... }:
+{ config, pkgs, inputs, lib ? pkgs.lib, ... }:
 
 let
   cfg = config.users.users;
@@ -43,7 +43,7 @@ in {
 #      home-manager = lib.mkIf (${config.users.main.home-manager} != null) {
 #        extraSpecialArgs = { inherit inputs; };
 #        users = {
-#          "${config.users.main.username}" = ${config.users.main.home-manager};
+#          "${config.users.main.username}" = import ${config.users.main.home-manager};
 #        };
   };
 }

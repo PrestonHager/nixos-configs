@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, lib ? pkgs.lib, ... }:
 
 {
   # Home Manager needs a bit of information about you and the paths it should
@@ -37,6 +37,8 @@
 
     tree
 
+    glow
+
     gh    # GitHub CLI
     gnupg
 
@@ -53,6 +55,12 @@
     #   echo "Hello, ${config.home.username}!"
     # '')
   ];
+
+  # Add unfree packages, only allowing specific packages so that other configs
+  # can't install unwanted unfree packages
+#  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
+#     "pkg-name"
+#  ];
 
   # Add the brave browser
   # You can also change package to one of the following:
@@ -128,7 +136,10 @@
   #  /etc/profiles/per-user/prestonh/etc/profile.d/hm-session-vars.sh
   #
   home.sessionVariables = {
-    # EDITOR = "emacs";
+    EDITOR = "nvim";
+    VISUAL = "nvim";
+    SUDO_EDITOR = "nvim";
+#    TERMINAL = "kitty";
   };
 
   # Let Home Manager install and manage itself.

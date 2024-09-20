@@ -10,7 +10,6 @@
       ./hardware-configuration.nix
       ./network.nix
       ./users.nix
-      ./desktop.nix
       inputs.home-manager.nixosModules.default
     ];
 
@@ -18,7 +17,7 @@
     enable = true;
     username = "prestonh";
     name = "Preston Hager";
-#    home-manager = import ../home/home.nix;
+#    home-manager = ../home/home.nix;
   };
 
   home-manager = {
@@ -73,12 +72,11 @@
     tmux        # Terminal multiplexer
   ];
 
-  # Configure default terminal emulator and editor
+  # Configure default editor, these can be overridden by users too
   environment.variables = {
     EDITOR = "nvim";
     VISUAL = "nvim";
     SUDO_EDITOR = "nvim";
-    TERMINAL = "kitty";
   };
 
   programs = {
@@ -90,6 +88,7 @@
             pkgs.git.override { withLibsecret = true; }
           }/bin/git-credential-libsecret";
         commit.gpgsign = true;
+        core.editor = "nvim";
       };
     };
     # Enable zsh
@@ -98,7 +97,16 @@
       autosuggestions.enable = true;
       zsh-autoenv.enable = true;
       syntaxHighlighting.enable = true;
+      interactiveShellInit = ''
+        fpath+=("${pkgs.pure-prompt}/share/zsh/site-functions")
+      '';
+      promptInit = ''
+        if [ "$TERM" != dumb ]; then
+          autoload -U promptinit && promptinit && prompt pure
+        fi
+      '';
     };
+
 #    nix-ld = {
 #      enable = true;
 #      libraries = with pkgs; [
@@ -117,12 +125,17 @@
 
   # List services that you want to enable:
 
+  # Flatpak service to enable users to install flatpak apps
+  services.flatpak = {
+    enable = true;
+  };
+
   # Enable the OpenSSH daemon.
   # services.openssh.enable = true;
   # Optional: use these settings for Public Key authentication only which is
   # more secure than password authentication.
   services.openssh = {
-    enable = true;
+    enable = false;
     settings = {
       PasswordAuthentication = true;
       KbdInteractiveAuthentication = false;
