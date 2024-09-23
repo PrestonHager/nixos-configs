@@ -3,6 +3,6 @@
 Update lazy plugin manager via CLI
 
 ```
-nvim --headless "+Lazy! sycc" +qa
+nvim --headless "+Lazy! sync" +qa
 ```
 

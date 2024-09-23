@@ -8,32 +8,31 @@
   imports =
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
-      ./network.nix
       ./users.nix
-      ./desktop.nix
       inputs.home-manager.nixosModules.default
     ];
 
-  users.main = {
-    enable = true;
-    username = "prestonh";
-    name = "Preston Hager";
-#    home-manager = import ../home/home.nix;
-  };
+  # short-users allows us to create users quickly
+  short-users = [
+    {
+      username = "prestonh";
+      name = "Preston Hager";
+      home-manager.enable = true;
+    }
+  ];
 
-  home-manager = {
-    extraSpecialArgs = { inherit inputs; };
-    users = {
-      "prestonh" = import ../home/home.nix;
-    };
-  };
+  # Configure zsh for the users by default
+  users.defaultUserShell = pkgs.zsh;
 
-  # Bootloader.
+  # Bootloader
   boot.loader.systemd-boot.enable = true;
   boot.loader.systemd-boot.configurationLimit = 15;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  networking.hostName = "nixos"; # Define your hostname.
+  networking.hostName = "ph-nixos"; # Define your hostname.
+
+  # Enable network manager
+  networking.networkmanager.enable = true;
 
   # Enable experimental features
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
@@ -63,9 +62,6 @@
     LC_TIME = "en_US.UTF-8";
   };
 
-  # Configure zsh for the global user
-  users.defaultUserShell=pkgs.zsh;
-
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
@@ -73,12 +69,23 @@
     tmux        # Terminal multiplexer
   ];
 
-  # Configure default terminal emulator and editor
+  # Configure default editor, these can be overridden by users too
   environment.variables = {
     EDITOR = "nvim";
     VISUAL = "nvim";
     SUDO_EDITOR = "nvim";
-    TERMINAL = "kitty";
+  };
+
+  # Create a systemd service that runs once whenever
+  # sysinit-reactivation.target is activated to update neovim plugins
+  systemd.services.update-neovim-plugins = {
+    enable = true;
+    description = "Update neovim plugins";
+    after = [ "sysinit-reactivation.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.neovim}/bin/nvim --headless \"+Lazy! sync\" +qa";
+    };
   };
 
   programs = {
@@ -90,6 +97,7 @@
             pkgs.git.override { withLibsecret = true; }
           }/bin/git-credential-libsecret";
         commit.gpgsign = true;
+        core.editor = "nvim";
       };
     };
     # Enable zsh
@@ -98,7 +106,16 @@
       autosuggestions.enable = true;
       zsh-autoenv.enable = true;
       syntaxHighlighting.enable = true;
+      interactiveShellInit = ''
+        fpath+=("${pkgs.pure-prompt}/share/zsh/site-functions")
+      '';
+      promptInit = ''
+        if [ "$TERM" != dumb ]; then
+          autoload -U promptinit && promptinit && prompt pure
+        fi
+      '';
     };
+
 #    nix-ld = {
 #      enable = true;
 #      libraries = with pkgs; [
@@ -117,12 +134,17 @@
 
   # List services that you want to enable:
 
+  # Flatpak service to enable users to install flatpak apps
+  services.flatpak = {
+    enable = true;
+  };
+
   # Enable the OpenSSH daemon.
   # services.openssh.enable = true;
   # Optional: use these settings for Public Key authentication only which is
   # more secure than password authentication.
   services.openssh = {
-    enable = true;
+    enable = false;
     settings = {
       PasswordAuthentication = true;
       KbdInteractiveAuthentication = false;

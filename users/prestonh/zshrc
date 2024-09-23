@@ -2,6 +2,8 @@
 fpath+=($HOME/.zsh/pure)
 autoload -U promptinit; promptinit
 
+export TERM=xterm-256color
+
 # Lines configured by zsh-newuser-install
 HISTFILE=~/.histfile
 HISTSIZE=1000
@@ -20,9 +22,6 @@ eval "$(zoxide init zsh --cmd cd)"
 
 alias ls=lsd
 
-# This should probably be the last line in this file
-prompt pure
-
 # The Fuck
 eval $(thefuck --alias)
 
@@ -38,4 +37,7 @@ alias vi="nvim"
 # Exclude certain directories when using the `tree` command
 export TREE_EXCLUDE="target"
 alias tree="tree -I '$TREE_EXCLUDE'"
+
+# This should probably be the last line in this file
+prompt pure
 

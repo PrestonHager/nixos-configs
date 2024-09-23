@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, lib ? pkgs.lib, ... }:
 
 {
   # Home Manager needs a bit of information about you and the paths it should
@@ -37,6 +37,8 @@
 
     tree
 
+    glow
+
     gh    # GitHub CLI
     gnupg
 
@@ -53,6 +55,12 @@
     #   echo "Hello, ${config.home.username}!"
     # '')
   ];
+
+  # Add unfree packages, only allowing specific packages so that other configs
+  # can't install unwanted unfree packages
+#  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
+#     "pkg-name"
+#  ];
 
   # Add the brave browser
   # You can also change package to one of the following:
@@ -81,35 +89,14 @@
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
   # plain files is through 'home.file'.
   home.file = {
-    # # Building this configuration will create a copy of 'dotfiles/screenrc' in
-    # # the Nix store. Activating the configuration will then make '~/.screenrc' a
-    # # symlink to the Nix store copy.
-    # ".screenrc".source = dotfiles/screenrc;
+    # Recursively add all files from the config directory
+    ".config/" = {
+      source = ./config;
+      recursive = true;
+    };
 
-    # # You can also set the file content immediately.
-    # ".gradle/gradle.properties".text = ''
-    #   org.gradle.console=verbose
-    #   org.gradle.daemon.idletimeout=3600000
-    # '';
-
-    # zsh rc file
-    ".zshrc".source = ../profiles/prestonh/zshrc;
-
-    # i3 and i3status-rust configuration files
-    ".config/i3/config".source = ../profiles/prestonh/config/i3/config;
-    ".config/i3status-rust/config.toml".source =
-      ../profiles/prestonh/config/i3status-rust/config.toml;
-
-    # Neovim configuration
-    ".config/nvim/init.lua".source = ../profiles/prestonh/config/nvim/init.lua;
-    ".config/nvim/lua/config/lazy.lua".source =
-      ../profiles/prestonh/config/nvim/lua/config/lazy.lua;
-    ".config/nvim/lua/plugins/spec1.lua".source =
-      ../profiles/prestonh/config/nvim/lua/plugins/spec1.lua;
-
-    # Kitty terminal configuration
-    ".config/kitty/kitty.conf".source =
-      ../profiles/prestonh/config/kitty/kitty.conf;
+    # zshrc file
+    ".zshrc".source = ./zshrc;
   };
 
   # Home Manager can also manage your environment variables through
@@ -128,7 +115,10 @@
   #  /etc/profiles/per-user/prestonh/etc/profile.d/hm-session-vars.sh
   #
   home.sessionVariables = {
-    # EDITOR = "emacs";
+    EDITOR = "nvim";
+    VISUAL = "nvim";
+    SUDO_EDITOR = "nvim";
+#    TERMINAL = "kitty";
   };
 
   # Let Home Manager install and manage itself.
