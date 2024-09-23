@@ -89,37 +89,14 @@
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
   # plain files is through 'home.file'.
   home.file = {
-    # # Building this configuration will create a copy of 'dotfiles/screenrc' in
-    # # the Nix store. Activating the configuration will then make '~/.screenrc' a
-    # # symlink to the Nix store copy.
-    # ".screenrc".source = dotfiles/screenrc;
-
-    # # You can also set the file content immediately.
-    # ".gradle/gradle.properties".text = ''
-    #   org.gradle.console=verbose
-    #   org.gradle.daemon.idletimeout=3600000
-    # '';
-
-    # zsh rc file
-    ".zshrc".source = ../profiles/prestonh/zshrc;
-
-    # i3 and i3status-rust configuration files
-    ".config/i3/config".source = ../profiles/prestonh/config/i3/config;
-    ".config/i3status-rust/config.toml".source =
-      ../profiles/prestonh/config/i3status-rust/config.toml;
-
-    # Neovim configuration
-    ".config/nvim/init.lua".source = ../profiles/prestonh/config/nvim/init.lua;
-    ".config/nvim/lua/config/lazy.lua".source =
-      ../profiles/prestonh/config/nvim/lua/config/lazy.lua;
-    ".config/nvim/lua/plugins/" = {
-      source = ../profiles/prestonh/config/nvim/lua/plugins;
+    # Recursively add all files from the config directory
+    ".config/" = {
+      source = ./config;
       recursive = true;
     };
 
-    # Kitty terminal configuration
-    ".config/kitty/kitty.conf".source =
-      ../profiles/prestonh/config/kitty/kitty.conf;
+    # zshrc file
+    ".zshrc".source = ./zshrc;
   };
 
   # Home Manager can also manage your environment variables through

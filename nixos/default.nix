@@ -12,26 +12,24 @@
       inputs.home-manager.nixosModules.default
     ];
 
-  users.main = {
-    enable = true;
-    username = "prestonh";
-    name = "Preston Hager";
-#    home-manager = ../home/home.nix;
-  };
+  # short-users allows us to create users quickly
+  short-users = [
+    {
+      username = "prestonh";
+      name = "Preston Hager";
+      home-manager.enable = true;
+    }
+  ];
 
-  home-manager = {
-    extraSpecialArgs = { inherit inputs; };
-    users = {
-      "prestonh" = import ../home/home.nix;
-    };
-  };
+  # Configure zsh for the users by default
+  users.defaultUserShell = pkgs.zsh;
 
-  # Bootloader.
+  # Bootloader
   boot.loader.systemd-boot.enable = true;
   boot.loader.systemd-boot.configurationLimit = 15;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  networking.hostName = "nixos"; # Define your hostname.
+  networking.hostName = "ph-nixos"; # Define your hostname.
 
   # Enable network manager
   networking.networkmanager.enable = true;
@@ -63,9 +61,6 @@
     LC_TELEPHONE = "en_US.UTF-8";
     LC_TIME = "en_US.UTF-8";
   };
-
-  # Configure zsh for the global user
-  users.defaultUserShell=pkgs.zsh;
 
   # List packages installed in system profile. To search, run:
   # $ nix search wget
