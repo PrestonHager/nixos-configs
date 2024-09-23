@@ -112,8 +112,10 @@
     ".config/nvim/init.lua".source = ../profiles/prestonh/config/nvim/init.lua;
     ".config/nvim/lua/config/lazy.lua".source =
       ../profiles/prestonh/config/nvim/lua/config/lazy.lua;
-    ".config/nvim/lua/plugins/spec1.lua".source =
-      ../profiles/prestonh/config/nvim/lua/plugins/spec1.lua;
+    ".config/nvim/lua/plugins/" = {
+      source = ../profiles/prestonh/config/nvim/lua/plugins;
+      recursive = true;
+    };
 
     # Kitty terminal configuration
     ".config/kitty/kitty.conf".source =
