@@ -76,6 +76,18 @@
     SUDO_EDITOR = "nvim";
   };
 
+  # Create a systemd service that runs once whenever
+  # sysinit-reactivation.target is activated to update neovim plugins
+  systemd.services.update-neovim-plugins = {
+    enable = true;
+    description = "Update neovim plugins";
+    after = [ "sysinit-reactivation.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.neovim}/bin/nvim --headless \"+Lazy! sync\" +qa";
+    };
+  };
+
   programs = {
     git = {
       enable = true;
