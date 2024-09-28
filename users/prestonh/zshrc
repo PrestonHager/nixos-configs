@@ -32,7 +32,9 @@ alias ltl="lt --color=always | less -R"
 
 # Allow git access as root using user configs
 alias gsudo='sudo git -c "include.path='"${XDG_CONFIG_DIR:-$HOME/.config}/git/config\" -c \"include.path=$HOME/.gitconfig\""
-
+# Do the same for neovim
+alias nvims="sudo XDG_CONFIG_HOME=\"$HOME/.config/\" nvim"
+#-u ${XDG_CONFIG_DIR:-$HOME/.config}/nvim/init.lua"
 
 # Map all the vi's to neovim
 alias vim="nvim"
