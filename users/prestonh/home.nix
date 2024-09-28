@@ -79,8 +79,13 @@
 
   # Setup local git configuration
   programs.git = {
+    enable = true;
     userName = "Preston Hager";
     userEmail = "preston@hagerfamily.com";
+    signing = {
+      signByDefault = true;
+      key = "preston@hagerfamily.com";
+    };
     aliases = {
       ap = "add -p";
     };
@@ -97,6 +102,21 @@
 
     # zshrc file
     ".zshrc".source = ./zshrc;
+  };
+
+  # Create a systemd service that runs once whenever
+  # sysinit-reactivation.target is activated to update neovim plugins
+  systemd.user.services.update-neovim-plugins = {
+    Unit = {
+      Description = "Update neovim plugins";
+    };
+    Install = {
+      WantedBy = [ "default.target" "sysinit-reactivation.target" ];
+    };
+    Service = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.neovim}/bin/nvim --headless '+Lazy! sync' +qa";
+    };
   };
 
   # Home Manager can also manage your environment variables through
