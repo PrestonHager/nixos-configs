@@ -41,11 +41,33 @@ sudo nixos-rebuild switch --flake /etc/nixos#headless
 You may want to customize the username, config files, etc. To do this, edit the
 username in `configuration.nix`. Then either copy the files from
 `users/prestonh` to `users/yourusername` or create an empty directory and copy
-`users/prestonh/home.nix` into it.
+`users/prestonh/home.nix` (and dependancies) into it.
+
+The current implementation of `users/prestonh/home.nix` contains the following
+programs and configurations:
+
+ + Many CLI tools to aid in speedy development including:
+    - [zoxide][1] alternative cd command
+    - [fzf][2] popular fuzzy finder
+    - [lsd][3] (LSDeluxe), which give more readable file listings
+    - [glow][4] a markdown view
+    - and more!
+ + [Neovim][5] with the [lazy plugin manager][6]
+ + [Brave browser][7], if a desktop environment is setup. You can change this to
+   any chromium-based browser.
+ + Git configuration in the `home-porgrams.nix` file with email, name, etc.
+ + Supplimental programs, which can be commented/uncommented as necessary in
+   the `user-packages.nix` file:
+    - gcc toolchain
+    - [Python 3.13][8] and [Poetry][9]
+    - [NodeJS][10] and nodenv
+    - [GitHub's GLI][11]
+    - [GNU PG][12]
 
 ## Development
 
-You may want to change the remote to use SSH instead of HTTPS.
+You may want to change the remote to use SSH instead of HTTPS. This will of
+course require SSH keys to be setup with your GitHub account as well.
 
 ```sh
 sudo git remote set-url origin git@github.com:PrestonHager/nixos-configs.git
@@ -54,4 +76,16 @@ sudo git remote set-url origin git@github.com:PrestonHager/nixos-configs.git
 Replace `PrestonHager` with your GitHub username after you have forked the
 repository.
 
+[1]: https://github.com/ajeetdsouza/zoxide
+[2]: https://github.com/junegunn/fzf
+[3]: https://github.com/lsd-rs/lsd
+[4]: https://github.com/charmbracelet/glow
+[5]: https://neovim.io/
+[6]: https://lazy.folke.io/
+[7]: https://brave.com/
+[8]: https://www.python.org/
+[9]: https://python-poetry.org/
+[10]: https://nodejs.org/
+[11]: https://cli.github.com/
+[12]: https://www.gnupg.org/
 
