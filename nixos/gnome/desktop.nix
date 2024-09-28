@@ -56,6 +56,9 @@
   };
 
   # Enable flatpak so we can install third-party apps
+  services.flatpak = {
+    enable = true;
+  };
   xdg.portal = {
     enable = true;
     config.common.default = [ "*" ];

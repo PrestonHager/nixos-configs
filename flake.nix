@@ -20,10 +20,11 @@
       # Different configuration are selected by adding #config after the nixos
       # directory. For example `nixos-rebuild switch --flake /etc/nixos#default`
       # The default configuration configures a headless system.
-      default = nixpkgs.lib.nixosSystem {
+      headless = nixpkgs.lib.nixosSystem {
         specialArgs = {inherit inputs;};
         modules = [
           ./nixos
+          ./nixos/headless
           inputs.home-manager.nixosModules.default
           ({ pkgs, ... }: {
             nixpkgs.overlays = [ rust-overlay.overlays.default ];
