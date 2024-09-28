@@ -48,6 +48,6 @@
     EDITOR = "nvim";
     VISUAL = "nvim";
     SUDO_EDITOR = "nvim";
-    TERMINAL = "kitty";
+#    TERMINAL = "kitty";
   };
 }
