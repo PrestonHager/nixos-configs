@@ -29,7 +29,7 @@
   boot.loader.systemd-boot.configurationLimit = 15;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  networking.hostName = "ph-nixos"; # Define your hostname.
+  networking.hostName = "server02"; # Define your hostname.
 
   # Enable network manager
   networking.networkmanager.enable = true;
@@ -97,7 +97,7 @@
             pkgs.git.override { withLibsecret = true; }
           }/bin/git-credential-libsecret";
         commit.gpgsign = true;
-        core.editor = "nvim";
+        core.editor = "${pkgs.neovim}/bin/nvim";
       };
     };
     # Enable zsh
@@ -133,25 +133,6 @@
   # };
 
   # List services that you want to enable:
-
-  # Flatpak service to enable users to install flatpak apps
-  services.flatpak = {
-    enable = true;
-  };
-
-  # Enable the OpenSSH daemon.
-  # services.openssh.enable = true;
-  # Optional: use these settings for Public Key authentication only which is
-  # more secure than password authentication.
-  services.openssh = {
-    enable = false;
-    settings = {
-      PasswordAuthentication = true;
-      KbdInteractiveAuthentication = false;
-      # Only enable this if needed
-      # PermitRootLogin = true;
-    };
-  };
 
   # Open ports in the firewall.
   # networking.firewall.allowedTCPPorts = [ ... ];
