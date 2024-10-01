@@ -6,5 +6,5 @@ result
 flake.lock
 
 # Local configuration files
-nixos/network.nix
+nixos/hardware-configuration.nix
 
