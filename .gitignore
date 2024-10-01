@@ -1,5 +1,5 @@
 # .gitignore
-cmsg.txt
+COMMIT_EDITMSG
 
 # NixOS files
 result
