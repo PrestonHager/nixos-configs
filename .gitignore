@@ -5,6 +5,3 @@ COMMIT_EDITMSG
 result
 flake.lock
 
-# Local configuration files
-nixos/hardware-configuration.nix
-

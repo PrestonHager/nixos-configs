@@ -29,7 +29,7 @@
   boot.loader.systemd-boot.configurationLimit = 15;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  networking.hostName = "server02"; # Define your hostname.
+  networking.hostName = "ph-nixos"; # Define your hostname.
 
   # Enable network manager
   networking.networkmanager.enable = true;
