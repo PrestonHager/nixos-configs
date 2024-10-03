@@ -44,6 +44,9 @@ alias vi="nvim"
 export TREE_EXCLUDE="target"
 alias tree="tree -I '$TREE_EXCLUDE'"
 
+# Add directories to the user path
+export PATH="$PATH:$HOME/.npm/bin"
+
 # This should probably be the last line in this file
 prompt pure
 

@@ -15,7 +15,7 @@
     python311Packages.pyopengl
 
     # NodeJS environments
-    nodejs_22
+    nodejs
     nodenv
 
     # GitHub CLI
