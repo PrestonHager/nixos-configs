@@ -1,4 +1,4 @@
-{ config, pkgs, lib ? pkgs.lib, ... }:
+{ config, ... }:
 
 {
   # Enable the HTTP/HTTPS ports on the firewall
@@ -61,6 +61,14 @@
             proxy_set_header Connection "upgrade";
           '';
         };
+      "cloud.prestonhager.com" = (SSL // {
+        locations."/".proxyPass = "http://localhost:8080/";
+      });
+      "vault.prestonhager.com" = (SSL // {
+        locations."/".proxyPass = "http://localhost:8081/";
+      });
+      "net.prestonhager.com" = (SSL // {
+        locations."/".proxyPass = "http://localhost:8082/";
       });
     };
   };

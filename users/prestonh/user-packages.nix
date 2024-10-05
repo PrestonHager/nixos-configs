@@ -31,6 +31,13 @@
     # markdown viewer (with edit button)
     glow
 
+    # basic C toolchain
+    gcc
+    xclip
+
+    # neovim Copilot requires nodejs
+    nodejs
+
     # GitHub CLI
     gh
     gnupg

@@ -17,6 +17,7 @@ in
       ./containers
       # Disable the yubikey module if it's not needed
       ./yubikey.nix
+      ./nginx # nginx module, further customization available in nginx folder
       inputs.home-manager.nixosModules.default
       # OpenLDAP
 #      ./ldap.nix
