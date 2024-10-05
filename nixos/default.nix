@@ -9,6 +9,7 @@
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
       ./users.nix
+      ./nginx # nginx module, further customization available in nginx folder
       inputs.home-manager.nixosModules.default
     ];
 

@@ -9,14 +9,8 @@
     gcc
     xclip
 
-    # Python support, latest is 3.13 as of 28 Sep. 2024
-    python313Full
-    poetry
-    python311Packages.pyopengl
-
-    # NodeJS environments
-    nodejs_22
-    nodenv
+    # neovim Copilot requires nodejs
+    nodejs
 
     # GitHub CLI
     gh
