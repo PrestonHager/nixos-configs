@@ -21,6 +21,18 @@
     }
   ];
 
+  # Enable login via hardware keys
+  security.pam.services = {
+    login.u2fAuth = true;
+    sudo.u2fAuth = true;
+  };
+  # Enable a prompt for a hardware key
+  security.pam.u2f.cue = true;
+  # Enable pcsclite for smart card support
+  services.pcscd = {
+    enable = true;
+  };
+
   # Configure zsh for the users by default
   users.defaultUserShell = pkgs.zsh;
 
@@ -67,6 +79,7 @@
   environment.systemPackages = with pkgs; [
     neovim      # Editor
     tmux        # Terminal multiplexer
+    tio         # Serial terminal
   ];
 
   # Configure default editor, these can be overridden by users too
@@ -112,7 +125,7 @@
 #    };
  };
 
- # Some programs need SUID wrappers, can be configured further or are
+  # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
   # programs.mtr.enable = true;
   # programs.gnupg.agent = {
