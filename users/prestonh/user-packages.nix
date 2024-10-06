@@ -5,23 +5,24 @@
   imports = [ ];
 
   home.packages = with pkgs; [
-    # basic C toolchain
-    gcc
+    # Clipboard manager
     xclip
-
-    # Python support, latest is 3.13 as of 28 Sep. 2024
-    python313Full
-    poetry
-    python311Packages.pyopengl
-
-    # NodeJS environments
-    nodejs
-    nodenv
 
     # GitHub CLI
     gh
     gnupg
 
+    # Terminal based image viewer
+    timg
+
+    # NodeJS is required for the Copilot plugin used in neovim
+    nodejs
+
+    # Yubikey Tools
+    yubikey-personalization
+    yubikey-personalization-gui
+    yubikey-manager
+    yubikey-manager-qt
   ];
 
   # Add unfree packages, only allowing specific packages so that other configs

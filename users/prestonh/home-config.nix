@@ -9,6 +9,7 @@
       source = ./config;
       recursive = true;
     };
+    ".config/user-dirs.dirs".source = ./config/user-dirs.dirs;
 
     # zshrc file
     ".zshrc".source = ./zshrc;
