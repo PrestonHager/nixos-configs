@@ -74,9 +74,9 @@
 
   # Configure default editor, these can be overridden by users too
   environment.variables = {
-    EDITOR = "nvim";
-    VISUAL = "nvim";
-    SUDO_EDITOR = "nvim";
+    EDITOR = "vim";
+    VISUAL = "vim";
+    SUDO_EDITOR = "vim";
   };
 
   programs = {

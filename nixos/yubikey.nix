@@ -32,7 +32,7 @@
     };
     u2f.enable = true;
     # Enable a prompt for a hardware key
-    u2f.cue = true;
+    u2f.settings.cue = true;
   };
   # Enable PC/SC daemon for smart card support
   services.pcscd = {
