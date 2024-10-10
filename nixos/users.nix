@@ -68,6 +68,7 @@ in {
     home-manager = lib.mkIf
       (builtins.any (user: user.home-manager.enable == true) config.short-users) {
       extraSpecialArgs = { inherit inputs; };
+      backupFileExtension = ".bak";
       users = builtins.listToAttrs
         (builtins.map (user: {
           name = "${user.username}";
