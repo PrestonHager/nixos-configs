@@ -5,9 +5,15 @@
   # plain files is through 'home.file'.
   home.file = {
     # Recursively add all files from the config directory
-    ".config/" = {
-      source = ./config;
+    ".config/nvim" = {
+      source = ./config/nvim;
       recursive = true;
+      executable = true;
+    };
+    ".config/kitty" = {
+      source = ./config/kitty;
+      recursive = true;
+      executable = true;
     };
     ".config/user-dirs.dirs".source = ./config/user-dirs.dirs;
 

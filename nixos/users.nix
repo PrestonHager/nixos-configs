@@ -66,7 +66,7 @@ in {
       }) (builtins.filter (user: user.enable) config.short-users));
     # Setup home manager if enabled (not null)
     home-manager = lib.mkIf
-      (builtins.any (user: user.home-manager != null) config.short-users) {
+      (builtins.any (user: user.home-manager.enable == true) config.short-users) {
       extraSpecialArgs = { inherit inputs; };
       users = builtins.listToAttrs
         (builtins.map (user: {
