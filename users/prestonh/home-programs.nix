@@ -4,6 +4,7 @@
   # Import larger program configurations
   imports = [
     ./programs/tmux.nix
+    ./programs/neovim.nix
   ];
 
   # Local zsh plugins

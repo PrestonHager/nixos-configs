@@ -41,10 +41,6 @@ alias gsudo='sudo git -c "include.path='"${XDG_CONFIG_DIR:-$HOME/.config}/git/co
 alias nvims="sudo XDG_CONFIG_HOME=\"$HOME/.config/\" nvim"
 #-u ${XDG_CONFIG_DIR:-$HOME/.config}/nvim/init.lua"
 
-# Map all the vi's to neovim
-alias vim="nvim"
-alias vi="nvim"
-
 # Exclude certain directories when using the `tree` command
 export TREE_EXCLUDE="target"
 alias tree="tree -I '$TREE_EXCLUDE'"

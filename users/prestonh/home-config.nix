@@ -5,16 +5,6 @@
   # plain files is through 'home.file'.
   home.file = {
     # Recursively add all files from the config directory
-    ".config/nvim" = {
-      source = ./config/nvim;
-      recursive = true;
-      executable = true;
-    };
-    ".config/kitty" = {
-      source = ./config/kitty;
-      recursive = true;
-      executable = true;
-    };
     ".config/user-dirs.dirs".source = ./config/user-dirs.dirs;
 
     # zshrc file
@@ -23,18 +13,19 @@
 
   # Create a systemd service that runs once whenever
   # sysinit-reactivation.target is activated to update neovim plugins
-  systemd.user.services.update-neovim-plugins = {
-    Unit = {
-      Description = "Update neovim plugins";
-    };
-    Install = {
-      WantedBy = [ "default.target" "sysinit-reactivation.target" ];
-    };
-    Service = {
-      Type = "oneshot";
-      ExecStart = "${pkgs.neovim}/bin/nvim --headless '+Lazy! sync' +qa";
-    };
-  };
+#  systemd.user.services.update-neovim-plugins = {
+#    Unit = {
+#      Description = "Update neovim plugins";
+#      After = [ "sysinit-reactivation.target" ];
+#    };
+#    Install = {
+#      WantedBy = [ "default.target" "sysinit-reactivation.target" ];
+#    };
+#    Service = {
+#      Type = "oneshot";
+#      ExecStart = "${pkgs.neovim}/bin/nvim --headless '+Lazy! sync' +qa";
+#    };
+#  };
 
   # Home Manager can also manage your environment variables through
   # 'home.sessionVariables'. If you don't want to manage your shell through Home

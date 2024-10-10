@@ -67,7 +67,7 @@
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-    neovim      # Editor
+    vim      # Editor
     tmux        # Terminal multiplexer
     tio         # Serial terminal
   ];
@@ -88,7 +88,7 @@
             pkgs.git.override { withLibsecret = true; }
           }/bin/git-credential-libsecret";
         commit.gpgsign = true;
-        core.editor = "${pkgs.neovim}/bin/nvim";
+        core.editor = "${pkgs.vim}/bin/vim";
       };
     };
     # Enable zsh

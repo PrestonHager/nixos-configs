@@ -15,20 +15,14 @@
     # Terminal based image viewer
     timg
 
-    # NodeJS is required for the Copilot plugin used in neovim
-    nodejs
-
-    # Yubikey Tools
-    yubikey-personalization
-    yubikey-personalization-gui
-    yubikey-manager
-    yubikey-manager-qt
+    # Obsidian Application
+    obsidian
   ];
 
   # Add unfree packages, only allowing specific packages so that other configs
   # can't install unwanted unfree packages
-#  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
-#     "pkg-name"
-#  ];
+  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
+     "obsidian"
+  ];
 
 }
