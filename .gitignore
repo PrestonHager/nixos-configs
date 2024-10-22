@@ -1,10 +1,7 @@
 # .gitignore
-cmsg.txt
+COMMIT_EDITMSG
 
 # NixOS files
 result
 flake.lock
-
-# Local configuration files
-nixos/network.nix
 

@@ -2,7 +2,7 @@
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
-{ config, pkgs, inputs, ... }:
+{ config, pkgs, lib ? pkgs.lib, inputs, ... }:
 
 {
   imports =
@@ -12,6 +12,8 @@
       ./nginx # nginx module, further customization available in nginx folder
       # Containers submodule
       ./containers
+      # Disable the yubikey module if it's not needed
+      ./yubikey.nix
       inputs.home-manager.nixosModules.default
       # OpenLDAP
       ./ldap.nix
@@ -26,6 +28,14 @@
     }
   ];
 
+  # Configure specific unfree packages that are used across the system
+  # Note that in order to use an unfree package in home manager it must also be
+  # listed here.
+  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
+    "copilot.vim"
+    "obsidian"
+  ];
+
   # Configure zsh for the users by default
   users.defaultUserShell = pkgs.zsh;
 
@@ -34,7 +44,7 @@
   boot.loader.systemd-boot.configurationLimit = 15;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  networking.hostName = "server02"; # Define your hostname.
+  networking.hostName = "ph-nixos"; # Define your hostname.
 
   # Enable network manager
   networking.networkmanager.enable = true;
@@ -70,15 +80,16 @@
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-    neovim      # Editor
+    vim      # Editor
     tmux        # Terminal multiplexer
+    tio         # Serial terminal
   ];
 
   # Configure default editor, these can be overridden by users too
   environment.variables = {
-    EDITOR = "nvim";
-    VISUAL = "nvim";
-    SUDO_EDITOR = "nvim";
+    EDITOR = "vim";
+    VISUAL = "vim";
+    SUDO_EDITOR = "vim";
   };
 
   programs = {
@@ -90,7 +101,7 @@
             pkgs.git.override { withLibsecret = true; }
           }/bin/git-credential-libsecret";
         commit.gpgsign = true;
-        core.editor = "${pkgs.neovim}/bin/nvim";
+        core.editor = "${pkgs.vim}/bin/vim";
       };
     };
     # Enable zsh
@@ -117,7 +128,7 @@
 #    };
  };
 
- # Some programs need SUID wrappers, can be configured further or are
+  # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
   # programs.mtr.enable = true;
   # programs.gnupg.agent = {
@@ -126,6 +137,16 @@
   # };
 
   # List services that you want to enable:
+
+  # Enable Pipewire audio server
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    alsa.support32Bit = true;
+    pulse.enable = true;
+    # Enable support for JACK audio applications or not
+#    jack.enable = true;
+  };
 
   # Open ports in the firewall.
   # networking.firewall.allowedTCPPorts = [ ... ];

@@ -9,6 +9,7 @@
       source = ./config;
       recursive = true;
     };
+#    ".config/user-dirs.dirs".source = ./config/user-dirs.dirs;
 
     # zshrc file
     ".zshrc".source = ./zshrc;
@@ -16,18 +17,19 @@
 
   # Create a systemd service that runs once whenever
   # sysinit-reactivation.target is activated to update neovim plugins
-  systemd.user.services.update-neovim-plugins = {
-    Unit = {
-      Description = "Update neovim plugins";
-    };
-    Install = {
-      WantedBy = [ "default.target" "sysinit-reactivation.target" ];
-    };
-    Service = {
-      Type = "oneshot";
-      ExecStart = "${pkgs.neovim}/bin/nvim --headless '+Lazy! sync' +qa";
-    };
-  };
+#  systemd.user.services.update-neovim-plugins = {
+#    Unit = {
+#      Description = "Update neovim plugins";
+#      After = [ "sysinit-reactivation.target" ];
+#    };
+#    Install = {
+#      WantedBy = [ "default.target" "sysinit-reactivation.target" ];
+#    };
+#    Service = {
+#      Type = "oneshot";
+#      ExecStart = "${pkgs.neovim}/bin/nvim --headless '+Lazy! sync' +qa";
+#    };
+#  };
 
   # Home Manager can also manage your environment variables through
   # 'home.sessionVariables'. If you don't want to manage your shell through Home

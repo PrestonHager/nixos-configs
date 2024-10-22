@@ -4,6 +4,11 @@ autoload -U promptinit; promptinit
 
 export TERM=xterm-256color
 
+export NIX_BUILD_SHELL=$(which zsh)
+
+# load plugins
+source $HOME/.zsh/plugins/zsh-nix-shell/nix-shell.plugin.zsh
+
 # Lines configured by zsh-newuser-install
 HISTFILE=~/.histfile
 HISTSIZE=1000
@@ -36,13 +41,12 @@ alias gsudo='sudo git -c "include.path='"${XDG_CONFIG_DIR:-$HOME/.config}/git/co
 alias nvims="sudo XDG_CONFIG_HOME=\"$HOME/.config/\" nvim"
 #-u ${XDG_CONFIG_DIR:-$HOME/.config}/nvim/init.lua"
 
-# Map all the vi's to neovim
-alias vim="nvim"
-alias vi="nvim"
-
 # Exclude certain directories when using the `tree` command
 export TREE_EXCLUDE="target"
 alias tree="tree -I '$TREE_EXCLUDE'"
+
+# Add directories to the user path
+export PATH="$PATH:$HOME/.npm/bin"
 
 # This should probably be the last line in this file
 prompt pure

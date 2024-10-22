@@ -49,6 +49,7 @@ in {
   config = lib.mkIf
     (config.short-users != null && builtins.any (user: user.enable) config.short-users) {
     # Create the users attribute set with each user's configuration
+    users.mutableUsers = false;
     users.users = builtins.listToAttrs
       (builtins.map (user: {
         name = "${user.username}";
@@ -58,16 +59,18 @@ in {
           extraGroups = [ "networkmanager" "wheel" ];
           packages = with pkgs; [];
           shell = pkgs.zsh;
-          hashedPasswordFile = 
-            lib.mkIf
+          hashedPasswordFile = lib.mkIf
             (builtins.pathExists (./. + "/../users/${user.username}/passwd"))
-            "/../nixos/users/${user.username}/passwd";
+            "/etc/nixos/users/${user.username}/passwd";
         };
       }) (builtins.filter (user: user.enable) config.short-users));
     # Setup home manager if enabled (not null)
     home-manager = lib.mkIf
-      (builtins.any (user: user.home-manager != null) config.short-users) {
+      (builtins.any (user: user.home-manager.enable == true) config.short-users) {
       extraSpecialArgs = { inherit inputs; };
+      backupFileExtension = "bak";
+      useGlobalPkgs = true;
+      useUserPackages = true;
       users = builtins.listToAttrs
         (builtins.map (user: {
           name = "${user.username}";
