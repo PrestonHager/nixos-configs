@@ -1,18 +1,18 @@
 {config, pkgs, lib ? pkgs.lib, ... }:
 
-let
-  tmux-super-fingers = pkgs.tmuxPlugins.mkTmuxPlugin
-    {
-      pluginName = "tmux-super-fingers";
-      version = "unstable-2023-01-06";
-      src = pkgs.fetchFromGitHub {
-        owner = "artemave";
-        repo = "tmux_super_fingers";
-        rev = "2771f791a03880b3653c043cff48ee81db66212b";
-        sha256 = "sha256-GnVlV8JRKVx6muVKYvqkCSMds7IBTYp1NFEgQnnuYEc=";
-      };
-    };
-in
+#let
+#  tmux-super-fingers = pkgs.tmuxPlugins.mkTmuxPlugin
+#    {
+#      pluginName = "tmux-super-fingers";
+#      version = "unstable-2023-01-06";
+#      src = pkgs.fetchFromGitHub {
+#        owner = "artemave";
+#        repo = "tmux_super_fingers";
+#        rev = "2771f791a03880b3653c043cff48ee81db66212b";
+#        sha256 = "sha256-GnVlV8JRKVx6muVKYvqkCSMds7IBTYp1NFEgQnnuYEc=";
+#      };
+#    };
+#in
 {
   programs.tmux = {
     enable = true;
@@ -41,25 +41,15 @@ in
           set -g @catppuccin_date_time_text "%Y-%m-%d %H:%M:%S"
         '';
       }
-      {
-        plugin = tmux-super-fingers;
-        extraConfig = ''
-          set -g @super-fingers-key f
-        '';
-      }
+#      {
+#        plugin = tmux-super-fingers;
+#        extraConfig = ''
+#          set -g @super-fingers-key f
+#        '';
+#      }
 
       tmuxPlugins.better-mouse-mode
 
-      {
-        plugin = tmuxPlugins.vim-tmux-navigator;
-        extraConfig = ''
-          set -g @vim_navigator_mapping_left "C-Left C-h"  # use C-h and C-Left
-          set -g @vim_navigator_mapping_right "C-Right C-l"
-          set -g @vim_navigator_mapping_up "C-k"
-          set -g @vim_navigator_mapping_down "C-j"
-          set -g @vim_navigator_mapping_prev ""  # removes the C-\ binding
-        '';
-      }
       {
         plugin = tmuxPlugins.resurrect;
         extraConfig = ''
@@ -93,6 +83,26 @@ in
 
       # Quick reload for faster development, turn off when not in use
       bind r source-file $HOME/.config/tmux/tmux.conf \; display "Reloaded!"
+
+      # Setup for vim-tmux-navigator
+      # See: https://github.com/christoomey/vim-tmux-navigator
+      is_vim="ps -o state= -o comm= -t '#{pane_tty}' \
+          | grep -iqE '^[^TXZ ]+ +(\\S+\\/)?g?(view|l?n?vim?x?|fzf)(diff)?$'"
+      bind-key -n 'M-h' if-shell "$is_vim" 'send-keys M-h'  'select-pane -L'
+      bind-key -n 'M-j' if-shell "$is_vim" 'send-keys M-j'  'select-pane -D'
+      bind-key -n 'M-k' if-shell "$is_vim" 'send-keys M-k'  'select-pane -U'
+      bind-key -n 'M-l' if-shell "$is_vim" 'send-keys M-l'  'select-pane -R'
+      tmux_version='$(tmux -V | sed -En "s/^tmux ([0-9]+(.[0-9]+)?).*/\1/p")'
+      if-shell -b '[ "$(echo "$tmux_version < 3.0" | bc)" = 1 ]' \
+          "bind-key -n 'M-\\' if-shell \"$is_vim\" 'send-keys M-\\'  'select-pane -l'"
+      if-shell -b '[ "$(echo "$tmux_version >= 3.0" | bc)" = 1 ]' \
+          "bind-key -n 'M-\\' if-shell \"$is_vim\" 'send-keys M-\\\\'  'select-pane -l'"
+
+      bind-key -T copy-mode-vi 'M-h' select-pane -L
+      bind-key -T copy-mode-vi 'M-j' select-pane -D
+      bind-key -T copy-mode-vi 'M-k' select-pane -U
+      bind-key -T copy-mode-vi 'M-l' select-pane -R
+      bind-key -T copy-mode-vi 'M-\' select-pane -l
     '';
   };
 }
