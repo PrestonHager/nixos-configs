@@ -133,6 +133,16 @@
 
   # List services that you want to enable:
 
+  # Enable Pipewire audio server
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    alsa.support32Bit = true;
+    pulse.enable = true;
+    # Enable support for JACK audio applications or not
+#    jack.enable = true;
+  };
+
   # Open ports in the firewall.
   # networking.firewall.allowedTCPPorts = [ ... ];
   # networking.firewall.allowedUDPPorts = [ ... ];
