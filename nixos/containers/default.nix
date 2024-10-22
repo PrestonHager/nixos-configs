@@ -6,6 +6,7 @@
     # Be sure not to mix podman and docker configurations, and set your backend
     # properly in the virtualisation.oci-containers.backend varaible correctly.
     ./vaultwarden.nix
+#    ./nextcloud.nix
   ];
 
   # Enable Podman (or Docker) for use with oci-containers

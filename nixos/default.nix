@@ -16,7 +16,7 @@
       ./yubikey.nix
       inputs.home-manager.nixosModules.default
       # OpenLDAP
-      ./ldap.nix
+#      ./ldap.nix
     ];
 
   # short-users allows us to create users quickly
