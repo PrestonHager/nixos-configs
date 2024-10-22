@@ -2,7 +2,7 @@
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
-{ config, pkgs, inputs, ... }:
+{ config, pkgs, lib ? pkgs.lib, inputs, ... }:
 
 {
   imports =
@@ -21,6 +21,14 @@
       name = "Preston Hager";
       home-manager.enable = true;
     }
+  ];
+
+  # Configure specific unfree packages that are used across the system
+  # Note that in order to use an unfree package in home manager it must also be
+  # listed here.
+  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
+    "copilot.vim"
+    "obsidian"
   ];
 
   # Configure zsh for the users by default

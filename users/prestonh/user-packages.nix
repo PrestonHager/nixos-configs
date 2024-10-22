@@ -5,9 +5,6 @@
   imports = [ ];
 
   home.packages = with pkgs; [
-    # Clipboard manager
-    xclip
-
     # GitHub CLI
     gh
     gnupg
@@ -17,12 +14,8 @@
 
     # Obsidian Application
     obsidian
-  ];
 
-  # Add unfree packages, only allowing specific packages so that other configs
-  # can't install unwanted unfree packages
-  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
-     "obsidian"
+    # Wireguard VPN
+    wireguard-tools
   ];
-
 }

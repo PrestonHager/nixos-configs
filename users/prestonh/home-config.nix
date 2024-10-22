@@ -5,7 +5,11 @@
   # plain files is through 'home.file'.
   home.file = {
     # Recursively add all files from the config directory
-    ".config/user-dirs.dirs".source = ./config/user-dirs.dirs;
+    ".config/" = {
+      source = ./config;
+      recursive = true;
+    };
+#    ".config/user-dirs.dirs".source = ./config/user-dirs.dirs;
 
     # zshrc file
     ".zshrc".source = ./zshrc;
