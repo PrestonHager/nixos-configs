@@ -10,7 +10,11 @@
       ./hardware-configuration.nix
       ./users.nix
       ./nginx # nginx module, further customization available in nginx folder
+      # Containers submodule
+      ./containers
       inputs.home-manager.nixosModules.default
+      # OpenLDAP
+      ./ldap.nix
     ];
 
   # short-users allows us to create users quickly
