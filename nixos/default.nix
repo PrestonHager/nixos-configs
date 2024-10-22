@@ -9,9 +9,14 @@
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
       ./users.nix
+      ./nginx # nginx module, further customization available in nginx folder
+      # Containers submodule
+      ./containers
       # Disable the yubikey module if it's not needed
       ./yubikey.nix
       inputs.home-manager.nixosModules.default
+      # OpenLDAP
+#      ./ldap.nix
     ];
 
   # short-users allows us to create users quickly

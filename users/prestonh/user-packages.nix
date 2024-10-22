@@ -5,6 +5,13 @@
   imports = [ ];
 
   home.packages = with pkgs; [
+    # basic C toolchain
+    gcc
+    xclip
+
+    # neovim Copilot requires nodejs
+    nodejs
+
     # GitHub CLI
     gh
     gnupg

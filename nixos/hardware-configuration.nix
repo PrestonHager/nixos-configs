@@ -2,6 +2,6 @@
 
 {
   imports = [
-    ../hardware/msi-summit-e16flip/hardware-configuration.nix
+    ../hardware/dell-poweredge-730xd/hardware-configuration.nix
   ];
 }
