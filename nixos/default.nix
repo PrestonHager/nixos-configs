@@ -133,6 +133,8 @@
 
   # List services that you want to enable:
 
+  # Enable realtime kit so that audio server works
+  security.rtkit.enable = true;
   # Enable Pipewire audio server
   services.pipewire = {
     enable = true;
@@ -156,5 +158,5 @@
   # Before changing this value read the documentation for this option
   # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
   system.stateVersion = "24.05"; # Did you read the comment?
-
 }
+
