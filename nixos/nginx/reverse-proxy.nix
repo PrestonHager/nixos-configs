@@ -31,14 +31,6 @@
           proxy_set_header Connection "upgrade";
         '';
       });
-#      "cloud.prestonhager.com" = (SSL // {
-#        locations."/".proxyPass = "http://localhost:8083/";
-#      });
-#      "ldap.prestonhager.com" = (SSL // {
-#        locations."/".extraConfig = ''
-#          deny all
-#        '';
-#      });
 
       # Pterodacyl panel
       "panel.prestonhager.com" = (SSL // {
@@ -63,12 +55,6 @@
         };
       "cloud.prestonhager.com" = (SSL // {
         locations."/".proxyPass = "http://localhost:8080/";
-      });
-      "vault.prestonhager.com" = (SSL // {
-        locations."/".proxyPass = "http://localhost:8081/";
-      });
-      "net.prestonhager.com" = (SSL // {
-        locations."/".proxyPass = "http://localhost:8082/";
       });
     };
   };
