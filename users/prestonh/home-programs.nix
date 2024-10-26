@@ -52,5 +52,6 @@
     aliases = {
       ap = "add -p";
     };
+    extraConfig.init.defaultBranch = "main";
   };
 }
