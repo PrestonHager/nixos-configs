@@ -29,6 +29,11 @@
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
     "copilot.vim"
     "obsidian"
+    # Steam packages for the Steampowered Client
+    "steam"
+    "steam-original"
+    "steam-run"
+    "steam-unwrapped"
   ];
 
   # Configure zsh for the users by default
