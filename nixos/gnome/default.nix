@@ -3,5 +3,6 @@
 {
   imports = [
     ./desktop.nix
+    ./programs/steam.nix
   ];
 }

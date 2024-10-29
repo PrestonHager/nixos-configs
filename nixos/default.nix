@@ -42,6 +42,11 @@
     # Nvidia drivers, also accept the license with config.nvidia.acceptLicense
     "nvidia-x11"
     "nvidia-settings"
+    # Steam packages for the Steampowered Client
+    "steam"
+    "steam-original"
+    "steam-run"
+    "steam-unwrapped"
   ];
   nixpkgs.config.nvidia.acceptLicense = true;
 
