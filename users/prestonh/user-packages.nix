@@ -22,6 +22,9 @@
     # Obsidian Application
     obsidian
 
+    # Arudino IDE
+    arduino
+
     # Wireguard VPN
     wireguard-tools
   ];
