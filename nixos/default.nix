@@ -46,11 +46,11 @@ in
       name = "Preston Hager";
       home-manager.enable = true;
     }
-#    {
-#      username = "dylanh";
-#      name = "Dylan Hager";
-#      home-manager.enable = true;
-#    }
+    #{
+    #  username = "dylanh";
+    #  name = "Dylan Hager";
+    #  home-manager.enable = true;
+    #}
   ];
 
   # Configure sub UID/GID ranges to use tools such as docker/podman
