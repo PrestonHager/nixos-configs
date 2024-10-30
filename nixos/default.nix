@@ -26,11 +26,11 @@
       name = "Preston Hager";
       home-manager.enable = true;
     }
-    {
-      username = "dylanh";
-      name = "Dylan Hager";
-      home-manager.enable = true;
-    }
+#    {
+#      username = "dylanh";
+#      name = "Dylan Hager";
+#      home-manager.enable = true;
+#    }
   ];
 
   # Configure specific unfree packages that are used across the system
