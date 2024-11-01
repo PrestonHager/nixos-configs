@@ -52,6 +52,9 @@
     aliases = {
       ap = "add -p";
     };
-    extraConfig.init.defaultBranch = "main";
+    extraConfig = {
+      core.editor = "${pkgs.neovim}/bin/nvim";
+      init.defaultBranch = "main";
+    };
   };
 }
