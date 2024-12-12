@@ -2,7 +2,8 @@
 
 {
   # Import larger declarations of packages here
-  imports = [ ];
+  imports = [
+  ];
 
   home.packages = with pkgs; [
     # GitHub CLI
@@ -20,5 +21,8 @@
 
     # Wireguard VPN
     wireguard-tools
+
+    # Go Dot engine and editor
+    godot_4
   ];
 }

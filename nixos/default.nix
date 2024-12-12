@@ -29,12 +29,17 @@
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
     "copilot.vim"
     "obsidian"
+    # Nvidia drivers
+    "nvidia-x11"
+    "nvidia-settings"
     # Steam packages for the Steampowered Client
     "steam"
     "steam-original"
     "steam-run"
     "steam-unwrapped"
   ];
+  # Accept the nvidia license if applicable
+  nixpkgs.config.nvidia.acceptLicense = true;
 
   # Configure zsh for the users by default
   users.defaultUserShell = pkgs.zsh;
@@ -80,7 +85,7 @@
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-    vim      # Editor
+    vim         # Editor
     tmux        # Terminal multiplexer
     tio         # Serial terminal
   ];

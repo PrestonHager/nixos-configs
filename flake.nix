@@ -13,6 +13,8 @@
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    envycontrol.url = "github:bayasdev/envycontrol";
   };
 
   outputs = { self, nixpkgs, rust-overlay, ... }@inputs: {

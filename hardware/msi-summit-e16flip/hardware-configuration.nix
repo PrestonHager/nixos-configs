@@ -5,8 +5,41 @@
     (modulesPath + "/installer/scan/not-detected.nix")
   ];
 
+  hardware.graphics.enable =  true;
+  services.xserver.videoDrivers = [ "nvidia" ];
+  hardware.nvidia = {
+    modesetting.enable = true;
+    powerManagement.enable = false;
+    # Fine-grained power management. Turns off GPU when not in use.
+    # Experimental and only works on modern Nvidia GPUs (Turing or newer).
+    powerManagement.finegrained = false;
+    open = true;
+    nvidiaSettings = true;
+    # Enable nvidia graphics cards PRIME
+    # Be sure to replace with your actual bus ids if applicable
+    prime = {
+      intelBusId = "PCI:0:2:0";
+      nvidiaBusId = "PCI:91:0:0";
+      #amdgpuBusId = "PCI:0:0:0";
+      offload = {
+        enable = true;
+        enableOffloadCmd = true;
+      };
+      #sync.enable = true;
+    };
+
+    # Update package based on what type of video card you have
+    # Legacy cards are not supported by unified video driver most other cards
+    # should work with the stable package.
+    # https://www.nvidia.com/en-us/drivers/unix/legacy-gpu/
+    package = config.boot.kernelPackages.nvidiaPackages.stable;
+  };
+
   boot.initrd.availableKernelModules = [ "xhci_pci" "thunderbolt" "nvme" "rtsx_pci_sdmmc" ];
-  boot.initrd.kernelModules = [ ];
+  # Add nvidia kernel modules to the initrd
+  #boot.initrd.kernelModules = [ "nvidia" "i915" "nvidia_modeset" "nvidia_drm" ];
+  # and enable them with kernel parameters
+  boot.kernelParams = [ "nvidia-drm.fbdev=1" ];
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 
