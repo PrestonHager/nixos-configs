@@ -1,5 +1,23 @@
 {
   "nodes": {
+    "envycontrol": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      },
+      "locked": {
+        "lastModified": 1728738753,
+        "narHash": "sha256-NkV9mVSoC/IZsyd2+MjZszExUbStPDqCFep4PnCt2c4=",
+        "owner": "bayasdev",
+        "repo": "envycontrol",
+        "rev": "3097c7185177b5e69230dea8ad5ee0f078add176",
+        "type": "github"
+      },
+      "original": {
+        "owner": "bayasdev",
+        "repo": "envycontrol",
+        "type": "github"
+      }
+    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -22,6 +40,22 @@
     },
     "nixpkgs": {
       "locked": {
+        "lastModified": 1730170245,
+        "narHash": "sha256-PRq4vJjDa+m1mNwkV9H7zVzMhuMqsHJrTGx0iJZ0e0w=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "30c9efeef01e2ad4880bff6a01a61dd99536b3c9",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_2": {
+      "locked": {
         "lastModified": 1728241625,
         "narHash": "sha256-yumd4fBc/hi8a9QgA9IT8vlQuLZ2oqhkJXHPKxH/tRw=",
         "owner": "nixos",
@@ -38,8 +72,9 @@
     },
     "root": {
       "inputs": {
+        "envycontrol": "envycontrol",
         "home-manager": "home-manager",
-        "nixpkgs": "nixpkgs",
+        "nixpkgs": "nixpkgs_2",
         "rust-overlay": "rust-overlay"
       }
     },

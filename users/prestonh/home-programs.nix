@@ -53,7 +53,7 @@
       ap = "add -p";
     };
     extraConfig = {
-      core.editor = "${pkgs.neovim}/bin/nvim";
+      core.editor = "XDG_CONFIG_HOME=\"$HOME/.config/\" ${pkgs.neovim}/bin/nvim";
       init.defaultBranch = "main";
     };
   };

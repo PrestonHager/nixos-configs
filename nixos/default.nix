@@ -48,6 +48,7 @@
     "steam-run"
     "steam-unwrapped"
   ];
+  # Accept the nvidia license if applicable
   nixpkgs.config.nvidia.acceptLicense = true;
 
   # Configure zsh for the users by default
@@ -94,7 +95,7 @@
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-    vim      # Editor
+    vim         # Editor
     tmux        # Terminal multiplexer
     tio         # Serial terminal
   ];
