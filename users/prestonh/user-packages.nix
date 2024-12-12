@@ -24,5 +24,8 @@
 
     # Go Dot engine and editor
     godot_4
+
+    # MPV crossplatform multimedia player
+    mpv
   ];
 }
