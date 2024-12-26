@@ -8,6 +8,15 @@
     [ (modulesPath + "/installer/scan/not-detected.nix")
     ];
 
+  # Include nvidia drivers
+  hardware.graphics.enable = true;
+  services.xserver.videoDrivers = [ "nvidia" ];
+  hardware.nvidia = {
+    modesetting.enable = true;
+    nvidiaSettings = true;
+    package = config.boot.kernelPackages.nvidiaPackages.legacy_470;
+  };
+
   boot.initrd.availableKernelModules = [ "ahci" "ehci_pci" "megaraid_sas" "usb_storage" "usbhid" "sd_mod" ];
   boot.initrd.kernelModules = [ ];
   boot.kernelModules = [ "kvm-intel" ];

@@ -39,7 +39,11 @@
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
     "copilot.vim"
     "obsidian"
+    # Nvidia drivers, also accept the license with config.nvidia.acceptLicense
+    "nvidia-x11"
+    "nvidia-settings"
   ];
+  nixpkgs.config.nvidia.acceptLicense = true;
 
   # Configure zsh for the users by default
   users.defaultUserShell = pkgs.zsh;
