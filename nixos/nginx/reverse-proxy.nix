@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, pkgs, lib ? pkgs.lib, ... }:
 
 {
   # Enable the HTTP/HTTPS ports on the firewall
@@ -31,16 +31,33 @@
           proxy_set_header Connection "upgrade";
         '';
       });
-      "net.prestonhager.com" = (SSL // {
-        locations."/".proxyPass = "http://localhost:8082/";
-      });
-      "cloud.prestonhager.com" = (SSL // {
-        locations."/".proxyPass = "http://localhost:8083/";
-      });
-      "ldap.prestonhager.com" = (SSL // {
+#      "cloud.prestonhager.com" = (SSL // {
+#        locations."/".proxyPass = "http://localhost:8083/";
+#      });
+#      "ldap.prestonhager.com" = (SSL // {
 #        locations."/".extraConfig = ''
 #          deny all
 #        '';
+
+      # Pterodacyl panel
+      "panel.prestonhager.com" = (SSL // {
+        locations."/" = {
+          proxyPass = "http://192.168.8.6:80/";
+          extraConfig = ''
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+          '';
+
+      "node-01.lc1.nm.us.prestonhager.com" = (SSL // {
+        locations."/" = {
+          proxyPass = "http://192.168.8.6:443/";
+          extraConfig = ''
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+          '';
+        };
       });
     };
   };
