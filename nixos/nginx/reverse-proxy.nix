@@ -38,6 +38,7 @@
 #        locations."/".extraConfig = ''
 #          deny all
 #        '';
+#      });
 
       # Pterodacyl panel
       "panel.prestonhager.com" = (SSL // {
@@ -48,6 +49,8 @@
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "upgrade";
           '';
+        };
+      });
 
       "node-01.lc1.nm.us.prestonhager.com" = (SSL // {
         locations."/" = {
