@@ -90,7 +90,7 @@ in
   boot.loader.systemd-boot.configurationLimit = 15;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  networking.hostName = "ph-nixos"; # Define your hostname.
+  networking.hostName = "ace"; # Define your hostname.
 
   # Enable network manager
   networking.networkmanager.enable = true;
@@ -181,10 +181,10 @@ in
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
   # programs.mtr.enable = true;
-  # programs.gnupg.agent = {
-  #   enable = true;
-  #   enableSSHSupport = true;
-  # };
+  programs.gnupg.agent = {
+    enable = true;
+    enableSSHSupport = true;
+  };
 
   # List services that you want to enable:
 

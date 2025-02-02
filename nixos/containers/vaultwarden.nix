@@ -46,7 +46,7 @@
     };
 
     # Finally, the vaultwarden image and version
-    image = "ghcr.io/dani-garcia/vaultwarden:latest";
+    image = "ghcr.io/dani-garcia/vaultwarden:1.33.0";
   };
 }
 
