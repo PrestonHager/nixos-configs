@@ -5,6 +5,14 @@
     (modulesPath + "/installer/scan/not-detected.nix")
   ];
 
+  # Create a swap file
+  swapDevices = [
+    {
+      device = "/var/lib/swapfile";
+      size = 32*1024; # in MiB
+    }
+  ];
+
   hardware.graphics.enable =  true;
   services.xserver.videoDrivers = [ "nvidia" ];
   hardware.nvidia = {
@@ -39,7 +47,7 @@
   # Add nvidia kernel modules to the initrd
   #boot.initrd.kernelModules = [ "nvidia" "i915" "nvidia_modeset" "nvidia_drm" ];
   # and enable them with kernel parameters
-  boot.kernelParams = [ "nvidia-drm.fbdev=1" ];
+  #boot.kernelParams = [ "nvidia-drm.fbdev=1" ];
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 
@@ -53,8 +61,6 @@
       fsType = "vfat";
       options = [ "fmask=0077" "dmask=0077" ];
     };
-
-  swapDevices = [ ];
 
   # Enables DHCP on each ethernet and wireless interface. In case of scripted networking
   # (the default) this is the recommended approach. When using systemd-networkd it's
