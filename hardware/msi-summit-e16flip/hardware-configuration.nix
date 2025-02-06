@@ -7,20 +7,20 @@
 
   # Create a swap file
   swapDevices = [
-    {
-      device = "/var/lib/swapfile";
-      size = 32*1024; # in MiB
-    }
+    #{
+    #  device = "/var/lib/swapfile";
+    #  size = (64+2)*1024; # in MiB
+    #}
   ];
 
   hardware.graphics.enable =  true;
   services.xserver.videoDrivers = [ "nvidia" ];
   hardware.nvidia = {
     modesetting.enable = true;
-    powerManagement.enable = false;
+    powerManagement.enable = true;
     # Fine-grained power management. Turns off GPU when not in use.
     # Experimental and only works on modern Nvidia GPUs (Turing or newer).
-    powerManagement.finegrained = false;
+    powerManagement.finegrained = true;
     open = true;
     nvidiaSettings = true;
     # Enable nvidia graphics cards PRIME
@@ -45,9 +45,9 @@
 
   boot.initrd.availableKernelModules = [ "xhci_pci" "thunderbolt" "nvme" "rtsx_pci_sdmmc" ];
   # Add nvidia kernel modules to the initrd
-  #boot.initrd.kernelModules = [ "nvidia" "i915" "nvidia_modeset" "nvidia_drm" ];
+  boot.initrd.kernelModules = [ "nvidia" "i915" "nvidia_modeset" "nvidia_drm" ];
   # and enable them with kernel parameters
-  #boot.kernelParams = [ "nvidia-drm.fbdev=1" ];
+  boot.kernelParams = [ "nvidia-drm.fbdev=1" ];
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 
