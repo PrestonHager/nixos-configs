@@ -37,6 +37,8 @@
     "steam-original"
     "steam-run"
     "steam-unwrapped"
+    # Allow spotify to be installed
+    "spotify"
   ];
   # Accept the nvidia license if applicable
   nixpkgs.config.nvidia.acceptLicense = true;

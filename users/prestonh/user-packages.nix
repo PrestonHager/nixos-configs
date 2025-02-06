@@ -27,5 +27,13 @@
 
     # MPV crossplatform multimedia player
     mpv
+    # htop program
+    htop-vim
+
+    # Packages for the GPU gnome extension
+    lm_sensors
+
+    # Spotify, this is unfree so add it to the allowed packages too
+    spotify
   ];
 }
