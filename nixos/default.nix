@@ -56,6 +56,9 @@
   # Enable network manager
   networking.networkmanager.enable = true;
 
+  # Enable the OOM killer
+  systemd.oomd.enable = true;
+
   # Enable experimental features
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
