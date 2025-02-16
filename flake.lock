@@ -1,20 +1,23 @@
 {
   "nodes": {
-    "envycontrol": {
+    "conflake": {
       "inputs": {
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": [
+          "tree-sitter-parsers",
+          "nixpkgs"
+        ]
       },
       "locked": {
-        "lastModified": 1728738753,
-        "narHash": "sha256-NkV9mVSoC/IZsyd2+MjZszExUbStPDqCFep4PnCt2c4=",
-        "owner": "bayasdev",
-        "repo": "envycontrol",
-        "rev": "3097c7185177b5e69230dea8ad5ee0f078add176",
+        "lastModified": 1739025932,
+        "narHash": "sha256-8BbSpXfJfy3R7XYX43dQeYZJ7K+IDCfGZb1KgRHN0Pg=",
+        "owner": "ratson",
+        "repo": "conflake",
+        "rev": "69b5b014b79ecd457aa698e383602b07d52683c4",
         "type": "github"
       },
       "original": {
-        "owner": "bayasdev",
-        "repo": "envycontrol",
+        "owner": "ratson",
+        "repo": "conflake",
         "type": "github"
       }
     },
@@ -40,22 +43,6 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1730170245,
-        "narHash": "sha256-PRq4vJjDa+m1mNwkV9H7zVzMhuMqsHJrTGx0iJZ0e0w=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "30c9efeef01e2ad4880bff6a01a61dd99536b3c9",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "ref": "nixpkgs-unstable",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
-    "nixpkgs_2": {
-      "locked": {
         "lastModified": 1728241625,
         "narHash": "sha256-yumd4fBc/hi8a9QgA9IT8vlQuLZ2oqhkJXHPKxH/tRw=",
         "owner": "nixos",
@@ -70,31 +57,45 @@
         "type": "github"
       }
     },
-    "root": {
-      "inputs": {
-        "envycontrol": "envycontrol",
-        "home-manager": "home-manager",
-        "nixpkgs": "nixpkgs_2",
-        "rust-overlay": "rust-overlay"
-      }
-    },
-    "rust-overlay": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
+    "nixpkgs_2": {
       "locked": {
-        "lastModified": 1728527353,
-        "narHash": "sha256-GY755PX8CbGH3O9iKqauhkFTdP9WSKcOfOkZBe3SOqw=",
-        "owner": "oxalica",
-        "repo": "rust-overlay",
-        "rev": "94749eee5a2b351b6893d5bddb0a18f7f01251ac",
+        "lastModified": 1739451785,
+        "narHash": "sha256-3ebRdThRic9bHMuNi2IAA/ek9b32bsy8F5R4SvGTIog=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "1128e89fd5e11bb25aedbfc287733c6502202ea9",
         "type": "github"
       },
       "original": {
-        "owner": "oxalica",
-        "repo": "rust-overlay",
+        "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "home-manager": "home-manager",
+        "nixpkgs": "nixpkgs",
+        "tree-sitter-parsers": "tree-sitter-parsers"
+      }
+    },
+    "tree-sitter-parsers": {
+      "inputs": {
+        "conflake": "conflake",
+        "nixpkgs": "nixpkgs_2"
+      },
+      "locked": {
+        "lastModified": 1739028560,
+        "narHash": "sha256-7joUNhdZfSkuGL65Lbsmuf/NviUjuGtAhbfdPYuFGjk=",
+        "owner": "ratson",
+        "repo": "nix-treesitter",
+        "rev": "d9d35e37a5b2aee2f3f4d14c66e2bf0604dae4ce",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ratson",
+        "repo": "nix-treesitter",
         "type": "github"
       }
     }
