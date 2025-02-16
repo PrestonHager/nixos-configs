@@ -47,12 +47,13 @@
   };
 
   environment.systemPackages = with pkgs; [
-    kitty       # Terminal
+    # Terminal
+    alacritty
   ];
 
   # Set the default terminal environment variable
   environment.variables = {
-    TERMINAL = "kitty";
+    TERMINAL = "alacritty";
   };
 
   # Enable flatpak so we can install third-party apps

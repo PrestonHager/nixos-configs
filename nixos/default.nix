@@ -53,8 +53,8 @@
   # Accept the nvidia license if applicable
   nixpkgs.config.nvidia.acceptLicense = true;
 
-  # Configure zsh for the users by default
-  users.defaultUserShell = pkgs.zsh;
+  # Configure nushell for the users by default
+  users.defaultUserShell = pkgs.nushell;
 
   # Bootloader
   boot.loader.systemd-boot.enable = true;
@@ -103,6 +103,7 @@
     vim         # Editor
     tmux        # Terminal multiplexer
     tio         # Serial terminal
+    nushell     # Shell
   ];
 
   # Configure default editor, these can be overridden by users too
