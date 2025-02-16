@@ -1,19 +1,31 @@
-{ config, pkgs, lib ? pkgs.lib, ... }:
+{ config, pkgs, inputs, ... }:
 
+let
+  treesitterWithGrammars = (pkgs.vimPlugins.nvim-treesitter.withPlugins (p: [
+    inputs.tree-sitter-parsers.packages.x86_64-linux.tree-sitter-move
+  ]));
+  treesitter-parsers = pkgs.symlinkJoin {
+    name = "treesitter-parsers";
+    paths = treesitterWithGrammars.dependencies;
+  };
+  nvim-plugins = with pkgs.vimPlugins; [
+    nvim-cmp
+    obsidian-nvim
+    telescope-nvim
+    vim-tmux-navigator
+    copilot-vim
+    neo-tree-nvim
+    treesitterWithGrammars
+    nvim-treesitter.withAllGrammars
+  ];
+in
 {
   programs.neovim = {
     enable = true;
     withNodeJs = true;
     viAlias = true;
     vimAlias = true;
-    plugins = with pkgs.vimPlugins; [
-      nvim-cmp
-      obsidian-nvim
-      telescope-nvim
-      vim-tmux-navigator
-      copilot-vim
-      nvim-treesitter.withAllGrammars
-    ];
+    plugins = nvim-plugins;
     extraConfig = ''
       set number
       set tabstop=2 softtabstop=2 shiftwidth=2
@@ -41,7 +53,14 @@
           enable = true,
         },
       })
+
+      vim.opt.runtimepath:append("${treesitter-parsers}")
     '';
+  };
+
+  home.file."./.local/share/nvim/nix/nvim-treesitter/" = {
+  recursive = true;
+    source = treesitterWithGrammars;
   };
 }
 
