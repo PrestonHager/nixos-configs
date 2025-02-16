@@ -19,7 +19,7 @@
   ];
 
   hardware.graphics.enable =  true;
-  services.xserver.videoDrivers = [ "nvidia" ];
+  services.xserver.videoDrivers = [ "nvidia" "intel" ];
   hardware.nvidia = {
     modesetting.enable = true;
     powerManagement.enable = true;
@@ -50,9 +50,9 @@
 
   boot.initrd.availableKernelModules = [ "xhci_pci" "thunderbolt" "nvme" "rtsx_pci_sdmmc" ];
   # Add nvidia kernel modules to the initrd
-  boot.initrd.kernelModules = [ "nvidia" "i915" "nvidia_modeset" "nvidia_drm" ];
+  #boot.initrd.kernelModules = [ "nvidia" "i915" "nvidia_modeset" "nvidia_drm" ];
   # and enable them with kernel parameters
-  boot.kernelParams = [ "nvidia-drm.fbdev=1" ];
+  #boot.kernelParams = [ "nvidia-drm.fbdev=1" ];
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 
