@@ -4,7 +4,6 @@
   home.packages = with pkgs; [
     # Nvidia settings
     gnomeExtensions.gpu-profile-selector
-    inputs.envycontrol.packages.x86_64-linux.default
   ];
 
   dconf.settings = with inputs.home-manager.lib.hm.gvariant; {

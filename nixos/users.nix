@@ -58,7 +58,7 @@ in {
           description = "${user.name}";
           extraGroups = [ "networkmanager" "wheel" ];
           packages = with pkgs; [];
-          shell = pkgs.zsh;
+          shell = pkgs.nushell;
           hashedPasswordFile = lib.mkIf
             (builtins.pathExists (./. + "/../users/${user.username}/passwd"))
             "/etc/nixos/users/${user.username}/passwd";
