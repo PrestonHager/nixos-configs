@@ -48,15 +48,6 @@
           inputs.sops-nix.nixosModules.sops
         ];
       };
-      # The i3 configuration configures the i3 desktop environment
-      i3 = nixpkgs.lib.nixosSystem {
-        specialArgs = {inherit inputs;};
-        modules = [
-          ./nixos
-          ./nixos/i3
-          inputs.home-manager.nixosModules.default
-        ];
-      };
     };
   };
 }
