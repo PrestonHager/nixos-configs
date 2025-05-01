@@ -224,8 +224,7 @@ $env.config = {
     }
 
     filesize: {
-        metric: false # true => KB, MB, GB (ISO standard), false => KiB, MiB, GiB (Windows standard)
-        format: "auto" # b, kb, kib, mb, mib, gb, gib, tb, tib, pb, pib, eb, eib, auto
+        unit: "metric" # metric, binary, b, kb, kib, mb, mib, gb, gib, tb, tib, pb, pib, eb, eib
     }
 
     cursor_shape: {
@@ -907,5 +906,5 @@ $env.config = {
 # Disable the welcome banner
 $env.config.show_banner = false
 
-source ~/.cache/carapace/init.nu
+source ~/.config/nushell/completions.nu
 

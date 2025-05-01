@@ -3,6 +3,7 @@
 let
   treesitterWithGrammars = (pkgs.vimPlugins.nvim-treesitter.withPlugins (p: [
     inputs.tree-sitter-parsers.packages.x86_64-linux.tree-sitter-move
+    inputs.tree-sitter-parsers.packages.x86_64-linux.tree-sitter-nu
   ]));
   treesitter-parsers = pkgs.symlinkJoin {
     name = "treesitter-parsers";
@@ -52,6 +53,16 @@ in
         indent = {
           enable = true,
         },
+      })
+
+      -- Set tab width for java file type
+      vim.api.nvim_create_autocmd('FileType', {
+        pattern = 'java',
+        callback = function()
+          vim.opt_local.tabstop = 4
+          vim.opt_local.shiftwidth = 4
+          vim.opt_local.expandtab = true
+        end,
       })
 
       vim.opt.runtimepath:append("${treesitter-parsers}")
