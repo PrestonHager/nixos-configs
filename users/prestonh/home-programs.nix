@@ -25,6 +25,7 @@
   # Setup local git configuration
   programs.git = {
     enable = true;
+    package = pkgs.git;
     userName = "Preston Hager";
     userEmail = "preston@hagerfamily.com";
     signing = {
@@ -32,7 +33,7 @@
       key = "preston@hagerfamily.com";
     };
     aliases = {
-      ap = "add -p";
+      c = "commit -S";
     };
     extraConfig = {
       core.editor = "XDG_CONFIG_HOME=\"$HOME/.config/\" ${pkgs.neovim}/bin/nvim";

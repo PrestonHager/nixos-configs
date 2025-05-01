@@ -57,5 +57,8 @@
 
     # Spotify, this is unfree so add it to the allowed packages too
     spotify
+
+    # Vaultwarden client (aka Bitwarden)
+    bitwarden-desktop
   ];
 }

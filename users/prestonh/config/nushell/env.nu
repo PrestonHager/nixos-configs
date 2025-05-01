@@ -3,7 +3,7 @@
 # version = "0.98.0"
 
 def create_left_prompt [] {
-    let dir = match (do --ignore-shell-errors { $env.PWD | path relative-to $nu.home-path }) {
+    let dir = match (do --ignore-errors { $env.PWD | path relative-to $nu.home-path }) {
         null => $env.PWD
         '' => '~'
         $relative_pwd => ([~ $relative_pwd] | path join)
@@ -107,24 +107,42 @@ $env.config.buffer_editor = "nvim"
 # To load from a custom file you can use:
 # source ($nu.default-config-dir | path join 'custom.nu')
 
-# Enable zoxide and fuzzy-finder
-source ($nu.default-config-dir | path join 'zoxide.nu')
 # Enable the Fuck command
 alias fuck = thefuck $"(history | last 1 | get command | get 0)"
+alias fye = fuck --yeah
 
 # Basic command aliases
 alias l = ls -a
 
+# Create commands for git and nvim with root access
+# neovim with root access
+#def nvims [
+#  file?: string
+#] {
+#  sudo $"XDG_CONFIG_HOME=(if ($env.XDG_CONFIG_HOME? | is-empty) {
+#    $"($env.HOME)/.config" } else { $env.XDG_CONFIG_HOME })" nvim $file
+#}
+
+# git with root access
+#def gsudo [] {
+#  sudo git -c include.path=$"(if ($env.XDG_CONFIG_HOME? | is-empty) { $'($env.HOME)/.config' } else { $env.XDG_CONFIG_HOME })/git/config" -c include.path=$"($env.HOME)/.gitconfig"
+#}
+
+
 # Allow git access as root using user configs
-alias gsudo = sudo git -c include.path="${XDG_CONFIG_DIR:-$env.HOME/.config}/git/config" -c "include.path=$env.HOME/.gitconfig"
+# git with root access
+#alias gsudo = sudo git -c include.path=$"(if ($env.XDG_CONFIG_HOME? | is-empty) { $'($env.HOME)/.config' } else { $env.XDG_CONFIG_HOME })/git/config" -c include.path=$"($env.HOME)/.gitconfig"
+
 # Do the same for neovim
-alias nvims = sudo XDG_CONFIG_HOME="$env.HOME/.config/" nvim
+# neovim with root access
+#alias nvims = sudo $"XDG_CONFIG_HOME=(if ($env.XDG_CONFIG_HOME? | is-empty) { $"($env.HOME)/.config" } else { $env.XDG_CONFIG_HOME })" nvim
+
+# Enable zoxide and fuzzy-finder
+source ($nu.default-config-dir | path join 'zoxide.nu')
 
 # Enable Starship prompt
 mkdir ($nu.data-dir | path join "vendor/autoload")
 starship init nu | save -f ($nu.data-dir | path join "vendor/autoload/starship.nu")
 
-# Enable Carapace, a cross-shell autocomplete system
-mkdir ~/.cache/carapace
-carapace _carapace nushell | save --force ~/.cache/carapace/init.nu
+source ($nu.default-config-dir | path join "aliases.nu")
 
