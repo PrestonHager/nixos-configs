@@ -7,7 +7,8 @@
     yubikey-personalization
     yubikey-personalization-gui
     yubikey-manager
-    yubikey-manager-qt
+    #yubikey-manager-qt
+    yubioath-flutter
   ];
 
   # Add Yubikey udev rules
@@ -15,7 +16,8 @@
     yubikey-personalization
     yubikey-personalization-gui
     yubikey-manager
-    yubikey-manager-qt
+    #yubikey-manager-qt
+    yubioath-flutter
   ];
 
 

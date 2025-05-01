@@ -12,6 +12,17 @@
     tree-sitter-parsers = {
       url = "github:ratson/nix-treesitter";
     };
+
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    # Our sops repository so we can host secrets seperately
+    nix-secrets = {
+      #url = "github:PrestonHager/nixos-secrets";
+      url = "git+ssh://git@github.com/PrestonHager/nixos-secrets.git";
+    };
   };
 
   outputs = { self, nixpkgs, tree-sitter-parsers, ... }@inputs: {
@@ -34,6 +45,7 @@
           ./nixos
           ./nixos/gnome
           inputs.home-manager.nixosModules.default
+          inputs.sops-nix.nixosModules.sops
         ];
       };
       # The i3 configuration configures the i3 desktop environment

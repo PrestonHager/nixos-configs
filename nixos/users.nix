@@ -56,12 +56,11 @@ in {
         value = {
           isNormalUser = true;
           description = "${user.name}";
-          extraGroups = [ "networkmanager" "wheel" ];
+          extraGroups = [ "networkmanager" "wheel" "dialout" "uucp" ];
           packages = with pkgs; [];
           shell = pkgs.nushell;
-          hashedPasswordFile = lib.mkIf
-            (builtins.pathExists (./. + "/../users/${user.username}/passwd"))
-            "/etc/nixos/users/${user.username}/passwd";
+          hashedPasswordFile =
+              config.sops.secrets."users/${user.username}/passwd".path;
         };
       }) (builtins.filter (user: user.enable) config.short-users));
     # Setup home manager if enabled (not null)
