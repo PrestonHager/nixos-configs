@@ -19,7 +19,7 @@
   ];
 
   hardware.graphics.enable =  true;
-  services.xserver.videoDrivers = [ "nvidia" "intel" ];
+  services.xserver.videoDrivers = [ "nvidia" "modesetting" ];
   hardware.nvidia = {
     modesetting.enable = true;
     powerManagement.enable = true;
@@ -53,8 +53,8 @@
   #boot.initrd.kernelModules = [ "nvidia" "i915" "nvidia_modeset" "nvidia_drm" ];
   # and enable them with kernel parameters
   #boot.kernelParams = [ "nvidia-drm.fbdev=1" ];
-  boot.kernelModules = [ "kvm-intel" ];
-  boot.extraModulePackages = [ ];
+  boot.kernelModules = [ "kvm-intel" "msi-ec" ];
+  boot.extraModulePackages = [ config.boot.kernelPackages.msi-ec ];
 
   fileSystems."/" =
     { device = "/dev/disk/by-uuid/2c1fbbd4-c9f4-4d82-950a-9586bf5ad650";
