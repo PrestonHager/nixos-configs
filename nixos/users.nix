@@ -70,6 +70,9 @@ in {
       backupFileExtension = "bak";
       useGlobalPkgs = true;
       useUserPackages = true;
+      sharedModules = [
+        inputs.sops-nix.homeManagerModules.sops
+      ];
       users = builtins.listToAttrs
         (builtins.map (user: {
           name = "${user.username}";
