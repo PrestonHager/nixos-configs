@@ -1,25 +1,13 @@
 {config, pkgs, lib ? pkgs.lib, ... }:
 
-#let
-#  tmux-super-fingers = pkgs.tmuxPlugins.mkTmuxPlugin
-#    {
-#      pluginName = "tmux-super-fingers";
-#      version = "unstable-2023-01-06";
-#      src = pkgs.fetchFromGitHub {
-#        owner = "artemave";
-#        repo = "tmux_super_fingers";
-#        rev = "2771f791a03880b3653c043cff48ee81db66212b";
-#        sha256 = "sha256-GnVlV8JRKVx6muVKYvqkCSMds7IBTYp1NFEgQnnuYEc=";
-#      };
-#    };
-#in
 {
   programs.tmux = {
     enable = true;
-    shell = "${pkgs.zsh}/bin/zsh";
+    shell = "${pkgs.nushell}/bin/nu";
     terminal = "tmux-256color";
     historyLimit = 100000;
     plugins = with pkgs; [
+      # Theme
       {
         plugin = tmuxPlugins.catppuccin;
         extraConfig = '' 
@@ -41,13 +29,8 @@
           set -g @catppuccin_date_time_text "%Y-%m-%d %H:%M:%S"
         '';
       }
-#      {
-#        plugin = tmux-super-fingers;
-#        extraConfig = ''
-#          set -g @super-fingers-key f
-#        '';
-#      }
 
+      # Better mouse plugin, makes it more intuitive to navigate
       tmuxPlugins.better-mouse-mode
 
       {
@@ -103,6 +86,10 @@
       bind-key -T copy-mode-vi 'M-k' select-pane -U
       bind-key -T copy-mode-vi 'M-l' select-pane -R
       bind-key -T copy-mode-vi 'M-\' select-pane -l
+
+      # Set escape time and true color support for Neovim compatibility
+      set-option -sg escape-time 10
+      set-option -a terminal-features '$TERM:RGB'
     '';
   };
 }

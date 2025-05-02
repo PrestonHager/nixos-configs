@@ -18,7 +18,7 @@
   services.printing.enable = true;
 
   # Enable sound with pipewire.
-  hardware.pulseaudio.enable = false;
+  services.pulseaudio.enable = false;
   security.rtkit.enable = true;
   services.pipewire = {
     enable = true;
@@ -40,19 +40,20 @@
   fonts = {
     fontDir.enable = true;
     packages = with pkgs; [
-      (nerdfonts.override {
-        fonts = [ "Hack" ];
-      })
+      nerd-fonts.hack
     ];
   };
 
   environment.systemPackages = with pkgs; [
-    kitty       # Terminal
+    # Terminal
+    alacritty
+    # Clipboard manager
+    xclip
   ];
 
   # Set the default terminal environment variable
   environment.variables = {
-    TERMINAL = "kitty";
+    TERMINAL = "alacritty";
   };
 
   # Enable flatpak so we can install third-party apps

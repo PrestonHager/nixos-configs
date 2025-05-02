@@ -4,6 +4,9 @@
 
 { config, pkgs, lib ? pkgs.lib, inputs, ... }:
 
+let
+  sops-path = builtins.toString inputs.nix-secrets;
+in
 {
   imports =
     [ # Include the results of the hardware scan.
@@ -14,6 +17,22 @@
       inputs.home-manager.nixosModules.default
     ];
 
+  sops = {
+    defaultSopsFile = "${sops-path}/secrets/users.yaml";
+    age = {
+      sshKeyPaths = [
+        "/etc/ssh/ssh_host_ed25519_key"
+      ];
+      keyFile = "/var/lib/sops/age/keys.txt";
+      generateKey = true;
+    };
+    secrets = {
+      "users/prestonh/passwd" = {
+        neededForUsers = true;
+      };
+    };
+  };
+
   # short-users allows us to create users quickly
   short-users = [
     {
@@ -23,16 +42,35 @@
     }
   ];
 
+  # Configure sub UID/GID ranges to use tools such as docker/podman
+  users.users.prestonh.uid = 1000;
+  users.extraUsers."prestonh" = {
+    subUidRanges = [ { startUid = 100000; count = 65536; } ];
+    subGidRanges = [ { startGid = 100000; count = 65536; } ];
+  };
+
   # Configure specific unfree packages that are used across the system
   # Note that in order to use an unfree package in home manager it must also be
   # listed here.
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
     "copilot.vim"
     "obsidian"
+    # Nvidia drivers
+    "nvidia-x11"
+    "nvidia-settings"
+    # Steam packages for the Steampowered Client
+    "steam"
+    "steam-original"
+    "steam-run"
+    "steam-unwrapped"
+    # Allow spotify to be installed
+    "spotify"
   ];
+  # Accept the nvidia license if applicable
+  nixpkgs.config.nvidia.acceptLicense = true;
 
-  # Configure zsh for the users by default
-  users.defaultUserShell = pkgs.zsh;
+  # Configure nushell for the users by default
+  users.defaultUserShell = pkgs.nushell;
 
   # Bootloader
   boot.loader.systemd-boot.enable = true;
@@ -43,6 +81,9 @@
 
   # Enable network manager
   networking.networkmanager.enable = true;
+
+  # Enable the OOM killer
+  systemd.oomd.enable = true;
 
   # Enable experimental features
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
@@ -75,9 +116,10 @@
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-    vim      # Editor
+    vim         # Editor
     tmux        # Terminal multiplexer
     tio         # Serial terminal
+    nushell     # Shell
   ];
 
   # Configure default editor, these can be overridden by users too
@@ -133,6 +175,8 @@
 
   # List services that you want to enable:
 
+  # Enable realtime kit so that audio server works
+  security.rtkit.enable = true;
   # Enable Pipewire audio server
   services.pipewire = {
     enable = true;
@@ -142,6 +186,9 @@
     # Enable support for JACK audio applications or not
 #    jack.enable = true;
   };
+
+  # Enable printing
+  #services.printing.enable = true;
 
   # Open ports in the firewall.
   # networking.firewall.allowedTCPPorts = [ ... ];
@@ -156,5 +203,5 @@
   # Before changing this value read the documentation for this option
   # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
   system.stateVersion = "24.05"; # Did you read the comment?
-
 }
+

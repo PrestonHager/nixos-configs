@@ -56,12 +56,11 @@ in {
         value = {
           isNormalUser = true;
           description = "${user.name}";
-          extraGroups = [ "networkmanager" "wheel" ];
+          extraGroups = [ "networkmanager" "wheel" "dialout" "uucp" ];
           packages = with pkgs; [];
-          shell = pkgs.zsh;
-          hashedPasswordFile = lib.mkIf
-            (builtins.pathExists (./. + "/../users/${user.username}/passwd"))
-            "/etc/nixos/users/${user.username}/passwd";
+          shell = pkgs.nushell;
+          hashedPasswordFile =
+              config.sops.secrets."users/${user.username}/passwd".path;
         };
       }) (builtins.filter (user: user.enable) config.short-users));
     # Setup home manager if enabled (not null)
@@ -71,6 +70,9 @@ in {
       backupFileExtension = "bak";
       useGlobalPkgs = true;
       useUserPackages = true;
+      sharedModules = [
+        inputs.sops-nix.homeManagerModules.sops
+      ];
       users = builtins.listToAttrs
         (builtins.map (user: {
           name = "${user.username}";

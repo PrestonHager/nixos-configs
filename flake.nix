@@ -9,13 +9,22 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
+    tree-sitter-parsers = {
+      url = "github:ratson/nix-treesitter";
+    };
+
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    # Our sops repository so we can host secrets seperately
+    nix-secrets = {
+      url = "git+ssh://git@github.com/PrestonHager/nixos-secrets.git";
     };
   };
 
-  outputs = { self, nixpkgs, rust-overlay, ... }@inputs: {
+  outputs = { self, nixpkgs, tree-sitter-parsers, ... }@inputs: {
     nixosConfigurations = {
       # Different configuration are selected by adding #config after the nixos
       # directory. For example `nixos-rebuild switch --flake /etc/nixos#default`
@@ -26,10 +35,6 @@
           ./nixos
           ./nixos/headless
           inputs.home-manager.nixosModules.default
-          ({ pkgs, ... }: {
-            nixpkgs.overlays = [ rust-overlay.overlays.default ];
-            environment.systemPackages = [ pkgs.rust-bin.stable.latest.default ];
-          })
         ];
       };
       # The gnome configuration configures the gnome desktop environment
@@ -39,23 +44,7 @@
           ./nixos
           ./nixos/gnome
           inputs.home-manager.nixosModules.default
-          ({ pkgs, ... }: {
-            nixpkgs.overlays = [ rust-overlay.overlays.default ];
-            environment.systemPackages = [ pkgs.rust-bin.stable.latest.default ];
-          })
-        ];
-      };
-      # The i3 configuration configures the i3 desktop environment
-      i3 = nixpkgs.lib.nixosSystem {
-        specialArgs = {inherit inputs;};
-        modules = [
-          ./nixos
-          ./nixos/i3
-          inputs.home-manager.nixosModules.default
-          ({ pkgs, ... }: {
-            nixpkgs.overlays = [ rust-overlay.overlays.default ];
-            environment.systemPackages = [ pkgs.rust-bin.stable.latest.default ];
-          })
+          inputs.sops-nix.nixosModules.sops
         ];
       };
     };

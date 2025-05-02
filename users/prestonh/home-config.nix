@@ -1,6 +1,25 @@
-{ config, pkgs, ... }:
+{ config, pkgs, osConfig, inputs, ... }:
 
+let
+  sops-path = builtins.toString inputs.nix-secrets;
+  uid = osConfig.users.users.${config.home.username}.uid;
+in
 {
+  sops = {
+    defaultSopsFile = "${sops-path}/secrets/secrets.yaml";
+    defaultSymlinkPath = "/run/user/${builtins.toString uid}/secrets";
+    defaultSecretsMountPoint = "/run/user/${builtins.toString uid}/secrets.d";
+    age = {
+      keyFile = "/home/prestonh/.config/sops/age/keys.txt";
+      generateKey = true;
+    };
+    secrets = {
+      "yubikey/u2f_keys" = {
+        sopsFile = "${sops-path}/secrets/home-manager/prestonh/secrets.yaml";
+      };
+    };
+  };
+
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
   # plain files is through 'home.file'.
   home.file = {
@@ -9,27 +28,10 @@
       source = ./config;
       recursive = true;
     };
-#    ".config/user-dirs.dirs".source = ./config/user-dirs.dirs;
-
-    # zshrc file
-    ".zshrc".source = ./zshrc;
+    ".config/Yubico/u2f_keys" = {
+      source = config.lib.file.mkOutOfStoreSymlink config.sops.secrets."yubikey/u2f_keys".path;
+    };
   };
-
-  # Create a systemd service that runs once whenever
-  # sysinit-reactivation.target is activated to update neovim plugins
-#  systemd.user.services.update-neovim-plugins = {
-#    Unit = {
-#      Description = "Update neovim plugins";
-#      After = [ "sysinit-reactivation.target" ];
-#    };
-#    Install = {
-#      WantedBy = [ "default.target" "sysinit-reactivation.target" ];
-#    };
-#    Service = {
-#      Type = "oneshot";
-#      ExecStart = "${pkgs.neovim}/bin/nvim --headless '+Lazy! sync' +qa";
-#    };
-#  };
 
   # Home Manager can also manage your environment variables through
   # 'home.sessionVariables'. If you don't want to manage your shell through Home
@@ -50,6 +52,5 @@
     EDITOR = "nvim";
     VISUAL = "nvim";
     SUDO_EDITOR = "nvim";
-#    TERMINAL = "kitty";
   };
 }
