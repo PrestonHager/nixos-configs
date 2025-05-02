@@ -1,6 +1,25 @@
-{ config, pkgs, ... }:
+{ config, pkgs, osConfig, inputs, ... }:
 
+let
+  sops-path = builtins.toString inputs.nix-secrets;
+  uid = osConfig.users.users.${config.home.username}.uid;
+in
 {
+  sops = {
+    defaultSopsFile = "${sops-path}/secrets/secrets.yaml";
+    defaultSymlinkPath = "/run/user/${builtins.toString uid}/secrets";
+    defaultSecretsMountPoint = "/run/user/${builtins.toString uid}/secrets.d";
+    age = {
+      keyFile = "/home/prestonh/.config/sops/age/keys.txt";
+      generateKey = true;
+    };
+    secrets = {
+      "yubikey/u2f_keys" = {
+        sopsFile = "${sops-path}/secrets/home-manager/prestonh/secrets.yaml";
+      };
+    };
+  };
+
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
   # plain files is through 'home.file'.
   home.file = {
@@ -8,6 +27,9 @@
     ".config/" = {
       source = ./config;
       recursive = true;
+    };
+    ".config/Yubico/u2f_keys" = {
+      source = config.lib.file.mkOutOfStoreSymlink config.sops.secrets."yubikey/u2f_keys".path;
     };
   };
 

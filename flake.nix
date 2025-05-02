@@ -20,7 +20,6 @@
 
     # Our sops repository so we can host secrets seperately
     nix-secrets = {
-      #url = "github:PrestonHager/nixos-secrets";
       url = "git+ssh://git@github.com/PrestonHager/nixos-secrets.git";
     };
   };

@@ -43,6 +43,7 @@ in
   ];
 
   # Configure sub UID/GID ranges to use tools such as docker/podman
+  users.users.prestonh.uid = 1000;
   users.extraUsers."prestonh" = {
     subUidRanges = [ { startUid = 100000; count = 65536; } ];
     subGidRanges = [ { startGid = 100000; count = 65536; } ];
