@@ -76,10 +76,8 @@ in
     "steam-unwrapped"
     # Allow spotify to be installed
     "spotify"
-    # Nvidia drivers, also accept the license with config.nvidia.acceptLicense
-    "nvidia-x11"
-    "nvidia-settings"
   ];
+  # Accept the nvidia license if applicable
   nixpkgs.config.nvidia.acceptLicense = true;
 
   # Configure nushell for the users by default
