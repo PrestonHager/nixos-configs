@@ -5,8 +5,15 @@
     # Import specific Podman or Docker containers here
     # Be sure not to mix podman and docker configurations, and set your backend
     # properly in the virtualisation.oci-containers.backend varaible correctly.
+    #./portunus.nix
     ./vaultwarden.nix
-#    ./nextcloud.nix
+    ./jellyfin.nix
+    ./nextcloud.nix
+    #./forgejo.nix
+    #./wg-portal.nix
+    #./sui.nix
+    ./spacetimedb.nix
+    ./mediawiki.nix
   ];
 
   # Enable Podman (or Docker) for use with oci-containers

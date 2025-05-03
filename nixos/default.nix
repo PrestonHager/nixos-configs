@@ -21,10 +21,15 @@ in
       # Containers submodule
       ./containers
       inputs.home-manager.nixosModules.default
+      # Virt-manager
+      # see https://nixos.wiki/wiki/Virt-manager for more
+      ./virt-manager.nix
+      # Wireguard server
+      ./wireguard.nix
     ];
 
   sops = {
-    defaultSopsFile = "${sops-path}/secrets/users.yaml";
+    defaultSopsFile = "${sops-path}/secrets/secrets.yaml";
     age = {
       sshKeyPaths = [
         "/etc/ssh/ssh_host_ed25519_key"
@@ -34,6 +39,7 @@ in
     };
     secrets = {
       "users/prestonh/passwd" = {
+        sopsFile = "${sops-path}/secrets/users.yaml";
         neededForUsers = true;
       };
     };
@@ -79,6 +85,12 @@ in
   ];
   # Accept the nvidia license if applicable
   nixpkgs.config.nvidia.acceptLicense = true;
+
+  # Configure kernel parameters
+  boot.kernelParams = [
+    "vm.overcommit_memory=1"
+    "vm.overcommit_ratio=150"
+  ];
 
   # Configure nushell for the users by default
   users.defaultUserShell = pkgs.nushell;
@@ -213,6 +225,6 @@ in
   # this value at the release version of the first install of this system.
   # Before changing this value read the documentation for this option
   # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
-  system.stateVersion = "24.05"; # Did you read the comment?
+  system.stateVersion = "24.11"; # Did you read the comment?
 }
 

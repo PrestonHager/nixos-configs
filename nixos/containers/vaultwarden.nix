@@ -1,6 +1,15 @@
-{ config, ... }:
+{ config, inputs, ... }:
 
+let
+  sops-path = builtins.toString inputs.nix-secrets;
+in
 {
+  sops.secrets = {
+    "vaultwarden-environment" = {
+      sopsFile = "${sops-path}/secrets/containers/vaultwarden.yaml";
+    };
+  };
+
   # Create the vaultwarden user and group
   users.users.vaultwarden = {
     isSystemUser = true;
@@ -41,9 +50,11 @@
 #      INVITATIONS_ALLOWED = "false";
       # Or whitelist specific email domains
 #      SIGNUPS_DOMAINS_WHITELIST = "example.com";
-      YUBICO_CLIENT_ID = "103866";
-      YUBICO_SECRET_KEY = "bOgEagUNOj4gGQHqTg828bbVQ20";
     };
+
+    extraOptions = [
+      "--env-file=${config.sops.secrets."vaultwarden-environment".path}"
+    ];
 
     # Finally, the vaultwarden image and version
     image = "ghcr.io/dani-garcia/vaultwarden:1.33.0";

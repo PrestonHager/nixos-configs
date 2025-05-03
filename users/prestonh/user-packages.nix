@@ -39,33 +39,8 @@
     # Terminal based image viewer
     timg
 
-    # Obsidian Application
-    obsidian
-
-    # Arudino IDE
-    arduino
-
-    # Wireguard VPN
-    wireguard-tools
-
-    # Go Dot engine and editor
-    godot_4
-
-    # MPV crossplatform multimedia player
-    mpv
-
-    # htop program
+    # htop for viewing processes
     htop-vim
-    # rip-grep
-    ripgrep
-
-    # Packages for the GPU gnome extension
-    lm_sensors
-
-    # Spotify, this is unfree so add it to the allowed packages too
-    spotify
-
-    # Vaultwarden client (aka Bitwarden)
-    bitwarden-desktop
+    iotop
   ];
 }

@@ -25,7 +25,7 @@
   };
 
   outputs = { self, nixpkgs, tree-sitter-parsers, ... }@inputs: {
-    nixosConfigurations = {
+    nixosConfigurations = rec {
       # Different configuration are selected by adding #config after the nixos
       # directory. For example `nixos-rebuild switch --flake /etc/nixos#default`
       # The default configuration configures a headless system.
@@ -35,6 +35,7 @@
           ./nixos
           ./nixos/headless
           inputs.home-manager.nixosModules.default
+          inputs.sops-nix.nixosModules.sops
         ];
       };
       # The gnome configuration configures the gnome desktop environment
@@ -47,6 +48,7 @@
           inputs.sops-nix.nixosModules.sops
         ];
       };
+      ace = headless;
     };
   };
 }
