@@ -65,6 +65,8 @@ in
     "steam-unwrapped"
     # Allow spotify to be installed
     "spotify"
+    # Allow virtual box extension
+    "Oracle_VirtualBox_Extension_Pack"
   ];
   # Accept the nvidia license if applicable
   nixpkgs.config.nvidia.acceptLicense = true;
