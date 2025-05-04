@@ -1,6 +1,7 @@
 { config, pkgs, inputs, lib ? pkgs.lib, ... }:
 
 let
+  sops-path = builtins.toString inputs.nix-secrets;
   cfg = config.users.users;
   userOpts = { ... }: {
     options = {
@@ -82,6 +83,13 @@ in {
         }) (builtins.filter (user: user.home-manager != null &&
           user.home-manager.enable) config.short-users));
     };
+    sops.secrets = builtins.listToAttrs (builtins.map (user: {
+      name = "users/${user.username}/passwd";
+      value = {
+        sopsFile = "${sops-path}/secrets/users.yaml";
+        neededForUsers = true;
+      };
+    }) (builtins.filter (user: user.enable) config.short-users));
   };
 
 }

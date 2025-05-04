@@ -25,7 +25,12 @@
   };
 
   outputs = { self, nixpkgs, tree-sitter-parsers, ... }@inputs: {
-    nixosConfigurations = {
+    nixosConfigurations = let
+        defaultModules = [
+          inputs.home-manager.nixosModules.default
+          inputs.sops-nix.nixosModules.sops
+        ];
+      in {
       # Different configuration are selected by adding #config after the nixos
       # directory. For example `nixos-rebuild switch --flake /etc/nixos#default`
       # The default configuration configures a headless system.
@@ -37,14 +42,10 @@
           inputs.home-manager.nixosModules.default
         ];
       };
-      # The gnome configuration configures the gnome desktop environment
-      gnome = nixpkgs.lib.nixosSystem {
+      ph-nixos = nixpkgs.lib.nixosSystem {
         specialArgs = {inherit inputs;};
-        modules = [
-          ./nixos
-          ./nixos/gnome
-          inputs.home-manager.nixosModules.default
-          inputs.sops-nix.nixosModules.sops
+        modules = defaultModules ++ [
+          ./hosts/ph-nixos
         ];
       };
     };

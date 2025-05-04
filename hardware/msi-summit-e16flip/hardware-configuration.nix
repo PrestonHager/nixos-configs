@@ -53,7 +53,8 @@
   #boot.initrd.kernelModules = [ "nvidia" "i915" "nvidia_modeset" "nvidia_drm" ];
   # and enable them with kernel parameters
   #boot.kernelParams = [ "nvidia-drm.fbdev=1" ];
-  boot.kernelModules = [ "kvm-intel" "msi-ec" ];
+  boot.kernelModules = [ "msi-ec" ];
+  boot.blacklistedKernelModules = [ "kvm" "kvm-intel" ];
   boot.extraModulePackages = [ config.boot.kernelPackages.msi-ec ];
 
   fileSystems."/" =

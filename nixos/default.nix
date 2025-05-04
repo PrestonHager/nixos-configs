@@ -8,45 +8,14 @@ let
   sops-path = builtins.toString inputs.nix-secrets;
 in
 {
-  imports =
-    [ # Include the results of the hardware scan.
-      ./hardware-configuration.nix
-      ./users.nix
-      # Disable the yubikey module if it's not needed
-      ./yubikey.nix
-      inputs.home-manager.nixosModules.default
-    ];
-
   sops = {
-    defaultSopsFile = "${sops-path}/secrets/users.yaml";
+    defaultSopsFile = "${sops-path}/secrets/secrets.yaml";
     age = {
       sshKeyPaths = [
         "/etc/ssh/ssh_host_ed25519_key"
       ];
       keyFile = "/var/lib/sops/age/keys.txt";
-      generateKey = true;
     };
-    secrets = {
-      "users/prestonh/passwd" = {
-        neededForUsers = true;
-      };
-    };
-  };
-
-  # short-users allows us to create users quickly
-  short-users = [
-    {
-      username = "prestonh";
-      name = "Preston Hager";
-      home-manager.enable = true;
-    }
-  ];
-
-  # Configure sub UID/GID ranges to use tools such as docker/podman
-  users.users.prestonh.uid = 1000;
-  users.extraUsers."prestonh" = {
-    subUidRanges = [ { startUid = 100000; count = 65536; } ];
-    subGidRanges = [ { startGid = 100000; count = 65536; } ];
   };
 
   # Configure specific unfree packages that are used across the system
@@ -65,19 +34,19 @@ in
     "steam-unwrapped"
     # Allow spotify to be installed
     "spotify"
+    # Allow virtual box extension
+    "Oracle_VirtualBox_Extension_Pack"
   ];
   # Accept the nvidia license if applicable
   nixpkgs.config.nvidia.acceptLicense = true;
 
-  # Configure nushell for the users by default
-  users.defaultUserShell = pkgs.nushell;
+  # Configure zsh for the users by default
+  users.defaultUserShell = pkgs.zsh;
 
   # Bootloader
   boot.loader.systemd-boot.enable = true;
   boot.loader.systemd-boot.configurationLimit = 15;
   boot.loader.efi.canTouchEfiVariables = true;
-
-  networking.hostName = "ph-nixos"; # Define your hostname.
 
   # Enable network manager
   networking.networkmanager.enable = true;
@@ -118,8 +87,6 @@ in
   environment.systemPackages = with pkgs; [
     vim         # Editor
     tmux        # Terminal multiplexer
-    tio         # Serial terminal
-    nushell     # Shell
   ];
 
   # Configure default editor, these can be overridden by users too
@@ -156,24 +123,7 @@ in
         fi
       '';
     };
-
-#    nix-ld = {
-#      enable = true;
-#      libraries = with pkgs; [
-#        # Insert libraries to add to the system
-#      ];
-#    };
  };
-
-  # Some programs need SUID wrappers, can be configured further or are
-  # started in user sessions.
-  # programs.mtr.enable = true;
-  # programs.gnupg.agent = {
-  #   enable = true;
-  #   enableSSHSupport = true;
-  # };
-
-  # List services that you want to enable:
 
   # Enable realtime kit so that audio server works
   security.rtkit.enable = true;
@@ -183,18 +133,7 @@ in
     alsa.enable = true;
     alsa.support32Bit = true;
     pulse.enable = true;
-    # Enable support for JACK audio applications or not
-#    jack.enable = true;
   };
-
-  # Enable printing
-  #services.printing.enable = true;
-
-  # Open ports in the firewall.
-  # networking.firewall.allowedTCPPorts = [ ... ];
-  # networking.firewall.allowedUDPPorts = [ ... ];
-  # Or disable the firewall altogether.
-  # networking.firewall.enable = false;
 
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions
@@ -202,6 +141,6 @@ in
   # this value at the release version of the first install of this system.
   # Before changing this value read the documentation for this option
   # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
-  system.stateVersion = "24.05"; # Did you read the comment?
+  system.stateVersion = "24.11"; # Did you read the comment?
 }
 
