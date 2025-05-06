@@ -4,6 +4,8 @@
   imports = [
     ./desktop.nix
     ./programs/steam.nix
+    # Include virtual box (comment out to disable)
+    ./virtualbox.nix
   ];
 
   environment.systemPackages = with pkgs; [
