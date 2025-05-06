@@ -24,7 +24,7 @@ in
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
     "copilot.vim"
     "obsidian"
-    # Nvidia drivers
+    # Nvidia drivers, also accept the license with config.nvidia.acceptLicense
     "nvidia-x11"
     "nvidia-settings"
     # Steam packages for the Steampowered Client
@@ -39,6 +39,12 @@ in
   ];
   # Accept the nvidia license if applicable
   nixpkgs.config.nvidia.acceptLicense = true;
+
+  # Configure kernel parameters
+  boot.kernelParams = [
+    "vm.overcommit_memory=1"
+    "vm.overcommit_ratio=150"
+  ];
 
   # Configure zsh for the users by default
   users.defaultUserShell = pkgs.zsh;

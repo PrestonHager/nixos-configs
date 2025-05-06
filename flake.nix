@@ -33,19 +33,17 @@
       in {
       # Different configuration are selected by adding #config after the nixos
       # directory. For example `nixos-rebuild switch --flake /etc/nixos#default`
-      # The default configuration configures a headless system.
-      headless = nixpkgs.lib.nixosSystem {
-        specialArgs = {inherit inputs;};
-        modules = [
-          ./nixos
-          ./nixos/headless
-          inputs.home-manager.nixosModules.default
-        ];
-      };
+      # By default it uses the current host name
       ph-nixos = nixpkgs.lib.nixosSystem {
         specialArgs = {inherit inputs;};
         modules = defaultModules ++ [
           ./hosts/ph-nixos
+        ];
+      };
+      ace = nixpkgs.lib.nixosSystem {
+        specialArgs = {inherit inputs;};
+        modules = defaultModules ++ [
+          ./hosts/ace
         ];
       };
     };
