@@ -8,7 +8,8 @@
     #./portunus.nix
     ./vaultwarden.nix
     ./jellyfin.nix
-    ./nextcloud.nix
+    #./nextcloud.nix
+    #./nextcloud-aio.nix
     #./forgejo.nix
     #./wg-portal.nix
     #./sui.nix

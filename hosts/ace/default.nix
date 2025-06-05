@@ -13,6 +13,8 @@
     # include any users
     ../../users/prestonh
   ];
-  
+
+  # Add prestonh to jellyfin group to allow for rsync into /jf/media folder
+  users.users.prestonh.extraGroups = [ "jellyfin" ];
 }
 
