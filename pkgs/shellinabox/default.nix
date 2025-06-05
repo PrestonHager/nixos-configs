@@ -2,7 +2,7 @@
 
 stdenv.mkDerivation rec {
   pname = "shellinabox";
-  version = "unstable-2024-04-16";
+  version = "v2.20";
 
   src = fetchFromGitHub {
     owner = "shellinabox";
@@ -27,3 +27,6 @@ stdenv.mkDerivation rec {
     platforms = platforms.linux;
   };
 }
+
+
+
