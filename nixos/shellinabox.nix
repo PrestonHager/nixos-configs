@@ -32,7 +32,10 @@ in
     users.users.${cfg.user} = {
       isSystemUser = true;
       description = "ShellInABox service user";
+      group = cfg.user;
     };
+
+    users.groups.${cfg.user} = { };
 
     systemd.services.shellinabox = {
       description = "ShellInABox Web Terminal";

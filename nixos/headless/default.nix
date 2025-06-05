@@ -25,4 +25,9 @@
       # PermitRootLogin = true;
     };
   };
+
+  # Enable shellinabox service
+  services.shellinaboxd = {
+    enable = true;
+  };
 }
