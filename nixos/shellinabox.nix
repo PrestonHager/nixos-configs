@@ -1,7 +1,7 @@
 { config, pkgs, lib, ... }:
 
 let
-  cfg = config.services.shellinabox;
+  cfg = config.services.shellinaboxd;
   package = cfg.package or (pkgs.callPackage ../pkgs/shellinabox {});
   port = toString cfg.port;
   user = cfg.user;
@@ -9,7 +9,7 @@ let
   execStart = "${package}/bin/shellinaboxd --no-beep --disable-ssl --port=${port} --user=${user} --group=${user} --localhost-only";
 in
 {
-  options.services.shellinabox = {
+  options.services.shellinaboxd = {
     enable = lib.mkEnableOption "ShellInABox web terminal";
     package = lib.mkOption {
       type = lib.types.package;
