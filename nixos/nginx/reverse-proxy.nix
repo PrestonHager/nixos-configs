@@ -132,6 +132,13 @@
         };
       });
 
+      "shell.prestonhager.com" = (SSL // {
+        locations."/" = {
+          proxyPass = "http://localhost:4200/";
+          proxyWebsockets = true;
+        };
+      });
+
       # Games from pterodactyl panel
       "pong.prestonhager.com" = (SSL // {
         locations."/" = {

@@ -11,6 +11,8 @@
     ../virt-manager.nix
     # Wireguard server
     ../wireguard.nix
+    # Local shellinabox service
+    ../shellinabox.nix
   ];
 
   # Enable SSH with keys only
