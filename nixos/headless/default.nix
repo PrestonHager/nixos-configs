@@ -15,6 +15,8 @@
     ../shellinabox.nix
   ];
 
+  services.shellinaboxd.enable = true;
+
   # Enable SSH with keys only
   services.openssh = {
     enable = true;

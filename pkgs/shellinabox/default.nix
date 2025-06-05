@@ -1,4 +1,4 @@
-{ lib, stdenv, fetchFromGitHub, pkg-config, autoreconfHook, zlib }:
+{ lib, stdenv, fetchFromGitHub, pkg-config, autoreconfHook, openssl, zlib }:
 
 stdenv.mkDerivation rec {
   pname = "shellinabox";
@@ -12,11 +12,10 @@ stdenv.mkDerivation rec {
   };
 
   nativeBuildInputs = [ autoreconfHook pkg-config ];
-  buildInputs = [ zlib ];
+  buildInputs = [ openssl zlib ];
 
   configureFlags = [
     "--disable-init"
-    "--disable-ssl"
     "--disable-runtime-loading"
   ];
 
