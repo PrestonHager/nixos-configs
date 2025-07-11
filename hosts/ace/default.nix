@@ -16,5 +16,10 @@
 
   # Add prestonh to jellyfin group to allow for rsync into /jf/media folder
   users.users.prestonh.extraGroups = [ "jellyfin" ];
+
+  # Add lynis an auditing tool to system packages
+  environment.systemPackages = with pkgs; [
+    lynis
+  ];
 }
 
