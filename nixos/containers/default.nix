@@ -13,7 +13,7 @@
     #./forgejo.nix
     #./wg-portal.nix
     #./sui.nix
-    ./spacetimedb.nix
+    #./spacetimedb.nix
     ./mediawiki.nix
   ];
 
