@@ -30,6 +30,10 @@
           inputs.home-manager.nixosModules.default
           inputs.sops-nix.nixosModules.sops
         ];
+        # Define all node names and system types for node-like hosts
+        nodes = {
+          crux = ./hosts/pterodactyl-nodes;
+        };
       in {
       # Different configuration are selected by adding #config after the nixos
       # directory. For example `nixos-rebuild switch --flake /etc/nixos#default`
@@ -46,6 +50,23 @@
           ./hosts/ace
         ];
       };
-    };
+      #crux = nixpkgs.lib.nixosSystem {
+      #  specialArgs = {inherit inputs;};
+      #  modules = defaultModules ++ [
+      #    ./hosts/pterodactyl-nodes
+      #    {
+      #      networking.hostName = "crux";
+      #    }
+      #  ];
+      #};
+    } // builtins.mapAttrs (name: value: nixpkgs.lib.nixosSystem {
+      specialArgs = {inherit inputs;};
+      modules = defaultModules ++ [
+        value
+        {
+          networking.hostName = "${name}";
+        }
+      ];
+    }) nodes;
   };
 }
