@@ -22,6 +22,12 @@
     nix-secrets = {
       url = "git+ssh://git@github.com/PrestonHager/nixos-secrets.git";
     };
+
+    # Our pterodactyl-wings binary for any node branches
+    pterodactyl-wings = {
+      url = "github:PrestonHager/pterodactyl-wings-nix-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = { self, nixpkgs, tree-sitter-parsers, ... }@inputs: {
