@@ -73,5 +73,9 @@ in
   recursive = true;
     source = treesitterWithGrammars;
   };
+
+  home.packages = with pkgs; [
+    xsel
+  ];
 }
 

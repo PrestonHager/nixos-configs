@@ -21,6 +21,24 @@
         "type": "github"
       }
     },
+    "flake-utils": {
+      "inputs": {
+        "systems": "systems"
+      },
+      "locked": {
+        "lastModified": 1731533236,
+        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -43,14 +61,15 @@
     },
     "nix-secrets": {
       "inputs": {
+        "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1746312057,
-        "narHash": "sha256-cdKi1dSuHybJ/DIcUTZAcLB1ku09msdwBsbbCN7KOBA=",
+        "lastModified": 1754610931,
+        "narHash": "sha256-aa31EbpTiVwLhm8LElakvEdDfpd+qa0FTNiZ2G0ide0=",
         "ref": "refs/heads/main",
-        "rev": "57cb8ecbfb816b97c1bd4edd3aeb3dffea7661d1",
-        "revCount": 9,
+        "rev": "a1700b2b86bfd694e3ce6c605102bda21f014cda",
+        "revCount": 43,
         "type": "git",
         "url": "ssh://git@github.com/PrestonHager/nixos-secrets.git"
       },
@@ -133,6 +152,21 @@
       "original": {
         "owner": "Mic92",
         "repo": "sops-nix",
+        "type": "github"
+      }
+    },
+    "systems": {
+      "locked": {
+        "lastModified": 1681028828,
+        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+        "owner": "nix-systems",
+        "repo": "default",
+        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-systems",
+        "repo": "default",
         "type": "github"
       }
     },
