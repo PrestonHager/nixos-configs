@@ -8,7 +8,7 @@
       }
 
       reverse_proxy @allowOnlyLocal http://localhost:8091
-      abort
+      respond "Forbidden" 403
     '';
     virtualHosts."phorge.loftiawiki.com".extraConfig = ''
       redir https://phorge.loftiawiki.org{uri} permanent
