@@ -27,8 +27,8 @@
         remote_ip 192.168.8.0/24
       }
 
-      respond @restrictRoute "Forbidden" 403
       reverse_proxy @allowedSubnet http://localhost:8084
+      respond @restrictRoute "Forbidden" 403
     '';
   };
 }
