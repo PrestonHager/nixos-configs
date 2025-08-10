@@ -5,15 +5,19 @@
     # Import specific Podman or Docker containers here
     # Be sure not to mix podman and docker configurations, and set your backend
     # properly in the virtualisation.oci-containers.backend varaible correctly.
-    ./portunus.nix
-    ./vaultwarden.nix
-    ./jellyfin.nix
-    #./nextcloud.nix
-    #./nextcloud-aio.nix
     #./forgejo.nix
-    #./sui.nix
-    #./spacetimedb.nix
+    ./grafana.nix
+    ./jellyfin.nix
     ./mediawiki.nix
+    #./nextcloud-aio.nix
+    #./nextcloud.nix
+    #./phorge.nix
+    ./portunus.nix
+    ./prometheus.nix
+    ./pterodactyl.nix
+    #./spacetimedb.nix
+    #./sui.nix
+    ./vaultwarden.nix
     ./wg-portal.nix
   ];
 

@@ -21,8 +21,7 @@
           root /pterodactyl/html/public
           index index.php
 
-          env PHP_VALUE "upload_max_filesize = 100M
-          post_max_size = 100M"
+          env PHP_VALUE "upload_max_filesize = 100M post_max_size = 100M"
           env HTTP_PROXY ""
           env HTTPS "on"
 
@@ -31,19 +30,27 @@
           write_timeout 300s
       }
 
-      header Strict-Transport-Security "max-age=16768000; preload;"
-      header X-Content-Type-Options "nosniff"
-      header X-XSS-Protection "1; mode=block;"
-      header X-Robots-Tag "none"
-      header Content-Security-Policy "frame-ancestors 'self'"
-      header X-Frame-Options "DENY"
-      header Referrer-Policy "same-origin"
+      #header Strict-Transport-Security "max-age=16768000; preload;"
+      #header X-Content-Type-Options "nosniff"
+      #header X-XSS-Protection "1; mode=block;"
+      #header X-Robots-Tag "none"
+      #header Content-Security-Policy "frame-ancestors 'self'"
+      #header X-Frame-Options "DENY"
+      #header Referrer-Policy "same-origin"
 
       request_body {
           max_size 100m
       }
 
       respond /.ht* 403
+
+      log {
+        output file /var/log/caddy/pterodactyl.log {
+            roll_size 100MiB
+            roll_keep_for 7d
+        }
+        level INFO
+      }
     '';
   };
 }

@@ -14,21 +14,31 @@
 {
   services.caddy = {
     virtualHosts."spacetime.prestonhager.com".extraConfig = ''
-      reverse_proxy http://localhost:8084
+      @allowedSubnet {
+        path /v1/publish
+        remote_ip 192.168.8.0/24
+        remote_ip 10.88.0.0/16
+      }
 
-      # Restrict /v1/publish by default
+      # Any request to /v1/publish
       @restrictRoute {
         path /v1/publish
       }
 
-      # Allow only a subnet to access /v1/publish
-      @allowedSubnet {
-        path /v1/publish
-        remote_ip 192.168.8.0/24
+      # Handle: allowed subnet for /v1/publish
+      handle @allowedSubnet {
+        reverse_proxy http://localhost:8084
       }
 
-      respond @restrictRoute "Forbidden" 403
-      reverse_proxy @allowedSubnet http://localhost:8084
+      # Handle: /v1/publish but not in allowed subnet
+      handle @restrictRoute {
+        respond "Forbidden" 403
+      }
+
+      # Handle: everything else
+      handle {
+        reverse_proxy http://localhost:8084
+      }
     '';
   };
 }

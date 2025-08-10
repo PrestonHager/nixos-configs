@@ -33,6 +33,14 @@ in
     51825
   ];
 
+  # Setup NAT forwarding from the wireguard interface to the local network.
+  networking.firewall.extraCommands = ''
+    iptables -t nat -A POSTROUTING -s 192.168.20.0/24 -o eno1 -j MASQUERADE
+    iptables -t nat -A POSTROUTING -s 192.168.20.0/24 -o eno3 -j MASQUERADE
+    iptables -A FORWARD -s 192.168.20.0/24 -d 192.168.8.0/24 -j ACCEPT
+    iptables -A FORWARD -s 192.168.8.0/24 -d 192.168.20.0/24 -j ACCEPT
+  '';
+
   # Create the data directory
   systemd.tmpfiles.rules = [
     "d /srv/wireguard/etc 0770 wireguard wireguard -"
@@ -44,18 +52,17 @@ in
     autoStart = true;
 
     # Add wireguard and web portal ports
-    ports = [
-      "51825:51825/udp"
-      "8080:8888/tcp"
-    ];
+    #ports = [
+    #  "51825:51825/udp"
+    #  "8080:8888/tcp"
+    #];
 
     # Add network admin capabilities and use the host network
     extraOptions = [
+      "--network=host"
       "--cap-add=NET_ADMIN"
       "--cap-add=SYS_MODULE"
       "--cap-add=NET_RAW"
-      "--sysctl=net.ipv4.conf.all.src_valid_mark=1"
-      "--sysctl=net.ipv4.ip_forward=1"
     ];
 
     # User and group to run the container as
