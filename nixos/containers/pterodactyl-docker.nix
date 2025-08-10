@@ -129,13 +129,11 @@ EOF
 
     echo "Starting scheduler..."
     ${schedulerScript}/bin/scheduler-entrypoint &
-    #systemctl enable --now pterodactyl-scheduler.timer
 
     echo "Starting queue worker..."
     ${queueScript}/bin/queue-entrypoint &
-    #systemctl enable --now pteroq.service
 
-    echo "Starting PHP-FPM..."
+    echo "Starting PHP-FPM listening on $PHP_FPM_LISTEN..."
     exec php-fpm --nodaemonize -y /etc/php-fpm.conf
   '';
 
@@ -156,10 +154,12 @@ EOF
     destination = "/etc/php-fpm.d/${name}";
     text = ''
       [www]
+      clear_env = no
+
       user = pterodactyl
       group = pterodactyl
 
-      listen = /run/php-fpm/php-fpm.sock
+      listen = 0.0.0.0:9000
       listen.owner = pterodactyl
       listen.group = pterodactyl
       listen.mode = 0660
@@ -193,11 +193,13 @@ EOF
     pkgs.redis
     pkgs.mariadb-client
     pkgs.gnugrep
+    pkgs.gnused
     pkgs.cacert
     pkgs.gitMinimal
     pkgs.uutils-findutils
     pkgs.cron
     pkgs.systemd
+    pkgs.nettools
   ];
 in
 {
@@ -252,6 +254,7 @@ in
       };
       Env = [
         "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+        "PHP_FPM_LISTEN=/run/php-fpm/php-fpm.sock"
       ];
     };
   };
