@@ -14,6 +14,10 @@ in
       owner = "pterodactyl";
       group = "pterodactyl";
     };
+    "pterodactyl-password" = {
+      sopsFile = "${sops-path}/secrets/containers/pterodactyl.yaml";
+      mode = "0640";
+    };
   };
 
   # Create the portunus user and group
@@ -21,6 +25,7 @@ in
     isSystemUser = true;
     description = "Pterodactyl";
     group = "pterodactyl";
+    hashedPasswordFile = config.sops.secrets."pterodactyl-password".path;
   };
   users.groups.pterodactyl = {};
 

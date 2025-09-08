@@ -5,7 +5,6 @@
   environment.systemPackages = with pkgs; [
     # Yubikey Tools
     yubikey-personalization
-    yubikey-personalization-gui
     yubikey-manager
     yubioath-flutter
   ];
@@ -13,7 +12,6 @@
   # Add Yubikey udev rules
   services.udev.packages = with pkgs; [
     yubikey-personalization
-    yubikey-personalization-gui
     yubikey-manager
     yubioath-flutter
   ];
