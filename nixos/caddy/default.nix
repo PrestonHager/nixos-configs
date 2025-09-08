@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, inputs, pkgs, ... }:
 
 {
   # Comment or uncomment the following imports to customize caddy
@@ -6,6 +6,7 @@
     # Reverse proxy configuration
     #./forgejo.nix
     ./jellyfin.nix
+    ./matrix.nix
     ./grafana.nix
     ./mediawiki.nix
     #./nextcloud.nix
@@ -17,6 +18,7 @@
     #./sui.nix
     ./vaultwarden.nix
     ./wg-portal.nix
+    ./zitadel.nix
   ];
 
   # Enable the HTTP/HTTPS ports on the firewall
@@ -25,6 +27,8 @@
     443
   ];
 
-  services.caddy.enable = true;
+  services.caddy = {
+    enable = true;
+  };
 }
 

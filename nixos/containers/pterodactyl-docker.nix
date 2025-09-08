@@ -77,7 +77,21 @@ EOF
 
       echo "Running database migrations..."
       [ ! -f .env ] || export $(grep -v '^#' .env | xargs)
-      php artisan migrate --seed
+      php artisan migrate --seed --force
+
+      echo "Making initial user..."
+      if [ -z "$PTERODACTYL_ADMIN_PASSWORD" ]; then
+        PTERODACTYL_ADMIN_PASSWORD=$(openssl rand -base64 12)
+        echo "Generated random admin password: $PTERODACTYL_ADMIN_PASSWORD"
+      fi
+      php artisan p:user:make \
+        --email="''${PTERODACTYL_ADMIN_EMAIL:-admin@localhost}" \
+        --username="''${PTERODACTYL_ADMIN_USERNAME:-admin}" \
+        --name-first="''${PTERODACTYL_ADMIN_FIRST_NAME:-Admin}" \
+        --name-last="''${PTERODACTYL_ADMIN_LAST_NAME:-User}" \
+        --password="$PTERODACTYL_ADMIN_PASSWORD" \
+        --admin=1
+      echo "Created new admin user with email $PTERODACTYL_ADMIN_EMAIL"
 
       touch .setup_done
       echo "Setup complete."
@@ -89,8 +103,8 @@ EOF
 
   schedulerScript = pkgs.writeScriptBin "scheduler-entrypoint" ''
     #!/bin/env bash
+    echo "Running Pterodactyl scheduler..."
     while true; do
-      echo "Running Pterodactyl scheduler..."
       php /var/www/pterodactyl/artisan schedule:run >> /dev/null 2>&1 &
       sleep 60
     done
@@ -162,7 +176,7 @@ EOF
       listen = 0.0.0.0:9000
       listen.owner = pterodactyl
       listen.group = pterodactyl
-      listen.mode = 0660
+      listen.mode = 0775
 
       pm = dynamic
       pm.max_children = 10
@@ -188,8 +202,14 @@ EOF
     pkgs.coreutils
     pkgs.procps
     pkgs.bash
-    pkgs.php
-    pkgs.phpPackages.composer
+    pkgs.php83
+    pkgs.php83Packages.composer
+    pkgs.php83Extensions.gd
+    pkgs.php83Extensions.mbstring
+    pkgs.php83Extensions.bcmath
+    pkgs.php83Extensions.xml
+    pkgs.php83Extensions.curl
+    pkgs.php83Extensions.zip
     pkgs.redis
     pkgs.mariadb-client
     pkgs.gnugrep
@@ -200,6 +220,7 @@ EOF
     pkgs.cron
     pkgs.systemd
     pkgs.nettools
+    pkgs.busybox
   ];
 in
 {

@@ -6,12 +6,17 @@
   imports = [
     ../../nixos
     ../../nixos/headless
+    # include SAMBA for file sharing
+    ../../nixos/samba
+    # matrix home server
+    ../../nixos/matrix.nix
     # hardware configuration for the MSI Summit E16 Flip
     ../../hardware/dell-poweredge-730xd/hardware-configuration.nix
     # yubico keys
     ../../nixos/yubikey.nix
     # include any users
     ../../users/prestonh
+    ../../users/dylanh
   ];
 
   # Add prestonh to jellyfin group to allow for rsync into /jf/media folder

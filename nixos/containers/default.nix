@@ -19,6 +19,7 @@
     #./sui.nix
     ./vaultwarden.nix
     ./wg-portal.nix
+    #./zitadel.nix
   ];
 
   # Enable Podman (or Docker) for use with oci-containers

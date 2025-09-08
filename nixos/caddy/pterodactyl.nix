@@ -24,6 +24,9 @@
           root /pterodactyl/html/public
           index index.php
 
+          env SCRIPT_FILENAME /var/www/pterodactyl/public{path}
+          env DOCUMENT_ROOT /var/www/pterodactyl/public
+
           env PHP_VALUE "upload_max_filesize = 100M
           post_max_size = 100M"
           env HTTP_PROXY ""

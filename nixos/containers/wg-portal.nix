@@ -10,6 +10,10 @@ in
     };
   };
 
+  imports = [
+    ./wg-portal-scripts.nix
+  ];
+
   # Create the wireguard user and group
   users.users = {
     wireguard = {
@@ -34,12 +38,12 @@ in
   ];
 
   # Setup NAT forwarding from the wireguard interface to the local network.
-  networking.firewall.extraCommands = ''
-    iptables -t nat -A POSTROUTING -s 192.168.20.0/24 -o eno1 -j MASQUERADE
-    iptables -t nat -A POSTROUTING -s 192.168.20.0/24 -o eno3 -j MASQUERADE
-    iptables -A FORWARD -s 192.168.20.0/24 -d 192.168.8.0/24 -j ACCEPT
-    iptables -A FORWARD -s 192.168.8.0/24 -d 192.168.20.0/24 -j ACCEPT
-  '';
+  #networking.firewall.extraCommands = ''
+  #  iptables -t nat -A POSTROUTING -s 192.168.20.0/24 -o eno1 -j MASQUERADE
+  #  iptables -t nat -A POSTROUTING -s 192.168.20.0/24 -o eno3 -j MASQUERADE
+  #  iptables -A FORWARD -s 192.168.20.0/24 -d 192.168.8.0/24 -j ACCEPT
+  #  iptables -A FORWARD -s 192.168.8.0/24 -d 192.168.20.0/24 -j ACCEPT
+  #'';
 
   # Create the data directory
   systemd.tmpfiles.rules = [
@@ -52,17 +56,18 @@ in
     autoStart = true;
 
     # Add wireguard and web portal ports
-    #ports = [
-    #  "51825:51825/udp"
-    #  "8080:8888/tcp"
-    #];
+    ports = [
+      "51825:51825/udp"
+      "8888:8888/tcp"
+      "8787:8787/tcp"
+    ];
 
     # Add network admin capabilities and use the host network
     extraOptions = [
-      "--network=host"
+      #"--network=host"
       "--cap-add=NET_ADMIN"
       "--cap-add=SYS_MODULE"
-      "--cap-add=NET_RAW"
+      #"--cap-add=NET_RAW"
     ];
 
     # User and group to run the container as
