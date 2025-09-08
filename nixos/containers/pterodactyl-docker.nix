@@ -70,6 +70,11 @@ EOF
       echo "Installing dependencies..."
       composer install --no-dev --optimize-autoloader
 
+      # NOTE: These may need added at some point. Be sure to add yarn to the
+      # image's packages as well.
+      #yarn install
+      #NODE_OPTIONS=--openssl-legacy-provider yarn run build:production
+
       if ! grep -q "APP_KEY=" .env || grep -q "APP_KEY=$" .env; then
         echo "Generating APP_KEY..."
         php artisan key:generate --force
