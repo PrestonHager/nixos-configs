@@ -52,7 +52,7 @@ in
       Restart = "no";
       ExecStart = pkgs.writeShellScript "pod-pterodactyl" ''
         ${pkgs.podman}/bin/podman pod exists pterodactyl || \
-        ${pkgs.podman}/bin/podman pod create -p 9000:9000 \
+        ${pkgs.podman}/bin/podman pod create -p 9001:9000 \
           --memory 8G --cpus 0 pterodactyl
       '';
     };

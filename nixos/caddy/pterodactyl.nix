@@ -20,7 +20,7 @@
 
       file_server
 
-      php_fastcgi localhost:9000 {
+      php_fastcgi localhost:9001 {
           root /pterodactyl/html/public
           index index.php
 
