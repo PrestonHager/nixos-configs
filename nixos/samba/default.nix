@@ -2,7 +2,7 @@
 
 let
   SAMBA_USERS = [ "prestonh" "pterodactyl" ];
-  SAMBDA_GROUPS = [ "sambashare" ];
+  SAMBDA_GROUPS = [ "sambashare" "users" ];
 in
 {
   users.groups."sambashare" = {};
@@ -16,13 +16,13 @@ in
     openFirewall = true;
     settings = {
       global = {
-        workgroup = "WORKGROUP";
+        workgroup = "ASTRASPRING";
         serverString = "Ace Samba Server";
         netbiosName = config.networking.hostName;
         security = "user";
         mapToGuest = "Bad User";
         unixExtensions = true;
-        #hostsAllow = "192.168.8. 127.0.0.1 localhost";
+        #hostsAllow = "192.168.8.0/16 127.0.0.1 localhost";
         #hostsDeny = "0.0.0.0/0";
         minProtocol = "SMB2";
         extraConfig = ''
@@ -35,6 +35,7 @@ in
         path = "/stor/shares/private";
         browsable = true;
         readOnly = false;
+        writable = true;
         guestOk = false;
         validUsers = SAMBA_USERS;
         createMask = 0644;
