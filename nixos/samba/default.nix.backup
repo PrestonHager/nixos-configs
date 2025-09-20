@@ -23,9 +23,13 @@ in
         security = "user";
         mapToGuest = "Bad User";
         unixExtensions = true;
+        #hostsAllow = "192.168.8.0/16 127.0.0.1 localhost";
+        #hostsDeny = "0.0.0.0/0";
         minProtocol = "SMB2";
-        interfaces = "192.168.8.50/24 192.168.8.52/24";
-        "bind interfaces only" = "yes";
+        extraConfig = ''
+          interfaces = 192.168.8.1/24
+          bind interfaces only = yes
+        '';
       };
       "private" = {
         comment = "Private Share";
@@ -49,3 +53,4 @@ in
   networking.firewall.allowedTCPPorts = [ 139 445 ];
   networking.firewall.allowedUDPPorts = [ 137 138 ];
 }
+

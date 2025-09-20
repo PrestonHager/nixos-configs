@@ -33,7 +33,7 @@ in
     autoStart = true;
 
     ports = [
-      "8080:3000/tcp"
+      "8082:3000/tcp"
     ];
 
     # User and group to run the container as

@@ -15,7 +15,22 @@ let
   # if all goes well, you can then move the new mediawiki-<verion> into /mw/html
   # and delete or backup the old mediawiki directory
   # make sure to disable the upgrade option after as well!
-  mediawiki.enableUpgrade = false;
+  mediawiki = {
+    enableUpgrade = true;
+    upgradeVersion = "1.45.3";
+    version = "1.44.0";
+    # Run nix-shell -p nix-prefetch-docker --run "nix-prefetch-docker --image-name mediawiki --image-tag <VERSION>-fpm-alpine"
+    # then paste the nix data below when upgrading version
+    dockerImage = {
+    };
+    upgradeDockerImage = {
+      imageName = "mediawiki";
+      imageDigest = "sha256:95989cf1a61a1476f65ff8db8abfe10d54b9f5769ef0a3cb433ace81673d2f20";
+      hash = "sha256-roD1HrBppnuO6kybxT3KRP7H5n9cWjR+/cUv1sKw4Pw=";
+      finalImageName = "mediawiki";
+      finalImageTag = "1.45.3-fpm-alpine";
+    };
+  };
 in
 {
   # declare any secrets such as passwords
@@ -37,10 +52,15 @@ in
       group = "mysql";
       extraGroups = [ "www-data" ];
     };
+    daemon = {
+      isSystemUser = true;
+      group = "daemon";
+    };
   };
   users.groups = {
     www-data = {};
     mysql = {};
+    daemon = {};
   };
 
   # Create the data directory
@@ -51,6 +71,7 @@ in
     "d /mw/redis 0770 nm-iodine nscd -"
     "d /mw/html 0770 www-data www-data -"
     "d /mw/apache2 0770 root root -"
+    "d /mw/run 0770 root root -"
   ];
 
   # Systemd service to create the pod required by podman containers
@@ -71,8 +92,31 @@ in
       Restart = "no";
       ExecStart = pkgs.writeShellScript "pod-mediawiki" ''
         ${pkgs.podman}/bin/podman pod exists mediawiki || \
-        ${pkgs.podman}/bin/podman pod create -p 8090:80 -h loftiawiki.org \
+        ${pkgs.podman}/bin/podman pod create -p 8090:80 -p 8091:9000 -h loftiawiki.org \
         --memory 8G --cpus 0 mediawiki
+      '';
+    };
+    path = [ pkgs.podman ];
+  };
+  systemd.services.pod-mediawiki-upgrade = lib.mkIf mediawiki.enableUpgrade {
+    description = "Start podman's 'mediawiki-upgrade' pod";
+    wants = [ "network-online.target" ];
+    after = [ "network-online.target" ];
+    requiredBy = [
+      "podman-mediawiki-upgrade.service"
+      "podman-mediawiki-db.service"
+      "podman-mediawiki-redis.service"
+    ];
+    unitConfig = {
+      RequiresMountsFor = "/run/containers";
+    };
+    serviceConfig = {
+      Type = "oneshot";
+      Restart = "no";
+      ExecStart = pkgs.writeShellScript "pod-mediawiki-upgrade" ''
+        ${pkgs.podman}/bin/podman pod exists mediawiki-upgrade || \
+        ${pkgs.podman}/bin/podman pod create -p 8100:80 -p 8101:9000 -h upgrade.loftiawiki.org \
+        --memory 8G --cpus 0 mediawiki-upgrade
       '';
     };
     path = [ pkgs.podman ];
@@ -90,18 +134,22 @@ in
         "/etc/passwd:/etc/passwd:ro"
         "/etc/group:/etc/group:ro"
         "/mw/images:/var/www/html/images"
-        "/mw/mediawiki-1.44.0:/var/www/html"
-        # the /mw/apache2-upgrade folder has a special config that changes the
-        # port numbers used to the 8000's
-        "/mw/apache2-upgrade:/etc/apache2"
+        "/mw/mediawiki-${mediawiki.upgradeVersion}:/var/www/html"
+        "/mw/apache2:/etc/apache2"
+        "/mw/run:/run"
       ];
 
       environment = {};
 
       dependsOn = [ "mediawiki-db" "mediawiki-redis" ];
-      extraOptions = [ "--pod=mediawiki" ];
+      extraOptions = [ "--pod=mediawiki-upgrade" ];
 
-      image = "docker.io/prestonhager/mediawiki-redis:latest";
+      image = "mediawiki-redis:${mediawiki.upgradeVersion}";
+      imageFile = import ./mediawiki-docker.nix {
+        inherit pkgs;
+        version = mediawiki.upgradeVersion;
+        dockerImage = mediawiki.upgradeDockerImage;
+      };
     };
     "mediawiki" = {
       autoStart = true;
@@ -126,6 +174,8 @@ in
 
       # Finally, the mediawiki image and version
       image = "docker.io/prestonhager/mediawiki-redis:latest";
+      #image = "mediawiki-redis:${mediawiki.version}";
+      #imageFile = import ./mediawiki-docker.nix { inherit pkgs; version = mediawiki.version; };
     };
     "mediawiki-db" = {
       autoStart = true;
