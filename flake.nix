@@ -39,6 +39,7 @@
         # Define all node names and system types for node-like hosts
         nodes = {
           crux = ./hosts/pterodactyl-nodes;
+          nova = ./hosts/pterodactyl-nodes;
         };
       in {
       # Different configuration are selected by adding #config after the nixos
