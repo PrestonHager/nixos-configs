@@ -73,7 +73,9 @@
         {
           networking.hostName = "${name}";
         }
-      ];
+      ]
+      # Import a host specific configuration if the file exists
+      ++ nixpkgs.lib.optional (builtins.pathExists value) (import ./hosts/${name});
     }) nodes;
   };
 }
