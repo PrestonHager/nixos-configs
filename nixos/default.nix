@@ -119,7 +119,7 @@ in
     zsh = {
       enable = true;
       autosuggestions.enable = true;
-      zsh-autoenv.enable = true;
+      "zsh-autoenv".enable = true;
       syntaxHighlighting.enable = true;
       interactiveShellInit = ''
         fpath+=("${pkgs.pure-prompt}/share/zsh/site-functions")
