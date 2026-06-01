@@ -55,7 +55,10 @@ in
         if [ -d /var/lib/pterodactyl ]; then
           chown -R pterodactyl:pterodactyl /var/lib/pterodactyl
           find /var/lib/pterodactyl -type d -exec chmod 0750 {} \;
-          find /var/lib/pterodactyl -type f -exec chmod 0640 {} \;
+          find /var/lib/pterodactyl -maxdepth 1 -type f -exec chmod 0640 {} \;
+          find /var/lib/pterodactyl/archives /var/lib/pterodactyl/backups -type f -exec chmod 0640 {} \; 2>/dev/null || true
+          find /var/lib/pterodactyl/volumes -type f -name '*.sh' -exec chmod u+x {} \; 2>/dev/null || true
+          find /var/lib/pterodactyl/volumes -type f -name VintagestoryServer -exec chmod u+x {} \; 2>/dev/null || true
         fi
         if [ -d /var/log/pterodactyl ]; then
           chown -R pterodactyl:pterodactyl /var/log/pterodactyl

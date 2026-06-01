@@ -18,8 +18,6 @@ in {
       "ro"
       "nofail"
       "_netdev"
-      "x-systemd.automount"
-      "x-systemd.idle-timeout=300"
       "x-systemd.after=network-online.target"
       "x-systemd.requires=network-online.target"
     ];
