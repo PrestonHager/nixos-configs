@@ -16,6 +16,7 @@ in {
   fileSystems = lib.mapAttrs' (name: _:
     lib.nameValuePair "/export/pterodactyl-${name}" {
       device = "/stor/shares/private/nodes/${name}/letsencrypt";
+      fsType = "none";
       options = [ "bind" "ro" ];
     }
   ) nodes;
