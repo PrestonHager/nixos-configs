@@ -50,9 +50,14 @@ in
     };
 
     serviceConfig = {
+      User = "pterodactyl";
+      Group = "pterodactyl";
       WorkingDirectory = "/etc/pterodactyl";
       ExecStart = "${inputs.pterodactyl-wings.packages.x86_64-linux.wings}/bin/wings";
+      RuntimeDirectory = "wings";
+      RuntimeDirectoryMode = "0755";
       PIDFile = "/var/run/wings/daemon.pid";
+      Restart = "on-failure";
     };
 
     wantedBy = [ "multi-user.target" ];
