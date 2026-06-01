@@ -7,6 +7,7 @@ let
   };
   testEnvFile = "/var/lib/pterodactyl-test/pterodactyl.env";
   testPanelDir = "/home/prestonh/Projects/panel";
+  testPublicDir = "/pterodactyl-test/public";
   setupMarker = "/var/lib/pterodactyl-test/setup-complete";
   adminCredentialsFile = "/var/lib/pterodactyl-test/admin-credentials";
 
@@ -140,8 +141,28 @@ in
     "d /pterodactyl-test/sockets 0770 pterodactyl pterodactyl -"
     "d /pterodactyl-test/sockets/mysqld 0770 pterodactyl pterodactyl -"
     "d /pterodactyl-test/sockets/php 0770 pterodactyl pterodactyl -"
+    "d /pterodactyl-test 0755 root root -"
     "d /var/lib/pterodactyl-test 0750 pterodactyl pterodactyl -"
   ];
+
+  systemd.services.pterodactyl-test-public-mount = {
+    description = "Bind-mount test panel public dir for Caddy static file access";
+    wantedBy = [ "multi-user.target" ];
+    before = [ "caddy.service" "podman-pterodactyl-test.service" ];
+    after = [ "pterodactyl-test-panel-perms.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = ''
+      set -euo pipefail
+      install -d -m 0755 ${testPublicDir}
+      if ! mountpoint -q ${testPublicDir}; then
+        mount --bind ${testPanelDir}/public ${testPublicDir}
+      fi
+      chmod 0755 ${testPublicDir}
+    '';
+  };
 
   systemd.services.pterodactyl-test-env = {
     description = "Create isolated environment file for the test Pterodactyl panel";
@@ -239,7 +260,7 @@ EOF
     '';
   };
 
-  # Re-applied every boot; prestonh home is often 0700 and blocks Caddy from /assets.
+  # Kept for container git/composer access; Caddy uses the bind mount instead.
   systemd.services.pterodactyl-test-caddy-access = {
     description = "Allow Caddy to read test panel files under prestonh home";
     wantedBy = [ "multi-user.target" ];
@@ -279,11 +300,13 @@ EOF
       "network-online.target"
       "pterodactyl-test-env.service"
       "pterodactyl-test-panel-perms.service"
+      "pterodactyl-test-public-mount.service"
     ];
     after = [
       "network-online.target"
       "pterodactyl-test-env.service"
       "pterodactyl-test-panel-perms.service"
+      "pterodactyl-test-public-mount.service"
     ];
     requiredBy = [
       "podman-pterodactyl-test.service"

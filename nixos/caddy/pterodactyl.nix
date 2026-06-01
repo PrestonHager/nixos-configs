@@ -63,12 +63,12 @@ in {
         containerPath = "/var/www/pterodactyl";
       };
       "test.panel.prestonhager.com".extraConfig = panelSite {
-        hostPath = "/home/prestonh/Projects/panel/public";
+        hostPath = "/pterodactyl-test/public";
         containerPath = "/var/www/pterodactyl";
         phpPort = "9002";
       };
       "testpanel.prestonhager.com".extraConfig = panelSite {
-        hostPath = "/home/prestonh/Projects/panel/public";
+        hostPath = "/pterodactyl-test/public";
         containerPath = "/var/www/pterodactyl";
         phpPort = "9002";
       };
