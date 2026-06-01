@@ -6,8 +6,12 @@ let
     inherit pkgs sops-path;
   };
   testEnvFile = "/var/lib/pterodactyl-test/pterodactyl.env";
+  testPanelDir = "/home/prestonh/Projects/panel";
 in
 {
+  # Container processes stay pterodactyl; group "users" matches prestonh's primary group.
+  users.users.pterodactyl.extraGroups = [ "users" ];
+
   systemd.tmpfiles.rules = [
     "d /pterodactyl-test/data 0770 pterodactyl pterodactyl -"
     "d /pterodactyl-test/redis 0770 pterodactyl pterodactyl -"
@@ -84,8 +88,16 @@ EOF
 
   systemd.services.pod-pterodactyl-test = {
     description = "Start podman's 'pterodactyl-test' pod";
-    wants = [ "network-online.target" "pterodactyl-test-env.service" ];
-    after = [ "network-online.target" "pterodactyl-test-env.service" ];
+    wants = [
+      "network-online.target"
+      "pterodactyl-test-env.service"
+      "pterodactyl-test-panel-perms.service"
+    ];
+    after = [
+      "network-online.target"
+      "pterodactyl-test-env.service"
+      "pterodactyl-test-panel-perms.service"
+    ];
     requiredBy = [
       "podman-pterodactyl-test.service"
       "podman-pterodactyl-test-db.service"
@@ -104,14 +116,38 @@ EOF
     path = [ pkgs.podman ];
   };
 
+  systemd.services.pterodactyl-test-panel-perms = {
+    description = "Keep test panel checkout owned by prestonh:users with group access for the container";
+    wantedBy = [ "multi-user.target" ];
+    before = [ "podman-pterodactyl-test.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = ''
+      set -euo pipefail
+      install -d -o prestonh -g users -m 2775 ${testPanelDir}
+      chown -R prestonh:users ${testPanelDir}
+      find ${testPanelDir} -type d -exec chmod 2775 {} +
+      find ${testPanelDir} -type f -exec chmod 0664 {} +
+      for dir in storage bootstrap/cache vendor; do
+        if [ -d "${testPanelDir}/$dir" ]; then
+          ${pkgs.acl}/bin/setfacl -R -m u:pterodactyl:rwx "${testPanelDir}/$dir"
+          ${pkgs.acl}/bin/setfacl -R -d -m u:pterodactyl:rwx "${testPanelDir}/$dir"
+        fi
+      done
+    '';
+  };
+
   virtualisation.oci-containers.containers = {
     pterodactyl-test = {
       autoStart = true;
-      user = "pterodactyl:pterodactyl";
+      # Primary group "users" so new files under setgid dirs stay group-writable.
+      user = "pterodactyl:users";
       volumes = [
         "/etc/passwd:/etc/passwd:ro"
         "/etc/group:/etc/group:ro"
-        "/home/prestonh/Projects/panel:/var/www/pterodactyl:U"
+        "${testPanelDir}:/var/www/pterodactyl"
         "/pterodactyl-test/sockets/mysqld:/run/mysqld"
         "/pterodactyl-test/sockets/php:/run/php-fpm"
         "${testEnvFile}:/var/www/pterodactyl/.env:U"
