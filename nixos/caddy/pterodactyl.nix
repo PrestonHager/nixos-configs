@@ -15,24 +15,31 @@ let
   panelSite = { hostPath, containerPath, phpPort ? "9001" }:
     ''
       root * ${hostPath}
+      encode gzip
 
-      try_files {path} {path}/ /index.php?{query}
+      @static {
+        path *.css *.js *.ico *.png *.svg *.woff *.woff2 *.map
+        path /assets/* /favicons/* /js/* /themes/*
+      }
+      handle @static {
+        file_server
+      }
 
-      php_fastcgi localhost:${phpPort} {
+      handle {
+        rewrite * /index.php?{query}
+        php_fastcgi localhost:${phpPort} {
           root ${hostPath}
           index index.php
-
-          env SCRIPT_FILENAME ${containerPath}/public{path}
+          env SCRIPT_FILENAME ${containerPath}/public/index.php
           env DOCUMENT_ROOT ${containerPath}/public
-
           env PHP_VALUE "upload_max_filesize = 100M
           post_max_size = 100M"
           env HTTP_PROXY ""
           env HTTPS "on"
-
           read_timeout 300s
           dial_timeout 300s
           write_timeout 300s
+        }
       }
 
       header Strict-Transport-Security "max-age=16768000; preload;"
