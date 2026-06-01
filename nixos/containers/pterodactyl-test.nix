@@ -225,6 +225,7 @@ EOF
       touch ${testPanelDir}/.setup_done
       chown prestonh:users ${testPanelDir}/.setup_done
       chmod o+x /home/prestonh
+      ${pkgs.acl}/bin/setfacl -m u:caddy:x /home/prestonh
       install -d -o prestonh -g users -m 2775 ${testPanelDir}
       chown -R prestonh:users ${testPanelDir}
       find ${testPanelDir} -type d -exec chmod 2775 {} +
@@ -235,6 +236,18 @@ EOF
           ${pkgs.acl}/bin/setfacl -R -d -m u:pterodactyl:rwx "${testPanelDir}/$dir"
         fi
       done
+    '';
+  };
+
+  # Re-applied every boot; prestonh home is often 0700 and blocks Caddy from /assets.
+  systemd.services.pterodactyl-test-caddy-access = {
+    description = "Allow Caddy to read test panel files under prestonh home";
+    wantedBy = [ "multi-user.target" ];
+    before = [ "caddy.service" ];
+    serviceConfig.Type = "oneshot";
+    script = ''
+      chmod o+x /home/prestonh
+      ${pkgs.acl}/bin/setfacl -m u:caddy:x /home/prestonh
     '';
   };
 

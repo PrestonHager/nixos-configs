@@ -17,11 +17,8 @@ let
       root * ${hostPath}
       encode gzip
 
-      @static {
-        path *.css *.js *.ico *.png *.svg *.woff *.woff2 *.map
-        path /assets/* /favicons/* /js/* /themes/*
-      }
-      handle @static {
+      @existing file {path}
+      handle @existing {
         file_server
       }
 
