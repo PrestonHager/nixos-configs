@@ -3,7 +3,7 @@
 let
   websocketHosts = {
     "nova.lc1.nm.us.prestonhager.com" = {
-      ip = "192.168.8.46";
+      ip = "192.168.8.7";
       port = "443";
     };
     "crux.lc1.nm.us.prestonhager.com" = {
@@ -12,13 +12,13 @@ let
     };
   };
 
-  panelSite = { hostPath, containerPath }:
+  panelSite = { hostPath, containerPath, phpPort ? "9001" }:
     ''
       root * ${hostPath}
 
       file_server
 
-      php_fastcgi localhost:9001 {
+      php_fastcgi localhost:${phpPort} {
           root ${hostPath}
           index index.php
 
@@ -60,7 +60,13 @@ in {
       };
       "test.panel.prestonhager.com".extraConfig = panelSite {
         hostPath = "/home/prestonh/Projects/panel/public";
-        containerPath = "/var/www/pterodactyl-test";
+        containerPath = "/var/www/pterodactyl";
+        phpPort = "9002";
+      };
+      "testpanel.prestonhager.com".extraConfig = panelSite {
+        hostPath = "/home/prestonh/Projects/panel/public";
+        containerPath = "/var/www/pterodactyl";
+        phpPort = "9002";
       };
     } // builtins.mapAttrs (websocketHost: websocketConfig: {
       extraConfig = ''

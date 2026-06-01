@@ -77,11 +77,9 @@ in
         "/etc/passwd:/etc/passwd:ro"
         "/etc/group:/etc/group:ro"
         "/pterodactyl/html:/var/www/pterodactyl"
-        "/home/prestonh/Projects/panel:/var/www/pterodactyl-test:U"
         "/pterodactyl/sockets/mysqld:/run/mysqld"
         "/pterodactyl/sockets/php:/run/php-fpm"
         "${config.sops.secrets."pterodactyl-env".path}:/var/www/pterodactyl/.env.initial:U"
-        "${config.sops.secrets."pterodactyl-env".path}:/var/www/pterodactyl-test/.env.initial:U"
       ];
 
       environment = {

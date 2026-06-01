@@ -15,6 +15,7 @@
     ./portunus.nix
     ./prometheus.nix
     ./pterodactyl.nix
+    ./pterodactyl-test.nix
     #./spacetimedb.nix
     #./sui.nix
     ./vaultwarden.nix
