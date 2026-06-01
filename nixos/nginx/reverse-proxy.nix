@@ -148,7 +148,7 @@
       # Games from pterodactyl panel
       "pong.prestonhager.com" = (SSL // {
         locations."/" = {
-          proxyPass = "http://192.168.8.6:9001/";
+          proxyPass = "http://192.168.5.6:9001/";
           extraConfig = ''
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
@@ -160,20 +160,20 @@
       # Pterodacyl panel
       "panel.prestonhager.com" = (SSL // {
         locations."/" = {
-          proxyPass = "http://192.168.8.6:80/";
+          proxyPass = "http://192.168.5.6:80/";
           proxyWebsockets = true;
         };
       });
 
       "node-01.lc1.nm.us.prestonhager.com" = (SSL // {
         locations."/" = {
-          proxyPass = "http://192.168.8.6:443";
+          proxyPass = "http://192.168.5.6:443";
           proxyWebsockets = true;
         };
       });
       "node-02.lc1.nm.us.prestonhager.com" = (SSL // {
         locations."/" = {
-          proxyPass = "http://192.168.8.46:443";
+          proxyPass = "http://192.168.5.6:443";
           proxyWebsockets = true;
         };
       });

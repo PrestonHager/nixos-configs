@@ -3,11 +3,11 @@
 let
   websocketHosts = {
     "nova.lc1.nm.us.prestonhager.com" = {
-      ip = "192.168.8.7";
+      ip = "192.168.5.7";
       port = "443";
     };
     "crux.lc1.nm.us.prestonhager.com" = {
-      ip = "192.168.8.6";
+      ip = "192.168.5.6";
       port = "443";
     };
   };
