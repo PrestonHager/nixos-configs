@@ -111,7 +111,7 @@ pkgs.dockerTools.buildImage {
       httpdConf
       entrypointScript
       pkgs.mariadb
-      pkgs.mariadb-client
+      pkgs.mariadb.client
       pkgs.coreutils
       pkgs.gnugrep
       pkgs.php

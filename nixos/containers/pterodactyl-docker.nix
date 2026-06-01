@@ -216,7 +216,7 @@ EOF
     pkgs.php83Extensions.curl
     pkgs.php83Extensions.zip
     pkgs.redis
-    pkgs.mariadb-client
+    pkgs.mariadb.client
     pkgs.gnugrep
     pkgs.gnused
     pkgs.cacert
