@@ -96,13 +96,14 @@ in
       Type = "oneshot";
       User = "root";
       ExecStart = pkgs.writeShellScript "set-pterodactyl-db-password" ''
-        PASS=$(cat ${config.sops.secrets."pterodactyl-db-password".path})
+        PASS="$(cat ${config.sops.secrets."pterodactyl-db-password".path})"
+        PASS_ESC="$(printf '%s' "$PASS" | sed "s/'/''/g")"
 
         {
-          printf "CREATE USER IF NOT EXISTS 'pterodactyl'@'%%' IDENTIFIED BY '%s';\n" "$PASS"
-          printf "ALTER USER 'pterodactyl'@'%%' IDENTIFIED BY '%s';\n" "$PASS"
-          printf "GRANT USAGE ON *.* TO 'pterodactyl'@'%%';\n"
-          printf "GRANT ALL PRIVILEGES ON *.* TO 'pterodactyl'@'%%' WITH GRANT OPTION;\n"
+          printf "CREATE DATABASE IF NOT EXISTS pterodactyl;\n"
+          printf "CREATE USER IF NOT EXISTS 'pterodactyl'@'%%' IDENTIFIED BY '%s';\n" "$PASS_ESC"
+          printf "ALTER USER 'pterodactyl'@'%%' IDENTIFIED BY '%s';\n" "$PASS_ESC"
+          printf "GRANT ALL PRIVILEGES ON pterodactyl.* TO 'pterodactyl'@'%%';\n"
           printf "FLUSH PRIVILEGES;\n"
         } | ${pkgs.mariadb}/bin/mysql -u root
       '';
