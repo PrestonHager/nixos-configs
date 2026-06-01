@@ -16,7 +16,7 @@ let
     ''
       root * ${hostPath}
 
-      file_server
+      try_files {path} {path}/ /index.php?{query}
 
       php_fastcgi localhost:${phpPort} {
           root ${hostPath}
