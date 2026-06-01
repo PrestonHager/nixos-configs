@@ -48,6 +48,11 @@ in
           chown pterodactyl:pterodactyl /etc/pterodactyl/config.yml
           chmod 0640 /etc/pterodactyl/config.yml
         fi
+        if [ -d /var/log/pterodactyl ]; then
+          chown -R pterodactyl:pterodactyl /var/log/pterodactyl
+          find /var/log/pterodactyl -type d -exec chmod 0750 {} \;
+          find /var/log/pterodactyl -type f -exec chmod 0640 {} \;
+        fi
       '';
       RemainAfterExit = true;
     };
