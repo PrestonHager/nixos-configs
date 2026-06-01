@@ -39,7 +39,7 @@ in
 
   # Create systemd service for the wings binary
   systemd.tmpfiles.rules = [
-    "d /etc/pterodactyl 0775 root root -"
+    "d /etc/pterodactyl 0750 pterodactyl pterodactyl -"
   ];
   systemd.services.wings = {
     enable = true;
