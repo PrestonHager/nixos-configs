@@ -6,8 +6,7 @@
     device = "ace.internal.prestonhager.com:/pterodactyl-share";
     fsType = "nfs";
     # set owner and group to root:root and permissions to 755
-    options = [ "ro" "nofail" "_netdev" ];
-    #options = [ "rw" "uid=0" "gid=0" "file_mode=0755" "dir_mode=0755" ];
+    options = [ "ro" "nofail" "_netdev" "x-systemd.automount" "x-systemd.idle-timeout=60" ];
   };
 
   boot.supportedFilesystems = [ "nfs" ];
