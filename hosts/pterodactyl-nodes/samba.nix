@@ -2,7 +2,7 @@
 
 {
   services.samba = {
-    enable = true;
+    enable = false;
     package = pkgs.samba;
     
     settings = {
