@@ -89,6 +89,8 @@ in
       RuntimeDirectory = "wings";
       RuntimeDirectoryMode = "0755";
       PIDFile = "/var/run/wings/daemon.pid";
+      AmbientCapabilities = [ "CAP_NET_BIND_SERVICE" ];
+      CapabilityBoundingSet = [ "CAP_NET_BIND_SERVICE" ];
       Restart = "on-failure";
     };
     wantedBy = [ "multi-user.target" ];
