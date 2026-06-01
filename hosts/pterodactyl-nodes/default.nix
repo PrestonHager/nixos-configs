@@ -68,8 +68,8 @@ in
   users.users = {
     pterodactyl = {
       isSystemUser = true;
-      group = "users";
-      extraGroups = [ "systemd-journal" "pterodactyl" ];
+      group = "pterodactyl";
+      extraGroups = [ "systemd-journal" "docker" ];
     };
   };
   users.groups = {
