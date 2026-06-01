@@ -25,7 +25,6 @@
           curl -s -o /etc/ssl/certs/isrgrootx2.pem https://letsencrypt.org/certs/isrg-root-x2.pem
           # Merge the chain.pem with the ISRG root certificates
           cat chain.pem /etc/ssl/certs/isrgrootx1.pem /etc/ssl/certs/isrgrootx2.pem > ca.merged.pem
-          cat chain.pem /etc/ssl/certs/isrgrootx1.pem > ca.merged.pem
           chown acme:nginx ca.merged.pem
           chmod 640 ca.merged.pem
         '';
