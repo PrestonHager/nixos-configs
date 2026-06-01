@@ -33,6 +33,10 @@ in
 
   systemd.tmpfiles.rules = [
     "d /etc/pterodactyl 0750 pterodactyl pterodactyl -"
+    "d /var/lib/pterodactyl 0750 pterodactyl pterodactyl -"
+    "d /var/lib/pterodactyl/volumes 0750 pterodactyl pterodactyl -"
+    "d /var/lib/pterodactyl/archives 0750 pterodactyl pterodactyl -"
+    "d /var/lib/pterodactyl/backups 0750 pterodactyl pterodactyl -"
     "d /var/log/pterodactyl 0750 pterodactyl pterodactyl -"
     "d /var/log/pterodactyl/install 0750 pterodactyl pterodactyl -"
   ];
@@ -47,6 +51,11 @@ in
         if [ -f /etc/pterodactyl/config.yml ]; then
           chown pterodactyl:pterodactyl /etc/pterodactyl/config.yml
           chmod 0640 /etc/pterodactyl/config.yml
+        fi
+        if [ -d /var/lib/pterodactyl ]; then
+          chown -R pterodactyl:pterodactyl /var/lib/pterodactyl
+          find /var/lib/pterodactyl -type d -exec chmod 0750 {} \;
+          find /var/lib/pterodactyl -type f -exec chmod 0640 {} \;
         fi
         if [ -d /var/log/pterodactyl ]; then
           chown -R pterodactyl:pterodactyl /var/log/pterodactyl
