@@ -154,11 +154,12 @@ in
       Type = "oneshot";
       RemainAfterExit = true;
     };
+    path = [ pkgs.util-linux pkgs.coreutils ];
     script = ''
       set -euo pipefail
       install -d -m 0755 ${testPublicDir}
-      if ! mountpoint -q ${testPublicDir}; then
-        mount --bind ${testPanelDir}/public ${testPublicDir}
+      if ! ${pkgs.util-linux}/bin/mountpoint -q ${testPublicDir}; then
+        ${pkgs.util-linux}/bin/mount --bind ${testPanelDir}/public ${testPublicDir}
       fi
       chmod 0755 ${testPublicDir}
     '';
