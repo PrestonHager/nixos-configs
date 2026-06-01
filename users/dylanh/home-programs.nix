@@ -43,14 +43,14 @@
   # Setup local git configuration
   programs.git = {
     enable = true;
-    userName = "Preston Hager";
-    userEmail = "preston@hagerfamily.com";
+    settings = {
+      user.name = "Preston Hager";
+      user.email = "preston@hagerfamily.com";
+      alias.ap = "add -p";
+    };
     signing = {
       signByDefault = true;
       key = "preston@hagerfamily.com";
-    };
-    aliases = {
-      ap = "add -p";
     };
   };
 }

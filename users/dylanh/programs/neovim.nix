@@ -3,6 +3,8 @@
 {
   programs.neovim = {
     enable = true;
+    withRuby = true;
+    withPython3 = true;
     withNodeJs = true;
     viAlias = true;
     vimAlias = true;
@@ -29,7 +31,7 @@
       nnoremap <silent> <M-l> :TmuxNavigateRight<cr>
       nnoremap <silent> <M-\> :TmuxNavigatePrevious<cr>
     '';
-    extraLuaConfig = ''
+    initLua = ''
       -- Enable treesitter highlighting
       require('nvim-treesitter.configs').setup({
         highlight = {

@@ -26,18 +26,16 @@
   programs.git = {
     enable = true;
     package = pkgs.git;
-    userName = "Preston Hager";
-    userEmail = "preston@hagerfamily.com";
+    settings = {
+      user.name = "Preston Hager";
+      user.email = "preston@hagerfamily.com";
+      alias.c = "commit -S";
+      core.editor = "XDG_CONFIG_HOME=\"$HOME/.config/\" ${pkgs.neovim}/bin/nvim";
+      init.defaultBranch = "main";
+    };
     signing = {
       signByDefault = true;
       key = "preston@hagerfamily.com";
-    };
-    aliases = {
-      c = "commit -S";
-    };
-    extraConfig = {
-      core.editor = "XDG_CONFIG_HOME=\"$HOME/.config/\" ${pkgs.neovim}/bin/nvim";
-      init.defaultBranch = "main";
     };
   };
 }
