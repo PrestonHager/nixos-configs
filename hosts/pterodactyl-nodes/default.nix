@@ -127,9 +127,12 @@ in
   systemd.services.link-letsencrypt = {
     description = "Link Let's Encrypt files from NFS";
     after = [ "mnt-pterodactyl\\x2dshare.mount" ];
+    requires = [ "mnt-pterodactyl\\x2dshare.mount" ];
+    unitConfig = {
+      ConditionPathIsMountPoint = "/mnt/pterodactyl-share";
+    };
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
-      Type = "oneshot";
       ExecStart = pkgs.writeShellScript "link-letsencrypt" ''
         mkdir -p /etc/letsencrypt
         ln -sfn /mnt/pterodactyl-share/letsencrypt /etc/letsencrypt/live
