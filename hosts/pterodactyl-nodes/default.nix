@@ -5,7 +5,8 @@ let
 in
 {
   imports = [
-    ./samba.nix
+    #./samba.nix
+    ./nfs.nix
     ../../nixos
     ../../nixos/headless
     # hardware configuration for the Dell Workstations
@@ -118,8 +119,8 @@ in
 
   # Link the letsencrypt files to the file share after it has been mounted
   systemd.services.link-letsencrypt = {
-    description = "Link Let's Encrypt files from Samba share";
-    after = [ "mnt-pterodactyl-share.automount" ];
+    description = "Link Let's Encrypt files from NFS";
+    after = [ "mnt-pterodactyl\\x2dshare.mount" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "oneshot";
