@@ -14,6 +14,7 @@
     "d /jf 0770 jellyfin jellyfin -"
     "d /jf/config 0770 jellyfin jellyfin -"
     "d /jf/cache 0770 jellyfin jellyfin -"
+    "d /jf/media 0770 jellyfin jellyfin -"
   ];
 
   # Define the container
@@ -34,6 +35,11 @@
       "/etc/group:/etc/group:ro"
       "/jf/config:/config"
       "/jf/cache:/cache"
+      "/jf/media:/media"
+    ];
+
+    extraOptions = [
+      "--userns=keep-id"
     ];
 
     # Finally, the jellyfin image and version

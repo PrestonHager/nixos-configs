@@ -1,32 +1,6 @@
 { config, ... }:
 
 {
-  # Enable the HTTP/HTTPS ports on the firewall
-  networking.firewall.allowedTCPPorts = [
-    80
-    443
-  ];
-
-  security.acme = {
-    acceptTerms = true;
-    defaults.email = "admin+acme@prestonhager.com";
-    certs = {
-      "portunus.prestonhager.com" = {
-        postRun = ''
-          #!/usr/bin/env bash
-          # Ensure Let's Encrypt root certificates are downloaded
-          curl -s -o /etc/ssl/certs/isrgrootx1.pem https://letsencrypt.org/certs/isrgrootx1.pem
-          curl -s -o /etc/ssl/certs/isrgrootx2.pem https://letsencrypt.org/certs/isrg-root-x2.pem
-          # Merge the chain.pem with the ISRG root certificates
-          cat chain.pem /etc/ssl/certs/isrgrootx1.pem /etc/ssl/certs/isrgrootx2.pem > ca.merged.pem
-          cat chain.pem /etc/ssl/certs/isrgrootx1.pem > ca.merged.pem
-          chown acme:nginx ca.merged.pem
-          chmod 640 ca.merged.pem
-        '';
-      };
-    };
-  };
-
   services.nginx = {
     enable = true;
     recommendedProxySettings = true;
@@ -52,9 +26,25 @@
           "/" = {
             proxyPass = "http://localhost:8083/";
             proxyWebsockets = true;
+            extraConfig = ''
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Port $server_port;
+              proxy_set_header X-Forwarded-Scheme $scheme;
+              proxy_set_header X-Forwarded-Proto $scheme;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header Host $host;
+              proxy_set_header Early-Data $ssl_early_data;
+            '';
           };
         };
         extraConfig = ''
+          proxy_buffering off;
+          proxy_request_buffering off;
+
+          client_max_body_size 0;
+          client_body_buffer_size 512k;
+          proxy_read_timeout 86400s;
+
           location /.well-known/carddav {
             return 301 $scheme://$host/remote.php/dav;
           }
@@ -82,14 +72,29 @@
         };
       });
 
+      # Loftia wiki Phorge instance
+      "phorge.loftiawiki.org" = (SSL // {
+        locations."/" = {
+          proxyPass = "http://127.0.0.1:8091/";
+          proxyWebsockets = true;
+          extraConfig = ''
+            allow 192.168.8.0/24;
+            deny all;
+          '';
+        };
+      });
+      "phorge.loftiawiki.com" = (SSL // {
+        locations."/" = {
+          extraConfig = ''
+            return 301 $scheme://phorge.loftiawiki.org$request_uri;
+          '';
+        };
+      });
+
       "portunus.prestonhager.com" = (SSL // {
         locations."/" = {
           proxyPass = "http://localhost:8086/";
           proxyWebsockets = true;
-          extraConfig = ''
-            allow 192.168.8.1/24;
-            deny all;
-          '';
         };
       });
 
@@ -132,10 +137,18 @@
         };
       });
 
+      # Wireguard Portal
+      "wg.prestonhager.com" = (SSL // {
+        locations."/" = {
+          proxyPass = "http://localhost:8080/";
+          proxyWebsockets = true;
+        };
+      });
+
       # Games from pterodactyl panel
       "pong.prestonhager.com" = (SSL // {
         locations."/" = {
-          proxyPass = "http://192.168.8.6:9001/";
+          proxyPass = "http://192.168.5.6:9001/";
           extraConfig = ''
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
@@ -147,14 +160,20 @@
       # Pterodacyl panel
       "panel.prestonhager.com" = (SSL // {
         locations."/" = {
-          proxyPass = "http://192.168.8.6:80/";
+          proxyPass = "http://192.168.5.6:80/";
           proxyWebsockets = true;
         };
       });
 
       "node-01.lc1.nm.us.prestonhager.com" = (SSL // {
         locations."/" = {
-          proxyPass = "http://192.168.8.6:443";
+          proxyPass = "http://192.168.5.6:443";
+          proxyWebsockets = true;
+        };
+      });
+      "node-02.lc1.nm.us.prestonhager.com" = (SSL // {
+        locations."/" = {
+          proxyPass = "http://192.168.5.6:443";
           proxyWebsockets = true;
         };
       });

@@ -1,0 +1,41 @@
+# Local /etc/hosts entries for services terminated by Caddy on this host (ace).
+# Lets on-box tools (curl, health checks, CLI) resolve *.prestonhager.com to loopback
+# instead of timing out on public DNS / hairpin NAT.
+#
+# Install:
+#   bash ~/nixos/apply-local-hosts.sh
+#   sudo nixos-rebuild switch --flake /etc/nixos#ace
+
+{ ... }:
+
+{
+  networking.hosts."127.0.0.1" = [
+    # Pterodactyl
+    "panel.prestonhager.com"
+    "test.panel.prestonhager.com"
+    "testpanel.prestonhager.com"
+
+    # Monitoring & media
+    "grafana.prestonhager.com"
+    "prometheus.prestonhager.com"
+    "jellyfin.prestonhager.com"
+
+    # Identity / infra
+    "vault.prestonhager.com"
+    "wg.prestonhager.com"
+    "metrics.wg.prestonhager.com"
+    "zitadel.prestonhager.com"
+    "portunus.prestonhager.com"
+    "git.prestonhager.com"
+
+    # Matrix / wiki (Caddy imports on ace)
+    "matrix.prestonhager.com"
+    "loftiawiki.org"
+    "loftiawiki.com"
+    "upgrade.loftiawiki.org"
+  ];
+
+  # Remote game/wings nodes (already partially configured; ensure both are present)
+  networking.hosts."192.168.5.6" = [ "crux.lc1.nm.us.prestonhager.com" ];
+  networking.hosts."192.168.5.7" = [ "nova.lc1.nm.us.prestonhager.com" ];
+}

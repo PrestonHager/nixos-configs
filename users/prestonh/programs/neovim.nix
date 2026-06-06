@@ -23,6 +23,8 @@ in
 {
   programs.neovim = {
     enable = true;
+    withRuby = true;
+    withPython3 = true;
     withNodeJs = true;
     viAlias = true;
     vimAlias = true;
@@ -42,7 +44,7 @@ in
       nnoremap <silent> <M-l> :TmuxNavigateRight<cr>
       nnoremap <silent> <M-\> :TmuxNavigatePrevious<cr>
     '';
-    extraLuaConfig = ''
+    initLua = ''
       -- Enable treesitter highlighting
       package.path = package.path ..
         ";${pkgs.vimPlugins.nvim-treesitter}/lua/?.lua"
@@ -73,5 +75,9 @@ in
   recursive = true;
     source = treesitterWithGrammars;
   };
+
+  home.packages = with pkgs; [
+    xsel
+  ];
 }
 

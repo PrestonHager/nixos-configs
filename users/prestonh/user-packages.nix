@@ -39,5 +39,8 @@
     # htop for viewing processes
     htop-vim
     iotop
+
+    # samba
+    sambaFull
   ];
 }

@@ -1,5 +1,8 @@
-{ config, ... }:
+{ config, inputs, ... }:
 
+let
+  domain-name = "portunus.prestonhager.com";
+in
 {
   # Create the portunus user and group
   users.users.portunus = {
@@ -9,7 +12,7 @@
   };
   users.groups.portunus = {};
 
-  # Create the ldap user and grou
+  # Create the ldap user and group
   users.users.ldap = {
     isSystemUser = true;
     description = "LDAP";
@@ -45,21 +48,20 @@
       "/etc/passwd:/etc/passwd:ro"
       "/etc/group:/etc/group:ro"
       "/portunus/lib/portunus:/var/lib/portunus"
-      "/portunus/passwords:/secrets/passwords"
-      "/var/lib/acme/portunus.prestonhager.com:/var/lib/acme"
+      "/var/lib/caddy/.local/share/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${domain-name}:/var/lib/acme:ro"
     ];
 
     environment = {
       PORTUNUS_LDAP_SUFFIX = "dc=prestonhager,dc=com";
-      PORTUNUS_SLAPD_TLS_CERTIFICATE = "/var/lib/acme/fullchain.pem";
-      PORTUNUS_SLAPD_TLS_CA_CERTIFICATE = "/var/lib/acme/ca.merged.pem";
-      PORTUNUS_SLAPD_TLS_PRIVATE_KEY = "/var/lib/acme/key.pem";
+      PORTUNUS_SLAPD_TLS_CERTIFICATE = "/var/lib/acme/${domain-name}.crt";
+      PORTUNUS_SLAPD_TLS_CA_CERTIFICATE = "/var/lib/acme/${domain-name}.crt";
+      PORTUNUS_SLAPD_TLS_PRIVATE_KEY = "/var/lib/acme/${domain-name}.key";
       PORTUNUS_SLAPD_TLS_DOMAIN_NAME = "portunus.prestonhager.com";
+      #PORTUNUS_SEED_PATH = "/var/lib/portunus/seed.json";
     };
 
     # Finally, the portunus image and version
-    #image = "docker.io/prestonhager/portunus:v1.0.0";
-    image = "localhost/portunus:v1.0.1";
+    image = "docker.io/prestonhager/portunus:latest";
   };
 }
 

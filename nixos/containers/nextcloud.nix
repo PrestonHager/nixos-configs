@@ -95,7 +95,7 @@ in
         # Redis connection
         REDIS_HOST = "nextcloud-redis";
         # Nextcloud domain configurations
-        TRUSTED_PROXIES = "192.168.8.50,192.168.8.52";
+        TRUSTED_PROXIES = "192.168.8.50,192.168.8.52,localhost";
         NEXTCLOUD_TRUSTED_DOMAINS = "cloud.prestonhager.com";
         OVERWRITEHOST = "cloud.prestonhager.com";
         OVERWRITEPROTOCOL = "https";
@@ -130,7 +130,7 @@ in
         "/nc/mysql:/var/lib/mysql:z"
       ];
 
-      cmd = ["--transaction-isolation=READ-COMMITTED" "--log-bin=msqyld-bin" "--binlog-format=ROW"];
+      cmd = ["--transaction-isolation=READ-COMMITTED" "--log-bin=mysqld-bin" "--binlog-format=ROW"];
 
       environment = {
         MARIADB_DATABASE = "nextcloud";
