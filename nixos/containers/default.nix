@@ -20,6 +20,7 @@
     #./sui.nix
     ./vaultwarden.nix
     ./wg-portal.nix
+    ./lancache.nix
     ./zitadel.nix
   ];
 

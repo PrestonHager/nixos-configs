@@ -76,7 +76,7 @@ in {
     autoStart = true;
     image = "ghcr.io/zitadel/zitadel:latest";
     user = "root:root";
-    cmdline = [
+    cmd = [
       "start-from-init"
       "--masterkeyFromEnv"
       "--tlsMode"
