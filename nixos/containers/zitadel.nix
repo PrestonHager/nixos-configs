@@ -43,11 +43,32 @@ in {
   };
   users.groups.zitadel = { };
 
+  # postgres:16-alpine runs as uid/gid 70; data dir must be traversable by that user.
+  users.users.postgres = {
+    isSystemUser = true;
+    uid = 70;
+    group = "postgres";
+    description = "PostgreSQL (Zitadel container uid 70)";
+  };
+  users.groups.postgres = { gid = 70; };
+
   systemd.tmpfiles.rules = [
     "d /zitadel/data 0770 zitadel zitadel -"
-    "d /zitadel/postgres 0770 zitadel zitadel -"
+    "d /zitadel/postgres 0700 postgres postgres -"
     "d ${loginClientDir} 0750 zitadel zitadel -"
   ];
+
+  systemd.services.zitadel-postgres-datadir = {
+    description = "Ensure Zitadel PostgreSQL data directory is owned by container uid 70";
+    before = [ "podman-zitadel-db.service" ];
+    requiredBy = [ "podman-zitadel-db.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${pkgs.coreutils}/bin/chown postgres:postgres /zitadel/postgres";
+      ExecStartPost = "${pkgs.coreutils}/bin/chmod 0700 /zitadel/postgres";
+    };
+  };
 
   systemd.services.zitadel-login-client-keygen = {
     description = "Generate Zitadel login-client RSA keypair for Login UI API auth";
