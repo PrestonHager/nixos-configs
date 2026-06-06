@@ -12,12 +12,12 @@
 
 | Category | Count | Details |
 |----------|------:|---------|
-| **Healthy** | 22 | Core infra, most app stacks, LAN DNS |
-| **Degraded** | 5 | Technitium DoH/DoT, Nextcloud warnings, MediaWiki upgrade vhost, elevated load metric |
-| **Down / broken** | 2 | Matrix (no backend), `testpanel.prestonhager.com` (no TLS cert) |
+| **Healthy** | 23 | Core infra, most app stacks, LAN DNS, Technitium DoH/DoT |
+| **Degraded** | 4 | Nextcloud warnings, MediaWiki upgrade vhost, elevated load metric |
+| **Down / broken** | 1 | Matrix (no backend) |
 | **Not configured** | 4 | Matrix homeserver, Portunus, Forgejo, Spacetime/Sui (commented out in flake) |
 
-**Overall:** Ace is **operational** for production workloads (Nextcloud, Grafana, Zitadel, Pterodactyl, Jellyfin, Vaultwarden, LAN DNS). The main gaps are **Technitium DoH/DoT** (protocol sync not deployed), **Matrix** (Caddy vhost exists but Synapse is disabled), and a **missing ACME cert** for the `testpanel.prestonhager.com` alias.
+**Overall:** Ace is **operational** for production workloads (Nextcloud, Grafana, Zitadel, Pterodactyl, Jellyfin, Vaultwarden, LAN DNS). The main gap is **Matrix** (Caddy vhost exists but Synapse is disabled).
 
 **System resources:** 31 GiB RAM (23 GiB available), `/` 17% used (2.9 TiB free), `/stor` 1% used.
 
@@ -41,7 +41,7 @@
 | **Nextcloud Redis** | — | ✅ Healthy | Running |
 | **Nextcloud ClamAV** | — | ✅ Healthy | ClamAV 1.5.2/28023; `podman-nextcloud-clamav` active |
 | **Nextcloud notify_push** | — | ✅ Healthy | Active; push endpoint responding; slow DB pool acquire warning in logs |
-| **Technitium DNS** | https://dns.prestonhager.com | ⚠️ Degraded | Authoritative LAN DNS **OK**; web console HTTP 200; **DoH/DoT not working** (see §3) |
+| **Technitium DNS** | https://dns.prestonhager.com | ✅ Healthy | Authoritative LAN DNS **OK**; web console HTTP 200; **DoH/DoT verified** (see §3) |
 | **LanCache** | — | ✅ Healthy | Container running |
 | **LanCache DNS** | `192.168.5.5:53` | ✅ Healthy | Resolves internal CNAMEs to ace/crux |
 | **Jellyfin** | https://jellyfin.prestonhager.com | ✅ Healthy | HTTP 302; container `(healthy)` |
@@ -49,7 +49,6 @@
 | **WG Portal** | https://wg.prestonhager.com | ✅ Healthy | HTTP 301; metrics vhost HTTP 403 (expected) |
 | **Pterodactyl Panel** | https://panel.prestonhager.com | ✅ Healthy | HTTP 200 |
 | **Pterodactyl Test** | https://test.panel.prestonhager.com | ✅ Healthy | HTTP 200 |
-| **Pterodactyl Test alias** | https://testpanel.prestonhager.com | ❌ Down | TLS handshake failure — **no ACME cert issued** for this hostname |
 | **MediaWiki** | https://loftiawiki.org | ✅ Healthy | HTTP 301 |
 | **MediaWiki (com)** | https://loftiawiki.com | ✅ Healthy | HTTP 301 |
 | **MediaWiki upgrade** | https://upgrade.loftiawiki.org | ⚠️ Degraded | HTTP 403 |
@@ -87,25 +86,25 @@ Queries against `@192.168.5.5`:
 
 | Check | Result |
 |-------|--------|
-| `POST https://dns.prestonhager.com/dns-query` | ❌ **HTTP 404** |
-| Backend `127.0.0.1:8053` | ❌ **Not listening** |
+| `POST https://dns.prestonhager.com/dns-query` | ✅ **HTTP 200** (DNS wire query returns valid response) |
+| Backend `127.0.0.1:8053` | ✅ **Listening** (Technitium container) |
 
-Caddy is configured to reverse-proxy `/dns-query` → `127.0.0.1:8053` (`nixos/caddy/technitium.nix`), but Technitium's DoH backend port is not enabled on the running system.
+Caddy reverse-proxies `/dns-query` → `127.0.0.1:8053` (`nixos/caddy/technitium.nix`); `technitium-sync-protocols.service` enables the DoH backend via Technitium API.
 
 ### DNS-over-TLS (DoT)
 
 | Check | Result |
 |-------|--------|
-| `:853` on ace | ❌ **Not listening** |
-| TLS handshake to `dns.prestonhager.com:853` | ❌ Connection refused |
+| `:853` on ace | ✅ **Listening** (`0.0.0.0:853`, Technitium container) |
+| TLS handshake to `dns.prestonhager.com:853` | ✅ **Let's Encrypt** cert for `dns.prestonhager.com` (verified 2026-06-06) |
 
-### Root cause (DoH/DoT)
+### DoH/DoT deployment (verified)
 
-`nixos/containers/technitium-protocols.nix` defines `technitium-sync-tls-cert` and `technitium-sync-protocols` services to export the Caddy LE cert to PKCS#12 and enable DoH/DoT via Technitium API. On ace:
+`nixos/containers/technitium-protocols.nix` is imported from `nixos/containers/technitium.nix` on ace (`/etc/nixos/nixos/containers/technitium-protocols.nix`). It defines `technitium-sync-tls-cert` and `technitium-sync-protocols` to export the Caddy LE cert to PKCS#12 and enable DoH/DoT via Technitium API:
 
-- PFX exists at `/stor/technitium/certs/dns.prestonhager.com.pfx` ✅
-- Caddy cert exists for `dns.prestonhager.com` ✅
-- **`technitium-sync-protocols.service` not found** — config not yet deployed via `nixos-rebuild switch`
+- PFX at `/stor/technitium/certs/dns.prestonhager.com.pfx` ✅
+- Caddy cert for `dns.prestonhager.com` ✅
+- `technitium-sync-protocols.service` and `technitium-sync-tls-cert.service` **active (exited)** ✅
 
 ---
 
@@ -127,7 +126,7 @@ Core host services:
 | `ace-health-exporter.timer` | active (oneshot service runs on schedule) |
 | `technitium-upstream-relay` | active |
 | `technitium-upstream-relay-tcp` | active |
-| `technitium-sync-protocols` | **not installed** |
+| `technitium-sync-protocols` | active (exited) |
 
 ---
 
@@ -180,7 +179,7 @@ Setup checks: mostly passing; **14 errors in logs** since rebuild; **whiteboard 
 ### Technitium
 - Web console: running
 - API reachable on `:5380`
-- Protocol sync (DoH port 8053, DoT port 853): **not applied on running system**
+- Protocol sync (DoH port 8053, DoT port 853): **active** (verified 2026-06-06)
 
 ### ClamAV (Nextcloud antivirus)
 - Version 1.5.2, signatures current (Jun 6 2026)
@@ -213,7 +212,6 @@ Probed from ace via loopback (`--resolve …:443:127.0.0.1`):
 | metrics.wg.prestonhager.com/ | 403 | OK (restricted) |
 | panel.prestonhager.com/ | 200 | OK |
 | test.panel.prestonhager.com/ | 200 | OK |
-| testpanel.prestonhager.com/ | TLS error | ❌ No cert |
 | matrix.prestonhager.com/ | 502 | ❌ No backend |
 | loftiawiki.org/ | 301 | OK |
 | loftiawiki.com/ | 301 | OK |
@@ -224,18 +222,16 @@ Probed from ace via loopback (`--resolve …:443:127.0.0.1`):
 ## 8. Recommendations / Open Items
 
 ### High priority
-1. **Deploy Technitium DoH/DoT** — Run `nixos-rebuild switch --flake /etc/nixos#ace` with `technitium-protocols.nix` merged; verify `technitium-sync-protocols.service` runs and ports `8053`/`853` listen.
-2. **Fix or remove Matrix vhost** — Either enable `../../nixos/matrix.nix` on ace (Synapse on `:6167`) or remove `matrix.nix` from Caddy imports to stop 502s and blackbox noise.
+1. **Fix or remove Matrix vhost** — Either enable `../../nixos/matrix.nix` on ace (Synapse on `:6167`) or remove `matrix.nix` from Caddy imports to stop 502s and blackbox noise.
 
 ### Medium priority
-3. **`testpanel.prestonhager.com` TLS** — Add hostname to Caddy cert issuance (ensure ACME + `/etc/hosts` entry) or remove alias if redundant with `test.panel.prestonhager.com`.
-4. **Nextcloud post-rebuild** — Review 14 log errors via `occ log:watch` or admin log viewer; confirm ClamAV scanning and notify_push stable after restart.
-5. **Clean stale containers** — Remove `nextcloud-aio-domaincheck`, `clever_panini`, old infra pods.
+2. **Nextcloud post-rebuild** — Review 14 log errors via `occ log:watch` or admin log viewer; confirm ClamAV scanning and notify_push stable after restart.
+3. **Clean stale containers** — Remove `nextcloud-aio-domaincheck`, `clever_panini`, old infra pods.
 
 ### Low priority
-6. **MediaWiki upgrade vhost** — Investigate HTTP 403 on `upgrade.loftiawiki.org` if that instance should be publicly reachable.
-7. **Prometheus blackbox targets** — Remove or fix probes for `matrix.prestonhager.com` and `portunus.prestonhager.com` (not deployed) to reduce false alerts.
-8. **ace-health load warning** — Review `server-health.sh` threshold logic on 48-core host (0.85 load is not elevated).
+4. **MediaWiki upgrade vhost** — Investigate HTTP 403 on `upgrade.loftiawiki.org` if that instance should be publicly reachable.
+5. **Prometheus blackbox targets** — Remove or fix probes for `matrix.prestonhager.com` and `portunus.prestonhager.com` (not deployed) to reduce false alerts.
+6. **ace-health load warning** — Review `server-health.sh` threshold logic on 48-core host (0.85 load is not elevated).
 
 ---
 
