@@ -5,6 +5,9 @@ let
   etc = config.environment.etc;
   etcPath = name: etc.${name}.source;
   grafanaVersion = "13.0.2";
+  # Host /etc/hosts maps *.prestonhager.com → 127.0.0.1; inside the container that is
+  # loopback, not Caddy on the host. Override so server-side OAuth token/userinfo calls work.
+  zitadelDomain = "zitadel.prestonhager.com";
 in {
   sops.secrets = {
     "grafana-oauth-env" = {
@@ -37,6 +40,7 @@ in {
 
     extraOptions = [
       "--add-host=host.containers.internal:host-gateway"
+      "--add-host=${zitadelDomain}:host-gateway"
     ];
 
     environmentFiles = [
