@@ -34,6 +34,7 @@ in
     "steam-unwrapped"
     # Allow spotify to be installed
     "spotify"
+    "zsh-autoenv"
     # Allow virtual box extension
     "Oracle_VirtualBox_Extension_Pack"
   ];
