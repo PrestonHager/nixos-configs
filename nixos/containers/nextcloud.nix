@@ -18,6 +18,12 @@ let
       fi
       printf 'MYSQL_PASSWORD=%s\n' "$dbPass" >> "$out"
     fi
+    cat >> "$out" <<'EOF'
+NEXTCLOUD_ADMIN_USER=nextcloud-admin
+MYSQL_DATABASE=nextcloud
+MYSQL_USER=nextcloud
+MYSQL_HOST=127.0.0.1
+EOF
     chmod 600 "$out"
   '';
   nextcloudOccInstallScript = pkgs.writeShellScript "nextcloud-occ-install" ''
