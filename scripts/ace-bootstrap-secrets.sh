@@ -3,10 +3,19 @@ set -euo pipefail
 git config --global --add safe.directory /home/prestonh/nixos-secrets
 cd /home/prestonh/nixos-secrets
 git pull origin main
+
+# Zitadel default password policy requires upper, lower, digit, and symbol.
+gen_pass() {
+  local len="$1"
+  local core
+  core="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c "$((len - 4))")"
+  printf '%sAa1!' "$core"
+}
+
 MASTERKEY=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 32)
-PGPASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 24)
-ZITPASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 24)
-ADMINPASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 20)
+PGPASS=$(gen_pass 24)
+ZITPASS=$(gen_pass 24)
+ADMINPASS=$(gen_pass 20)
 cat > secrets/containers/zitadel-config.yaml <<EOF
 zitadel-db-env: |
   POSTGRES_USER=postgres
