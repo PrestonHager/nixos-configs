@@ -186,7 +186,7 @@ in
         "/mw/data:/var/lib/mysql"
       ];
 
-      cmd = ["--transaction-isolation=READ-COMMITTED" "--log-bin=msqyld-bin" "--binlog-format=ROW"];
+      cmd = ["--transaction-isolation=READ-COMMITTED" "--log-bin=mysqld-bin" "--binlog-format=ROW"];
 
       environment = {
         MARIADB_DATABASE = "mediawiki";

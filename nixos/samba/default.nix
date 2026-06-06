@@ -2,7 +2,6 @@
 
 let
   SAMBA_USERS = [ "prestonh" "pterodactyl" ];
-  SAMBDA_GROUPS = [ "sambashare" "users" ];
 in
 {
   users.groups."sambashare" = {};

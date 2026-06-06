@@ -3,6 +3,31 @@
 let
   version = "1.11.11";
   pterodactyPanelSrc = "https://github.com/pterodactyl/panel.git";
+  forkPanelSrc = "https://github.com/PrestonHager/panel.git";
+
+  gitConfig = pkgs.writeTextFile {
+    name = "pterodactyl-gitconfig";
+    destination = "/etc/gitconfig";
+    text = ''
+      [safe]
+        directory = /var/www/pterodactyl
+        directory = *
+      [url "https://github.com/"]
+        insteadOf = git@github.com:
+      [url "https://github.com/"]
+        insteadOf = ssh://git@github.com/
+    '';
+  };
+
+  panelUpdateEnv = {
+    APP_ENVIRONMENT_ONLY = "false";
+    PTERODACTYL_UPDATE_REPOSITORY = "PrestonHager/panel";
+    PTERODACTYL_UPDATE_BRANCH = "feat/plugin-manager";
+    PTERODACTYL_UPDATE_MODE = "git";
+    PTERODACTYL_UPDATE_GIT_REMOTE = "origin";
+    PTERODACTYL_UPDATE_GIT_STRATEGY = "auto";
+    GIT_CONFIG_SYSTEM = "/etc/gitconfig";
+  };
 
   waitForServices = ''
     set -e
@@ -70,11 +95,6 @@ EOF
       echo "Installing dependencies..."
       composer install --no-dev --optimize-autoloader
 
-      # NOTE: These may need added at some point. Be sure to add yarn to the
-      # image's packages as well.
-      #yarn install
-      #NODE_OPTIONS=--openssl-legacy-provider yarn run build:production
-
       if ! grep -q "APP_KEY=" .env || grep -q "APP_KEY=$" .env; then
         echo "Generating APP_KEY..."
         php artisan key:generate --force
@@ -110,7 +130,7 @@ EOF
     #!/bin/env bash
     echo "Running Pterodactyl scheduler..."
     while true; do
-      php /var/www/pterodactyl/artisan schedule:run >> /dev/null 2>&1 &
+      php /var/www/pterodactyl/artisan schedule:run >> /dev/null 2>php /var/www/pterodactyl/artisan schedule:run >> /dev/null 2>&1 &1
       sleep 60
     done
   '';
@@ -156,6 +176,27 @@ EOF
     exec php-fpm --nodaemonize -y /etc/php-fpm.conf
   '';
 
+  phpIni = pkgs.writeTextFile {
+    name = "pterodactyl-php.ini";
+    destination = "/etc/php83/php.ini";
+    text = ''
+      [PHP]
+      realpath_cache_size = 4096K
+      realpath_cache_ttl = 600
+
+      [opcache]
+      opcache.enable = 1
+      opcache.enable_cli = 0
+      opcache.memory_consumption = 256
+      opcache.interned_strings_buffer = 16
+      opcache.max_accelerated_files = 20000
+      opcache.validate_timestamps = 1
+      opcache.revalidate_freq = 2
+      opcache.jit = 1255
+      opcache.jit_buffer_size = 64M
+    '';
+  };
+
   phpFpmConf = pkgs.writeTextFile rec {
     name = "php-fpm.conf";
     destination = "/etc/${name}";
@@ -182,12 +223,17 @@ EOF
       listen.owner = pterodactyl
       listen.group = pterodactyl
       listen.mode = 0775
+      listen.backlog = 511
 
       pm = dynamic
-      pm.max_children = 10
-      pm.start_servers = 2
-      pm.min_spare_servers = 1
-      pm.max_spare_servers = 3
+      pm.max_children = 40
+      pm.start_servers = 8
+      pm.min_spare_servers = 4
+      pm.max_spare_servers = 16
+      pm.max_requests = 500
+
+      request_slowlog_timeout = 5s
+      slowlog = /proc/self/fd/2
 
       chdir = /var/www/pterodactyl/public
 
@@ -200,8 +246,10 @@ EOF
 
   sharedPackages = [
     waitScript
+    phpIni
     phpFpmConf
     phpFpmWwwConf
+    gitConfig
     schedulerScript
     queueScript
     pkgs.coreutils
@@ -215,12 +263,19 @@ EOF
     pkgs.php83Extensions.xml
     pkgs.php83Extensions.curl
     pkgs.php83Extensions.zip
+    pkgs.php83Extensions.opcache
+    pkgs.php83Extensions.pdo
+    pkgs.php83Extensions.pdo_mysql
+    pkgs.php83Extensions.redis
     pkgs.redis
     pkgs.mariadb.client
     pkgs.gnugrep
     pkgs.gnused
     pkgs.cacert
-    pkgs.gitMinimal
+    pkgs.git
+    pkgs.openssh
+    pkgs.curl
+    pkgs.gnutar
     pkgs.uutils-findutils
     pkgs.cron
     pkgs.systemd
@@ -229,6 +284,8 @@ EOF
   ];
 in
 {
+  inherit panelUpdateEnv forkPanelSrc;
+
   setupImage = pkgs.dockerTools.buildImage {
     name = "pterodactyl-setup";
     tag = "v${version}";
@@ -252,6 +309,7 @@ in
       };
       Env = [
         "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+        "GIT_CONFIG_SYSTEM=/etc/gitconfig"
       ];
     };
   };
@@ -281,8 +339,8 @@ in
       Env = [
         "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
         "PHP_FPM_LISTEN=/run/php-fpm/php-fpm.sock"
+        "GIT_CONFIG_SYSTEM=/etc/gitconfig"
       ];
     };
   };
 }
-

@@ -5,11 +5,20 @@ let
   pterodactylImages = import ./pterodactyl-docker.nix {
     inherit pkgs sops-path;
   };
+  inherit (pterodactylImages) panelUpdateEnv forkPanelSrc;
   testEnvFile = "/var/lib/pterodactyl-test/pterodactyl.env";
   testPanelDir = "/home/prestonh/Projects/panel";
   testPublicDir = "/pterodactyl-test/public";
   setupMarker = "/var/lib/pterodactyl-test/setup-complete";
   adminCredentialsFile = "/var/lib/pterodactyl-test/admin-credentials";
+
+  panelUpdateEnvLines = pkgs.lib.mapAttrsToList (n: v: "${n}=${v}") panelUpdateEnv;
+
+  ensureEnvVar = name: value: ''
+    if ! grep -q "^${name}=" "$ENV" 2>/dev/null; then
+      echo "${name}=${value}" >> "$ENV"
+    fi
+  '';
 
   setupScript = pkgs.writeShellScript "pterodactyl-test-setup" ''
     set -euo pipefail
@@ -38,6 +47,7 @@ let
       "$PODMAN" exec \
         -e HOME=/var/www/pterodactyl \
         -e COMPOSER_HOME=/tmp/composer \
+        -e GIT_CONFIG_SYSTEM=/etc/gitconfig \
         -e GIT_CONFIG_COUNT=1 \
         -e GIT_CONFIG_KEY_0=safe.directory \
         -e GIT_CONFIG_VALUE_0=/var/www/pterodactyl \
@@ -130,7 +140,7 @@ EOF
     touch "$MARKER"
     chmod 0644 "$MARKER"
     echo "pterodactyl-test-setup: complete"
-'';
+  '';
 in
 {
   users.users.pterodactyl.extraGroups = [ "users" ];
@@ -179,24 +189,22 @@ in
     script = ''
       set -euo pipefail
       ENV=${testEnvFile}
-      if [ -f "$ENV" ]; then
-        exit 0
-      fi
-      rand_pass() {
-        ${pkgs.openssl}/bin/openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | head -c 20
-      }
-      DB_PASS=$(rand_pass)
-      ROOT_PASS=$(rand_pass)
-      APP_KEY=$(${pkgs.php83}/bin/php -r "echo 'base64:'.base64_encode(random_bytes(32));")
-      HASHIDS=$(rand_pass)
-      cat > "$ENV" <<EOF
+      if [ ! -f "$ENV" ]; then
+        rand_pass() {
+          ${pkgs.openssl}/bin/openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | head -c 20
+        }
+        DB_PASS=$(rand_pass)
+        ROOT_PASS=$(rand_pass)
+        APP_KEY=$(${pkgs.php83}/bin/php -r "echo 'base64:'.base64_encode(random_bytes(32));")
+        HASHIDS=$(rand_pass)
+        cat > "$ENV" <<EOF
 APP_ENV=production
 APP_DEBUG=true
 APP_THEME=pterodactyl
 APP_TIMEZONE=UTC
 APP_URL=https://test.panel.prestonhager.com
 APP_LOCALE=en
-APP_ENVIRONMENT_ONLY=true
+APP_ENVIRONMENT_ONLY=false
 APP_KEY=$APP_KEY
 
 LOG_CHANNEL=daily
@@ -224,9 +232,23 @@ HASHIDS_SALT=$HASHIDS
 HASHIDS_LENGTH=8
 
 MAIL_MAILER=log
+
+PTERODACTYL_UPDATE_REPOSITORY=PrestonHager/panel
+PTERODACTYL_UPDATE_BRANCH=feat/plugin-manager
+PTERODACTYL_UPDATE_MODE=git
+PTERODACTYL_UPDATE_GIT_REMOTE=origin
+PTERODACTYL_UPDATE_GIT_STRATEGY=auto
 EOF
-      chown pterodactyl:pterodactyl "$ENV"
-      chmod 0640 "$ENV"
+        chown pterodactyl:pterodactyl "$ENV"
+        chmod 0640 "$ENV"
+      fi
+
+      ${ensureEnvVar "APP_ENVIRONMENT_ONLY" "false"}
+      ${ensureEnvVar "PTERODACTYL_UPDATE_REPOSITORY" "PrestonHager/panel"}
+      ${ensureEnvVar "PTERODACTYL_UPDATE_BRANCH" "feat/plugin-manager"}
+      ${ensureEnvVar "PTERODACTYL_UPDATE_MODE" "git"}
+      ${ensureEnvVar "PTERODACTYL_UPDATE_GIT_REMOTE" "origin"}
+      ${ensureEnvVar "PTERODACTYL_UPDATE_GIT_STRATEGY" "auto"}
     '';
   };
 
@@ -258,6 +280,19 @@ EOF
           ${pkgs.acl}/bin/setfacl -R -d -m u:pterodactyl:rwx "${testPanelDir}/$dir"
         fi
       done
+
+      if [ -d "${testPanelDir}/.git" ]; then
+        GIT="${pkgs.git}/bin/git -c safe.directory=${testPanelDir}"
+        cd ${testPanelDir}
+        if $GIT remote get-url origin &>/dev/null; then
+          $GIT remote set-url origin ${forkPanelSrc}
+        else
+          $GIT remote add origin ${forkPanelSrc}
+        fi
+        if $GIT remote get-url fork &>/dev/null; then
+          $GIT remote set-url fork ${forkPanelSrc}
+        fi
+      fi
     '';
   };
 
@@ -339,6 +374,7 @@ EOF
         "/pterodactyl-test/sockets/php:/run/php-fpm"
         "${testEnvFile}:/var/www/pterodactyl/.env:U"
       ];
+      environment = panelUpdateEnv;
       extraOptions = [
         "--pod=pterodactyl-test"
         "--env-file=${testEnvFile}"
@@ -356,7 +392,7 @@ EOF
         "/pterodactyl-test/data:/var/lib/mysql"
         "/pterodactyl-test/sockets/mysqld:/var/run/mysqld"
       ];
-      cmd = [ "--transaction-isolation=READ-COMMITTED" "--log-bin=msqyld-bin" "--binlog-format=ROW" ];
+      cmd = [ "--transaction-isolation=READ-COMMITTED" "--log-bin=mysqld-bin" "--binlog-format=ROW" ];
       dependsOn = [ "pterodactyl-test-redis" ];
       extraOptions = [
         "--pod=pterodactyl-test"

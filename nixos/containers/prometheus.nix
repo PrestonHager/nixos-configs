@@ -10,7 +10,7 @@ in
   #  };
   #};
 
-  # Create the wireguard user and group
+  # Create the prometheus user and group
   users.users = {
     prometheus = {
       isSystemUser = true;
@@ -51,7 +51,7 @@ in
     environment = {
     };
 
-    # Finally, the wireguard image and version
+    # Finally, the prometheus image and version
     image = "docker.io/prom/prometheus:latest";
   };
 }

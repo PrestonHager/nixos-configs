@@ -10,13 +10,14 @@
     '';
     virtualHosts."upgrade.loftiawiki.org".extraConfig = ''
       root * /mw/mediawiki-1.45.3
-      php_fastcgi http://localhost:8101
-      encode zstd gzip
       @dotFiles {
         path */.*
         not path /.well-known/*
       }
+      respond @dotFiles 404
+      file_server
+      php_fastcgi http://localhost:8101
+      encode zstd gzip
     '';
   };
 }
-

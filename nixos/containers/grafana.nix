@@ -10,7 +10,7 @@ in
   #  };
   #};
 
-  # Create the wireguard user and group
+  # Create the grafana user and group
   users.users = {
     grafana = {
       isSystemUser = true;
@@ -51,7 +51,7 @@ in
     environment = {
     };
 
-    # Finally, the wireguard image and version
+    # Finally, the grafana image and version
     image = "docker.io/grafana/grafana-oss:latest";
   };
 }

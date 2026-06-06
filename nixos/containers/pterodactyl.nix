@@ -5,6 +5,7 @@ let
   pterodactylImages = import ./pterodactyl-docker.nix {
     inherit pkgs sops-path;
   };
+  inherit (pterodactylImages) panelUpdateEnv;
 in
 {
   sops.secrets = {
@@ -20,7 +21,7 @@ in
     };
   };
 
-  # Create the portunus user and group
+  # Create the pterodactyl user and group
   users.users.pterodactyl = {
     isSystemUser = true;
     description = "Pterodactyl";
@@ -82,7 +83,7 @@ in
         "${config.sops.secrets."pterodactyl-env".path}:/var/www/pterodactyl/.env.initial:U"
       ];
 
-      environment = {
+      environment = panelUpdateEnv // {
         ENV_FILE = "${config.sops.secrets."pterodactyl-env".path}";
       };
 
@@ -91,7 +92,7 @@ in
         "--env-file=${config.sops.secrets."pterodactyl-env".path}"
       ];
 
-      # Finally, the portunus image and version
+      # Finally, the pterodactyl runtime image and version
       image = "pterodactyl-runtime:v1.11.11";
       imageFile = pterodactylImages.runtimeImage;
     };
@@ -108,7 +109,7 @@ in
         "/pterodactyl/sockets/mysqld:/var/run/mysqld"
       ];
 
-      cmd = ["--transaction-isolation=READ-COMMITTED" "--log-bin=msqyld-bin" "--binlog-format=ROW"];
+      cmd = ["--transaction-isolation=READ-COMMITTED" "--log-bin=mysqld-bin" "--binlog-format=ROW"];
 
       dependsOn = [ "pterodactyl-redis" ];
       extraOptions = [
@@ -139,4 +140,3 @@ in
     };
   };
 }
-

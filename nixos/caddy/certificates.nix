@@ -42,7 +42,7 @@ in {
             echo "Missing certificate directory for ${name}: $src" >&2
             exit 1
           fi
-          mkdir -p "$(dirname "$dest")"
+          mkdir -p "$dest"
           ${pkgs.rsync}/bin/rsync -a --delete "$src/" "$dest/"
         '') nodeNames)}
         chown -R root:users /stor/shares/private/nodes

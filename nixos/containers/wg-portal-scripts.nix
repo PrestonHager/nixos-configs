@@ -98,7 +98,7 @@ in {
       ExecStart = [ post-up-script ];
       ExecStop  = [ cleanup-script ];
 
-      Environment = "\"PATH=${pkgs.podman}/bin:${pkgs.iptables}/bin:/run/current-system/sw/bin:/usr/sbin:/usr/bin:/sbin:/bin\"";
+      Environment = [ "PATH=${pkgs.podman}/bin:${pkgs.iptables}/bin:/run/current-system/sw/bin:/usr/sbin:/usr/bin:/sbin:/bin" ];
     };
 
     wantedBy = [ "multi-user.target" ];

@@ -4,6 +4,7 @@
   networking.hostName = "ace";
 
   imports = [
+    ../../nixos/local-service-hosts.nix
     ../../nixos
     ../../nixos/headless
     # include SAMBA for file sharing
