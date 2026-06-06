@@ -4,6 +4,7 @@ let
   sops-path = builtins.toString inputs.nix-secrets;
   etc = config.environment.etc;
   etcPath = name: etc.${name}.source;
+  grafanaVersion = "13.0.2";
 in {
   sops.secrets = {
     "grafana-oauth-env" = {
@@ -26,7 +27,7 @@ in {
 
   virtualisation.oci-containers.containers.grafana = {
     autoStart = true;
-    image = "docker.io/grafana/grafana-oss:latest";
+    image = "docker.io/grafana/grafana-oss:${grafanaVersion}";
     user = "grafana:grafana";
     ports = [ "8082:3000/tcp" ];
 
