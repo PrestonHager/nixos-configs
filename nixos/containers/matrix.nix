@@ -64,6 +64,7 @@ database:
     port: 5432
     cp_min: 5
     cp_max: 10
+    allow_unsafe_locale: true
 
 log_config: "/data/${matrixDomain}.log.config"
 
@@ -172,6 +173,9 @@ in {
     image = "docker.io/library/postgres:16-alpine";
     extraOptions = [ "--pod=matrix-pod" ];
     environmentFiles = [ config.sops.secrets."matrix-db-env".path ];
+    environment = {
+      POSTGRES_INITDB_ARGS = "--encoding=UTF-8 --lc-collate=C --lc-ctype=C";
+    };
     volumes = [
       "${synapsePostgresDir}:/var/lib/postgresql/data"
     ];
