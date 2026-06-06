@@ -8,8 +8,8 @@ let
   internalZone = "internal.prestonhager.com";
   publicZone = "prestonhager.com";
 
-  internalSerial = "2026060603";
-  publicSerial = "2026060603";
+  internalSerial = "2026060687";
+  publicSerial = "2026060970";
 
   # Authoritative LAN names under internal.prestonhager.com (edit here, then nixos-rebuild switch on ace).
   internalHosts = {
@@ -67,7 +67,40 @@ let
       "crux.lc1.nm.us" = cnameInternal "crux";
       "nova.lc1.nm.us" = cnameInternal "nova";
     }
-    // lib.genAttrs aceHosted (_: viaAce);
+    // lib.genAttrs aceHosted (_: viaAce)
+    // lib.mapAttrs (_: target: cname target) {
+      "app.dontgetgot" = "prestonhager.github.io";
+      badday = "prestonhager.github.io";
+      blog = "prestonhager.github.io";
+      creaturecafe = "prestonhager.github.io";
+      dontgetgot = "d-7jli0nnhpl.execute-api.us-west-2.amazonaws.com";
+      galactic = "prestonhager.github.io";
+      knuckles = "prestonhager.github.io";
+      latex = "prestonhager.github.io";
+      peachjar = "prestonhager.github.io";
+      pmsm = "readthedocs.io";
+      q = "prestonhager.github.io";
+      vge = "prestonhager.github.io";
+      "_6441af74ee5e805282cfa6549f1a6ae5" =
+        "_e18abbf1720ee0b306dd0a9e3fcc5f08.sdgjtdhdhz.acm-validations.aws";
+      "_cee2704a79c1a0f628a0d4502b01479c.dontgetgot" =
+        "_36f66018425469248d4d097831f6055b.djqtsrsxkq.acm-validations.aws";
+      "sig1._domainkey" = "sig1.dkim.prestonhager.com.at.icloudmailadmin.com";
+    };
+
+  # Apex / validation records copied from Cloudflare (no ip1.lc1 overrides).
+  publicZoneExtraLines = [
+    "@	IN	MX	10 mx01.mail.icloud.com."
+    "@	IN	MX	20 mx02.mail.icloud.com."
+    "@	IN	TXT	\"v=spf1 include:icloud.com ~all\""
+    "@	IN	TXT	\"apple-domain=98VopwxLPIzr8mSZ\""
+    "_discord	IN	TXT	\"dh=5d07df7dd5e560625b28ef50fadc4813138d481f\""
+    "_github-pages-challenge-prestonhager	IN	TXT	\"040ac1b62714a9955b5ef43a03d674\""
+    "_github-pages-challenge-prestonhager.n5bl	IN	TXT	\"7251bf6d645386301e9adf71d98cf1\""
+    "_visual-studio-marketplace-prestonhager	IN	TXT	\"5fa516ee-97a2-4b59-92cb-296593635780\""
+    "_factorio._udp.factorio	IN	SRV	10 10 34197 game.prestonhager.com."
+    "_minecraft._tcp.ead	IN	SRV	10 10 25566 game.prestonhager.com."
+  ];
 
   renderRecord = name: record:
     if record.type == "A" then
@@ -85,6 +118,7 @@ let
       soaMname ? "ace.${internalZone}.",
       soaRname ? "hostmaster.prestonhager.com.",
       ns ? [ "ace.${internalZone}." ],
+      extraLines ? [ ],
     }:
     pkgs.writeText "${zone}.zone" ''
       $ORIGIN ${zone}.
@@ -100,6 +134,7 @@ let
       ${lib.concatStringsSep "\n" (
         lib.mapAttrsToList (name: record: renderRecord name record) hosts
       )}
+      ${lib.concatStringsSep "\n" extraLines}
     '';
 
   internalZoneFile = mkZoneFile {
@@ -113,7 +148,8 @@ let
     zone = publicZone;
     serial = publicSerial;
     hosts = prestonhagerHosts;
-    ns = [ "dns.${internalZone}." "ace.${internalZone}." ];
+    ns = [ "ace.${internalZone}." ];
+    extraLines = publicZoneExtraLines;
   };
 
   zoneHashFile = zone: "${dataRoot}/.${lib.replaceStrings [ "." ] [ "-" ] zone}-zone.sha256";
