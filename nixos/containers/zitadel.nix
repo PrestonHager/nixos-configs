@@ -65,6 +65,7 @@ in {
 
   virtualisation.oci-containers.containers.zitadel = {
     autoStart = true;
+    dependsOn = [ "zitadel-db" ];
     image = "ghcr.io/zitadel/zitadel:latest";
     cmd = [
       "start-from-init"

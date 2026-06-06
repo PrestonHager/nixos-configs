@@ -10,7 +10,7 @@ let
     USE_GENERIC_CACHE = "true";
     LANCACHE_IP = lancacheIp;
     DNS_BIND_IP = dnsBindIp;
-    UPSTREAM_DNS = "1.1.1.1 1.0.0.1";
+    UPSTREAM_DNS = "1.1.1.1";
     CACHE_ROOT = cacheRoot;
     CACHE_DISK_SIZE = cacheDiskSize;
     MIN_FREE_DISK = "10g";
