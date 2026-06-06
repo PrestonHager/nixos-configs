@@ -1,0 +1,29 @@
+{
+  "uid": "ace-services",
+  "title": "Ace Services",
+  "tags": ["ace", "services"],
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1, "title": "Systemd Active Units", "type": "timeseries",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "node_systemd_unit_state{state=\"active\",name=~\"caddy|podman-.*\"}", "legendFormat": "{{name}}", "refId": "A" }]
+    },
+    {
+      "id": 2, "title": "TCP Probe Success", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "probe_success{job=\"blackbox-tcp\"}", "legendFormat": "{{instance}}", "refId": "A" }]
+    },
+    {
+      "id": 3, "title": "Caddy Requests/s", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 18 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum(rate(caddy_http_requests_total[5m]))", "refId": "A" }]
+    }
+  ]
+}

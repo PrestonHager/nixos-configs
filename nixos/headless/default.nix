@@ -2,6 +2,7 @@
 
 {
   imports = [
+    ../monitoring
     # Containers submodule
     ../containers
     # nginx module, further customization available in nginx folder

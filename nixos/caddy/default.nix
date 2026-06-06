@@ -30,6 +30,9 @@
 
   services.caddy = {
     enable = true;
+    globalConfig = ''
+      admin 127.0.0.1:2019
+    '';
   };
 }
 

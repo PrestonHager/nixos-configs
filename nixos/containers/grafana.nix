@@ -1,58 +1,40 @@
 { config, pkgs, inputs, ... }:
 
-let
-  sops-path = builtins.toString inputs.nix-secrets;
-in
 {
-  #sops.secrets = {
-  #  "grafana-config" = {
-  #    sopsFile = "${sops-path}/secrets/containers/grafana-config.yaml";
-  #  };
-  #};
-
-  # Create the grafana user and group
-  users.users = {
-    grafana = {
-      isSystemUser = true;
-      description = "Grafana";
-      group = "grafana";
-    };
+  users.users.grafana = {
+    isSystemUser = true;
+    description = "Grafana";
+    group = "grafana";
   };
-  users.groups = {
-    grafana = {};
-  };
+  users.groups.grafana = { };
 
-  # Create the data directory
   systemd.tmpfiles.rules = [
     "d /grafana/data 0770 grafana grafana -"
     "d /grafana/conf 0770 grafana grafana -"
   ];
 
-  # Define the container
-  virtualisation.oci-containers.containers."grafana" = {
+  virtualisation.oci-containers.containers.grafana = {
     autoStart = true;
+    image = "docker.io/grafana/grafana-oss:latest";
+    user = "grafana:grafana";
+    ports = [ "8082:3000/tcp" ];
 
-    ports = [
-      "8082:3000/tcp"
+    extraOptions = [
+      "--add-host=host.containers.internal:host-gateway"
     ];
 
-    # User and group to run the container as
-    user = "grafana:grafana";
+    environment = {
+      GF_PATHS_PROVISIONING = "/etc/grafana/provisioning";
+      GF_PATHS_DATA = "/var/lib/grafana";
+    };
 
-    # Volumes to make persistent in the host/container
     volumes = [
       "/etc/passwd:/etc/passwd:ro"
       "/etc/group:/etc/group:ro"
       "/grafana/data:/var/lib/grafana"
       "/grafana/conf:/etc/grafana"
-      #"${config.sops.secrets."grafana-config".path}:/app/config/config.yaml:ro"
+      "/etc/grafana/provisioning:/etc/grafana/provisioning:ro"
+      "/etc/grafana/dashboards:/etc/grafana/dashboards:ro"
     ];
-
-    environment = {
-    };
-
-    # Finally, the grafana image and version
-    image = "docker.io/grafana/grafana-oss:latest";
   };
 }
-

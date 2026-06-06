@@ -24,7 +24,6 @@ in
 
   # Create the data directory
   systemd.tmpfiles.rules = [
-    "d /prometheus/etc 0770 prometheus prometheus -"
     "d /prometheus/data 0770 prometheus prometheus -"
   ];
 
@@ -44,8 +43,12 @@ in
       "/etc/passwd:/etc/passwd:ro"
       "/etc/group:/etc/group:ro"
       "/prometheus/data:/prometheus"
-      "/prometheus/etc:/etc/prometheus"
+      "/etc/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro"
       #"${config.sops.secrets."prometheus-config".path}:/app/config/config.yaml:ro"
+    ];
+
+    extraOptions = [
+      "--add-host=host.containers.internal:host-gateway"
     ];
 
     environment = {
