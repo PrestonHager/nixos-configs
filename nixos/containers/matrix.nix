@@ -65,18 +65,7 @@ database:
     cp_min: 5
     cp_max: 10
 
-log_config:
-  version: 1
-  formatters:
-    precise:
-      format: '%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(request)s - %(message)s'
-  handlers:
-    console:
-      class: logging.StreamHandler
-      formatter: precise
-  root:
-    level: INFO
-    handlers: [console]
+log_config: "/data/${matrixDomain}.log.config"
 
 media_store_path: /data/media_store
 signing_key_path: /data/${matrixDomain}.signing.key
