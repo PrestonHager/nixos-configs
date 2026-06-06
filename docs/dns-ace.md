@@ -113,7 +113,7 @@ This zone overrides public Cloudflare answers for LAN clients using ace as DNS. 
 | grafana | CNAME | grafana.internal.prestonhager.com |
 | cloud | CNAME | cloud.internal.prestonhager.com |
 | dns | CNAME | dns.internal.prestonhager.com |
-| ai, panel, test.panel, testpanel, prometheus, jellyfin, vault, wg, metrics.wg, zitadel, portunus, git, matrix, spacetime, test.sui, faucet.test.sui, indexer.test.sui, factorio, game, lancache, mc, vpn | CNAME | ace.internal.prestonhager.com |
+| ai, panel, test.panel, prometheus, jellyfin, vault, wg, metrics.wg, zitadel, portunus, git, matrix, spacetime, test.sui, faucet.test.sui, indexer.test.sui, factorio, game, lancache, mc, vpn | CNAME | ace.internal.prestonhager.com |
 | crux.lc1.nm.us | CNAME | crux.internal.prestonhager.com |
 | nova.lc1.nm.us | CNAME | nova.internal.prestonhager.com |
 
