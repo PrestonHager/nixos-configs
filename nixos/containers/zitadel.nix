@@ -42,9 +42,9 @@ in {
       RemainAfterExit = true;
       ExecStart = pkgs.writeShellScript "pod-zitadel-create" ''
         set -euo pipefail
-        if ! ${pkgs.podman}/bin/podman pod exists zitadel; then
+        if ! ${pkgs.podman}/bin/podman pod exists zitadel-pod; then
           ${pkgs.podman}/bin/podman pod create \
-            --name zitadel \
+            --name zitadel-pod \
             -p 9080:8080 \
             -p 9081:3000 \
             --memory 8G --cpus 0
@@ -57,7 +57,7 @@ in {
   virtualisation.oci-containers.containers.zitadel-db = {
     autoStart = true;
     image = "docker.io/library/postgres:16-alpine";
-    extraOptions = [ "--pod=zitadel" ];
+    extraOptions = [ "--pod=zitadel-pod" ];
     environmentFiles = [ config.sops.secrets."zitadel-db-env".path ];
     volumes = [
       "/zitadel/postgres:/var/lib/postgresql/data"
@@ -65,6 +65,8 @@ in {
 
   virtualisation.oci-containers.containers.zitadel = {
     autoStart = true;
+    dependsOn = [ "zitadel-db" ];
+    dependsOn = [ "zitadel-db" ];
     dependsOn = [ "zitadel-db" ];
     image = "ghcr.io/zitadel/zitadel:latest";
     cmd = [
@@ -74,7 +76,7 @@ in {
       "disabled"
     ];
     extraOptions = [
-      "--pod=zitadel"
+      "--pod=zitadel-pod"
     ];
     environmentFiles = [ config.sops.secrets."zitadel-env".path ];
     volumes = [
@@ -83,8 +85,9 @@ in {
 
   virtualisation.oci-containers.containers.zitadel-login = {
     autoStart = true;
+    dependsOn = [ "zitadel" ];
     image = "ghcr.io/zitadel/zitadel-login:latest";
-    extraOptions = [ "--pod=zitadel" ];
+    extraOptions = [ "--pod=zitadel-pod" ];
     environment = {
       ZITADEL_API_URL = "http://127.0.0.1:8080";
       NEXT_PUBLIC_BASE_PATH = "/ui/v2/login";
