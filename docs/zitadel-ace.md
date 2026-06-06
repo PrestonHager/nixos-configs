@@ -41,6 +41,7 @@ nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-verify-login.js
 | Login name step works, password fails | Password hash in DB does not match sops — run reset script above |
 | `Instance not found` on local API calls | Missing `Host: zitadel.prestonhager.com` header |
 | Blank console, `[unknown] Failed to fetch` after login | `environment.json` has `"api":"http://..."` — use `--tlsMode external` and Caddy `h2c://` with `header_up -TE` |
+| Login UI `Internal server error` after tlsMode change | `AUDIENCE` must be `https://zitadel.prestonhager.com` (not `http://...:443`) with `--tlsMode external` |
 
 Verify console API URL:
 
