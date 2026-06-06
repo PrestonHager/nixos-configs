@@ -20,9 +20,5 @@
     "d /var/lib/node-exporter-textfile 0755 node_exporter node_exporter -"
   ];
 
-
-  networking.firewall.extraCommands = lib.mkAfter ''
-    iptables -A nixos-fw -p tcp -s 127.0.0.1 --dport 9100 -j nixos-fw-accept
-    iptables -A nixos-fw -p tcp -s 127.0.0.1 --dport 9115 -j nixos-fw-accept
-  '';
+  networking.firewall.trustedInterfaces = lib.mkAfter [ "podman0" ];
 }
