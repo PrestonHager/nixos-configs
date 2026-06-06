@@ -12,7 +12,7 @@ const SECRETS = '/run/secrets/zitadel-env';
 const API_HOST = '127.0.0.1';
 const API_PORT = 9080;
 const PUBLIC_HOST = 'zitadel.prestonhager.com';
-const AUDIENCE = `http://${PUBLIC_HOST}:443`;
+const AUDIENCE = `https://${PUBLIC_HOST}`;
 const SUBJECT = 'login-client';
 
 function loadPassword() {

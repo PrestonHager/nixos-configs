@@ -175,8 +175,8 @@ in {
       ZITADEL_EXTERNALSECURE = "true";
       ZITADEL_EXTERNALPORT = "443";
       ZITADEL_LOGINCLIENT_KEYFILE = "${loginClientDir}/tls.key";
-      # Must match Zitadel system token verifier audience (http + external port).
-      AUDIENCE = "http://${zitadelDomain}:443";
+      # Must match Zitadel system token verifier audience (https with tlsMode external).
+      AUDIENCE = "https://${zitadelDomain}";
       NEXT_PUBLIC_BASE_PATH = "/ui/v2/login";
       CUSTOM_REQUEST_HEADERS = "Host:${zitadelDomain},X-Forwarded-Proto:https,X-Zitadel-Public-Host:${zitadelDomain}";
       ZITADEL_TLS_ENABLED = "false";
