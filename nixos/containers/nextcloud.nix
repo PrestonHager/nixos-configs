@@ -3,6 +3,76 @@
 let
   sops-path = builtins.toString inputs.nix-secrets;
   ncRoot = "/stor/nextcloud";
+  ncRuntimeEnv = "/run/nextcloud/container.env";
+  nextcloudEnvScript = pkgs.writeShellScript "nextcloud-container-env" ''
+    set -euo pipefail
+    mkdir -p /run/nextcloud
+    ncEnv="${config.sops.secrets."nextcloud-environment".path}"
+    out="${ncRuntimeEnv}"
+    cp "$ncEnv" "$out"
+    if ! grep -q '^MYSQL_PASSWORD=' "$out"; then
+      dbPass="$(grep '^MARIADB_PASSWORD=' "$ncEnv" | cut -d= -f2- || true)"
+      if [ -z "$dbPass" ]; then
+        echo "nextcloud-container-env: MARIADB_PASSWORD missing from nextcloud-environment" >&2
+        exit 1
+      fi
+      printf 'MYSQL_PASSWORD=%s\n' "$dbPass" >> "$out"
+    fi
+    chmod 600 "$out"
+  '';
+  nextcloudOccInstallScript = pkgs.writeShellScript "nextcloud-occ-install" ''
+    set -euo pipefail
+    for _ in $(seq 1 60); do
+      if ${pkgs.podman}/bin/podman exec nextcloud true 2>/dev/null; then
+        break
+      fi
+      sleep 2
+    done
+
+    if ! ${pkgs.podman}/bin/podman exec nextcloud true 2>/dev/null; then
+      echo "nextcloud-occ-install: nextcloud container not running" >&2
+      exit 1
+    fi
+
+    if ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ status 2>/dev/null \
+      | grep -q 'installed: true'; then
+      exit 0
+    fi
+
+    set -a
+    # shellcheck disable=SC1091
+    . "${ncRuntimeEnv}"
+    set +a
+
+    : "''${NEXTCLOUD_ADMIN_USER:?}"
+    : "''${NEXTCLOUD_ADMIN_PASSWORD:?}"
+    : "''${MYSQL_DATABASE:?}"
+    : "''${MYSQL_USER:?}"
+    : "''${MYSQL_PASSWORD:?}"
+    dbHost="''${MYSQL_HOST:-127.0.0.1}"
+
+    for _ in $(seq 1 30); do
+      if ${pkgs.podman}/bin/podman exec nextcloud-db \
+        mariadb-admin ping -h127.0.0.1 -u"''${MYSQL_USER}" -p"''${MYSQL_PASSWORD}" --silent 2>/dev/null; then
+        break
+      fi
+      sleep 2
+    done
+
+    if ${pkgs.podman}/bin/podman exec nextcloud test -f /var/www/html/config/config.php; then
+      echo "nextcloud-occ-install: removing incomplete config.php"
+      ${pkgs.podman}/bin/podman exec nextcloud rm -f /var/www/html/config/config.php
+    fi
+
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ maintenance:install -n \
+      --admin-user "''${NEXTCLOUD_ADMIN_USER}" \
+      --admin-pass "''${NEXTCLOUD_ADMIN_PASSWORD}" \
+      --database mysql \
+      --database-name "''${MYSQL_DATABASE}" \
+      --database-user "''${MYSQL_USER}" \
+      --database-pass "''${MYSQL_PASSWORD}" \
+      --database-host "''${dbHost}"
+  '';
 in
 {
   sops.secrets = {
@@ -36,7 +106,46 @@ in
     "d ${ncRoot}/data 0770 www-data www-data -"
     "d ${ncRoot}/mysql 0770 nm-iodine nscd -"
     "d ${ncRoot}/redis 0770 nm-iodine nscd -"
+    "d /run/nextcloud 0750 root root -"
   ];
+
+  systemd.services.nextcloud-container-env = {
+    description = "Build Nextcloud container environment (MYSQL_PASSWORD alias)";
+    wantedBy = [
+      "podman-nextcloud.service"
+      "podman-nextcloud-db.service"
+    ];
+    before = [
+      "podman-nextcloud.service"
+      "podman-nextcloud-db.service"
+    ];
+    after = [ "sops-nix.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = nextcloudEnvScript;
+    };
+  };
+
+  systemd.services.nextcloud-occ-install = {
+    description = "Run occ maintenance:install when Nextcloud is not installed";
+    wantedBy = [ "multi-user.target" ];
+    after = [
+      "podman-nextcloud.service"
+      "podman-nextcloud-db.service"
+      "nextcloud-container-env.service"
+    ];
+    requires = [
+      "podman-nextcloud.service"
+      "podman-nextcloud-db.service"
+      "nextcloud-container-env.service"
+    ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = nextcloudOccInstallScript;
+    };
+  };
 
   systemd.services.pod-nextcloud = {
     description = "Start podman's 'nextcloud' pod";
@@ -77,9 +186,10 @@ in
         NEXTCLOUD_ADMIN_USER = "nextcloud-admin";
         MYSQL_DATABASE = "nextcloud";
         MYSQL_USER = "nextcloud";
-        MYSQL_HOST = "nextcloud-db";
-        REDIS_HOST = "nextcloud-redis";
-        TRUSTED_PROXIES = "127.0.0.1,::1";
+        # Pod shares network namespace; 127.0.0.1 forces TCP (localhost uses socket).
+        MYSQL_HOST = "127.0.0.1";
+        REDIS_HOST = "127.0.0.1";
+        TRUSTED_PROXIES = "127.0.0.1";
         NEXTCLOUD_TRUSTED_DOMAINS = "cloud.prestonhager.com";
         OVERWRITEHOST = "cloud.prestonhager.com";
         OVERWRITEPROTOCOL = "https";
@@ -96,7 +206,7 @@ in
       dependsOn = [ "nextcloud-db" "nextcloud-redis" ];
       extraOptions = [
         "--pod=nextcloud"
-        "--env-file=${config.sops.secrets."nextcloud-environment".path}"
+        "--env-file=${ncRuntimeEnv}"
       ];
       image = "docker.io/library/nextcloud:latest";
     };
@@ -106,7 +216,12 @@ in
       volumes = [
         "${ncRoot}/mysql:/var/lib/mysql:z"
       ];
-      cmd = [ "--transaction-isolation=READ-COMMITTED" "--log-bin=mysqld-bin" "--binlog-format=ROW" ];
+      cmd = [
+        "--transaction-isolation=READ-COMMITTED"
+        "--log-bin=mysqld-bin"
+        "--binlog-format=ROW"
+        "--bind-address=0.0.0.0"
+      ];
       environment = {
         MARIADB_DATABASE = "nextcloud";
         MARIADB_USER = "nextcloud";
@@ -124,7 +239,7 @@ in
       volumes = [
         "${ncRoot}/redis:/data"
       ];
-      cmd = [ "redis-server" "--save" "60" "1" "--loglevel" "warning" ];
+      cmd = [ "redis-server" "--save" "60" "1" "--loglevel" "warning" "--bind" "127.0.0.1" ];
       extraOptions = [ "--pod=nextcloud" ];
       image = "docker.io/library/redis:latest";
     };
