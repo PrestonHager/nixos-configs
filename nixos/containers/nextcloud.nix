@@ -70,8 +70,7 @@ EOF
       sleep 2
     done
 
-    tableCount="$(${pkgs.podman}/bin/podman exec nextcloud-db mariadb -h127.0.0.1 -u"''${MYSQL_USER}" -p"''${MYSQL_PASSWORD}" -N -e \
-      "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=''"''${MYSQL_DATABASE}"''"' AND table_name LIKE 'oc_%';" 2>/dev/null || echo 0)"
+    tableCount="$(${pkgs.podman}/bin/podman exec nextcloud-db mariadb -h127.0.0.1 -u"''${MYSQL_USER}" -p"''${MYSQL_PASSWORD}" -N -D "''${MYSQL_DATABASE}" -e "SHOW TABLES LIKE 'oc_%';" 2>/dev/null | wc -l | tr -d ' ' || echo 0)"
     if [ "''${tableCount}" != "0" ] && ${pkgs.podman}/bin/podman exec nextcloud test -f /var/www/html/config/config.php; then
       if ! ${pkgs.podman}/bin/podman exec nextcloud grep -q "'installed'" /var/www/html/config/config.php 2>/dev/null; then
         echo "nextcloud-occ-install: restoring installed flag on existing database"
