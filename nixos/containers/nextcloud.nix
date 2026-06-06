@@ -79,6 +79,43 @@ EOF
       --database-pass "''${MYSQL_PASSWORD}" \
       --database-host "''${dbHost}"
   '';
+
+  nextcloudOccConfigScript = pkgs.writeShellScript "nextcloud-occ-config" ''
+    set -euo pipefail
+    marker="${ncRoot}/.occ-expensive-repair-done"
+    for _ in $(seq 1 60); do
+      if ${pkgs.podman}/bin/podman exec nextcloud true 2>/dev/null; then
+        break
+      fi
+      sleep 2
+    done
+
+    if ! ${pkgs.podman}/bin/podman exec nextcloud true 2>/dev/null; then
+      echo "nextcloud-occ-config: nextcloud container not running" >&2
+      exit 1
+    fi
+
+    if ! ${pkgs.podman}/bin/podman exec nextcloud test -f /var/www/html/config/config.php; then
+      echo "nextcloud-occ-config: config.php missing, skipping" >&2
+      exit 0
+    fi
+
+    if ! ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ status 2>/dev/null \
+      | grep -q 'installed: true'; then
+      echo "nextcloud-occ-config: Nextcloud not installed, skipping" >&2
+      exit 0
+    fi
+
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      maintenance_window_start --type=integer --value=3
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      default_phone_region --value=US
+
+    if [ ! -f "$marker" ]; then
+      ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ maintenance:repair --include-expensive
+      touch "$marker"
+    fi
+  '';
 in
 {
   sops.secrets = {
@@ -150,6 +187,24 @@ in
       Type = "oneshot";
       RemainAfterExit = true;
       ExecStart = nextcloudOccInstallScript;
+    };
+  };
+
+
+
+  systemd.services.nextcloud-occ-config = {
+    description = "Apply Nextcloud system settings and one-time expensive repair";
+    wantedBy = [ "multi-user.target" ];
+    after = [
+      "nextcloud-occ-install.service"
+      "podman-nextcloud.service"
+    ];
+    requires = [ "podman-nextcloud.service" ];
+    unitConfig.ConditionPathExists = "${ncRoot}/data/config/config.php";
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = nextcloudOccConfigScript;
     };
   };
 
@@ -244,7 +299,7 @@ in
         "--pod=nextcloud"
         "--env-file=${config.sops.secrets."nextcloud-db-environment".path}"
       ];
-      image = "docker.io/library/mariadb:latest";
+      image = "docker.io/library/mariadb:11.4";
     };
     nextcloud-redis = {
       autoStart = true;

@@ -10,6 +10,8 @@
       redir /.well-known/carddav /remote.php/dav 301
       redir /.well-known/caldav /remote.php/dav 301
 
+      header Strict-Transport-Security "max-age=15552000; includeSubDomains"
+
       reverse_proxy http://127.0.0.1:8083 {
         header_up Host {host}
         header_up X-Real-IP {remote_host}
