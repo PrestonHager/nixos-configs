@@ -79,7 +79,9 @@ EOF
       exit 0
     fi
 
-    if ${pkgs.podman}/bin/podman exec nextcloud test -f /var/www/html/config/config.php; then
+    if ${pkgs.podman}/bin/podman exec nextcloud test -f /var/www/html/config/config.php \
+      && ! ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ status 2>/dev/null \
+        | grep -q 'installed: true'; then
       echo "nextcloud-occ-install: removing incomplete config.php"
       ${pkgs.podman}/bin/podman exec nextcloud rm -f /var/www/html/config/config.php
     fi

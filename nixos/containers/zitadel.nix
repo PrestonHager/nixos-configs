@@ -18,7 +18,7 @@ let
     install -d -m 0750 -o zitadel -g zitadel ${loginClientDir}
     if [ ! -f ${loginClientDir}/tls.key ]; then
       ${pkgs.openssl}/bin/openssl genrsa -out ${loginClientDir}/tls.key 4096
-      ${pkgs.openssl}/bin/openssl rsa -in ${loginClientDir}/tls.key -pubout -out ${loginClientDir}/tls.crt
+      ${pkgs.openssl}/bin/openssl req -new -x509 -key ${loginClientDir}/tls.key -out ${loginClientDir}/tls.crt -days 3650 -subj "/CN=login-client" -batch
       chown zitadel:zitadel ${loginClientDir}/tls.key ${loginClientDir}/tls.crt
       chmod 640 ${loginClientDir}/tls.key
       chmod 644 ${loginClientDir}/tls.crt
@@ -119,7 +119,7 @@ in {
   virtualisation.oci-containers.containers.zitadel = {
     autoStart = true;
     dependsOn = [ "zitadel-db" ];
-    image = "ghcr.io/zitadel/zitadel:latest";
+    image = "ghcr.io/zitadel/zitadel:v4.15.0";
     cmd = [
       "start-from-init"
       "--masterkeyFromEnv"
@@ -142,11 +142,13 @@ in {
   virtualisation.oci-containers.containers.zitadel-login = {
     autoStart = true;
     dependsOn = [ "zitadel" ];
-    image = "ghcr.io/zitadel/zitadel-login:latest";
+    image = "ghcr.io/zitadel/zitadel-login:v4.15.0";
     extraOptions = [ "--pod=zitadel-pod" ];
     environment = {
       ZITADEL_API_URL = "http://127.0.0.1:8080";
       ZITADEL_EXTERNALDOMAIN = "${zitadelDomain}";
+      ZITADEL_EXTERNALSECURE = "true";
+      ZITADEL_EXTERNALPORT = "443";
       ZITADEL_LOGINCLIENT_KEYFILE = "${loginClientDir}/tls.key";
       AUDIENCE = "https://${zitadelDomain}";
       NEXT_PUBLIC_BASE_PATH = "/ui/v2/login";
