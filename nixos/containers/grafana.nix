@@ -1,6 +1,9 @@
 { config, pkgs, inputs, ... }:
 
-{
+let
+  etc = config.environment.etc;
+  etcPath = name: etc.${name}.source;
+in {
   users.users.grafana = {
     isSystemUser = true;
     description = "Grafana";
@@ -26,15 +29,19 @@
     environment = {
       GF_PATHS_PROVISIONING = "/etc/grafana/provisioning";
       GF_PATHS_DATA = "/var/lib/grafana";
+      GF_PATHS_CONFIG = "/etc/grafana/grafana.ini";
     };
 
     volumes = [
       "/etc/passwd:/etc/passwd:ro"
       "/etc/group:/etc/group:ro"
       "/grafana/data:/var/lib/grafana"
-      "/grafana/conf:/etc/grafana"
-      "/etc/grafana/provisioning:/etc/grafana/provisioning:ro"
-      "/etc/grafana/dashboards:/etc/grafana/dashboards:ro"
+      "/grafana/conf/grafana.ini:/etc/grafana/grafana.ini:ro"
+      "/grafana/conf/ldap.toml:/etc/grafana/ldap.toml:ro"
+      "${etcPath "grafana/provisioning/datasources/prometheus.yaml"}:/etc/grafana/provisioning/datasources/prometheus.yaml:ro"
+      "${etcPath "grafana/provisioning/dashboards/ace.yaml"}:/etc/grafana/provisioning/dashboards/ace.yaml:ro"
+      "${etcPath "grafana/dashboards/ace-overview.json"}:/etc/grafana/dashboards/ace-overview.json:ro"
+      "${etcPath "grafana/dashboards/ace-services.json"}:/etc/grafana/dashboards/ace-services.json:ro"
     ];
   };
 }
