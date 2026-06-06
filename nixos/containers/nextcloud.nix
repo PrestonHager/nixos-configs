@@ -3,6 +3,11 @@
 let
   sops-path = builtins.toString inputs.nix-secrets;
   ncRoot = "/stor/nextcloud";
+  nextcloudApacheHsts = pkgs.writeText "nextcloud-hsts.conf" ''
+    <IfModule mod_headers.c>
+      Header always set Strict-Transport-Security "max-age=15552000; includeSubDomains"
+    </IfModule>
+  '';
   ncRuntimeEnv = "/run/nextcloud/container.env";
   nextcloudEnvScript = pkgs.writeShellScript "nextcloud-container-env" ''
     set -euo pipefail
@@ -65,6 +70,16 @@ EOF
       sleep 2
     done
 
+    tableCount="$(${pkgs.podman}/bin/podman exec nextcloud-db mariadb -h127.0.0.1 -u"''${MYSQL_USER}" -p"''${MYSQL_PASSWORD}" -N -e \
+      "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=''"''${MYSQL_DATABASE}"''"' AND table_name LIKE 'oc_%';" 2>/dev/null || echo 0)"
+    if [ "''${tableCount}" != "0" ] && ${pkgs.podman}/bin/podman exec nextcloud test -f /var/www/html/config/config.php; then
+      if ! ${pkgs.podman}/bin/podman exec nextcloud grep -q "'installed'" /var/www/html/config/config.php 2>/dev/null; then
+        echo "nextcloud-occ-install: restoring installed flag on existing database"
+        ${pkgs.podman}/bin/podman exec nextcloud sed -i "/^);/i\\  'installed' => true," /var/www/html/config/config.php
+      fi
+      exit 0
+    fi
+
     if ${pkgs.podman}/bin/podman exec nextcloud test -f /var/www/html/config/config.php; then
       echo "nextcloud-occ-install: removing incomplete config.php"
       ${pkgs.podman}/bin/podman exec nextcloud rm -f /var/www/html/config/config.php
@@ -110,6 +125,8 @@ EOF
       maintenance_window_start --type=integer --value=3
     ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
       default_phone_region --value=US
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      strict_transport_security.enabled --type=boolean --value=true
 
     if [ ! -f "$marker" ]; then
       ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ maintenance:repair --include-expensive
@@ -246,6 +263,7 @@ in
         "/etc/passwd:/etc/passwd:ro"
         "/etc/group:/etc/group:ro"
         "${ncRoot}/data/:/var/www/html/"
+        "${nextcloudApacheHsts}:/etc/apache2/conf-enabled/z-nextcloud-hsts.conf:ro"
       ];
       environment = {
         APACHE_PORT = "80";
