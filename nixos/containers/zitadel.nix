@@ -62,15 +62,7 @@ in {
     environmentFiles = [ config.sops.secrets."zitadel-db-env".path ];
     volumes = [
       "/zitadel/postgres:/var/lib/postgresql/data"
-    ];
-    healthcheck = {
-      test = [ "CMD-SHELL" "pg_isready -U postgres -d zitadel" ];
-      interval = "10s";
-      timeout = "30s";
-      retries = 5;
-      startPeriod = "20s";
-    };
-  };
+    ];  };
 
   virtualisation.oci-containers.containers.zitadel = {
     autoStart = true;
@@ -88,15 +80,7 @@ in {
     environmentFiles = [ config.sops.secrets."zitadel-env".path ];
     volumes = [
       "/zitadel/data:/zitadel-data"
-    ];
-    healthcheck = {
-      test = [ "CMD" "/app/zitadel" "ready" ];
-      interval = "10s";
-      timeout = "60s";
-      retries = 5;
-      startPeriod = "30s";
-    };
-  };
+    ];  };
 
   virtualisation.oci-containers.containers.zitadel-login = {
     autoStart = true;
@@ -107,13 +91,5 @@ in {
       ZITADEL_API_URL = "http://127.0.0.1:8080";
       NEXT_PUBLIC_BASE_PATH = "/ui/v2/login";
       CUSTOM_REQUEST_HEADERS = "Host:${zitadelDomain},X-Forwarded-Proto:https";
-    };
-    healthcheck = {
-      test = [ "CMD-SHELL" "curl -fsS http://127.0.0.1:3000/ui/v2/login/healthz || exit 1" ];
-      interval = "15s";
-      timeout = "10s";
-      retries = 5;
-      startPeriod = "30s";
-    };
-  };
+    };  };
 }
