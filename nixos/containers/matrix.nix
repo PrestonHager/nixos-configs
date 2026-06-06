@@ -65,7 +65,6 @@ database:
     port: 5432
     cp_min: 5
     cp_max: 10
-    allow_unsafe_locale: true
 
 log_config: "/data/${matrixDomain}.log.config"
 
