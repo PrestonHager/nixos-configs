@@ -10,7 +10,7 @@
       redir /.well-known/carddav /remote.php/dav 301
       redir /.well-known/caldav /remote.php/dav 301
 
-      reverse_proxy http://localhost:8083 {
+      reverse_proxy http://127.0.0.1:8083 {
         header_up Host {host}
         header_up X-Real-IP {remote_host}
         header_up X-Forwarded-For {remote_host}

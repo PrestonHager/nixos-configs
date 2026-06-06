@@ -55,7 +55,7 @@ in
       RemainAfterExit = true;
       ExecStart = pkgs.writeShellScript "pod-nextcloud" ''
         ${pkgs.podman}/bin/podman pod exists nextcloud || \
-        ${pkgs.podman}/bin/podman pod create -p 8083:80 -p "[::1]:8083:80" -h cloud.prestonhager.com nextcloud
+        ${pkgs.podman}/bin/podman pod create -p 127.0.0.1:8083:80 -h cloud.prestonhager.com nextcloud
       '';
     };
     path = [ pkgs.podman ];
