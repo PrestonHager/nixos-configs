@@ -9,7 +9,7 @@ let
   adminPasswordFile = "${dataRoot}/secrets/admin-password";
 in
 {
-  imports = [ ./technitium-internal-zone.nix ];
+  imports = [ ./technitium-zones.nix ];
 
   systemd.tmpfiles.rules = [
     "d ${dataRoot} 0755 root root -"
