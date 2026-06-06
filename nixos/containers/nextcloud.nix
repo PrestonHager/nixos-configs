@@ -153,6 +153,13 @@ in
     };
   };
 
+
+  systemd.services."podman-nextcloud" = {
+    requires = [ "nextcloud-container-env.service" ];
+    after = [ "nextcloud-container-env.service" ];
+    serviceConfig.ExecStartPre = [ nextcloudEnvScript ];
+  };
+
   systemd.services.pod-nextcloud = {
     description = "Start podman's 'nextcloud' pod";
     wants = [ "network-online.target" ];
