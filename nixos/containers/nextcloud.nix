@@ -208,20 +208,6 @@ EOF
     fi
   '';
 
-  nextcloudNotifyPushEntrypoint = pkgs.writeShellScript "nextcloud-notify-push-entrypoint" ''
-    set -euo pipefail
-    binary=/var/www/html/custom_apps/notify_push/bin/x86_64/notify_push
-    for _ in $(seq 1 180); do
-      if [ -x "$binary" ]; then
-        export PORT=7867
-        export NEXTCLOUD_URL=http://127.0.0.1
-        exec "$binary" /var/www/html/config/config.php
-      fi
-      sleep 2
-    done
-    echo "nextcloud-notify-push: notify_push binary not found after waiting" >&2
-    exit 1
-  '';
 in
 {
   sops.secrets = {
@@ -427,11 +413,27 @@ in
       autoStart = true;
       user = "root:root";
       image = nextcloudImage;
-      entrypoint = "/entrypoint.sh";
+      entrypoint = "/bin/bash";
+      cmd = [
+        "-c"
+        ''
+          set -euo pipefail
+          binary=/var/www/html/custom_apps/notify_push/bin/x86_64/notify_push
+          for _ in $(seq 1 180); do
+            if [ -x "$binary" ]; then
+              export PORT=7867
+              export NEXTCLOUD_URL=http://127.0.0.1
+              exec "$binary" /var/www/html/config/config.php
+            fi
+            sleep 2
+          done
+          echo "nextcloud-notify-push: notify_push binary not found after waiting" >&2
+          exit 1
+        ''
+      ];
       volumes = [
         "${ncRoot}/data/config:/var/www/html/config:ro"
         "${ncRoot}/data/custom_apps:/var/www/html/custom_apps:ro"
-        "${nextcloudNotifyPushEntrypoint}:/entrypoint.sh:ro"
       ];
       dependsOn = [ "nextcloud" "nextcloud-clamav" ];
       extraOptions = [ "--pod=nextcloud" ];
