@@ -14,7 +14,11 @@ let external_completer = {|spans|
   # Handle aliases/command expansions
   let expanded_alias = scope aliases
     | where name == $spans.0
+<<<<<<< HEAD
     | get -i 0 | get -i expansion
+=======
+    | get -o 0.expansion
+>>>>>>> origin/main
 
   let spans = if $expanded_alias != null {
     let alias_parts = ($expanded_alias | split row ' ')
