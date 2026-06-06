@@ -202,7 +202,10 @@ EOF
       sleep 2
     done
 
-    occ notify_push:setup "${nextcloudPushUrl}"
+    if ! occ notify_push:setup "${nextcloudPushUrl}"; then
+      echo "nextcloud-occ-maintain: notify_push setup failed; retry after notify_push container is healthy" >&2
+      exit 1
+    fi
   '';
 
   nextcloudNotifyPushEntrypoint = pkgs.writeShellScript "nextcloud-notify-push-entrypoint" ''
@@ -424,10 +427,11 @@ in
       autoStart = true;
       user = "root:root";
       image = nextcloudImage;
-      entrypoint = "${nextcloudNotifyPushEntrypoint}";
+      entrypoint = "/entrypoint.sh";
       volumes = [
         "${ncRoot}/data/config:/var/www/html/config:ro"
         "${ncRoot}/data/custom_apps:/var/www/html/custom_apps:ro"
+        "${nextcloudNotifyPushEntrypoint}:/entrypoint.sh:ro"
       ];
       dependsOn = [ "nextcloud" "nextcloud-clamav" ];
       extraOptions = [ "--pod=nextcloud" ];
