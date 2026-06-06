@@ -133,6 +133,31 @@ EOF
     ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
       strict_transport_security.enabled --type=boolean --value=true
 
+    set -a
+    # shellcheck disable=SC1091
+    . "${ncRuntimeEnv}"
+    set +a
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      mail_smtpmode --value=smtp
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      mail_smtphost --value=smtp.mail.me.com
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      mail_smtpport --type=integer --value=587
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      mail_smtpsecure --value=tls
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      mail_smtpauth --type=boolean --value=true
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      mail_smtpname --value=prestonhager@icloud.com
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      mail_from_address --value=admin@prestonhager.com
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      mail_domain --value=prestonhager.com
+    if [ -n "''${SMTP_PASSWORD:-}" ]; then
+      ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+        mail_smtppassword --value="''${SMTP_PASSWORD}"
+    fi
+
     if [ ! -f "$marker" ]; then
       ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ maintenance:repair --include-expensive
       touch "$marker"
@@ -351,7 +376,7 @@ in
         podman=${pkgs.podman}/bin/podman
         if $podman pod exists nextcloud; then
           ports="$($podman pod inspect nextcloud --format '{{json .InfraConfig.PortBindings}}' 2>/dev/null || echo '{}')"
-          hosts="$($podman pod inspect nextcloud --format '{{json .InfraConfig.HostAdditions}}' 2>/dev/null || echo '[]')"
+          hosts="$($podman pod inspect nextcloud --format '{{json .InfraConfig.HostAdd}}' 2>/dev/null || echo '[]')"
           if ! echo "$ports" | grep -q 7867 || ! echo "$hosts" | grep -q '192.168.5.5'; then
             echo "pod-nextcloud: recreating pod for notify_push port and host routing"
             $podman pod stop -t 30 nextcloud || true
@@ -398,7 +423,7 @@ in
         PHP_MEMORY_LIMIT = "8G";
         PHP_UPLOAD_LIMIT = "128G";
         SMTP_HOST = "smtp.mail.me.com";
-        SMTP_SECURE = "ssl";
+        SMTP_SECURE = "tls";
         SMTP_PORT = "587";
         SMTP_NAME = "prestonhager@icloud.com";
         MAIL_FROM_ADDRESS = "admin@prestonhager.com";
