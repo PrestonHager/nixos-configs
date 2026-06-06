@@ -3,6 +3,10 @@
 let
   sops-path = builtins.toString inputs.nix-secrets;
   ncRoot = "/stor/nextcloud";
+  nextcloudImage = "docker.io/library/nextcloud:31.0.14";
+  clamavImage = "docker.io/clamav/clamav:stable";
+  nextcloudPublicUrl = "https://cloud.prestonhager.com";
+  nextcloudPushUrl = "${nextcloudPublicUrl}/push";
   nextcloudApacheHsts = pkgs.writeText "nextcloud-hsts.conf" ''
     <IfModule mod_headers.c>
       Header always set Strict-Transport-Security "max-age=15552000; includeSubDomains"
@@ -134,6 +138,87 @@ EOF
       touch "$marker"
     fi
   '';
+
+  nextcloudOccMaintainScript = pkgs.writeShellScript "nextcloud-occ-maintain" ''
+    set -euo pipefail
+    podman=${pkgs.podman}/bin/podman
+    occ() {
+      $podman exec -u www-data nextcloud php /var/www/html/occ "$@"
+    }
+
+    for _ in $(seq 1 60); do
+      if $podman exec nextcloud true 2>/dev/null; then
+        break
+      fi
+      sleep 2
+    done
+
+    if ! $podman exec nextcloud true 2>/dev/null; then
+      echo "nextcloud-occ-maintain: nextcloud container not running" >&2
+      exit 1
+    fi
+
+    if ! $podman exec nextcloud test -f /var/www/html/config/config.php; then
+      echo "nextcloud-occ-maintain: config.php missing, skipping" >&2
+      exit 0
+    fi
+
+    if ! occ status 2>/dev/null | grep -q 'installed: true'; then
+      echo "nextcloud-occ-maintain: Nextcloud not installed, skipping" >&2
+      exit 0
+    fi
+
+    occ upgrade --no-interaction
+
+    if ! occ app:list 2>/dev/null | grep -qE '(^| )- notify_push:'; then
+      occ app:install notify_push
+    fi
+    occ app:enable notify_push
+
+    for _ in $(seq 1 120); do
+      if $podman exec nextcloud bash -c 'exec 3<>/dev/tcp/127.0.0.1/3310' 2>/dev/null; then
+        $podman exec nextcloud bash -c 'exec 3<&- 3>&-' 2>/dev/null || true
+        break
+      fi
+      sleep 5
+    done
+
+    occ config:app:set files_antivirus av_mode --value=daemon
+    occ config:app:set files_antivirus av_host --value=127.0.0.1
+    occ config:app:set files_antivirus av_port --value=3310 --type=integer
+
+    for _ in $(seq 1 120); do
+      if $podman exec nextcloud test -x /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push; then
+        break
+      fi
+      sleep 2
+    done
+
+    for _ in $(seq 1 60); do
+      if $podman exec nextcloud bash -c 'exec 3<>/dev/tcp/127.0.0.1/7867' 2>/dev/null; then
+        $podman exec nextcloud bash -c 'exec 3<&- 3>&-' 2>/dev/null || true
+        break
+      fi
+      sleep 2
+    done
+
+    occ notify_push:setup "${nextcloudPushUrl}"
+  '';
+
+  nextcloudNotifyPushEntrypoint = pkgs.writeShellScript "nextcloud-notify-push-entrypoint" ''
+    set -euo pipefail
+    binary=/var/www/html/custom_apps/notify_push/bin/x86_64/notify_push
+    for _ in $(seq 1 180); do
+      if [ -x "$binary" ]; then
+        export PORT=7867
+        export NEXTCLOUD_URL=http://127.0.0.1
+        exec "$binary" /var/www/html/config/config.php
+      fi
+      sleep 2
+    done
+    echo "nextcloud-notify-push: notify_push binary not found after waiting" >&2
+    exit 1
+  '';
 in
 {
   sops.secrets = {
@@ -167,6 +252,7 @@ in
     "d ${ncRoot}/data 0770 www-data www-data -"
     "d ${ncRoot}/mysql 0770 nm-iodine nscd -"
     "d ${ncRoot}/redis 0770 nm-iodine nscd -"
+    "d ${ncRoot}/clamav 0770 nm-iodine nscd -"
     "d /run/nextcloud 0750 root root -"
   ];
 
@@ -226,6 +312,27 @@ in
     };
   };
 
+  systemd.services.nextcloud-occ-maintain = {
+    description = "Upgrade Nextcloud, configure notify_push and ClamAV";
+    wantedBy = [ "multi-user.target" ];
+    after = [
+      "nextcloud-occ-config.service"
+      "podman-nextcloud.service"
+      "podman-nextcloud-clamav.service"
+      "podman-nextcloud-notify-push.service"
+    ];
+    requires = [
+      "podman-nextcloud.service"
+      "podman-nextcloud-clamav.service"
+    ];
+    unitConfig.ConditionPathExists = "${ncRoot}/data/config/config.php";
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = nextcloudOccMaintainScript;
+    };
+  };
+
 
   systemd.services."podman-nextcloud" = {
     requires = [ "nextcloud-container-env.service" ];
@@ -241,6 +348,8 @@ in
       "podman-nextcloud.service"
       "podman-nextcloud-db.service"
       "podman-nextcloud-redis.service"
+      "podman-nextcloud-clamav.service"
+      "podman-nextcloud-notify-push.service"
     ];
     unitConfig = {
       RequiresMountsFor = "/run/containers /stor";
@@ -249,8 +358,22 @@ in
       Type = "oneshot";
       RemainAfterExit = true;
       ExecStart = pkgs.writeShellScript "pod-nextcloud" ''
-        ${pkgs.podman}/bin/podman pod exists nextcloud || \
-        ${pkgs.podman}/bin/podman pod create -p 127.0.0.1:8083:80 -h cloud.prestonhager.com nextcloud
+        set -euo pipefail
+        podman=${pkgs.podman}/bin/podman
+        if $podman pod exists nextcloud; then
+          ports="$($podman pod inspect nextcloud --format '{{json .InfraConfig.PortBindings}}' 2>/dev/null || echo '{}')"
+          if ! echo "$ports" | grep -q 7867; then
+            echo "pod-nextcloud: recreating pod to publish notify_push port 7867"
+            $podman pod stop -t 30 nextcloud || true
+            $podman pod rm -f nextcloud
+          fi
+        fi
+        $podman pod exists nextcloud || \
+        $podman pod create \
+          -p 127.0.0.1:8083:80 \
+          -p 127.0.0.1:7867:7867 \
+          -h cloud.prestonhager.com \
+          nextcloud
       '';
     };
     path = [ pkgs.podman ];
@@ -295,7 +418,28 @@ in
         "--pod=nextcloud"
         "--env-file=${ncRuntimeEnv}"
       ];
-      image = "docker.io/library/nextcloud:latest";
+      image = nextcloudImage;
+    };
+    nextcloud-notify-push = {
+      autoStart = true;
+      user = "root:root";
+      image = nextcloudImage;
+      entrypoint = [ "${nextcloudNotifyPushEntrypoint}" ];
+      volumes = [
+        "${ncRoot}/data/config:/var/www/html/config:ro"
+        "${ncRoot}/data/custom_apps:/var/www/html/custom_apps:ro"
+      ];
+      dependsOn = [ "nextcloud" "nextcloud-clamav" ];
+      extraOptions = [ "--pod=nextcloud" ];
+    };
+    nextcloud-clamav = {
+      autoStart = true;
+      user = "root:root";
+      volumes = [
+        "${ncRoot}/clamav:/var/lib/clamav"
+      ];
+      extraOptions = [ "--pod=nextcloud" ];
+      image = clamavImage;
     };
     nextcloud-db = {
       autoStart = true;
