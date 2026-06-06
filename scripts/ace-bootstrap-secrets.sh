@@ -57,7 +57,30 @@ grafana-oauth-env: |
 EOF
 nix shell nixpkgs#sops --command sops -e -i secrets/containers/zitadel-config.yaml
 nix shell nixpkgs#sops --command sops -e -i secrets/containers/grafana-oauth.yaml
+
+if [ ! -f secrets/containers/matrix.yaml ]; then
+  MATRIXPG=$(gen_pass 24)
+  REGSECRET=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 48)
+  MACAROON=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 48)
+  FORM=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 48)
+  cat > secrets/containers/matrix.yaml <<EOF
+matrix-db-env: |
+  POSTGRES_USER=synapse
+  POSTGRES_PASSWORD=${MATRIXPG}
+  POSTGRES_DB=synapse
+
+matrix-secrets: |
+  SYNAPSE_REGISTRATION_SHARED_SECRET=${REGSECRET}
+  SYNAPSE_MACAROON_SECRET_KEY=${MACAROON}
+  SYNAPSE_FORM_SECRET=${FORM}
+EOF
+  nix shell nixpkgs#sops --command sops -e -i secrets/containers/matrix.yaml
+fi
+
 git add secrets/containers/zitadel-config.yaml secrets/containers/grafana-oauth.yaml
-git commit --trailer "Co-authored-by: Cursor <cursoragent@cursor.com>" -m "Add encrypted Zitadel and Grafana OAuth secrets for ace" --no-gpg-sign
+if [ -f secrets/containers/matrix.yaml ]; then
+  git add secrets/containers/matrix.yaml
+fi
+git commit --trailer "Co-authored-by: Cursor <cursoragent@cursor.com>" -m "Add encrypted container secrets for ace (Zitadel, Grafana OAuth, Matrix)" --no-gpg-sign || true
 git push origin main
 echo "ZITADEL_ADMIN_PASSWORD=${ADMINPASS}"

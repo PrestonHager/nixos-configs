@@ -11,8 +11,8 @@
     #../../nixos/samba
     # include nfs for caddy lets encrypt certs
     ../../nixos/nfs
-    # matrix home server
-    #../../nixos/matrix.nix
+    # matrix home server (Synapse)
+    ../../nixos/matrix.nix
     # hardware configuration for the MSI Summit E16 Flip
     ../../hardware/dell-poweredge-730xd/hardware-configuration.nix
     # yubico keys

@@ -7,7 +7,7 @@
     # Reverse proxy configuration
     #./forgejo.nix
     ./jellyfin.nix
-    #./matrix.nix # Synapse/Conduit disabled on ace (hosts/ace/default.nix)
+    ./matrix.nix
     ./technitium.nix
     ./grafana.nix
     ./mediawiki.nix

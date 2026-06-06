@@ -29,7 +29,8 @@
     "portunus.prestonhager.com"
     "git.prestonhager.com"
 
-    # Wiki / other Caddy vhosts on ace (matrix disabled until Conduit enabled)
+    # Matrix / wiki / other Caddy vhosts on ace
+    "matrix.prestonhager.com"
     "spacetime.prestonhager.com"
     "test.sui.prestonhager.com"
     "faucet.test.sui.prestonhager.com"
