@@ -3,6 +3,27 @@
 let
   sops-path = builtins.toString inputs.nix-secrets;
   zitadelDomain = "zitadel.prestonhager.com";
+  loginClientDir = "/zitadel/login-client";
+  systemApiUsersJson = builtins.toJSON {
+    login-client = {
+      Path = "${loginClientDir}/tls.crt";
+      Memberships = [{
+        MemberType = "System";
+        Roles = [ "IAM_LOGIN_CLIENT" ];
+      }];
+    };
+  };
+  loginClientKeyGen = pkgs.writeShellScript "zitadel-login-client-keygen" ''
+    set -euo pipefail
+    install -d -m 0750 -o zitadel -g zitadel ${loginClientDir}
+    if [ ! -f ${loginClientDir}/tls.key ]; then
+      ${pkgs.openssl}/bin/openssl genrsa -out ${loginClientDir}/tls.key 4096
+      ${pkgs.openssl}/bin/openssl rsa -in ${loginClientDir}/tls.key -pubout -out ${loginClientDir}/tls.crt
+      chown zitadel:zitadel ${loginClientDir}/tls.key ${loginClientDir}/tls.crt
+      chmod 640 ${loginClientDir}/tls.key
+      chmod 644 ${loginClientDir}/tls.crt
+    fi
+  '';
 in {
   sops.secrets = {
     "zitadel-env" = {
@@ -25,7 +46,26 @@ in {
   systemd.tmpfiles.rules = [
     "d /zitadel/data 0770 zitadel zitadel -"
     "d /zitadel/postgres 0770 zitadel zitadel -"
+    "d ${loginClientDir} 0750 zitadel zitadel -"
   ];
+
+  systemd.services.zitadel-login-client-keygen = {
+    description = "Generate Zitadel login-client RSA keypair for Login UI API auth";
+    wantedBy = [ "multi-user.target" ];
+    before = [
+      "podman-zitadel.service"
+      "podman-zitadel-login.service"
+    ];
+    requiredBy = [
+      "podman-zitadel.service"
+      "podman-zitadel-login.service"
+    ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = loginClientKeyGen;
+    };
+  };
 
   systemd.services.pod-zitadel = {
     description = "Podman pod for Zitadel (API, login UI, PostgreSQL)";
@@ -42,16 +82,28 @@ in {
       RemainAfterExit = true;
       ExecStart = pkgs.writeShellScript "pod-zitadel-create" ''
         set -euo pipefail
+        hostGw="$(${pkgs.iproute2}/bin/ip -4 -o addr show podman0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)"
+        if [ -z "''${hostGw}" ]; then
+          hostGw="10.88.0.1"
+        fi
+        if ${pkgs.podman}/bin/podman pod exists zitadel-pod; then
+          if ! ${pkgs.podman}/bin/podman pod inspect zitadel-pod --format '{{range .HostAdditions}}{{.Host}}:{{.IP}} {{end}}' \
+            | grep -q "${zitadelDomain}:''${hostGw}"; then
+            ${pkgs.podman}/bin/podman pod stop -t 10 zitadel-pod || true
+            ${pkgs.podman}/bin/podman pod rm -f zitadel-pod || true
+          fi
+        fi
         if ! ${pkgs.podman}/bin/podman pod exists zitadel-pod; then
           ${pkgs.podman}/bin/podman pod create \
             --name zitadel-pod \
+            --add-host=${zitadelDomain}:''${hostGw} \
             -p 9080:8080 \
             -p 9081:3000 \
             --memory 8G --cpus 0
         fi
       '';
     };
-    path = [ pkgs.podman ];
+    path = [ pkgs.podman pkgs.iproute2 pkgs.gawk ];
   };
 
   virtualisation.oci-containers.containers.zitadel-db = {
@@ -61,7 +113,8 @@ in {
     environmentFiles = [ config.sops.secrets."zitadel-db-env".path ];
     volumes = [
       "/zitadel/postgres:/var/lib/postgresql/data"
-    ];  };
+    ];
+  };
 
   virtualisation.oci-containers.containers.zitadel = {
     autoStart = true;
@@ -77,9 +130,14 @@ in {
       "--pod=zitadel-pod"
     ];
     environmentFiles = [ config.sops.secrets."zitadel-env".path ];
+    environment = {
+      ZITADEL_SYSTEMAPIUSERS = systemApiUsersJson;
+    };
     volumes = [
       "/zitadel/data:/zitadel-data"
-    ];  };
+      "${loginClientDir}/tls.crt:${loginClientDir}/tls.crt:ro"
+    ];
+  };
 
   virtualisation.oci-containers.containers.zitadel-login = {
     autoStart = true;
@@ -88,7 +146,16 @@ in {
     extraOptions = [ "--pod=zitadel-pod" ];
     environment = {
       ZITADEL_API_URL = "http://127.0.0.1:8080";
+      ZITADEL_EXTERNALDOMAIN = "${zitadelDomain}";
+      ZITADEL_LOGINCLIENT_KEYFILE = "${loginClientDir}/tls.key";
+      AUDIENCE = "https://${zitadelDomain}";
       NEXT_PUBLIC_BASE_PATH = "/ui/v2/login";
-      CUSTOM_REQUEST_HEADERS = "Host:${zitadelDomain},X-Forwarded-Proto:https";
-    };  };
+      CUSTOM_REQUEST_HEADERS = "Host:${zitadelDomain},X-Forwarded-Proto:https,X-Zitadel-Public-Host:${zitadelDomain}";
+      ZITADEL_TLS_ENABLED = "false";
+      OTEL_SDK_DISABLED = "true";
+    };
+    volumes = [
+      "${loginClientDir}/tls.key:${loginClientDir}/tls.key:ro"
+    ];
+  };
 }
