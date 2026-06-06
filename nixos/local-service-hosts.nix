@@ -13,7 +13,6 @@
     # Pterodactyl
     "panel.prestonhager.com"
     "test.panel.prestonhager.com"
-    "testpanel.prestonhager.com"
 
     # Monitoring & media
     "grafana.prestonhager.com"

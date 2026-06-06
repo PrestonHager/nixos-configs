@@ -67,11 +67,6 @@ in {
         containerPath = "/var/www/pterodactyl";
         phpPort = "9002";
       };
-      "testpanel.prestonhager.com".extraConfig = panelSite {
-        hostPath = "/pterodactyl-test/public";
-        containerPath = "/var/www/pterodactyl";
-        phpPort = "9002";
-      };
     } // builtins.mapAttrs (websocketHost: websocketConfig: {
       extraConfig = ''
         @ws path_regexp wsSuffix .*/ws(/.*)?$

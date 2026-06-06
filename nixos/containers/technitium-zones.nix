@@ -36,7 +36,6 @@ let
         "ai"
         "panel"
         "test.panel"
-        "testpanel"
         "prometheus"
         "jellyfin"
         "vault"
