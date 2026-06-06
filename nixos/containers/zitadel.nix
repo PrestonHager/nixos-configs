@@ -20,7 +20,8 @@ let
       ${pkgs.openssl}/bin/openssl genrsa -out ${loginClientDir}/tls.key 4096
       ${pkgs.openssl}/bin/openssl req -new -x509 -key ${loginClientDir}/tls.key -out ${loginClientDir}/tls.crt -days 3650 -subj "/CN=login-client" -batch
       chown zitadel:zitadel ${loginClientDir}/tls.key ${loginClientDir}/tls.crt
-      chmod 640 ${loginClientDir}/tls.key
+      # zitadel-login runs as nextjs (uid 1001), not zitadel; key must be world-readable.
+      chmod 644 ${loginClientDir}/tls.key
       chmod 644 ${loginClientDir}/tls.crt
     fi
   '';
@@ -65,7 +66,7 @@ in {
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
-      ExecStart = "${pkgs.coreutils}/bin/chown postgres:postgres /zitadel/postgres";
+      ExecStart = "${pkgs.coreutils}/bin/chown -R postgres:postgres /zitadel/postgres";
       ExecStartPost = "${pkgs.coreutils}/bin/chmod 0700 /zitadel/postgres";
     };
   };
@@ -85,6 +86,8 @@ in {
       Type = "oneshot";
       RemainAfterExit = true;
       ExecStart = loginClientKeyGen;
+      # Ensure existing keys are readable by zitadel-login (nextjs uid 1001).
+      ExecStartPost = "${pkgs.coreutils}/bin/chmod 644 ${loginClientDir}/tls.key ${loginClientDir}/tls.crt";
     };
   };
 
@@ -171,7 +174,8 @@ in {
       ZITADEL_EXTERNALSECURE = "true";
       ZITADEL_EXTERNALPORT = "443";
       ZITADEL_LOGINCLIENT_KEYFILE = "${loginClientDir}/tls.key";
-      AUDIENCE = "https://${zitadelDomain}";
+      # Must match Zitadel system token verifier audience (http + external port).
+      AUDIENCE = "http://${zitadelDomain}:443";
       NEXT_PUBLIC_BASE_PATH = "/ui/v2/login";
       CUSTOM_REQUEST_HEADERS = "Host:${zitadelDomain},X-Forwarded-Proto:https,X-Zitadel-Public-Host:${zitadelDomain}";
       ZITADEL_TLS_ENABLED = "false";
