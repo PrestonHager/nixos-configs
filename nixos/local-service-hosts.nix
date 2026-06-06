@@ -30,8 +30,11 @@
     "portunus.prestonhager.com"
     "git.prestonhager.com"
 
-    # Matrix / wiki (Caddy imports on ace)
-    "matrix.prestonhager.com"
+    # Wiki / other Caddy vhosts on ace (matrix disabled until Conduit enabled)
+    "spacetime.prestonhager.com"
+    "test.sui.prestonhager.com"
+    "faucet.test.sui.prestonhager.com"
+    "indexer.test.sui.prestonhager.com"
     "loftiawiki.org"
     "loftiawiki.com"
     "upgrade.loftiawiki.org"

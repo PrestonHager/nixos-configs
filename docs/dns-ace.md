@@ -30,7 +30,53 @@ Ace itself keeps resolver **192.168.5.2** in `hosts/ace/default.nix` so the serv
 | LanCache DNS | `192.168.5.5:53` udp/tcp | House / game LAN DNS |
 | Technitium DNS | `127.0.0.1:5353` udp/tcp | Upstream for LanCache only |
 | Technitium UI | `127.0.0.1:5380` tcp | Caddy → `dns.prestonhager.com` |
+| Technitium DoH backend | `127.0.0.1:8053` tcp | DNS-over-HTTP; Caddy terminates TLS |
+| Technitium DoT | `:853` tcp | Native TLS (PFX from Caddy LE cert) |
+| Caddy DoH / HTTP/3 | `:443` tcp + udp | `https://dns.prestonhager.com/dns-query` |
 | Podman relay | `10.88.0.1:53` udp/tcp | Not routed from LAN; pod → Technitium |
+
+Plain DNS on **192.168.5.5:53** (LanCache) is unchanged. Encrypted DNS is additive.
+
+## Encrypted DNS (DoH, DoT, HTTP/3)
+
+### Architecture
+
+| Protocol | Termination | Backend | Client URL |
+|----------|-------------|---------|------------|
+| **DoH** | Caddy (Let's Encrypt via existing ace TLS) | Technitium DNS-over-HTTP on `127.0.0.1:8053` | `https://dns.prestonhager.com/dns-query` |
+| **HTTP/3** | Caddy (`protocols h1 h2 h3`, UDP/443) | Same DoH path | Same URL (HTTP/3 when client supports QUIC) |
+| **DoT** | Technitium native TLS | Technitium DNS TCP `:853` | `dns.prestonhager.com:853` |
+
+Caddy handles DoH so TLS renewal stays centralized and HTTP/3 works without Technitium binding port 443. DoT uses Technitium's built-in listener; the LE certificate is exported from Caddy's on-disk cert store to PKCS#12 (`technitium-sync-tls-cert.service`) and applied via the Technitium API (`technitium-sync-protocols.service`).
+
+Implementation: `nixos/caddy/technitium.nix`, `nixos/containers/technitium.nix`, `nixos/containers/technitium-protocols.nix`.
+
+### Client configuration
+
+| Client type | Setting |
+|-------------|---------|
+| DoH (browser, Android Private DNS, iOS profile) | `https://dns.prestonhager.com/dns-query` |
+| DoT (Android, router, `systemd-resolved`) | `dns.prestonhager.com` port **853** |
+| Plain DNS (unchanged) | `192.168.5.5` |
+
+Recursion remains **AllowOnlyForPrivateNetworks** — LAN and RFC1918 clients get answers; public IPs may receive `REFUSED` unless you widen recursion in Technitium settings.
+
+### Cloudflare DNS records
+
+| Type | Name | Content | Proxy | Purpose |
+|------|------|---------|-------|---------|
+| A | `dns` | `192.168.5.5` | Proxied (orange) | DoH + web UI via Caddy :443 |
+
+**DoT on port 853 does not traverse Cloudflare's HTTP proxy.** For encrypted DNS from the public Internet over DoT, add a **DNS-only** (grey cloud) record (e.g. `dot` → WAN IP) or connect over LAN/VPN to `192.168.5.5:853`. LAN clients resolving `dns.prestonhager.com` via Technitium split-horizon hit ace directly.
+
+### Deploy encrypted DNS
+
+After `nixos-rebuild switch --flake /etc/nixos#ace`:
+
+```bash
+systemctl status technitium-sync-tls-cert technitium-sync-protocols caddy
+ss -tlnp | grep -E '8053|853|443'
+```
 
 ## Storage
 
@@ -67,7 +113,22 @@ This zone overrides public Cloudflare answers for LAN clients using ace as DNS. 
 | grafana | CNAME | grafana.internal.prestonhager.com |
 | cloud | CNAME | cloud.internal.prestonhager.com |
 | dns | CNAME | dns.internal.prestonhager.com |
-| panel, test.panel, testpanel, prometheus, jellyfin, vault, wg, metrics.wg, zitadel, portunus, git, matrix, spacetime, test.sui, faucet.test.sui, indexer.test.sui | CNAME | ace.internal.prestonhager.com |
+| ai, panel, test.panel, testpanel, prometheus, jellyfin, vault, wg, metrics.wg, zitadel, portunus, git, matrix, spacetime, test.sui, faucet.test.sui, indexer.test.sui, factorio, game, lancache, mc, vpn | CNAME | ace.internal.prestonhager.com |
+| crux.lc1.nm.us | CNAME | crux.internal.prestonhager.com |
+| nova.lc1.nm.us | CNAME | nova.internal.prestonhager.com |
+
+External Cloudflare CNAMEs (blog, github.io sites, dontgetgot, ACM validation, etc.) and apex **MX/TXT/SRV** records are copied into the Technitium zone unchanged so LAN clients still resolve them without NXDOMAIN from the partial primary zone.
+
+### Cloudflare `ip1.lc1` → LAN mapping
+
+Public Cloudflare CNAMEs that target `ip1.lc1.nm.us.prestonhager.com` (73.26.67.25) are overridden on LAN as follows:
+
+| Public name | LAN target |
+|-------------|------------|
+| cloud, dns, grafana | matching `*.internal.prestonhager.com` A → 192.168.5.5 |
+| ace, ai, factorio, faucet.test.sui, game, indexer.test.sui, jellyfin, lancache, matrix, mc, metrics.wg, panel, portunus, prometheus, spacetime, test.panel, test.sui, vault, vpn, wg, zitadel | ace.internal.prestonhager.com → 192.168.5.5 |
+| crux.lc1.nm.us | crux.internal.prestonhager.com → 192.168.5.6 |
+| nova.lc1.nm.us | nova.internal.prestonhager.com → 192.168.5.7 |
 
 ### Legacy `lc1.nm.us.prestonhager.com` → new names
 
@@ -132,6 +193,19 @@ dig @127.0.0.1 -p 5353 crux.prestonhager.com +short
 
 # Relay from podman bridge
 dig @10.88.0.1 ace.internal.prestonhager.com +short
+
+# DoH (POST with wire-format DNS message — preferred by Technitium)
+echo 'AAABAAABAAAAAAABBXRlY2huaXQAAAABAAEAACkQAAAAAAAATwAEAAEAAQAAAgABAAAB' | base64 -d > /tmp/q.bin
+curl -sS -o /tmp/ans.bin -w '%{http_code}\n' \
+  -X POST -H 'content-type: application/dns-message' -H 'accept: application/dns-message' \
+  --data-binary @/tmp/q.bin https://dns.prestonhager.com/dns-query
+
+# DoT (native Technitium TLS on :853)
+echo | openssl s_client -connect dns.prestonhager.com:853 -servername dns.prestonhager.com 2>/dev/null \
+  | openssl x509 -noout -subject -dates
+
+# HTTP/3 (Caddy advertises QUIC on UDP/443)
+curl --http3-only -sS -o /dev/null -w '%{http_version}\n' https://dns.prestonhager.com/
 ```
 
 ### Add a host later

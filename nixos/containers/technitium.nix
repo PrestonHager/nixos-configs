@@ -6,10 +6,15 @@ let
   upstreamRelayHost = "10.88.0.1";
   upstreamRelayPort = 53;
   technitiumDnsPort = 5353;
+  dohBackendPort = 8053;
+  dotPort = 853;
   adminPasswordFile = "${dataRoot}/secrets/admin-password";
 in
 {
-  imports = [ ./technitium-zones.nix ];
+  imports = [
+    ./technitium-zones.nix
+    ./technitium-protocols.nix
+  ];
 
   systemd.tmpfiles.rules = [
     "d ${dataRoot} 0755 root root -"
@@ -24,6 +29,10 @@ in
       "127.0.0.1:${toString technitiumDnsPort}:53/udp"
       "127.0.0.1:${toString technitiumDnsPort}:53/tcp"
       "127.0.0.1:5380:5380/tcp"
+      # DNS-over-HTTP backend for Caddy-terminated DoH (RFC 8484 /dns-query).
+      "127.0.0.1:${toString dohBackendPort}:${toString dohBackendPort}/tcp"
+      # Native DNS-over-TLS (Caddy LE cert exported to PKCS#12).
+      "${toString dotPort}:${toString dotPort}/tcp"
     ];
     environment = {
       # Primary domain for this server (not the automatic ip1.lc1.* style names).
@@ -34,10 +43,13 @@ in
       DNS_SERVER_RECURSION = "AllowOnlyForPrivateNetworks";
       DNS_SERVER_LOG_FOLDER_PATH = "/var/log/technitium/dns";
       DNS_SERVER_LOG_USING_LOCAL_TIME = "true";
+      # Honored only on first boot (existing /etc/dns config); technitium-sync-protocols applies via API.
+      DNS_SERVER_OPTIONAL_PROTOCOL_DNS_OVER_HTTP = "true";
     };
     volumes = [
       "${dataRoot}:/etc/dns"
       "${dataRoot}/logs:/var/log/technitium/dns"
+      "${dataRoot}/certs:/etc/dns/certs:ro"
       "${adminPasswordFile}:/etc/technitium/admin-password:ro"
     ];
   };
