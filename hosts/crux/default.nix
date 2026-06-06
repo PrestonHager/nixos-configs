@@ -21,7 +21,7 @@
         "ace.internal.prestonhager.com"
       ];
       "192.168.5.6" = [
-        "crux.lc1.nm.us.prestonhager.com"
+        "crux.internal.prestonhager.com"
       ];
     };
   };

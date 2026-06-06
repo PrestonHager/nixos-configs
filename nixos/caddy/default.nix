@@ -8,6 +8,7 @@
     #./forgejo.nix
     ./jellyfin.nix
     ./matrix.nix
+    ./technitium.nix
     ./grafana.nix
     ./mediawiki.nix
     ./nextcloud.nix
@@ -35,4 +36,5 @@
     '';
   };
 }
+
 

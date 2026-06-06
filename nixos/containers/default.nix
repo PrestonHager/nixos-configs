@@ -20,6 +20,7 @@
     #./sui.nix
     ./vaultwarden.nix
     ./wg-portal.nix
+    ./technitium.nix
     ./lancache.nix
     ./zitadel.nix
   ];
@@ -43,4 +44,5 @@
   # default is "podman", you can also use "docker"
   virtualisation.oci-containers.backend = "podman";
 }
+
 

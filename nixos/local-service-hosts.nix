@@ -25,6 +25,7 @@
     "vault.prestonhager.com"
     "wg.prestonhager.com"
     "metrics.wg.prestonhager.com"
+    "dns.prestonhager.com"
     "zitadel.prestonhager.com"
     "portunus.prestonhager.com"
     "git.prestonhager.com"
@@ -36,8 +37,7 @@
     "upgrade.loftiawiki.org"
   ];
 
-  # Remote game/wings nodes (already partially configured; ensure both are present)
-  networking.hosts."192.168.5.6" = [ "crux.lc1.nm.us.prestonhager.com" ];
-  networking.hosts."192.168.5.7" = [ "nova.lc1.nm.us.prestonhager.com" ];
+  networking.hosts."192.168.5.5" = [ "ace.internal.prestonhager.com" ];
+  networking.hosts."192.168.5.6" = [ "crux.internal.prestonhager.com" ];
+  networking.hosts."192.168.5.7" = [ "nova.internal.prestonhager.com" ];
 }
-

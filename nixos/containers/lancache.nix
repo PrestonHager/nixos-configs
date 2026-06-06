@@ -10,7 +10,8 @@ let
     USE_GENERIC_CACHE = "true";
     LANCACHE_IP = lancacheIp;
     DNS_BIND_IP = dnsBindIp;
-    UPSTREAM_DNS = "1.1.1.1";
+    # Technitium on host loopback :5353; reach from pod via podman0 relay (technitium.nix).
+    UPSTREAM_DNS = "10.88.0.1";
     CACHE_ROOT = cacheRoot;
     CACHE_DISK_SIZE = cacheDiskSize;
     MIN_FREE_DISK = "10g";
@@ -20,7 +21,7 @@ let
   };
 in
 {
-  # DNS on ace for game-LAN DHCP clients only (not house DNS at 192.168.5.2).
+  # House / game LAN DHCP DNS -> ace :53 (LanCache); non-cache queries -> Technitium -> 1.1.1.1.
   # HTTP/HTTPS published on 8084/8443 so Caddy keeps 192.168.5.5:80/443.
   # Monolithic handles HTTPS directly (upstream docker-compose deprecates sniproxy).
   networking.firewall.allowedUDPPorts = [ 53 ];
@@ -34,8 +35,8 @@ in
 
   systemd.services.pod-lancache = {
     description = "Podman pod for LanCache (monolithic + DNS)";
-    wants = [ "network-online.target" ];
-    after = [ "network-online.target" ];
+    wants = [ "network-online.target" "technitium-upstream-relay.service" "technitium-upstream-relay-tcp.service" ];
+    after = [ "network-online.target" "technitium-upstream-relay.service" "technitium-upstream-relay-tcp.service" ];
     requiredBy = [
       "podman-lancache.service"
       "podman-lancache-dns.service"
@@ -79,3 +80,4 @@ in
     environment = lancacheEnv;
   };
 }
+
