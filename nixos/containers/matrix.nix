@@ -115,14 +115,6 @@ in {
   };
   users.groups.matrix = { };
 
-  users.users.postgres = {
-    isSystemUser = true;
-    uid = 70;
-    group = "postgres";
-    description = "PostgreSQL (container uid 70)";
-  };
-  users.groups.postgres = { gid = 70; };
-
   systemd.tmpfiles.rules = [
     "d ${synapseDataDir} 0750 matrix matrix -"
     "d ${synapsePostgresDir} 0700 postgres postgres -"
