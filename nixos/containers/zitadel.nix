@@ -57,7 +57,6 @@ in {
   virtualisation.oci-containers.containers.zitadel-db = {
     autoStart = true;
     image = "docker.io/library/postgres:16-alpine";
-    user = "root:root";
     extraOptions = [ "--pod=zitadel" ];
     environmentFiles = [ config.sops.secrets."zitadel-db-env".path ];
     volumes = [
@@ -67,7 +66,6 @@ in {
   virtualisation.oci-containers.containers.zitadel = {
     autoStart = true;
     image = "ghcr.io/zitadel/zitadel:latest";
-    user = "root:root";
     cmd = [
       "start-from-init"
       "--masterkeyFromEnv"
@@ -85,7 +83,6 @@ in {
   virtualisation.oci-containers.containers.zitadel-login = {
     autoStart = true;
     image = "ghcr.io/zitadel/zitadel-login:latest";
-    user = "root:root";
     extraOptions = [ "--pod=zitadel" ];
     environment = {
       ZITADEL_API_URL = "http://127.0.0.1:8080";

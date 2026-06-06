@@ -10,7 +10,7 @@ let
     USE_GENERIC_CACHE = "true";
     LANCACHE_IP = lancacheIp;
     DNS_BIND_IP = dnsBindIp;
-    UPSTREAM_DNS = "1.1.1.1,1.0.0.1";
+    UPSTREAM_DNS = "1.1.1.1 1.0.0.1";
     CACHE_ROOT = cacheRoot;
     CACHE_DISK_SIZE = cacheDiskSize;
     MIN_FREE_DISK = "10g";
@@ -22,6 +22,7 @@ in
 {
   # DNS on ace for game-LAN DHCP clients only (not house DNS at 192.168.5.2).
   # HTTP/HTTPS published on 8084/8443 so Caddy keeps 192.168.5.5:80/443.
+  # Monolithic handles HTTPS directly (upstream docker-compose deprecates sniproxy).
   networking.firewall.allowedUDPPorts = [ 53 ];
   networking.firewall.allowedTCPPorts = [ 53 ];
 
@@ -32,13 +33,12 @@ in
   ];
 
   systemd.services.pod-lancache = {
-    description = "Podman pod for LanCache (monolithic, DNS, sniproxy)";
+    description = "Podman pod for LanCache (monolithic + DNS)";
     wants = [ "network-online.target" ];
     after = [ "network-online.target" ];
     requiredBy = [
       "podman-lancache.service"
       "podman-lancache-dns.service"
-      "podman-lancache-sniproxy.service"
     ];
     unitConfig.RequiresMountsFor = "/run/containers /stor";
     serviceConfig = {
@@ -64,7 +64,6 @@ in
   virtualisation.oci-containers.containers.lancache = {
     autoStart = true;
     image = "docker.io/lancachenet/monolithic:latest";
-    user = "root:root";
     extraOptions = [ "--pod=lancache" ];
     environment = lancacheEnv;
     volumes = [
@@ -76,15 +75,6 @@ in
   virtualisation.oci-containers.containers.lancache-dns = {
     autoStart = true;
     image = "docker.io/lancachenet/lancache-dns:latest";
-    user = "root:root";
-    extraOptions = [ "--pod=lancache" ];
-    environment = lancacheEnv;
-  };
-
-  virtualisation.oci-containers.containers.lancache-sniproxy = {
-    autoStart = true;
-    image = "docker.io/lancachenet/sniproxy:latest";
-    user = "root:root";
     extraOptions = [ "--pod=lancache" ];
     environment = lancacheEnv;
   };
