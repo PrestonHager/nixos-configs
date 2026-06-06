@@ -147,8 +147,9 @@ in {
     cmd = [
       "start-from-init"
       "--masterkeyFromEnv"
+      # external: TLS terminated by Caddy; forces https:// in console environment.json
       "--tlsMode"
-      "disabled"
+      "external"
     ];
     extraOptions = [
       "--pod=zitadel-pod"
