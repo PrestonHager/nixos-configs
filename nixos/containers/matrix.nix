@@ -172,9 +172,6 @@ in {
     autoStart = true;
     image = "docker.io/library/postgres:16-alpine";
     extraOptions = [ "--pod=matrix-pod" ];
-    environment = {
-      POSTGRES_INITDB_ARGS = "--locale=C --encoding=UTF8";
-    };
     environmentFiles = [ config.sops.secrets."matrix-db-env".path ];
     environment = {
       POSTGRES_INITDB_ARGS = "--encoding=UTF-8 --lc-collate=C --lc-ctype=C";
