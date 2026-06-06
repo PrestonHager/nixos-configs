@@ -406,6 +406,8 @@ in
       extraOptions = [
         "--pod=nextcloud"
         "--env-file=${ncRuntimeEnv}"
+        # Pod hostname maps cloud.prestonhager.com to 127.0.0.1; reach host Caddy for notify_push self-test.
+        "--add-host=cloud.prestonhager.com:192.168.5.5"
       ];
       image = nextcloudImage;
     };
