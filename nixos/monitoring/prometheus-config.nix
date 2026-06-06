@@ -11,7 +11,8 @@ let
     "https://prometheus.prestonhager.com/"
     "https://loftiawiki.org/"
     "https://zitadel.prestonhager.com/"
-    "https://matrix.prestonhager.com/_matrix/client/versions"
+    "https://cloud.prestonhager.com/"
+    "https://dns.prestonhager.com/"
     "http://127.0.0.1/"
   ];
   tcpTargets = [
