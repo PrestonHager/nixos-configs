@@ -12,7 +12,7 @@
     #./nextcloud-aio.nix
     #./nextcloud.nix
     #./phorge.nix
-    ./portunus.nix
+    #./portunus.nix
     ./prometheus.nix
     ./pterodactyl.nix
     ./pterodactyl-test.nix
@@ -20,7 +20,7 @@
     #./sui.nix
     ./vaultwarden.nix
     ./wg-portal.nix
-    #./zitadel.nix
+    ./zitadel.nix
   ];
 
   # Enable Podman (or Docker) for use with oci-containers

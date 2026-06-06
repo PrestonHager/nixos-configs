@@ -12,7 +12,7 @@
     ./mediawiki.nix
     #./nextcloud.nix
     #./phorge.nix
-    ./portunus.nix
+    #./portunus.nix
     ./prometheus.nix
     ./pterodactyl.nix
     #./spacetime.nix

@@ -3,19 +3,19 @@
 {
   services.caddy = {
     virtualHosts."zitadel.prestonhager.com".extraConfig = ''
-      @allowedSubnet {
-        remote_ip 192.168.8.0/24
+      # Zitadel login UI (v2)
+      handle /ui/v2/login* {
+        reverse_proxy http://127.0.0.1:9081
       }
 
-      handle @allowedSubnet {
-        reverse_proxy http://localhost:9080
-      }
-
+      # Zitadel API, OIDC, SAML endpoints
       handle {
-        respond "Forbidden" 403
+        reverse_proxy http://127.0.0.1:9080 {
+          header_up Host {host}
+          header_up X-Forwarded-Proto {scheme}
+          header_up X-Forwarded-Host {host}
+        }
       }
-     '';
+    '';
   };
 }
-
-

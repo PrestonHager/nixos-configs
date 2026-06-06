@@ -2,93 +2,118 @@
 
 let
   sops-path = builtins.toString inputs.nix-secrets;
-in
-{
+  zitadelDomain = "zitadel.prestonhager.com";
+in {
   sops.secrets = {
-    "zitadel-config" = {
+    "zitadel-env" = {
       sopsFile = "${sops-path}/secrets/containers/zitadel-config.yaml";
+      key = "zitadel-env";
+    };
+    "zitadel-db-env" = {
+      sopsFile = "${sops-path}/secrets/containers/zitadel-config.yaml";
+      key = "zitadel-db-env";
     };
   };
 
-  # Create the zitadel user and group
-  users.users = {
-    zitadel = {
-      isSystemUser = true;
-      description = "Zitadel";
-      group = "zitadel";
-    };
+  users.users.zitadel = {
+    isSystemUser = true;
+    description = "Zitadel";
+    group = "zitadel";
   };
+  users.groups.zitadel = { };
 
-  users.groups = {
-    zitadel = {};
-  };
-
-  # Create the data directory
   systemd.tmpfiles.rules = [
     "d /zitadel/data 0770 zitadel zitadel -"
+    "d /zitadel/postgres 0770 zitadel zitadel -"
   ];
 
-  # Systemd service to create the pod required by podman containers
   systemd.services.pod-zitadel = {
-    description = "Start podman's 'zitadel' pod";
+    description = "Podman pod for Zitadel (API, login UI, PostgreSQL)";
     wants = [ "network-online.target" ];
     after = [ "network-online.target" ];
     requiredBy = [
+      "podman-zitadel-db.service"
       "podman-zitadel.service"
       "podman-zitadel-login.service"
-      "podman-zitadel-db.service"
     ];
-    unitConfig = {
-      RequiresMountsFor = "/run/containers";
-    };
+    unitConfig.RequiresMountsFor = "/run/containers";
     serviceConfig = {
       Type = "oneshot";
-      Restart = "no";
-      ExecStart = pkgs.writeShellScript "pod-zitadel" ''
-        ${pkgs.podman}/bin/podman pod exists zitadel || \
-        ${pkgs.podman}/bin/podman pod create -p 9080:8080 \
-          --memory 8G --cpus 0 zitadel
+      RemainAfterExit = true;
+      ExecStart = pkgs.writeShellScript "pod-zitadel-create" ''
+        set -euo pipefail
+        if ! ${pkgs.podman}/bin/podman pod exists zitadel; then
+          ${pkgs.podman}/bin/podman pod create \
+            --name zitadel \
+            -p 9080:8080 \
+            -p 9081:3000 \
+            --memory 8G --cpus 0
+        fi
       '';
     };
     path = [ pkgs.podman ];
   };
 
-  # Define the container
-  virtualisation.oci-containers.containers."zitadel" = {
+  virtualisation.oci-containers.containers.zitadel-db = {
     autoStart = true;
-
-    # User and group to run the container as
-    user = "zitadel:zitadel";
-
-    # Volumes to make persistent in the host/container
+    image = "docker.io/library/postgres:16-alpine";
+    user = "root:root";
+    extraOptions = [ "--pod=zitadel" ];
+    environmentFiles = [ config.sops.secrets."zitadel-db-env".path ];
     volumes = [
-      "/etc/passwd:/etc/passwd:ro"
-      "/etc/group:/etc/group:ro"
+      "/zitadel/postgres:/var/lib/postgresql/data"
     ];
-
-    environment = {
+    healthcheck = {
+      test = [ "CMD-SHELL" "pg_isready -U postgres -d zitadel" ];
+      interval = "10s";
+      timeout = "30s";
+      retries = 5;
+      startPeriod = "20s";
     };
+  };
 
+  virtualisation.oci-containers.containers.zitadel = {
+    autoStart = true;
+    image = "ghcr.io/zitadel/zitadel:latest";
+    user = "root:root";
+    cmdline = [
+      "start-from-init"
+      "--masterkeyFromEnv"
+      "--tlsMode"
+      "disabled"
+    ];
     extraOptions = [
       "--pod=zitadel"
-      "--env-file=/zitadel/.env"
     ];
-
+    environmentFiles = [ config.sops.secrets."zitadel-env".path ];
+    volumes = [
+      "/zitadel/data:/zitadel-data"
+    ];
     healthcheck = {
-      test = [
-        "CMD"
-        "/app/zitadel"
-        "ready"
-      ];
+      test = [ "CMD" "/app/zitadel" "ready" ];
       interval = "10s";
       timeout = "60s";
       retries = 5;
-      startPeriod = "10s";
+      startPeriod = "30s";
     };
+  };
 
-    # Finally, the zitadel image and version
-    image = "ghcr.io/zitadel/zitadel:latest";
+  virtualisation.oci-containers.containers.zitadel-login = {
+    autoStart = true;
+    image = "ghcr.io/zitadel/zitadel-login:latest";
+    user = "root:root";
+    extraOptions = [ "--pod=zitadel" ];
+    environment = {
+      ZITADEL_API_URL = "http://127.0.0.1:8080";
+      NEXT_PUBLIC_BASE_PATH = "/ui/v2/login";
+      CUSTOM_REQUEST_HEADERS = "Host:${zitadelDomain},X-Forwarded-Proto:https";
+    };
+    healthcheck = {
+      test = [ "CMD-SHELL" "curl -fsS http://127.0.0.1:3000/ui/v2/login/healthz || exit 1" ];
+      interval = "15s";
+      timeout = "10s";
+      retries = 5;
+      startPeriod = "30s";
+    };
   };
 }
-
-
