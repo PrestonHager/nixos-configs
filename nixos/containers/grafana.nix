@@ -22,7 +22,11 @@ in {
 
   systemd.tmpfiles.rules = [
     "d /grafana/data 0770 grafana grafana -"
-    "d /grafana/conf 0770 grafana grafana -"
+  ];
+
+  # Recreate the container when OAuth secrets change (podman does not reload --env-file).
+  systemd.services.podman-grafana.restartTriggers = [
+    config.sops.secrets."grafana-oauth-env".path
   ];
 
   virtualisation.oci-containers.containers.grafana = {
@@ -42,7 +46,10 @@ in {
     environment = {
       GF_PATHS_PROVISIONING = "/etc/grafana/provisioning";
       GF_PATHS_DATA = "/var/lib/grafana";
-      GF_PATHS_CONFIG = "/etc/grafana/grafana.ini";
+      GF_SERVER_DOMAIN = "grafana.prestonhager.com";
+      GF_SERVER_ROOT_URL = "https://grafana.prestonhager.com/";
+      GF_SERVER_ENFORCE_DOMAIN = "true";
+      GF_SERVER_ENABLE_GZIP = "true";
       # Disable Portunus LDAP; Zitadel OIDC is configured via sops env file.
       GF_AUTH_LDAP_ENABLED = "false";
       GF_AUTH_DISABLE_LOGIN_FORM = "false";
@@ -52,7 +59,6 @@ in {
       "/etc/passwd:/etc/passwd:ro"
       "/etc/group:/etc/group:ro"
       "/grafana/data:/var/lib/grafana"
-      "/grafana/conf/grafana.ini:/etc/grafana/grafana.ini:ro"
       "${etcPath "grafana/provisioning/datasources/prometheus.yaml"}:/etc/grafana/provisioning/datasources/prometheus.yaml:ro"
       "${etcPath "grafana/provisioning/dashboards/ace.yaml"}:/etc/grafana/provisioning/dashboards/ace.yaml:ro"
       "${etcPath "grafana/dashboards/ace-overview.json"}:/etc/grafana/dashboards/ace-overview.json:ro"

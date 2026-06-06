@@ -44,8 +44,17 @@ zitadel-env: |
 EOF
 cat > secrets/containers/grafana-oauth.yaml <<EOF
 grafana-oauth-env: |
-  GF_AUTH_GENERIC_OAUTH_ENABLED=false
+  GF_AUTH_GENERIC_OAUTH_ENABLED=true
   GF_AUTH_GENERIC_OAUTH_NAME=Zitadel
+  GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP=true
+  GF_AUTH_GENERIC_OAUTH_CLIENT_ID=REPLACE_ZITADEL_CLIENT_ID
+  GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET=REPLACE_ZITADEL_CLIENT_SECRET
+  GF_AUTH_GENERIC_OAUTH_SCOPES=openid profile email
+  GF_AUTH_GENERIC_OAUTH_AUTH_URL=https://zitadel.prestonhager.com/oauth/v2/authorize
+  GF_AUTH_GENERIC_OAUTH_TOKEN_URL=https://zitadel.prestonhager.com/oauth/v2/token
+  GF_AUTH_GENERIC_OAUTH_API_URL=https://zitadel.prestonhager.com/oidc/v1/userinfo
+  GF_AUTH_GENERIC_OAUTH_USE_PKCE=true
+  GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN=true
 EOF
 nix shell nixpkgs#sops --command sops -e -i secrets/containers/zitadel-config.yaml
 nix shell nixpkgs#sops --command sops -e -i secrets/containers/grafana-oauth.yaml
