@@ -9,8 +9,8 @@
     ./grafana.nix
     ./jellyfin.nix
     ./mediawiki.nix
-    #./nextcloud-aio.nix
-    #./nextcloud.nix
+    # ./nextcloud-aio.nix (disabled; use nextcloud.nix)
+    ./nextcloud.nix
     #./phorge.nix
     #./portunus.nix
     ./prometheus.nix

@@ -19,6 +19,7 @@
     "grafana.prestonhager.com"
     "prometheus.prestonhager.com"
     "jellyfin.prestonhager.com"
+    "cloud.prestonhager.com"
 
     # Identity / infra
     "vault.prestonhager.com"
@@ -39,3 +40,4 @@
   networking.hosts."192.168.5.6" = [ "crux.lc1.nm.us.prestonhager.com" ];
   networking.hosts."192.168.5.7" = [ "nova.lc1.nm.us.prestonhager.com" ];
 }
+

@@ -10,7 +10,7 @@
     ./matrix.nix
     ./grafana.nix
     ./mediawiki.nix
-    #./nextcloud.nix
+    ./nextcloud.nix
     #./phorge.nix
     #./portunus.nix
     ./prometheus.nix
