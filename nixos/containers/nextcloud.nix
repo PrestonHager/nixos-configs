@@ -424,7 +424,7 @@ in
       autoStart = true;
       user = "root:root";
       image = nextcloudImage;
-      entrypoint = [ "${nextcloudNotifyPushEntrypoint}" ];
+      entrypoint = "${nextcloudNotifyPushEntrypoint}";
       volumes = [
         "${ncRoot}/data/config:/var/www/html/config:ro"
         "${ncRoot}/data/custom_apps:/var/www/html/custom_apps:ro"
