@@ -351,8 +351,9 @@ in
         podman=${pkgs.podman}/bin/podman
         if $podman pod exists nextcloud; then
           ports="$($podman pod inspect nextcloud --format '{{json .InfraConfig.PortBindings}}' 2>/dev/null || echo '{}')"
-          if ! echo "$ports" | grep -q 7867; then
-            echo "pod-nextcloud: recreating pod to publish notify_push port 7867"
+          hosts="$($podman pod inspect nextcloud --format '{{json .InfraConfig.HostAdditions}}' 2>/dev/null || echo '[]')"
+          if ! echo "$ports" | grep -q 7867 || ! echo "$hosts" | grep -q '192.168.5.5'; then
+            echo "pod-nextcloud: recreating pod for notify_push port and host routing"
             $podman pod stop -t 30 nextcloud || true
             $podman pod rm -f nextcloud
           fi
@@ -361,7 +362,8 @@ in
         $podman pod create \
           -p 127.0.0.1:8083:80 \
           -p 127.0.0.1:7867:7867 \
-          -h cloud.prestonhager.com \
+          --hostname nextcloud \
+          --add-host=cloud.prestonhager.com:192.168.5.5 \
           nextcloud
       '';
     };
@@ -406,8 +408,6 @@ in
       extraOptions = [
         "--pod=nextcloud"
         "--env-file=${ncRuntimeEnv}"
-        # Pod hostname maps cloud.prestonhager.com to 127.0.0.1; reach host Caddy for notify_push self-test.
-        "--add-host=cloud.prestonhager.com:192.168.5.5"
       ];
       image = nextcloudImage;
     };
