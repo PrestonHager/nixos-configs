@@ -90,14 +90,19 @@ in {
 
   systemd.services.zitadel-container-env = {
     description = "Build Zitadel container env (zitadel-env + shared iCloud SMTP password)";
-    wantedBy = [ "multi-user.target" ];
     before = [ "podman-zitadel.service" ];
     requiredBy = [ "podman-zitadel.service" ];
     serviceConfig = {
       Type = "oneshot";
-      RemainAfterExit = true;
+      RemainAfterExit = false;
       ExecStart = zitadelEnvScript;
     };
+  };
+
+  systemd.services."podman-zitadel" = {
+    after = [ "zitadel-container-env.service" "sops-nix.service" ];
+    requires = [ "zitadel-container-env.service" ];
+    serviceConfig.ExecStartPre = pkgs.lib.mkOrder 100 zitadelEnvScript;
   };
 
   systemd.services.zitadel-login-client-keygen = {
