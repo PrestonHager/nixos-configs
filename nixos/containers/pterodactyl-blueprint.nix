@@ -105,9 +105,8 @@ let
     fi
 
     ${pkgs.curl}/bin/curl -fsSL "${socialloginBlueprintUrl}" -o "$tmp/sociallogin.blueprint"
-    install -d -m 0755 "$panel/.blueprint/extensions"
-    cp "$tmp/sociallogin.blueprint" "$panel/.blueprint/extensions/"
-    chown pterodactyl:pterodactyl "$panel/.blueprint/extensions/sociallogin.blueprint"
+    cp "$tmp/sociallogin.blueprint" "$panel/sociallogin.blueprint"
+    chown pterodactyl:pterodactyl "$panel/sociallogin.blueprint"
 
     cd "$panel"
     if ! blueprint_cli -info 2>/dev/null | grep -qi sociallogin; then
@@ -117,6 +116,7 @@ let
     else
       echo "pterodactyl-blueprint-install: Social Login extension already installed"
     fi
+    rm -f "$panel/sociallogin.blueprint"
     chown -R pterodactyl:pterodactyl "$panel"
 
     ${pkgs.podman}/bin/podman exec \
