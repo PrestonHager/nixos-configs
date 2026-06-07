@@ -354,6 +354,8 @@ EOF
     occ config:app:set user_oidc allow_multiple_user_backends --value=1 --type=integer
     occ config:system:set user_oidc login_label --value="Sign in with Zitadel"
     occ config:system:set user_oidc enrich_login_id_token_with_userinfo --value=true --type=boolean
+    # DnsPinMiddleware uses PHP DNS (not /etc/hosts); allow LAN-resolved ace services.
+    occ config:system:set allow_local_remote_servers --value=true --type=boolean
 
     occ user_oidc:provider "${oidcProviderId}" \
       --clientid="$clientId" \
@@ -560,9 +562,11 @@ in
         if $podman pod exists nextcloud; then
           ports="$($podman pod inspect nextcloud --format '{{json .InfraConfig.PortBindings}}' 2>/dev/null || echo '{}')"
           hosts="$($podman pod inspect nextcloud --format '{{json .InfraConfig.HostAdd}}' 2>/dev/null || echo '[]')"
+          dns="$($podman pod inspect nextcloud --format '{{json .InfraConfig.DNSServer}}' 2>/dev/null || echo 'null')"
           if ! echo "$ports" | grep -q 7867 \
             || ! echo "$hosts" | grep -q 'cloud.prestonhager.com:192.168.5.5' \
-            || ! echo "$hosts" | grep -q "${zitadelDomain}:''${hostGw}"; then
+            || ! echo "$hosts" | grep -q "${zitadelDomain}:''${hostGw}" \
+            || ! echo "$dns" | grep -q '192.168.5.5'; then
             echo "pod-nextcloud: recreating pod for notify_push port and host routing"
             $podman pod stop -t 30 nextcloud || true
             $podman pod rm -f nextcloud
@@ -573,6 +577,7 @@ in
           -p 127.0.0.1:8083:80 \
           -p 127.0.0.1:7867:7867 \
           --hostname nextcloud \
+          --dns=192.168.5.5 \
           --add-host=cloud.prestonhager.com:192.168.5.5 \
           --add-host=${zitadelDomain}:''${hostGw} \
           --add-host=host.containers.internal:host-gateway \
