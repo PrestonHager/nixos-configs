@@ -4,10 +4,13 @@
  * Run on ace as root. Requires zitadel-env secrets.
  */
 const fs = require('fs');
+const crypto = require('crypto');
 const http = require('http');
 
+const KEY_FILE = '/zitadel/login-client/tls.key';
 const SECRETS = '/run/secrets/zitadel-env';
 const PUBLIC_HOST = 'zitadel.prestonhager.com';
+const AUDIENCE = `https://${PUBLIC_HOST}`;
 const ORG_ID = '376181820519160098';
 const PROJECT_ID = '376196450586990901';
 const ADMIN_USER_ID = '376181820519684386';
@@ -20,6 +23,15 @@ function loadEnv(prefix) {
   const line = env.split('\n').find((l) => l.startsWith(prefix));
   if (!line) throw new Error(`${prefix} not found`);
   return line.split('=').slice(1).join('=').trim();
+}
+
+function makeLoginClientToken() {
+  const key = fs.readFileSync(KEY_FILE, 'utf8');
+  const b64 = (o) => Buffer.from(o).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const now = Math.floor(Date.now() / 1000);
+  const data = `${b64(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${b64(JSON.stringify({ iss: 'login-client', sub: 'login-client', aud: AUDIENCE, iat: now, exp: now + 3600 }))}`;
+  const sig = crypto.createSign('RSA-SHA256').update(data).sign(key).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  return `${data}.${sig}`;
 }
 
 function api(method, path, body, token) {
@@ -59,7 +71,8 @@ function api(method, path, body, token) {
 async function adminSessionToken() {
   const loginName = loadEnv('ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME=');
   const password = loadEnv('ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD=');
-  const session = await api('POST', '/v2/sessions', { checks: { user: { loginName } } }, '');
+  const loginClient = makeLoginClientToken();
+  const session = await api('POST', '/v2/sessions', { checks: { user: { loginName } } }, loginClient);
   const patched = await api(
     'PATCH',
     `/v2/sessions/${session.sessionId}`,
