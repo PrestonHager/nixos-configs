@@ -20,6 +20,9 @@ let
     pkgs.findutils
     pkgs.gnutar
     pkgs.gzip
+    pkgs.zip
+    pkgs.unzip
+    pkgs.php83
     pkgs.procps
   ];
 
@@ -39,7 +42,7 @@ let
       exit 0
     fi
 
-    if [ -f "$marker" ] && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint" ]; then
+    if [ -f "$marker" ]; then
       echo "pterodactyl-blueprint-install: Blueprint already installed"
       exit 0
     fi
@@ -49,14 +52,19 @@ let
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
 
-    ${pkgs.curl}/bin/curl -fsSL "${blueprintReleaseUrl}" -o "$tmp/release.zip"
-    ${pkgs.unzip}/bin/unzip -o "$tmp/release.zip" -d "$panel"
-    chown -R pterodactyl:pterodactyl "$panel"
-
-    install -m 0644 ${blueprintRc} "$panel/.blueprintrc"
-    chmod +x "$panel/blueprint.sh"
-    chown pterodactyl:pterodactyl "$panel/.blueprintrc" "$panel/blueprint.sh"
-    install -d -m 0755 -o pterodactyl -g pterodactyl "$panel/.blueprint"
+    framework_ready=0
+    if [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
+      framework_ready=1
+      echo "pterodactyl-blueprint-install: Blueprint framework files already present"
+    else
+      ${pkgs.curl}/bin/curl -fsSL "${blueprintReleaseUrl}" -o "$tmp/release.zip"
+      ${pkgs.unzip}/bin/unzip -o "$tmp/release.zip" -d "$panel"
+      chown -R pterodactyl:pterodactyl "$panel"
+      install -m 0644 ${blueprintRc} "$panel/.blueprintrc"
+      chmod +x "$panel/blueprint.sh"
+      chown pterodactyl:pterodactyl "$panel/.blueprintrc" "$panel/blueprint.sh"
+      install -d -m 0755 -o pterodactyl -g pterodactyl "$panel/.blueprint"
+    fi
 
     export PATH="${toolPath}:$PATH"
     export HOME=/var/lib/pterodactyl
