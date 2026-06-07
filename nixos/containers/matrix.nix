@@ -213,6 +213,7 @@ in {
           ${pkgs.podman}/bin/podman pod create \
             --name matrix-pod \
             -p ${toString synapsePort}:8008 \
+            --add-host=${zitadelDomain}:host-gateway \
             --memory 4G --cpus 0
         fi
       '';
@@ -240,7 +241,6 @@ in {
     cmd = [ "run" ];
     extraOptions = [
       "--pod=matrix-pod"
-      "--add-host=${zitadelDomain}:host-gateway"
     ];
     user = "matrix:matrix";
     environment = {
