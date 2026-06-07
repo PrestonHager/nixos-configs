@@ -47,6 +47,13 @@ let
       exit 0
     fi
 
+    if [ -d "$panel/.blueprint/extensions/sociallogin" ]; then
+      echo "blueprint+sociallogin" > "$marker"
+      chown pterodactyl:pterodactyl "$marker"
+      echo "pterodactyl-blueprint-install: Social Login extension already present, marker restored"
+      exit 0
+    fi
+
     echo "pterodactyl-blueprint-install: installing Blueprint framework..."
 
     rm -f "$panel/.blueprint/lock" 2>/dev/null || true
@@ -109,7 +116,11 @@ let
     chown pterodactyl:pterodactyl "$panel/sociallogin.blueprint"
 
     cd "$panel"
-    if ! blueprint_cli -info 2>/dev/null | grep -qi sociallogin; then
+    sociallogin_installed=0
+    if blueprint_cli -info 2>/dev/null | grep -qi sociallogin; then
+      sociallogin_installed=1
+    fi
+    if [ "$sociallogin_installed" -eq 0 ]; then
       echo "pterodactyl-blueprint-install: installing Social Login extension..."
       rm -f "$panel/.blueprint/lock"
       blueprint_cli -install sociallogin
