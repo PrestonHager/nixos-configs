@@ -9,43 +9,15 @@ REPO="${4:-/etc/nixos}"
 cd "$SECRETS"
 TMP=$(mktemp)
 nix shell nixpkgs#sops --command sops -d secrets/containers/technitium.yaml > "$TMP"
-grep -q '^technitium-oidc-env:' "$TMP" || cat >>"$TMP" <<EOF
-
-technitium-oidc-env: |
-  TECHNITIUM_OIDC_CLIENT_ID=${CLIENT_ID}
-  TECHNITIUM_OIDC_CLIENT_SECRET=${CLIENT_SECRET}
-EOF
-python3 - "$TMP" "$CLIENT_ID" "$CLIENT_SECRET" <<'PY'
-import sys
-path, cid, secret = sys.argv[1:4]
-lines = open(path).read().splitlines()
-out = []
-in_block = False
-replaced = False
-for line in lines:
-    if line.startswith("technitium-oidc-env:"):
-        out.append("technitium-oidc-env: |")
-        out.append(f"  TECHNITIUM_OIDC_CLIENT_ID={cid}")
-        out.append(f"  TECHNITIUM_OIDC_CLIENT_SECRET={secret}")
-        in_block = True
-        replaced = True
-        continue
-    if in_block:
-        if line.startswith("  "):
-            continue
-        in_block = False
-    if line.startswith("technitium-oidc-client-"):
-        continue
-    out.append(line)
-if not replaced:
-    out.extend([
-        "",
-        "technitium-oidc-env: |",
-        f"  TECHNITIUM_OIDC_CLIENT_ID={cid}",
-        f"  TECHNITIUM_OIDC_CLIENT_SECRET={secret}",
-    ])
-open(path, "w").write("\n".join(out) + "\n")
-PY
+grep -v '^technitium-oidc-client-' "$TMP" | grep -v '^technitium-oidc-env:' | grep -v '^  TECHNITIUM_OIDC_' > "${TMP}.body" || true
+{
+  cat "${TMP}.body"
+  echo
+  echo "technitium-oidc-env: |"
+  echo "  TECHNITIUM_OIDC_CLIENT_ID=${CLIENT_ID}"
+  echo "  TECHNITIUM_OIDC_CLIENT_SECRET=${CLIENT_SECRET}"
+} > "$TMP"
+rm -f "${TMP}.body"
 cp "$TMP" secrets/containers/technitium.yaml
 rm "$TMP"
 nix shell nixpkgs#sops --command sops -e -i secrets/containers/technitium.yaml
