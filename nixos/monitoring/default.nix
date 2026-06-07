@@ -39,4 +39,7 @@ in {
 
   environment.etc."grafana/dashboards/ace-overview.json".source = "${grafanaDashboards}/ace-overview.json";
   environment.etc."grafana/dashboards/ace-services.json".source = "${grafanaDashboards}/ace-services.json";
+  environment.etc."grafana/dashboards/ace-uptime.json".source = "${grafanaDashboards}/ace-uptime.json";
+  environment.etc."grafana/dashboards/ace-http-probes.json".source = "${grafanaDashboards}/ace-http-probes.json";
+  environment.etc."grafana/dashboards/ace-tcp-probes.json".source = "${grafanaDashboards}/ace-tcp-probes.json";
 }

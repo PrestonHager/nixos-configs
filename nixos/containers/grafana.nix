@@ -67,6 +67,9 @@ in {
       "${etcPath "grafana/provisioning/dashboards/ace.yaml"}:/etc/grafana/provisioning/dashboards/ace.yaml:ro"
       "${etcPath "grafana/dashboards/ace-overview.json"}:/etc/grafana/dashboards/ace-overview.json:ro"
       "${etcPath "grafana/dashboards/ace-services.json"}:/etc/grafana/dashboards/ace-services.json:ro"
+      "${etcPath "grafana/dashboards/ace-uptime.json"}:/etc/grafana/dashboards/ace-uptime.json:ro"
+      "${etcPath "grafana/dashboards/ace-http-probes.json"}:/etc/grafana/dashboards/ace-http-probes.json:ro"
+      "${etcPath "grafana/dashboards/ace-tcp-probes.json"}:/etc/grafana/dashboards/ace-tcp-probes.json:ro"
     ];
   };
 }

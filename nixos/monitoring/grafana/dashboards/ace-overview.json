@@ -7,7 +7,12 @@
   "version": 1,
   "refresh": "30s",
   "time": { "from": "now-6h", "to": "now" },
-  "description": "Host health from server-health.sh, node metrics, HTTP probes. Run ~/optimize-php-services.sh for Laravel cache tuning.",
+  "description": "Host health from server-health.sh, node metrics, and system resources. See Ace Service Uptime for combined probe status.",
+  "links": [
+    { "title": "Service Uptime", "type": "dashboard", "url": "/d/ace-uptime" },
+    { "title": "HTTP Probes", "type": "dashboard", "url": "/d/ace-http-probes" },
+    { "title": "Ace Services", "type": "dashboard", "url": "/d/ace-services" }
+  ],
   "panels": [
     {
       "id": 1, "title": "Health Warnings", "type": "stat",

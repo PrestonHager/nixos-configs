@@ -10,6 +10,8 @@ let
     "https://wg.prestonhager.com/"
     "https://prometheus.prestonhager.com/"
     "https://loftiawiki.org/"
+    "https://upgrade.loftiawiki.org/"
+    "https://matrix.prestonhager.com/"
     "https://zitadel.prestonhager.com/"
     "https://cloud.prestonhager.com/"
     "https://dns.prestonhager.com/"
