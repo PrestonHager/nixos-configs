@@ -21,7 +21,7 @@ Create or update the **Matrix** OIDC app in the **Home Lab** project (same proje
 | App type | Web |
 | Redirect URI | `https://matrix.prestonhager.com/_synapse/client/oidc/callback` |
 | Grant types | Authorization Code, Refresh Token |
-| Auth method | Basic (client secret) |
+| Auth method | PKCE (no client secret; Synapse `pkce_method: always`) |
 | Role assertions | Enabled (ID token + access token) |
 
 Automated setup on ace:
