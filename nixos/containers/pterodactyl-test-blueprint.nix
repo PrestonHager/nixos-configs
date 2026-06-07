@@ -6,6 +6,7 @@ let
   blueprintMarker = "${stateDir}/blueprint-fork-installed";
   blueprintForkRepo = "https://github.com/PrestonHager/framework.git";
   blueprintForkBranch = "feat/prestonhager-plugin-manager";
+  blueprintReleaseUrl = "https://github.com/BlueprintFramework/framework/releases/latest/download/release.zip";
   dnsExtensionSrc = "/etc/nixos/plugins/pterodactyl-dns-blueprint";
 
   toolPath = pkgs.lib.makeBinPath [
@@ -71,17 +72,26 @@ let
 
     echo "pterodactyl-test-blueprint-install: applying PrestonHager/framework@${blueprintForkBranch}..."
 
-    if [ ! -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed" ]; then
-      runuser -u prestonh -- rm -rf "$panel/.blueprint" "$panel/blueprint" 2>/dev/null || true
+    framework_installed=0
+    if [ -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed" ]; then
+      framework_installed=1
+    fi
+
+    if [ "$framework_installed" -eq 0 ]; then
+      runuser -u prestonh -- rm -rf \
+        "$panel/.blueprint" "$panel/blueprint" "$panel/blueprint.sh" "$panel/.blueprintrc" \
+        2>/dev/null || true
     fi
 
     archive="$fork_dir/release-overlay.zip"
     $GIT -C "$fork_dir" archive --format=zip HEAD -o "$archive"
 
-    if [ ! -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed" ]; then
-      framework_zip="$fork_dir/framework-bootstrap.zip"
-      $GIT -C "$fork_dir" archive --format=zip HEAD blueprint blueprint.sh scripts .blueprintrc.prestonhager.example -o "$framework_zip"
-      ${pkgs.unzip}/bin/unzip -o "$framework_zip" -d "$panel"
+    if [ "$framework_installed" -eq 0 ]; then
+      echo "pterodactyl-test-blueprint-install: bootstrapping upstream Blueprint release..."
+      tmp=$(mktemp -d)
+      trap 'rm -rf "$tmp"' EXIT
+      ${pkgs.curl}/bin/curl -fsSL "${blueprintReleaseUrl}" -o "$tmp/release.zip"
+      ${pkgs.unzip}/bin/unzip -o "$tmp/release.zip" -d "$panel"
       chown -R prestonh:users "$panel"
     fi
 
@@ -94,17 +104,25 @@ let
     export HOME=/home/prestonh
     export YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test
     export TERM=dumb
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
 
     install -d -m 0755 -o prestonh -g users /home/prestonh/.cache/yarn-blueprint-test
     install -d -m 0755 -o prestonh -g users "$panel/.blueprint"
     if [ -d "$panel/blueprint" ] && [ -d "$panel/.blueprint/blueprint" ]; then
-      rm -rf "$panel/blueprint"
+      runuser -u prestonh -- rm -rf "$panel/blueprint"
+    elif [ -d "$panel/blueprint" ]; then
+      runuser -u prestonh -- rm -rf "$panel/.blueprint/blueprint" 2>/dev/null || true
+      runuser -u prestonh -- mv "$panel/blueprint" "$panel/.blueprint/blueprint"
+      chown -R prestonh:users "$panel/.blueprint/blueprint"
     fi
 
     blueprint_cli() {
       runuser -u prestonh -- env \
         HOME=/home/prestonh \
         TERM=dumb \
+        LC_ALL=C.UTF-8 \
+        LANG=C.UTF-8 \
         YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test \
         PATH="$PATH" \
         BLUEPRINT_ENVIRONMENT=ci \
@@ -115,6 +133,8 @@ let
       env \
         HOME=/home/prestonh \
         TERM=dumb \
+        LC_ALL=C.UTF-8 \
+        LANG=C.UTF-8 \
         YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test \
         PATH="$PATH" \
         BLUEPRINT_ENVIRONMENT=ci \
@@ -132,8 +152,8 @@ let
     fi
 
     cd "$panel"
-    if [ ! -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed" ]; then
-      echo "pterodactyl-test-blueprint-install: running Blueprint first-time installer..."
+    if [ "$framework_installed" -eq 0 ]; then
+      echo "pterodactyl-test-blueprint-install: running upstream Blueprint first-time installer..."
       rm -f /usr/local/bin/blueprint
       blueprint_cli_install
       chown -R prestonh:users "$panel"
@@ -141,11 +161,11 @@ let
         echo "pterodactyl-test-blueprint-install: Blueprint first-time install did not complete" >&2
         exit 1
       fi
-    else
-      echo "pterodactyl-test-blueprint-install: upgrading Blueprint framework..."
-      blueprint_cli -upgrade remote PrestonHager/framework "${blueprintForkBranch}" <<< "y" \
-        || blueprint_cli -upgrade remote "https://github.com/PrestonHager/framework.git" "${blueprintForkBranch}" <<< "y"
     fi
+
+    echo "pterodactyl-test-blueprint-install: upgrading to PrestonHager/framework@${blueprintForkBranch}..."
+    blueprint_cli -upgrade remote PrestonHager/framework "${blueprintForkBranch}" <<< "y" \
+      || blueprint_cli -upgrade remote "${blueprintForkRepo}" "${blueprintForkBranch}" <<< "y"
 
     echo "pterodactyl-test-blueprint-install: overlaying fork PHP patches..."
     ${pkgs.unzip}/bin/unzip -o "$archive" -d "$panel"
