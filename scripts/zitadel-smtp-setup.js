@@ -135,21 +135,11 @@ async function updateSmtpProvider(token, id, password) {
     senderName: SMTP.fromName,
     host: SMTP.host,
     user: SMTP.user,
+    password,
     tls: SMTP.tls,
     description: 'iCloud SMTP relay (nixos-configs)',
   };
-  try {
-    await adminApi('PUT', `/admin/v1/smtp/${id}`, body, token);
-  } catch (err) {
-    if (!String(err.message).includes('404')) throw err;
-    await adminApi('PUT', `/admin/v1/email/smtp/${id}`, { none: body }, token);
-  }
-  try {
-    await adminApi('PUT', `/admin/v1/smtp/${id}/password`, { password }, token);
-  } catch (err) {
-    if (!String(err.message).includes('404')) throw err;
-    await adminApi('PUT', `/admin/v1/email/smtp/${id}/password`, { password }, token);
-  }
+  await adminApi('PUT', `/admin/v1/smtp/${id}`, body, token);
 }
 
 async function activateProvider(token, id) {
@@ -175,6 +165,10 @@ async function disableSenderDomainCheck(token) {
     );
     console.log('Domain policy: smtpSenderAddressMatchesInstanceDomain=false');
   } catch (err) {
+    if (String(err.message).includes('INSTANCE-pl9fN')) {
+      console.log('Domain policy already correct (smtpSenderAddressMatchesInstanceDomain=false)');
+      return;
+    }
     console.warn(`Domain policy update skipped: ${err.message}`);
   }
 }
