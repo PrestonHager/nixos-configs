@@ -51,10 +51,12 @@ let
 
     ${pkgs.curl}/bin/curl -fsSL "${blueprintReleaseUrl}" -o "$tmp/release.zip"
     ${pkgs.unzip}/bin/unzip -o "$tmp/release.zip" -d "$panel"
+    chown -R pterodactyl:pterodactyl "$panel"
 
     install -m 0644 ${blueprintRc} "$panel/.blueprintrc"
     chmod +x "$panel/blueprint.sh"
     chown pterodactyl:pterodactyl "$panel/.blueprintrc" "$panel/blueprint.sh"
+    install -d -m 0755 -o pterodactyl -g pterodactyl "$panel/.blueprint"
 
     export PATH="${toolPath}:$PATH"
     export HOME=/var/lib/pterodactyl
@@ -70,7 +72,7 @@ let
     fi
 
     cd "$panel"
-    runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh"
+    env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh"
 
     ${pkgs.curl}/bin/curl -fsSL "${socialloginBlueprintUrl}" -o "$tmp/sociallogin.blueprint"
     install -d -m 0755 "$panel/.blueprint/extensions"
@@ -78,11 +80,12 @@ let
     chown pterodactyl:pterodactyl "$panel/.blueprint/extensions/sociallogin.blueprint"
 
     cd "$panel"
-    if ! runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -info 2>/dev/null | grep -qi sociallogin; then
+    if ! env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -info 2>/dev/null | grep -qi sociallogin; then
       echo "pterodactyl-blueprint-install: installing Social Login extension..."
-      runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -install sociallogin \
-        || runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -i sociallogin
+      env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -install sociallogin \
+        || env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -i sociallogin
     fi
+    chown -R pterodactyl:pterodactyl "$panel"
 
     ${pkgs.podman}/bin/podman exec \
       -e HOME=/var/www/pterodactyl \
