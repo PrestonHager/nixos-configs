@@ -41,6 +41,7 @@ zitadel-env: |
   ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME=admin@prestonhager.com
   ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD=${ADMINPASS}
   ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORDCHANGE_REQUIRED=false
+  # SMTP password is not stored here — zitadel.nix injects it from nextcloud SMTP_PASSWORD.
 EOF
 cat > secrets/containers/grafana-oauth.yaml <<EOF
 grafana-oauth-env: |

@@ -12,6 +12,42 @@ Implementation: `nixos/containers/zitadel.nix`, Caddy `nixos/caddy/zitadel.nix`,
 
 Use the full email address on the login-name step, not `admin` alone.
 
+## Email (SMTP)
+
+Zitadel sends mail through the same **iCloud SMTP relay** as Nextcloud.
+
+| Setting | Value |
+|---------|-------|
+| Host | `smtp.mail.me.com:587` (host must include port) |
+| TLS | STARTTLS (`true`) |
+| Auth user | `preston.hager@icloud.com` |
+| From address | `admin@prestonhager.com` |
+| From name | `Zitadel` |
+| Password | `SMTP_PASSWORD` in `nixos-secrets/secrets/containers/nextcloud.yaml` (shared iCloud app-specific password; injected at runtime by `zitadel-container-env`) |
+
+Non-secret SMTP env vars are set in `nixos/containers/zitadel.nix`. The password is **not** duplicated in `zitadel-config.yaml`.
+
+`ZITADEL_DEFAULTINSTANCE_SMTPCONFIGURATION_*` env vars apply only during first init (`start-from-init`). On an already-running instance, configure SMTP via the Admin API after deploy:
+
+```bash
+cd /etc/nixos
+nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-smtp-setup.js
+```
+
+The script reads `SMTP_PASSWORD` from `/run/secrets/nextcloud-environment`, sets domain policy `smtpSenderAddressMatchesInstanceDomain=false` (required because the sender domain is `prestonhager.com`, not `zitadel.prestonhager.com`), creates or updates the SMTP provider, and sends a test email.
+
+### Verify email
+
+1. **API test** — output from `zitadel-smtp-setup.js` should end with `SMTP test email sent`; check the `admin@prestonhager.com` inbox.
+2. **Console** — https://zitadel.prestonhager.com/ui/console/instance/settings → **Email Provider** → confirm host `smtp.mail.me.com:587`, sender `admin@prestonhager.com`, and use **Test** if available.
+3. **Password reset** — trigger a password reset for a test user and confirm delivery.
+
+### Manual console steps (if API script fails)
+
+1. Instance → **Domain Settings** → disable **SMTP Sender Address matches Instance Domain**.
+2. Instance → **Email Provider** → add SMTP: host `smtp.mail.me.com:587`, TLS on, user `preston.hager@icloud.com`, password from sops `SMTP_PASSWORD`, sender `admin@prestonhager.com`.
+3. Activate the provider and send a test email.
+
 ## First-instance bootstrap
 
 `ZITADEL_FIRSTINSTANCE_*` env vars are consumed only during the initial database setup (`start-from-init`). Changing the password in sops **does not** update an existing admin user. After rotating that secret, reset the admin password (below) or wipe `/zitadel/postgres` and re-init.

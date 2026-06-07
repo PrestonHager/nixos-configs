@@ -4,6 +4,23 @@ let
   sops-path = builtins.toString inputs.nix-secrets;
   zitadelDomain = "zitadel.prestonhager.com";
   loginClientDir = "/zitadel/login-client";
+  zitadelRuntimeEnv = "/run/zitadel/container.env";
+  zitadelEnvScript = pkgs.writeShellScript "zitadel-container-env" ''
+    set -euo pipefail
+    mkdir -p /run/zitadel
+    cp "${config.sops.secrets."zitadel-env".path}" "${zitadelRuntimeEnv}"
+    ncEnv="${config.sops.secrets."nextcloud-environment".path}"
+    smtpPass="$(grep '^SMTP_PASSWORD=' "$ncEnv" | cut -d= -f2- || true)"
+    if [ -z "$smtpPass" ]; then
+      echo "zitadel-container-env: SMTP_PASSWORD missing from nextcloud-environment" >&2
+      exit 1
+    fi
+    grep -v '^ZITADEL_DEFAULTINSTANCE_SMTPCONFIGURATION_SMTP_PASSWORD=' "${zitadelRuntimeEnv}" \
+      > "${zitadelRuntimeEnv}.tmp" || true
+    mv "${zitadelRuntimeEnv}.tmp" "${zitadelRuntimeEnv}"
+    printf 'ZITADEL_DEFAULTINSTANCE_SMTPCONFIGURATION_SMTP_PASSWORD=%s\n' "$smtpPass" >> "${zitadelRuntimeEnv}"
+    chmod 600 "${zitadelRuntimeEnv}"
+  '';
   systemApiUsersJson = builtins.toJSON {
     login-client = {
       Path = "${loginClientDir}/tls.crt";
@@ -68,6 +85,18 @@ in {
       RemainAfterExit = true;
       ExecStart = "${pkgs.coreutils}/bin/chown -R postgres:postgres /zitadel/postgres";
       ExecStartPost = "${pkgs.coreutils}/bin/chmod 0700 /zitadel/postgres";
+    };
+  };
+
+  systemd.services.zitadel-container-env = {
+    description = "Build Zitadel container env (zitadel-env + shared iCloud SMTP password)";
+    wantedBy = [ "multi-user.target" ];
+    before = [ "podman-zitadel.service" ];
+    requiredBy = [ "podman-zitadel.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = zitadelEnvScript;
     };
   };
 
@@ -154,9 +183,16 @@ in {
     extraOptions = [
       "--pod=zitadel-pod"
     ];
-    environmentFiles = [ config.sops.secrets."zitadel-env".path ];
+    environmentFiles = [ zitadelRuntimeEnv ];
     environment = {
       ZITADEL_SYSTEMAPIUSERS = systemApiUsersJson;
+      # iCloud SMTP relay (password injected via zitadel-container-env from nextcloud SMTP_PASSWORD)
+      ZITADEL_DEFAULTINSTANCE_DOMAINPOLICY_SMTPSENDERADDRESSMATCHESINSTANCEDOMAIN = "false";
+      ZITADEL_DEFAULTINSTANCE_SMTPCONFIGURATION_SMTP_HOST = "smtp.mail.me.com:587";
+      ZITADEL_DEFAULTINSTANCE_SMTPCONFIGURATION_SMTP_USER = "preston.hager@icloud.com";
+      ZITADEL_DEFAULTINSTANCE_SMTPCONFIGURATION_TLS = "true";
+      ZITADEL_DEFAULTINSTANCE_SMTPCONFIGURATION_FROM = "admin@prestonhager.com";
+      ZITADEL_DEFAULTINSTANCE_SMTPCONFIGURATION_FROMNAME = "Zitadel";
     };
     volumes = [
       "/zitadel/data:/zitadel-data"
