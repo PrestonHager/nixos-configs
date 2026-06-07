@@ -151,6 +151,7 @@ nix shell nixpkgs#sqlite -c sqlite3 /jf/config/data/jellyfin.db \
 | "Check permissions" on login | User has both `jellyfin_admin` and `jellyfin_user`, or `groups` claim missing — fix Complement Token action |
 | OIDC discovery timeout | Missing `host-gateway` for `zitadel.prestonhager.com` on the container |
 | Plugin not loaded | Run `systemctl restart jellyfin-sso-setup.service`; check `/jf/config/plugins/SSO Authentication/` |
+| SSO button missing on login page | `branding.xml` LoginDisclaimer HTML must be XML entity-escaped (raw `<form>` tags break parsing); check `podman logs jellyfin` for `Error loading configuration file: branding.xml` |
 
 Useful logs:
 

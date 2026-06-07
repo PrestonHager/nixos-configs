@@ -40,7 +40,7 @@ let
       exit 0
     fi
 
-    if [ ! -f "${ssoPluginDir}/Jellyfin.Plugin.SSO-Auth.dll" ]; then
+    if [ ! -f "${ssoPluginDir}/SSO-Auth.dll" ]; then
       echo "jellyfin-sso-setup: installing SSO Authentication plugin ${ssoPluginVersion}"
       tmpdir="$(mktemp -d)"
       trap 'rm -rf "$tmpdir"' EXIT
@@ -124,17 +124,23 @@ EOF
     chmod 640 "${ssoConfigPath}"
 
     brandingPath="/jf/config/config/branding.xml"
-    if ! grep -q 'sso/OID/start/${ssoProviderName}' "$brandingPath" 2>/dev/null; then
-      cat > "$brandingPath" <<BRANDING
+    # HTML in LoginDisclaimer must be entity-escaped; raw tags break Jellyfin's XML deserializer.
+    cat > "$brandingPath" <<BRANDING
 <?xml version="1.0" encoding="utf-8"?>
 <BrandingOptions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-  <LoginDisclaimer><form action="${jellyfinPublicUrl}/sso/OID/start/${ssoProviderName}"><button class="raised block emby-button button-submit">Sign in with Zitadel</button></form></LoginDisclaimer>
-  <CustomCss />
+  <LoginDisclaimer>&lt;form action="${jellyfinPublicUrl}/sso/OID/start/${ssoProviderName}"&gt;&lt;button class="raised block emby-button button-submit"&gt;Sign in with Zitadel&lt;/button&gt;&lt;/form&gt;</LoginDisclaimer>
+  <CustomCss>a.raised.emby-button {
+  padding: 0.9em 1em;
+  color: inherit !important;
+}
+.loginDisclaimerContainer {
+  display: block;
+}</CustomCss>
   <SplashscreenEnabled>true</SplashscreenEnabled>
 </BrandingOptions>
 BRANDING
-      chown jellyfin:jellyfin "$brandingPath"
-    fi
+    chown jellyfin:jellyfin "$brandingPath"
+    chmod 640 "$brandingPath"
 
     marker="/jf/config/.sso-setup-done"
     if [ ! -f "$marker" ]; then
