@@ -73,17 +73,17 @@ async function adminSessionToken() {
   const password = loadEnv('ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD=');
   const loginClient = makeLoginClientToken();
   const session = await api('POST', '/v2/sessions', { checks: { user: { loginName } } }, loginClient);
-  const patched = await api(
+  await api(
     'PATCH',
     `/v2/sessions/${session.sessionId}`,
     { checks: { password: { password } } },
-    session.sessionToken,
+    loginClient,
   );
   const tokenResp = await api(
     'POST',
     `/v2/sessions/${session.sessionId}/token`,
     {},
-    patched.sessionToken || session.sessionToken,
+    loginClient,
   );
   return tokenResp.token || tokenResp.sessionToken || patched.sessionToken;
 }
