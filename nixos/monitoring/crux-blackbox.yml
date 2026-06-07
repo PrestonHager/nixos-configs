@@ -25,4 +25,4 @@ modules:
         - NOERROR
       validate_answer_rrs:
         fail_if_not_matches_regexp:
-          - ".*192\\.168\\.5\\.5"
+          - "(?i).*(192\\.168\\.5\\.5|grafana\\.internal\\.prestonhager\\.com)"
