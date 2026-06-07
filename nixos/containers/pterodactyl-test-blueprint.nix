@@ -121,7 +121,7 @@ let
     fi
 
     blueprint_cli() {
-      runuser -u prestonh -- env \
+      env \
         HOME=/home/prestonh \
         TERM=dumb \
         LC_ALL=C.UTF-8 \
@@ -176,6 +176,9 @@ let
     install -m 0644 ${blueprintRc} "$panel/.blueprintrc"
     chmod +x "$panel/blueprint.sh"
     chown prestonh:users "$panel/.blueprintrc" "$panel/blueprint.sh"
+    install -d -m 0755 -o prestonh -g users "$panel/.blueprint/extensions/blueprint/private/db"
+    touch "$panel/.blueprint/extensions/blueprint/private/db/is_installed"
+    chown prestonh:users "$panel/.blueprint/extensions/blueprint/private/db/is_installed"
 
     if [ -d "${dnsExtensionSrc}" ]; then
       echo "pterodactyl-test-blueprint-install: building dnsrecords extension..."
