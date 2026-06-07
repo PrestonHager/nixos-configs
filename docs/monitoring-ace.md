@@ -26,9 +26,12 @@ Grafana 13+ no longer supports the in-process image renderer plugin. ace runs th
 **Verify after deploy:**
 
 ```bash
-curl -sf http://127.0.0.1:8081/metrics | head -1   # renderer up
-curl -sf http://127.0.0.1:8082/api/health          # grafana up
+systemctl is-active podman-grafana podman-grafana-image-renderer
+curl -sf http://127.0.0.1:8082/api/health
+podman exec grafana-image-renderer wget -qO- http://127.0.0.1:8081/metrics | head -1
 ```
+
+Renderer port 8081 is pod-internal only (host `8081` is Vaultwarden).
 
 ### Grafana Admin via Zitadel OAuth
 
