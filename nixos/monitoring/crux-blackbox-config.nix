@@ -12,6 +12,7 @@
     {
       host = "grafana.prestonhager.com";
       module = "dns_lan_grafana";
+      expected = "192.168.5.5";
     }
   ];
 }
