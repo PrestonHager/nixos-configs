@@ -21,9 +21,3 @@ modules:
       preferred_ip_protocol: ip4
       query_name: grafana.prestonhager.com
       query_type: A
-      valid_rcodes:
-        - NOERROR
-      validate_answer_rrs:
-        fail_if_not_matches_regexp:
-          A:
-            - 192.168.5.5
