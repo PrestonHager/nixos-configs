@@ -30,8 +30,11 @@ in {
     "d /grafana/data 0770 grafana grafana -"
   ];
 
-  # Recreate the container when OAuth secrets change (podman does not reload --env-file).
+  # Recreate containers when secrets change (podman does not reload --env-file).
   systemd.services.podman-grafana.restartTriggers = [
+    config.sops.secrets."grafana-oauth-env".path
+  ];
+  systemd.services.podman-grafana-image-renderer.restartTriggers = [
     config.sops.secrets."grafana-oauth-env".path
   ];
 
@@ -99,9 +102,9 @@ in {
       # Default org role for new OAuth users when role_attribute_path does not match.
       GF_USERS_AUTO_ASSIGN_ORG_ROLE = "Viewer";
       # Remote image renderer (pod-local URLs; Chromium fetches dashboards via loopback).
+      # GF_RENDERING_RENDERER_TOKEN and AUTH_TOKEN come from grafana-oauth-env sops file.
       GF_RENDERING_SERVER_URL = "http://127.0.0.1:8081/render";
       GF_RENDERING_CALLBACK_URL = "http://127.0.0.1:3000/";
-      GF_RENDERING_RENDERER_TOKEN = "-";
       GF_RENDERING_TIMEOUT = "30";
     };
 
@@ -132,8 +135,10 @@ in {
       "--pod=grafana-pod"
       "--cap-add=SYS_ADMIN"
     ];
+    environmentFiles = [
+      config.sops.secrets."grafana-oauth-env".path
+    ];
     environment = {
-      AUTH_TOKEN = "-";
       GOMEMLIMIT = "1GiB";
     };
   };

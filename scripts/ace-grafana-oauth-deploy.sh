@@ -11,6 +11,7 @@ cd "$SECRETS"
 
 CLIENT_ID=$(nix shell nixpkgs#sops --command sops -d secrets/containers/grafana-oauth.yaml | awk -F= '/GF_AUTH_GENERIC_OAUTH_CLIENT_ID=/{print $2}')
 CLIENT_SECRET=$(nix shell nixpkgs#sops --command sops -d secrets/containers/grafana-oauth.yaml | awk -F= '/GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET=/{print $2}')
+RENDERER_TOKEN=$(nix shell nixpkgs#sops --command sops -d secrets/containers/grafana-oauth.yaml | awk -F= '/GF_RENDERING_RENDERER_TOKEN=/{print $2}')
 
 write_oauth_yaml() {
   local dest="$1"
@@ -30,6 +31,8 @@ grafana-oauth-env: |
   GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH=email
   GF_AUTH_GENERIC_OAUTH_SKIP_ORG_ROLE_SYNC=false
   GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=contains(keys("urn:zitadel:iam:org:project:roles"), 'grafana_admin') && 'GrafanaAdmin' || 'Viewer'
+  GF_RENDERING_RENDERER_TOKEN=${RENDERER_TOKEN:-REPLACE_RENDERER_TOKEN}
+  AUTH_TOKEN=${RENDERER_TOKEN:-REPLACE_RENDERER_TOKEN}
 EOF
 }
 
@@ -53,6 +56,8 @@ grafana-oauth-env: |
   GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH=email
   GF_AUTH_GENERIC_OAUTH_SKIP_ORG_ROLE_SYNC=false
   GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=contains(keys("urn:zitadel:iam:org:project:roles"), 'grafana_admin') && 'GrafanaAdmin' || 'Viewer'
+  GF_RENDERING_RENDERER_TOKEN=REPLACE_RENDERER_TOKEN
+  AUTH_TOKEN=REPLACE_RENDERER_TOKEN
 EOF
 }
 
