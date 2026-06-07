@@ -25,18 +25,8 @@ let
     GIT_CONFIG_SYSTEM = "/etc/gitconfig";
   };
 
-  # Test panel uses the PrestonHager plugin-manager fork (see pterodactyl-test.nix).
-  panelUpdateEnvFork = {
-    APP_ENVIRONMENT_ONLY = "false";
-    PTERODACTYL_UPDATE_REPOSITORY = "PrestonHager/panel";
-    PTERODACTYL_UPDATE_BRANCH = "feat/plugin-manager";
-    PTERODACTYL_UPDATE_MODE = "git";
-    PTERODACTYL_UPDATE_GIT_REMOTE = "origin";
-    PTERODACTYL_UPDATE_GIT_STRATEGY = "auto";
-    GIT_CONFIG_SYSTEM = "/etc/gitconfig";
-  };
-
-  panelUpdateEnv = panelUpdateEnvFork;
+    # Test panel uses stock Pterodactyl + PrestonHager Blueprint fork (see pterodactyl-test-blueprint.nix).
+  panelUpdateEnvTest = panelUpdateEnvStock;
 
   waitForServices = ''
     set -e
@@ -293,7 +283,7 @@ EOF
   ];
 in
 {
-  inherit panelUpdateEnv panelUpdateEnvStock panelUpdateEnvFork forkPanelSrc;
+  inherit panelUpdateEnvStock panelUpdateEnvTest forkPanelSrc;
 
   setupImage = pkgs.dockerTools.buildImage {
     name = "pterodactyl-setup";

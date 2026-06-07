@@ -5,14 +5,15 @@ let
   pterodactylImages = import ./pterodactyl-docker.nix {
     inherit pkgs sops-path;
   };
-  inherit (pterodactylImages) panelUpdateEnvFork forkPanelSrc;
+  inherit (pterodactylImages) panelUpdateEnvStock;
+  officialPanelSrc = "https://github.com/pterodactyl/panel.git";
   testEnvFile = "/var/lib/pterodactyl-test/pterodactyl.env";
   testPanelDir = "/home/prestonh/Projects/panel";
   testPublicDir = "/pterodactyl-test/public";
   setupMarker = "/var/lib/pterodactyl-test/setup-complete";
   adminCredentialsFile = "/var/lib/pterodactyl-test/admin-credentials";
 
-  panelUpdateEnvLines = pkgs.lib.mapAttrsToList (n: v: "${n}=${v}") panelUpdateEnvFork;
+  panelUpdateEnvLines = pkgs.lib.mapAttrsToList (n: v: "${n}=${v}") panelUpdateEnvStock;
 
   ensureEnvVar = name: value: ''
     if ! grep -q "^${name}=" "$ENV" 2>/dev/null; then
@@ -143,6 +144,11 @@ EOF
   '';
 in
 {
+  imports = [
+    ./pterodactyl-test-stock-reset.nix
+    ./pterodactyl-test-blueprint.nix
+  ];
+
   users.users.pterodactyl.extraGroups = [ "users" ];
 
   systemd.tmpfiles.rules = [
@@ -233,8 +239,8 @@ HASHIDS_LENGTH=8
 
 MAIL_MAILER=log
 
-PTERODACTYL_UPDATE_REPOSITORY=PrestonHager/panel
-PTERODACTYL_UPDATE_BRANCH=feat/plugin-manager
+PTERODACTYL_UPDATE_REPOSITORY=pterodactyl/panel
+PTERODACTYL_UPDATE_BRANCH=release/v1.11.11
 PTERODACTYL_UPDATE_MODE=git
 PTERODACTYL_UPDATE_GIT_REMOTE=origin
 PTERODACTYL_UPDATE_GIT_STRATEGY=auto
@@ -244,8 +250,8 @@ EOF
       fi
 
       ${ensureEnvVar "APP_ENVIRONMENT_ONLY" "false"}
-      ${ensureEnvVar "PTERODACTYL_UPDATE_REPOSITORY" "PrestonHager/panel"}
-      ${ensureEnvVar "PTERODACTYL_UPDATE_BRANCH" "feat/plugin-manager"}
+      ${ensureEnvVar "PTERODACTYL_UPDATE_REPOSITORY" "pterodactyl/panel"}
+      ${ensureEnvVar "PTERODACTYL_UPDATE_BRANCH" "release/v1.11.11"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_MODE" "git"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_GIT_REMOTE" "origin"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_GIT_STRATEGY" "auto"}
@@ -285,13 +291,11 @@ EOF
         GIT="${pkgs.git}/bin/git -c safe.directory=${testPanelDir}"
         cd ${testPanelDir}
         if $GIT remote get-url origin &>/dev/null; then
-          $GIT remote set-url origin ${forkPanelSrc}
+          $GIT remote set-url origin ${officialPanelSrc}
         else
-          $GIT remote add origin ${forkPanelSrc}
+          $GIT remote add origin ${officialPanelSrc}
         fi
-        if $GIT remote get-url fork &>/dev/null; then
-          $GIT remote set-url fork ${forkPanelSrc}
-        fi
+        $GIT remote remove fork 2>/dev/null || true
       fi
     '';
   };
@@ -374,7 +378,7 @@ EOF
         "/pterodactyl-test/sockets/php:/run/php-fpm"
         "${testEnvFile}:/var/www/pterodactyl/.env:U"
       ];
-      environment = panelUpdateEnvFork;
+      environment = panelUpdateEnvStock;
       extraOptions = [
         "--pod=pterodactyl-test"
         "--env-file=${testEnvFile}"
