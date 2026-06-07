@@ -6,6 +6,7 @@ in {
   imports = [
     ./exporters.nix
     ./ace-health-exporter.nix
+    ./ace-version-check.nix
     ./lan-dns-prober.nix
   ];
 
@@ -83,6 +84,7 @@ in {
   environment.etc."grafana/dashboards/ace/ace-uptime.json".source = "${grafanaDashboards}/ace-uptime.json";
   environment.etc."grafana/dashboards/ace/ace-http-probes.json".source = "${grafanaDashboards}/ace-http-probes.json";
   environment.etc."grafana/dashboards/ace/ace-tcp-probes.json".source = "${grafanaDashboards}/ace-tcp-probes.json";
+  environment.etc."grafana/dashboards/ace/ace-versions.json".source = "${grafanaDashboards}/ace-versions.json";
   environment.etc."grafana/dashboards/crux/crux-uptime.json".source = "${grafanaDashboards}/crux-uptime.json";
   environment.etc."grafana/dashboards/crux/crux-http-probes.json".source = "${grafanaDashboards}/crux-http-probes.json";
   environment.etc."grafana/dashboards/lan/lan-status.json".source = "${grafanaDashboards}/lan-status.json";
