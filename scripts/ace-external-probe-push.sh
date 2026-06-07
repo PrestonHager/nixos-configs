@@ -84,7 +84,8 @@ probe_one() {
     --max-time "$PROBE_TIMEOUT"
     -L
   )
-  if [[ "$resolve_ok" -eq 1 ]]; then
+  # Pin to public DNS only when the WAN IP is reachable (NAT hairpin often fails on LAN).
+  if [[ "$resolve_ok" -eq 1 ]] && timeout 3 bash -c "exec 3<>/dev/tcp/${ip}/${port}" 2>/dev/null; then
     curl_args+=(--resolve "${host}:${port}:${ip}")
   fi
 
