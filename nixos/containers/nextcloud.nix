@@ -553,12 +553,16 @@ in
       ExecStart = pkgs.writeShellScript "pod-nextcloud" ''
         set -euo pipefail
         podman=${pkgs.podman}/bin/podman
+        hostGw="$(${pkgs.iproute2}/bin/ip -4 -o addr show podman0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)"
+        if [ -z "''${hostGw}" ]; then
+          hostGw="10.88.0.1"
+        fi
         if $podman pod exists nextcloud; then
           ports="$($podman pod inspect nextcloud --format '{{json .InfraConfig.PortBindings}}' 2>/dev/null || echo '{}')"
           hosts="$($podman pod inspect nextcloud --format '{{json .InfraConfig.HostAdd}}' 2>/dev/null || echo '[]')"
           if ! echo "$ports" | grep -q 7867 \
             || ! echo "$hosts" | grep -q 'cloud.prestonhager.com:192.168.5.5' \
-            || ! echo "$hosts" | grep -q 'zitadel.prestonhager.com:192.168.5.5'; then
+            || ! echo "$hosts" | grep -q "${zitadelDomain}:''${hostGw}"; then
             echo "pod-nextcloud: recreating pod for notify_push port and host routing"
             $podman pod stop -t 30 nextcloud || true
             $podman pod rm -f nextcloud
@@ -570,11 +574,12 @@ in
           -p 127.0.0.1:7867:7867 \
           --hostname nextcloud \
           --add-host=cloud.prestonhager.com:192.168.5.5 \
-          --add-host=zitadel.prestonhager.com:192.168.5.5 \
+          --add-host=${zitadelDomain}:''${hostGw} \
+          --add-host=host.containers.internal:host-gateway \
           nextcloud
       '';
     };
-    path = [ pkgs.podman ];
+    path = [ pkgs.podman pkgs.iproute2 pkgs.gawk ];
   };
 
   virtualisation.oci-containers.containers = {
