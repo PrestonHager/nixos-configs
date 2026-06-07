@@ -181,7 +181,7 @@ Set **primary DNS** to **192.168.5.5** on the router or DHCP scope.
 
 ## Zitadel SSO (web console)
 
-Implementation: `nixos/containers/technitium-sso.nix`, secrets `nixos-secrets/secrets/containers/technitium.yaml` (`technitium-oidc-client-id`, `technitium-oidc-client-secret`), Zitadel setup script `scripts/zitadel-technitium-setup.js`.
+Implementation: `nixos/containers/technitium-sso.nix`, secrets `nixos-secrets/secrets/containers/technitium.yaml` (`technitium-oidc-env`), Zitadel setup script `scripts/zitadel-technitium-setup.js`.
 
 | Field | Value |
 |-------|-------|
@@ -190,6 +190,14 @@ Implementation: `nixos/containers/technitium-sso.nix`, secrets `nixos-secrets/se
 | OIDC callback | https://dns.prestonhager.com/sso/callback |
 | Zitadel app | **Technitium** (Home Lab project) |
 | Admin role | Zitadel project role `technitium_admin` → Technitium group **Administrators** |
+
+Secrets in `nixos-secrets/secrets/containers/technitium.yaml`:
+
+```yaml
+technitium-oidc-env: |
+  TECHNITIUM_OIDC_CLIENT_ID=<from setup script>
+  TECHNITIUM_OIDC_CLIENT_SECRET=<from setup script>
+```
 
 ### Login flow
 
@@ -211,7 +219,7 @@ nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-technitium-setup.js
 
 # 2. Add printed client_id/secret to sops (see technitium.yaml.template)
 cd /home/prestonh/nixos-secrets
-sops secrets/containers/technitium.yaml   # add technitium-oidc-client-id / technitium-oidc-client-secret
+sops secrets/containers/technitium.yaml   # add technitium-oidc-env block
 git add secrets/containers/technitium.yaml && git commit -m "Add Technitium OIDC client credentials" && git push
 
 # 3. Deploy

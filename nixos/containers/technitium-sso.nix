@@ -6,36 +6,39 @@ let
   technitiumApi = "http://127.0.0.1:5380";
   adminPasswordFile = "${dataRoot}/secrets/admin-password";
   ssoHashFile = "${dataRoot}/.sso-settings.sha256";
+  oidcEnvFile = config.sops.secrets."technitium-oidc-env".path;
 
   zitadelIssuer = "https://zitadel.prestonhager.com";
-  # Home Lab project (same as Grafana/Matrix OIDC apps).
   zitadelProjectId = "376196450586990901";
   adminRoleKey = "technitium_admin";
   adminLocalGroup = "Administrators";
 
   ssoScopes =
-    "openid profile email groups urn:zitadel:iam:org:project:roles urn:zitadel:iam:org:project:id:${zitadelProjectId}:aud";
+    "openid,profile,email,groups,urn:zitadel:iam:org:project:roles,urn:zitadel:iam:org:project:id:${zitadelProjectId}:aud";
 
   syncSsoScript = pkgs.writeShellScript "technitium-sync-sso" ''
     set -euo pipefail
     API="${technitiumApi}"
     PASS_FILE="${adminPasswordFile}"
     HASH_FILE="${ssoHashFile}"
-    CLIENT_ID_FILE="${config.sops.secrets."technitium-oidc-client-id".path}"
-    CLIENT_SECRET_FILE="${config.sops.secrets."technitium-oidc-client-secret".path}"
+    OIDC_ENV="${oidcEnvFile}"
 
-    if [ ! -s "$CLIENT_ID_FILE" ] || [ ! -s "$CLIENT_SECRET_FILE" ]; then
-      echo "Technitium OIDC secrets missing; run scripts/zitadel-technitium-setup.js and update technitium.yaml in sops." >&2
+    if [ ! -s "$OIDC_ENV" ]; then
+      echo "Technitium OIDC env missing at $OIDC_ENV; run scripts/zitadel-technitium-setup.js and update technitium.yaml in sops." >&2
       exit 1
     fi
 
-    client_id=$(${pkgs.coreutils}/bin/cat "$CLIENT_ID_FILE")
-    client_secret=$(${pkgs.coreutils}/bin/cat "$CLIENT_SECRET_FILE")
-    desired_hash=$(${pkgs.coreutils}/bin/sha256sum "$CLIENT_ID_FILE" "$CLIENT_SECRET_FILE" \
-      | ${pkgs.coreutils}/bin/sha256sum | ${pkgs.coreutils}/bin/cut -d' ' -f1)
-    desired_hash="''${desired_hash};scopes=${ssoScopes};role=${adminRoleKey}"
+    # shellcheck disable=SC1090
+    source "$OIDC_ENV"
+    if [ -z "''${TECHNITIUM_OIDC_CLIENT_ID:-}" ] || [ -z "''${TECHNITIUM_OIDC_CLIENT_SECRET:-}" ]; then
+      echo "TECHNITIUM_OIDC_CLIENT_ID/SECRET missing in $OIDC_ENV" >&2
+      exit 1
+    fi
 
-    if [ -f "$HASH_FILE" ] && [ "$(cat "$HASH_FILE")" = "''${desired_hash}" ]; then
+    desired_hash=$(${pkgs.coreutils}/bin/sha256sum "$OIDC_ENV" | ${pkgs.coreutils}/bin/cut -d' ' -f1)
+    desired_hash="${desired_hash};scopes=${ssoScopes};role=${adminRoleKey}"
+
+    if [ -f "$HASH_FILE" ] && [ "$(cat "$HASH_FILE")" = "$desired_hash" ]; then
       exit 0
     fi
 
@@ -57,26 +60,22 @@ let
       "$API/api/admin/sso/set" \
       --data-urlencode "ssoEnabled=true" \
       --data-urlencode "ssoAuthority=${zitadelIssuer}" \
-      --data-urlencode "ssoClientId=$client_id" \
-      --data-urlencode "ssoClientSecret=$client_secret" \
+      --data-urlencode "ssoClientId=$TECHNITIUM_OIDC_CLIENT_ID" \
+      --data-urlencode "ssoClientSecret=$TECHNITIUM_OIDC_CLIENT_SECRET" \
       --data-urlencode "ssoMetadataAddress=${zitadelIssuer}/.well-known/openid-configuration" \
       --data-urlencode "ssoScopes=${ssoScopes}" \
       --data-urlencode "ssoAllowSignup=true" \
       --data-urlencode "ssoAllowSignupOnlyForMappedUsers=true" \
       --data-urlencode "ssoGroupMap=${adminRoleKey}|${adminLocalGroup}" >/dev/null
 
-    echo "''${desired_hash}" > "$HASH_FILE"
+    echo "$desired_hash" > "$HASH_FILE"
   '';
 in
 {
   sops.secrets = {
-    "technitium-oidc-client-id" = {
+    "technitium-oidc-env" = {
       sopsFile = "${sops-path}/secrets/containers/technitium.yaml";
-      key = "technitium-oidc-client-id";
-    };
-    "technitium-oidc-client-secret" = {
-      sopsFile = "${sops-path}/secrets/containers/technitium.yaml";
-      key = "technitium-oidc-client-secret";
+      key = "technitium-oidc-env";
     };
   };
 

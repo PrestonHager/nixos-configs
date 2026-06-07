@@ -208,9 +208,10 @@ async function createOrUpdateApp(token) {
   const creds = await createOrUpdateApp(sessionToken);
   await ensureGrant(sessionToken);
   console.log('\n=== Technitium OIDC credentials (add to sops technitium.yaml) ===');
-  console.log(`technitium-oidc-client-id: ${creds.clientId}`);
+  console.log('technitium-oidc-env: |');
+  console.log(`  TECHNITIUM_OIDC_CLIENT_ID=${creds.clientId}`);
   if (creds.clientSecret) {
-    console.log(`technitium-oidc-client-secret: ${creds.clientSecret}`);
+    console.log(`  TECHNITIUM_OIDC_CLIENT_SECRET=${creds.clientSecret}`);
   } else {
     console.log('Client secret not returned (existing app). Regenerate in Zitadel console if needed.');
   }
