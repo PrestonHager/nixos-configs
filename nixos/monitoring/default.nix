@@ -13,7 +13,13 @@ in {
 
   environment.etc."grafana/provisioning/datasources/prometheus.yaml".text = ''
     apiVersion: 1
-    deleteDatasources: []
+    deleteDatasources:
+      # Legacy UI datasource pointed at https://prometheus.prestonhager.com, which
+      # resolves to 127.0.0.1 inside the Grafana container and breaks all panels.
+      - name: prometheus
+        orgId: 1
+      - uid: ceui14844tqm8b
+        orgId: 1
     datasources:
       - name: Prometheus
         type: prometheus
@@ -22,6 +28,9 @@ in {
         url: http://host.containers.internal:9090
         isDefault: true
         editable: false
+        jsonData:
+          timeInterval: 15s
+          httpMethod: POST
   '';
 
   environment.etc."grafana/provisioning/dashboards/ace.yaml".text = ''

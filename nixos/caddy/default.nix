@@ -39,6 +39,7 @@
       admin 127.0.0.1:2019
       servers {
         protocols h1 h2 h3
+        metrics
       }
     '';
   };
