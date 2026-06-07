@@ -7,6 +7,12 @@ let
   clamavImage = "docker.io/clamav/clamav:stable";
   nextcloudPublicUrl = "https://cloud.prestonhager.com";
   nextcloudPushUrl = "${nextcloudPublicUrl}/push";
+  zitadelDomain = "zitadel.prestonhager.com";
+  zitadelDiscoveryUri = "https://${zitadelDomain}/.well-known/openid-configuration";
+  zitadelProjectId = "376196450586990901";
+  oidcProviderId = "zitadel";
+  oidcRedirectUri = "${nextcloudPublicUrl}/apps/user_oidc/code";
+  oidcScopes = "openid profile email urn:zitadel:iam:org:project:roles urn:zitadel:iam:org:project:id:${zitadelProjectId}:aud";
   nextcloudApacheHsts = pkgs.writeText "nextcloud-hsts.conf" ''
     <IfModule mod_headers.c>
       Header always set Strict-Transport-Security "max-age=15552000; includeSubDomains"
@@ -233,6 +239,72 @@ EOF
     fi
   '';
 
+  nextcloudOidcConfigScript = pkgs.writeShellScript "nextcloud-oidc-config" ''
+    set -euo pipefail
+    podman=${pkgs.podman}/bin/podman
+    oauthEnv="${config.sops.secrets."nextcloud-oidc-env".path}"
+    occ() {
+      $podman exec -u www-data nextcloud php /var/www/html/occ "$@"
+    }
+
+    for _ in $(seq 1 60); do
+      if $podman exec nextcloud true 2>/dev/null; then
+        break
+      fi
+      sleep 2
+    done
+
+    if ! $podman exec nextcloud true 2>/dev/null; then
+      echo "nextcloud-oidc-config: nextcloud container not running" >&2
+      exit 1
+    fi
+
+    if ! $podman exec nextcloud test -f /var/www/html/config/config.php; then
+      echo "nextcloud-oidc-config: config.php missing, skipping" >&2
+      exit 0
+    fi
+
+    if ! occ status 2>/dev/null | grep -q 'installed: true'; then
+      echo "nextcloud-oidc-config: Nextcloud not installed, skipping" >&2
+      exit 0
+    fi
+
+    clientId="$(grep '^NEXTCLOUD_OIDC_CLIENT_ID=' "$oauthEnv" | cut -d= -f2- || true)"
+    clientSecret="$(grep '^NEXTCLOUD_OIDC_CLIENT_SECRET=' "$oauthEnv" | cut -d= -f2- || true)"
+    if [ -z "$clientId" ] || [ -z "$clientSecret" ]; then
+      echo "nextcloud-oidc-config: NEXTCLOUD_OIDC_CLIENT_ID/SECRET missing in nextcloud-oidc-env, skipping" >&2
+      exit 0
+    fi
+    if [ "$clientId" = "REPLACE_ZITADEL_CLIENT_ID" ] || [ "$clientSecret" = "REPLACE_ZITADEL_CLIENT_SECRET" ]; then
+      echo "nextcloud-oidc-config: placeholder OIDC credentials, skipping" >&2
+      exit 0
+    fi
+
+    if ! occ app:list 2>/dev/null | grep -qE '(^| )- user_oidc:'; then
+      occ app:install user_oidc
+    fi
+    occ app:enable user_oidc
+
+    occ config:app:set user_oidc allow_multiple_user_backends --value=1 --type=integer
+    occ config:system:set user_oidc login_label --value="Sign in with Zitadel"
+    occ config:system:set user_oidc enrich_login_id_token_with_userinfo --value=true --type=boolean
+
+    occ user_oidc:provider "${oidcProviderId}" \
+      --clientid="$clientId" \
+      --clientsecret="$clientSecret" \
+      --discoveryuri="${zitadelDiscoveryUri}" \
+      --scope="${oidcScopes}" \
+      --mapping-uid="preferred_username" \
+      --mapping-display-name="name" \
+      --mapping-email="email" \
+      --mapping-groups="groups" \
+      --group-provisioning=1 \
+      --group-whitelist-regex='/^admin$/' \
+      --unique-uid=0
+
+    echo "nextcloud-oidc-config: configured provider ${oidcProviderId} (redirect ${oidcRedirectUri})"
+  '';
+
 in
 {
   sops.secrets = {
@@ -241,6 +313,10 @@ in
     };
     "nextcloud-db-environment" = {
       sopsFile = "${sops-path}/secrets/containers/nextcloud.yaml";
+    };
+    "nextcloud-oidc-env" = {
+      sopsFile = "${sops-path}/secrets/containers/nextcloud.yaml";
+      key = "nextcloud-oidc-env";
     };
   };
 
@@ -347,6 +423,25 @@ in
     };
   };
 
+  systemd.services.nextcloud-oidc-config = {
+    description = "Install user_oidc and configure Zitadel OIDC provider";
+    wantedBy = [ "multi-user.target" ];
+    after = [
+      "nextcloud-occ-maintain.service"
+      "podman-nextcloud.service"
+      "sops-nix.service"
+    ];
+    requires = [
+      "podman-nextcloud.service"
+      "nextcloud-occ-maintain.service"
+    ];
+    unitConfig.ConditionPathExists = "${ncRoot}/data/config/config.php";
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = nextcloudOidcConfigScript;
+    };
+  };
 
   systemd.services."podman-nextcloud" = {
     requires = [ "nextcloud-container-env.service" ];
@@ -377,7 +472,9 @@ in
         if $podman pod exists nextcloud; then
           ports="$($podman pod inspect nextcloud --format '{{json .InfraConfig.PortBindings}}' 2>/dev/null || echo '{}')"
           hosts="$($podman pod inspect nextcloud --format '{{json .InfraConfig.HostAdd}}' 2>/dev/null || echo '[]')"
-          if ! echo "$ports" | grep -q 7867 || ! echo "$hosts" | grep -q '192.168.5.5'; then
+          if ! echo "$ports" | grep -q 7867 \
+            || ! echo "$hosts" | grep -q 'cloud.prestonhager.com:192.168.5.5' \
+            || ! echo "$hosts" | grep -q 'zitadel.prestonhager.com:192.168.5.5'; then
             echo "pod-nextcloud: recreating pod for notify_push port and host routing"
             $podman pod stop -t 30 nextcloud || true
             $podman pod rm -f nextcloud
@@ -389,6 +486,7 @@ in
           -p 127.0.0.1:7867:7867 \
           --hostname nextcloud \
           --add-host=cloud.prestonhager.com:192.168.5.5 \
+          --add-host=zitadel.prestonhager.com:192.168.5.5 \
           nextcloud
       '';
     };

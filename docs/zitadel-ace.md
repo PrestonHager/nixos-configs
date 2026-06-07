@@ -50,7 +50,7 @@ curl -s https://zitadel.prestonhager.com/ui/console/assets/environment.json | jq
 # api and issuer must both be https://zitadel.prestonhager.com
 ```
 
-Grafana OAuth admin role mapping is documented in [monitoring-ace.md](./monitoring-ace.md).
+Grafana OAuth admin role mapping is documented in [monitoring-ace.md](./monitoring-ace.md). Nextcloud OIDC SSO is documented in [nextcloud-ace.md](./nextcloud-ace.md).
 
 Useful logs:
 
@@ -85,3 +85,7 @@ podman exec zitadel-db psql -U zitadel -d zitadel -c \
 nix shell nixpkgs#sqlite -c sqlite3 /grafana/data/grafana.db \
   "SELECT email, is_admin FROM user WHERE email='admin@prestonhager.com';"
 ```
+
+## Nextcloud OAuth admin role
+
+Nextcloud at https://cloud.prestonhager.com uses the **Home Lab** project OIDC app (`Nextcloud`). Users with Zitadel project role `nextcloud_admin` receive Nextcloud **server admin** (via `groups: ["admin"]` complement action → `user_oidc` group provisioning). See [nextcloud-ace.md](./nextcloud-ace.md) for setup, complement action, and verification.
