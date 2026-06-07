@@ -13,16 +13,11 @@ in {
 
   environment.etc."grafana/provisioning/datasources/prometheus.yaml".text = ''
     apiVersion: 1
-    deleteDatasources:
-      # Legacy UI datasource pointed at https://prometheus.prestonhager.com, which
-      # resolves to 127.0.0.1 inside the Grafana container and breaks all panels.
-      # Grafana 13 requires uid (not name) for deleteDatasources entries.
-      - uid: ceui14844tqm8b
-        orgId: 1
     datasources:
       - name: Prometheus
         type: prometheus
         uid: prometheus
+        orgId: 1
         access: proxy
         url: http://host.containers.internal:9090
         isDefault: true
