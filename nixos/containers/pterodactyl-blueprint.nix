@@ -6,6 +6,7 @@ let
   blueprintMarker = "${stateDir}/blueprint-installed";
   blueprintReleaseUrl = "https://github.com/BlueprintFramework/framework/releases/latest/download/release.zip";
   socialloginBlueprintUrl = "https://github.com/blueprint-community/extension-sociallogin/releases/download/1.2.0/sociallogin.blueprint";
+  dnsExtensionSrc = "/etc/nixos/plugins/pterodactyl-dns-blueprint";
 
   toolPath = pkgs.lib.makeBinPath [
     pkgs.bash
@@ -42,16 +43,79 @@ let
       exit 0
     fi
 
-    if [ -f "$marker" ]; then
-      echo "pterodactyl-blueprint-install: Blueprint already installed"
+    export PATH="${toolPath}:$PATH"
+    export HOME=/var/lib/pterodactyl
+    export TERM=dumb
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
+    export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+    install -d -m 0750 -o pterodactyl -g pterodactyl /var/lib/pterodactyl
+
+    blueprint_cli() {
+      env HOME=/var/lib/pterodactyl TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -bash "$@"
+    }
+
+    install_dnsrecords_extension() {
+      if [ ! -d "${dnsExtensionSrc}" ]; then
+        echo "pterodactyl-blueprint-install: DNS extension source missing at ${dnsExtensionSrc}" >&2
+        return 1
+      fi
+      if [ -d "$panel/.blueprint/extensions/dnsrecords" ]; then
+        echo "pterodactyl-blueprint-install: DNS Records extension already present"
+        return 0
+      fi
+      echo "pterodactyl-blueprint-install: installing dnsrecords extension from dev tree..."
+      install -d -m 0755 -o pterodactyl -g pterodactyl "$panel/.blueprint/dev"
+      rm -rf "$panel/.blueprint/dev/"*
+      cp -a "${dnsExtensionSrc}/." "$panel/.blueprint/dev/"
+      chown -R pterodactyl:pterodactyl "$panel/.blueprint/dev"
+      if ! blueprint_cli -info 2>/dev/null | grep -qi dnsrecords; then
+        rm -f "$panel/.blueprint/lock"
+        blueprint_cli -install '[developer-build]' \
+          || blueprint_cli -i '[developer-build]'
+      fi
+    }
+
+    post_install_hooks() {
+      ${pkgs.podman}/bin/podman exec \
+        -e HOME=/var/www/pterodactyl \
+        -e COMPOSER_HOME=/tmp/composer \
+        pterodactyl \
+        sh -c 'cd /var/www/pterodactyl && composer install --no-dev --optimize-autoloader'
+
+      ${pkgs.podman}/bin/podman exec pterodactyl \
+        php /var/www/pterodactyl/artisan migrate --force
+
+      ${pkgs.podman}/bin/podman exec pterodactyl \
+        php /var/www/pterodactyl/artisan config:clear
+
+      chown -R pterodactyl:pterodactyl "$panel"
+    }
+
+    write_marker() {
+      echo "blueprint+sociallogin+dnsrecords" > "$marker"
+      chown pterodactyl:pterodactyl "$marker"
+    }
+
+    if [ -d "$panel/.blueprint/extensions/sociallogin" ] \
+      && [ -d "$panel/.blueprint/extensions/dnsrecords" ]; then
+      write_marker
+      echo "pterodactyl-blueprint-install: Blueprint, Social Login, and DNS Records ready"
       exit 0
     fi
 
-    if [ -d "$panel/.blueprint/extensions/sociallogin" ]; then
-      echo "blueprint+sociallogin" > "$marker"
-      chown pterodactyl:pterodactyl "$marker"
-      echo "pterodactyl-blueprint-install: Social Login extension already present, marker restored"
+    if [ -d "$panel/.blueprint/extensions/sociallogin" ] \
+      && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
+      echo "pterodactyl-blueprint-install: Social Login present, installing DNS Records only..."
+      install_dnsrecords_extension
+      post_install_hooks
+      write_marker
+      echo "pterodactyl-blueprint-install: DNS Records extension ready on production panel"
       exit 0
+    fi
+
+    if [ -f "$marker" ]; then
+      echo "pterodactyl-blueprint-install: marker present but extensions incomplete, continuing install..."
     fi
 
     echo "pterodactyl-blueprint-install: installing Blueprint framework..."
@@ -75,14 +139,6 @@ let
       install -d -m 0755 -o pterodactyl -g pterodactyl "$panel/.blueprint"
     fi
 
-    export PATH="${toolPath}:$PATH"
-    export HOME=/var/lib/pterodactyl
-    export TERM=dumb
-    export LC_ALL=C.UTF-8
-    export LANG=C.UTF-8
-    export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-    install -d -m 0750 -o pterodactyl -g pterodactyl /var/lib/pterodactyl
-
     # blueprint.sh tries to mv panel/blueprint → .blueprint/blueprint on every run
     if [ -d "$panel/blueprint" ] && [ -d "$panel/.blueprint/blueprint" ]; then
       rm -rf "$panel/blueprint"
@@ -91,12 +147,8 @@ let
       mv "$panel/blueprint" "$panel/.blueprint/blueprint"
     fi
 
-    blueprint_cli() {
-      if [ "$framework_ready" -eq 1 ]; then
-        env HOME=/var/lib/pterodactyl TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -bash "$@"
-      else
-        env HOME=/var/lib/pterodactyl TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" "$@"
-      fi
+    blueprint_cli_install() {
+      env HOME=/var/lib/pterodactyl TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" "$@"
     }
 
     if [ ! -d "$panel/node_modules" ]; then
@@ -108,7 +160,7 @@ let
 
     cd "$panel"
     if [ "$framework_ready" -eq 0 ]; then
-      blueprint_cli
+      blueprint_cli_install
     fi
 
     ${pkgs.curl}/bin/curl -fsSL "${socialloginBlueprintUrl}" -o "$tmp/sociallogin.blueprint"
@@ -128,25 +180,15 @@ let
       echo "pterodactyl-blueprint-install: Social Login extension already installed"
     fi
     rm -f "$panel/sociallogin.blueprint"
-    chown -R pterodactyl:pterodactyl "$panel"
-
-    ${pkgs.podman}/bin/podman exec \
-      -e HOME=/var/www/pterodactyl \
-      -e COMPOSER_HOME=/tmp/composer \
-      pterodactyl \
-      sh -c 'cd /var/www/pterodactyl && composer install --no-dev --optimize-autoloader'
-
-    ${pkgs.podman}/bin/podman exec pterodactyl \
-      php /var/www/pterodactyl/artisan config:clear
-
-    echo "blueprint+sociallogin" > "$marker"
-    chown pterodactyl:pterodactyl "$marker"
-    echo "pterodactyl-blueprint-install: Blueprint and Social Login extension ready"
+    install_dnsrecords_extension
+    post_install_hooks
+    write_marker
+    echo "pterodactyl-blueprint-install: Blueprint, Social Login, and DNS Records ready"
   '';
 in
 {
   systemd.services.pterodactyl-blueprint-install = {
-    description = "Install Blueprint framework and Social Login extension on production panel";
+    description = "Install Blueprint, Social Login, and DNS Records on production panel";
     after = [
       "podman-pterodactyl.service"
       "pterodactyl-stock-reset.service"
