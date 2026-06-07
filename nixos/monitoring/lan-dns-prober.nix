@@ -23,7 +23,19 @@ let
       echo '# HELP ace_dns_probe_responder Which nameserver answered the query.'
       echo '# TYPE ace_dns_probe_responder gauge'
       for host in ${lib.concatStringsSep " " dnsHosts}; do
-        answer="$(dig +short "@${lanResolver}" "$host" A 2>/dev/null | head -1 || true)"
+        answer=""
+        next="$host"
+        for _ in 1 2 3 4 5; do
+          raw="$(dig +short "@${lanResolver}" "$next" 2>/dev/null | head -1 | sed 's/\.$//' || true)"
+          if [[ -z "$raw" ]]; then
+            break
+          fi
+          if [[ "$raw" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            answer="$raw"
+            break
+          fi
+          next="$raw"
+        done
         if [[ "$answer" == "${expectedA}" ]]; then
           success=1
         else

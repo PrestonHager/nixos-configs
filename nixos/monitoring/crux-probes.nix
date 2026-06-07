@@ -22,7 +22,7 @@ in {
     description = "Push external HTTP probe metrics to ace Pushgateway (WAN perspective)";
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
-    path = with pkgs; [ bash coreutils curl bind dig ];
+    path = with pkgs; [ bash coreutils curl bind dig gawk ];
     serviceConfig = {
       Type = "oneshot";
       User = "root";
