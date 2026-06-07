@@ -34,6 +34,8 @@ in {
         matrix = "https://matrix.prestonhager.com/_synapse/client/oidc/callback";
         technitium = "https://dns.prestonhager.com/sso/callback";
         vaultwarden = "https://vault.prestonhager.com/identity/connect/oidc-signin";
+        nextcloud = "https://cloud.prestonhager.com/apps/user_oidc/code";
+        pterodactyl = "https://panel.prestonhager.com/oauth2/callback";
       };
     };
   };

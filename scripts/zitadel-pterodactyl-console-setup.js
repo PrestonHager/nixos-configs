@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Create Nextcloud OIDC app + nextcloud_admin role using admin user session (v2 API).
+ * Create Pterodactyl OIDC app + pterodactyl_admin role using admin user session (v2 API).
  * Run on ace as root. Requires zitadel-env secrets.
  */
 const fs = require('fs');
@@ -14,9 +14,9 @@ const AUDIENCE = `https://${PUBLIC_HOST}`;
 const ORG_ID = '376181820519160098';
 const PROJECT_ID = '376196450586990901';
 const ADMIN_USER_ID = '376181820519684386';
-const APP_NAME = 'Nextcloud';
-const ROLE_KEY = 'nextcloud_admin';
-const REDIRECT_URI = 'https://cloud.prestonhager.com/apps/user_oidc/code';
+const APP_NAME = 'Pterodactyl';
+const ROLE_KEY = 'pterodactyl_admin';
+const REDIRECT_URI = 'https://panel.prestonhager.com/oauth2/callback';
 
 function loadEnv(prefix) {
   const env = fs.readFileSync(SECRETS, 'utf8');
@@ -117,24 +117,19 @@ async function adminSessionToken() {
   return patched.sessionToken || session.sessionToken;
 }
 
-async function findNextcloudApp(token) {
-  const apps = await mgmt(
-    'POST',
-    `/management/v1/projects/${PROJECT_ID}/apps/_search`,
-    { query: { offset: '0', limit: 100, asc: true } },
-    token,
-  );
+async function findApp(token) {
+  const apps = await mgmt('POST', `/management/v1/projects/${PROJECT_ID}/apps/_search`, {
+    query: { offset: '0', limit: 100, asc: true },
+  }, token);
   return (apps.result || []).find((a) => a.name === APP_NAME);
 }
 
 async function ensureRole(token) {
   try {
-    await mgmt(
-      'POST',
-      `/management/v1/projects/${PROJECT_ID}/roles`,
-      { roleKey: ROLE_KEY, displayName: 'Nextcloud Admin' },
-      token,
-    );
+    await mgmt('POST', `/management/v1/projects/${PROJECT_ID}/roles`, {
+      roleKey: ROLE_KEY,
+      displayName: 'Pterodactyl Admin',
+    }, token);
     console.log(`Created role ${ROLE_KEY}`);
   } catch (e) {
     if (String(e.message).includes('already exists') || String(e.message).includes('RoleKeyDuplicated')) {
@@ -144,92 +139,75 @@ async function ensureRole(token) {
 }
 
 async function ensureGrant(token) {
-  const grants = await mgmt(
-    'POST',
-    '/management/v1/users/grants/_search',
-    { query: { offset: '0', limit: 100, asc: true }, queries: [{ userIdQuery: { userId: ADMIN_USER_ID } }] },
-    token,
-  );
+  const grants = await mgmt('POST', '/management/v1/users/grants/_search', {
+    query: { offset: '0', limit: 100, asc: true },
+    queries: [{ userIdQuery: { userId: ADMIN_USER_ID } }],
+  }, token);
   const existing = (grants.result || []).find(
     (g) => g.projectId === PROJECT_ID && (g.roleKeys || []).includes(ROLE_KEY),
   );
   if (existing) {
-    console.log('Admin already has nextcloud_admin');
+    console.log(`Admin already has ${ROLE_KEY}`);
     return;
   }
   const pg = (grants.result || []).find((g) => g.projectId === PROJECT_ID);
   if (pg) {
-    await mgmt(
-      'PUT',
-      `/management/v1/users/${ADMIN_USER_ID}/grants/${pg.id}`,
-      { roleKeys: [...new Set([...(pg.roleKeys || []), ROLE_KEY])] },
-      token,
-    );
+    await mgmt('PUT', `/management/v1/users/${ADMIN_USER_ID}/grants/${pg.id}`, {
+      roleKeys: [...new Set([...(pg.roleKeys || []), ROLE_KEY])],
+    }, token);
   } else {
-    await mgmt(
-      'POST',
-      `/management/v1/users/${ADMIN_USER_ID}/grants`,
-      { projectId: PROJECT_ID, roleKeys: [ROLE_KEY] },
-      token,
-    );
+    await mgmt('POST', `/management/v1/users/${ADMIN_USER_ID}/grants`, {
+      projectId: PROJECT_ID,
+      roleKeys: [ROLE_KEY],
+    }, token);
   }
-  console.log('Granted nextcloud_admin to admin user');
+  console.log(`Granted ${ROLE_KEY} to admin user`);
 }
 
 async function createOrUpdateApp(token) {
-  let app = await findNextcloudApp(token);
+  let app = await findApp(token);
   if (!app) {
-    const resp = await mgmt(
-      'POST',
-      `/management/v1/projects/${PROJECT_ID}/apps/oidc`,
-      {
-        name: APP_NAME,
-        redirectUris: [REDIRECT_URI],
-        responseTypes: ['OIDC_RESPONSE_TYPE_CODE'],
-        grantTypes: ['OIDC_GRANT_TYPE_AUTHORIZATION_CODE', 'OIDC_GRANT_TYPE_REFRESH_TOKEN'],
-        appType: 'OIDC_APP_TYPE_WEB',
-        authMethodType: 'OIDC_AUTH_METHOD_TYPE_BASIC',
-        accessTokenType: 'OIDC_TOKEN_TYPE_BEARER',
-        idTokenRoleAssertion: true,
-        accessTokenRoleAssertion: true,
-      },
-      token,
-    );
-    console.log(`Created Nextcloud app ${resp.appId}`);
+    const resp = await mgmt('POST', `/management/v1/projects/${PROJECT_ID}/apps/oidc`, {
+      name: APP_NAME,
+      redirectUris: [REDIRECT_URI],
+      responseTypes: ['OIDC_RESPONSE_TYPE_CODE'],
+      grantTypes: ['OIDC_GRANT_TYPE_AUTHORIZATION_CODE', 'OIDC_GRANT_TYPE_REFRESH_TOKEN'],
+      appType: 'OIDC_APP_TYPE_WEB',
+      authMethodType: 'OIDC_AUTH_METHOD_TYPE_BASIC',
+      accessTokenType: 'OIDC_TOKEN_TYPE_BEARER',
+      idTokenRoleAssertion: true,
+      accessTokenRoleAssertion: true,
+    }, token);
+    console.log(`Created Pterodactyl app ${resp.appId}`);
     return { clientId: resp.clientId, clientSecret: resp.clientSecret };
   }
 
   const detail = await mgmt('GET', `/management/v1/projects/${PROJECT_ID}/apps/${app.id}`, null, token);
   const oidc = detail.app?.oidcConfig || detail.oidcConfig || {};
-  await mgmt(
-    'PUT',
-    `/management/v1/projects/${PROJECT_ID}/apps/${app.id}`,
-    {
-      name: APP_NAME,
-      oidcConfig: {
-        ...oidc,
-        redirectUris: [...new Set([...(oidc.redirectUris || []), REDIRECT_URI])],
-        accessTokenRoleAssertion: true,
-        idTokenRoleAssertion: true,
-        roleAssertion: true,
-      },
+  await mgmt('PUT', `/management/v1/projects/${PROJECT_ID}/apps/${app.id}`, {
+    name: APP_NAME,
+    oidcConfig: {
+      ...oidc,
+      redirectUris: [...new Set([...(oidc.redirectUris || []), REDIRECT_URI])],
+      accessTokenRoleAssertion: true,
+      idTokenRoleAssertion: true,
+      roleAssertion: true,
     },
-    token,
-  );
+  }, token);
   const refreshed = await mgmt('GET', `/management/v1/projects/${PROJECT_ID}/apps/${app.id}`, null, token);
   const cfg = refreshed.app?.oidcConfig || refreshed.oidcConfig || {};
   return { clientId: cfg.clientId || app.clientId, clientSecret: cfg.clientSecret || null };
 }
 
-const GROUPS_ACTION = `function nextcloudGroups(ctx, api) {
+const GROUPS_ACTION = `function pterodactylGroups(ctx, api) {
   if (!ctx.v1.user || !ctx.v1.user.grants || !ctx.v1.user.grants.grants) {
     return;
   }
   const groups = [];
   for (const grant of ctx.v1.user.grants.grants) {
     const roleKeys = grant.roleKeys || [];
-    if (roleKeys.includes('nextcloud_admin')) {
-      groups.push('admin');
+    if (roleKeys.includes('pterodactyl_admin')) {
+      groups.push('pterodactyl_admin');
       break;
     }
   }
@@ -242,14 +220,14 @@ const GROUPS_ACTION = `function nextcloudGroups(ctx, api) {
   await ensureRole(token);
   const creds = await createOrUpdateApp(token);
   await ensureGrant(token);
-  console.log('\n=== Nextcloud OIDC credentials ===');
-  console.log(`NEXTCLOUD_OIDC_CLIENT_ID=${creds.clientId}`);
-  if (creds.clientSecret) console.log(`NEXTCLOUD_OIDC_CLIENT_SECRET=${creds.clientSecret}`);
+  console.log('\n=== Pterodactyl OIDC credentials ===');
+  console.log(`PTERODACTYL_OIDC_CLIENT_ID=${creds.clientId}`);
+  if (creds.clientSecret) console.log(`PTERODACTYL_OIDC_CLIENT_SECRET=${creds.clientSecret}`);
   console.log(`ZITADEL_PROJECT_ID=${PROJECT_ID}`);
   console.log(`ADMIN_ROLE=${ROLE_KEY}`);
   console.log(`REDIRECT_URI=${REDIRECT_URI}`);
   console.log('\n=== MANUAL: Zitadel Complement Token action (required for admin group mapping) ===');
-  console.log('See docs/nextcloud-ace.md — create action nextcloudGroups on Complement Token flow:\n');
+  console.log('Console → Actions → Complement Token → name: pterodactylGroups\n');
   console.log(GROUPS_ACTION);
 })().catch((e) => {
   console.error(e.message || e);
