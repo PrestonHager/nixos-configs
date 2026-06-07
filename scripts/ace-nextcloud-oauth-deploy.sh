@@ -24,6 +24,20 @@ MARIADB_PASSWORD=$(get_env_val MARIADB_PASSWORD)
 NEXTCLOUD_ADMIN_PASSWORD=$(get_env_val NEXTCLOUD_ADMIN_PASSWORD)
 SMTP_PASSWORD=$(get_env_val SMTP_PASSWORD)
 
+# sops stores keys under nextcloud-environment; fall back to flat lines
+if [ -z "$MARIADB_ROOT_PASSWORD" ]; then
+  MARIADB_ROOT_PASSWORD=$(nix shell nixpkgs#sops --command sops -d secrets/containers/nextcloud.yaml | awk -F= '/MARIADB_ROOT_PASSWORD=/{print $2; exit}')
+fi
+if [ -z "$MARIADB_PASSWORD" ]; then
+  MARIADB_PASSWORD=$(nix shell nixpkgs#sops --command sops -d secrets/containers/nextcloud.yaml | awk -F= '/MARIADB_PASSWORD=/{print $2; exit}')
+fi
+if [ -z "$NEXTCLOUD_ADMIN_PASSWORD" ]; then
+  NEXTCLOUD_ADMIN_PASSWORD=$(nix shell nixpkgs#sops --command sops -d secrets/containers/nextcloud.yaml | awk -F= '/NEXTCLOUD_ADMIN_PASSWORD=/{print $2; exit}')
+fi
+if [ -z "${SMTP_PASSWORD:-}" ]; then
+  SMTP_PASSWORD=$(nix shell nixpkgs#sops --command sops -d secrets/containers/nextcloud.yaml | awk -F= '/SMTP_PASSWORD=/{print $2; exit}')
+fi
+
 for v in MARIADB_ROOT_PASSWORD MARIADB_PASSWORD NEXTCLOUD_ADMIN_PASSWORD; do
   if [ -z "${!v}" ]; then
     echo "missing $v in nextcloud.yaml" >&2

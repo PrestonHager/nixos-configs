@@ -32,16 +32,22 @@ let
     fi
 
     if ! grep -q "'header' =>" "$authCfg"; then
-      ${pkgs.gnused}/bin/sed -i '/^];$/i\
-\
-    '\''header'\'' => [\
-        '\''enabled'\'' => env('\''AUTH_HEADER_ENABLED'\'', false),\
-        '\''auto_create'\'' => env('\''AUTH_HEADER_AUTO_CREATE'\'', false),\
-        '\''username_header'\'' => env('\''AUTH_HEADER_USERNAME'\'', '\''X-Auth-Username'\''),\
-        '\''email_header'\'' => env('\''AUTH_HEADER_EMAIL'\'', '\''X-Auth-Email'\''),\
-        '\''groups_header'\'' => env('\''AUTH_HEADER_GROUPS'\'', '\''X-Auth-Groups'\''),\
-        '\''admin_group'\'' => env('\''AUTH_HEADER_ADMIN_GROUP'\'', '\''pterodactyl_admin'\''),\
-    ],' "$authCfg"
+      ${pkgs.python3}/bin/python3 - "$authCfg" <<'PY'
+import sys
+path = sys.argv[1]
+text = open(path).read()
+snippet = """
+    'header' => [
+        'enabled' => env('AUTH_HEADER_ENABLED', false),
+        'auto_create' => env('AUTH_HEADER_AUTO_CREATE', false),
+        'username_header' => env('AUTH_HEADER_USERNAME', 'X-Auth-Username'),
+        'email_header' => env('AUTH_HEADER_EMAIL', 'X-Auth-Email'),
+        'groups_header' => env('AUTH_HEADER_GROUPS', 'X-Auth-Groups'),
+        'admin_group' => env('AUTH_HEADER_ADMIN_GROUP', 'pterodactyl_admin'),
+    ],
+"""
+open(path, 'w').write(text.replace("\n];", snippet + "\n];", 1))
+PY
     fi
 
     envFile="$panel/.env"
