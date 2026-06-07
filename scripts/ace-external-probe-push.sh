@@ -44,12 +44,22 @@ escape_label() {
 
 resolve_host() {
   local url="$1"
-  local host port
+  local host next raw answer=""
   host="$(printf '%s' "$url" | sed -E 's|^https?://([^/:]+).*|\1|')"
-  port="$(printf '%s' "$url" | sed -nE 's|^https://([^/:]+)(:([0-9]+))?.*|\3|p')"
-  [[ -z "$port" ]] && port=443
   if [[ -n "$DNS_RESOLVER" ]]; then
-    dig +short "@${DNS_RESOLVER}" "$host" A 2>/dev/null | head -1
+    next="$host"
+    for _ in 1 2 3 4 5; do
+      raw="$(dig +short "@${DNS_RESOLVER}" "$next" 2>/dev/null | head -1 | sed 's/\.$//' || true)"
+      if [[ -z "$raw" ]]; then
+        break
+      fi
+      if [[ "$raw" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        answer="$raw"
+        break
+      fi
+      next="$raw"
+    done
+    printf '%s' "$answer"
   else
     getent ahosts "$host" 2>/dev/null | awk '/STREAM/ { print $1; exit }'
   fi
@@ -64,7 +74,9 @@ probe_one() {
 
   ip="$(resolve_host "$url" || true)"
   resolve_ok=0
-  [[ -n "$ip" ]] && resolve_ok=1
+  if [[ -n "$ip" && "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    resolve_ok=1
+  fi
 
   local curl_args=(
     -sS -o /dev/null
@@ -72,7 +84,7 @@ probe_one() {
     --max-time "$PROBE_TIMEOUT"
     -L
   )
-  if [[ -n "$ip" ]]; then
+  if [[ "$resolve_ok" -eq 1 ]]; then
     curl_args+=(--resolve "${host}:${port}:${ip}")
   fi
 
@@ -87,10 +99,6 @@ probe_one() {
   success=0
   if [[ "$curl_ok" -eq 0 && "$http_code" =~ ^[23] ]]; then
     success=1
-  fi
-  if [[ "$resolve_ok" -eq 0 ]]; then
-    success=0
-    http_code="${http_code:-0}"
   fi
 
   local inst esc_host

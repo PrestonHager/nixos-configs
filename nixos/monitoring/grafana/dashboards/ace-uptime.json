@@ -40,7 +40,7 @@
       }
     ]
   },
-  "description": "Combined uptime and latency from local (ace), LAN (crux blackbox), and external (pushgateway) HTTP probes plus LanCache DNS checks.",
+  "description": "Service health from local (ace) and LAN (crux blackbox) probes. External WAN probes are shown separately and do not affect Service Status.",
   "links": [
     {
       "title": "HTTP Probes",
@@ -464,7 +464,7 @@
     {
       "id": 1,
       "title": "Services Up",
-      "description": "Current count of probes reporting success (of total monitored)",
+      "description": "Local + LAN probes reporting success (excludes external WAN perspective)",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -493,7 +493,7 @@
               },
               {
                 "color": "green",
-                "value": 14
+                "value": 22
               }
             ]
           }
@@ -515,7 +515,7 @@
       },
       "targets": [
         {
-          "expr": "sum(probe_success{job=~\"blackbox-http|blackbox-tcp|external-http-probe\",probe_location=~\"$location\"})",
+          "expr": "sum(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"})",
           "legendFormat": "up",
           "refId": "A"
         }
@@ -524,7 +524,7 @@
     {
       "id": 2,
       "title": "Health Summary",
-      "description": "X of Y monitored services are currently up",
+      "description": "Local + LAN service availability (external WAN probes excluded)",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -587,7 +587,7 @@
       },
       "targets": [
         {
-          "expr": "sum(probe_success{job=~\"blackbox-http|blackbox-tcp|external-http-probe\",probe_location=~\"$location\"}) / count(probe_success{job=~\"blackbox-http|blackbox-tcp|external-http-probe\",probe_location=~\"$location\"}) * 100",
+          "expr": "sum(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"}) / count(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"}) * 100",
           "legendFormat": "current",
           "refId": "A"
         }
@@ -649,7 +649,7 @@
       },
       "targets": [
         {
-          "expr": "avg(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-tcp|external-http-probe\",probe_location=~\"$location\"}[24h])) * 100",
+          "expr": "avg(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"}[24h])) * 100",
           "legendFormat": "24h avg",
           "refId": "A"
         }
@@ -711,7 +711,7 @@
       },
       "targets": [
         {
-          "expr": "avg(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-tcp|external-http-probe\",probe_location=~\"$location\"}[7d])) * 100",
+          "expr": "avg(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"}[7d])) * 100",
           "legendFormat": "7d avg",
           "refId": "A"
         }
@@ -773,7 +773,7 @@
       },
       "targets": [
         {
-          "expr": "min(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-tcp|external-http-probe\",probe_location=~\"$location\"}[24h])) * 100",
+          "expr": "min(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"}[24h])) * 100",
           "legendFormat": "min 24h",
           "refId": "A"
         }
@@ -829,7 +829,7 @@
       },
       "targets": [
         {
-          "expr": "count(probe_success{job=~\"blackbox-http|blackbox-http-lan|external-http-probe\",probe_location=~\"$location\"} == 0) or vector(0)",
+          "expr": "count(probe_success{job=~\"blackbox-http|blackbox-http-lan\",probe_location=~\"local|lan\"} == 0) or vector(0)",
           "legendFormat": "down",
           "refId": "A"
         }
