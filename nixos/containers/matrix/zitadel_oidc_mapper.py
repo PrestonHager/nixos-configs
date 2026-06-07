@@ -9,9 +9,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Optional
 
-from synapse.handlers.oidc import JinjaOidcMappingProvider, UserInfo, Token
+from synapse.handlers.oidc import JinjaOidcMappingProvider, UserInfo, Token, UserAttributeDict
 from synapse.module_api import ModuleApi
-from synapse.types import UserAttributeDict
 
 logger = logging.getLogger(__name__)
 
