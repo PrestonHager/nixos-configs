@@ -36,7 +36,7 @@ let
     fi
 
     desired_hash=$(${pkgs.coreutils}/bin/sha256sum "$OIDC_ENV" | ${pkgs.coreutils}/bin/cut -d' ' -f1)
-    desired_hash="${desired_hash};scopes=${ssoScopes};role=${adminRoleKey}"
+    desired_hash="''${desired_hash};scopes=${ssoScopes};role=${adminRoleKey}"
 
     if [ -f "$HASH_FILE" ] && [ "$(cat "$HASH_FILE")" = "$desired_hash" ]; then
       exit 0

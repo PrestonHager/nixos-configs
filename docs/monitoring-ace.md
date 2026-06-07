@@ -47,7 +47,7 @@ Zitadel setup (Home Lab project):
 4. After changing sops, run `nix flake update nix-secrets && nixos-rebuild switch --flake .#ace` on ace so the Grafana container restarts with the new env file.
 5. Sign out of Grafana and sign in with Zitadel again so roles are re-evaluated.
 
-See also `docs/dns-ace.md` for console steps.
+See also `docs/zitadel-ace.md` for console steps.
 
 External and LAN probe perspectives: `docs/monitoring-external-probes.md`.
 
