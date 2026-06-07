@@ -107,6 +107,16 @@ let
         YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test \
         PATH="$PATH" \
         BLUEPRINT_ENVIRONMENT=ci \
+        ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -bash "$@"
+    }
+
+    blueprint_cli_root() {
+      env \
+        HOME=/home/prestonh \
+        TERM=dumb \
+        YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test \
+        PATH="$PATH" \
+        BLUEPRINT_ENVIRONMENT=ci \
         ${pkgs.bash}/bin/bash "$panel/blueprint.sh" "$@"
     }
 
@@ -120,7 +130,8 @@ let
     cd "$panel"
     if [ ! -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed" ]; then
       echo "pterodactyl-test-blueprint-install: running Blueprint first-time installer..."
-      blueprint_cli
+      blueprint_cli_root
+      chown -R prestonh:users "$panel"
       if [ ! -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed" ]; then
         echo "pterodactyl-test-blueprint-install: Blueprint first-time install did not complete" >&2
         exit 1
