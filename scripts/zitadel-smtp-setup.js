@@ -146,6 +146,7 @@ async function activateProvider(token, id) {
   try {
     await adminApi('POST', `/admin/v1/smtp/${id}/_activate`, {}, token);
   } catch (err) {
+    if (String(err.message).includes('COMMAND-vUHBSmBzaw')) return;
     if (!String(err.message).includes('404')) throw err;
     await adminApi('POST', `/admin/v1/email/smtp/${id}/_activate`, {}, token);
   }
