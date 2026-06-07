@@ -1,19 +1,35 @@
 # Pterodactyl on ace
 
-Implementation: `nixos/containers/pterodactyl.nix`, `nixos/containers/pterodactyl-oauth.nix`, Caddy `nixos/caddy/pterodactyl.nix`, secrets `nixos-secrets/secrets/containers/pterodactyl-oauth.yaml`.
+Implementation: `nixos/containers/pterodactyl.nix`, `nixos/containers/pterodactyl-blueprint.nix`, `nixos/containers/pterodactyl-sso.nix`, Caddy `nixos/caddy/pterodactyl.nix`, secrets `nixos-secrets/secrets/containers/pterodactyl-oauth.yaml`.
 
 ## Service
 
 | Field | Value |
 |-------|-------|
 | URL | https://panel.prestonhager.com |
-| Version | Pterodactyl Panel 1.11.11 |
-| Auth | Zitadel OIDC via **oauth2-proxy** + header-auth middleware (production panel only) |
-| Break-glass local login | `/auth/login` (bypasses forward_auth) |
+| Version | Pterodactyl Panel **1.11.11** (official `pterodactyl/panel` stock) |
+| Extensions | **Blueprint** (`beta-2026-05`+) + **Social Login** community extension |
+| Auth | Zitadel OIDC via **Blueprint Social Login** + `socialiteproviders/zitadel` |
+| Break-glass local login | `/auth/login` (username/password) |
 
-Stock Pterodactyl (v1.11 and v1.12) has **no native OAuth/OIDC**. The large in-panel OAuth PR ([#3774](https://github.com/pterodactyl/panel/pull/3774)) was closed without merge; maintainer Dane Everitt directed users to [oauth2-proxy](https://github.com/oauth2-proxy/oauth2-proxy) instead. Header-based auth ([#5271](https://github.com/pterodactyl/panel/pull/5271)) is open but not merged — ace ships a local copy of that middleware. SSO here uses oauth2-proxy in front of Caddy with that header-auth patch.
+Production uses the **official** Pterodactyl panel (`release/v1.11.11`). The prior **PrestonHager/panel** `feat/plugin-manager` fork is removed from production and kept only on the test panel (`test.panel.prestonhager.com`).
 
-**There is no in-panel OAuth provider config** like Nextcloud or Jellyfin. Visiting the panel homepage auto-redirects unauthenticated users to Zitadel; a visible **Sign in with Zitadel** button appears only on the break-glass login page (`/auth/login`).
+Stock Pterodactyl (v1.11 and v1.12) has **no native OAuth/OIDC**. SSO is provided in-panel by the free [Blueprint Social Login](https://github.com/blueprint-community/extension-sociallogin) extension with the [SocialiteProviders Zitadel](https://socialiteproviders.com/Zitadel/) driver.
+
+The previous **oauth2-proxy + forward_auth + HeaderAuthentication middleware** approach is **removed** from production Caddy and panel code.
+
+## Removed custom fork features (production)
+
+The PrestonHager `feat/plugin-manager` fork added roughly 1,800 lines across 56 files. Removed from production:
+
+| Area | What was removed |
+|------|------------------|
+| Git remote | `PrestonHager/panel` → `pterodactyl/panel` official |
+| Plugin manager | `app/Services/Plugins/*`, plugin API v3 routes, admin plugin designer UI |
+| Panel update scripts | Custom `scripts/panel-update.sh`, `scripts/panel-update-container.sh` |
+| React plugin host | `PluginClientTabHost`, dashboard/server router plugin tabs |
+| Docs | `docs/plugins/*`, `docs/panel-updates.md` fork docs |
+| SSO patches (old) | `HeaderAuthentication` middleware, `auth.php` header guard, oauth2-proxy forward_auth, break-glass Zitadel blade banner |
 
 ## Zitadel OIDC application
 
@@ -22,7 +38,7 @@ Create or update the **Pterodactyl** OIDC app in the **Home Lab** project (`3761
 | Setting | Value |
 |---------|--------|
 | App type | Web |
-| Redirect URI | `https://panel.prestonhager.com/oauth2/callback` |
+| Redirect URI | `https://panel.prestonhager.com/extensions/sociallogin/callback` |
 | Grant types | Authorization Code, Refresh Token |
 | Auth method | Basic (client secret) |
 | Role assertions | Enabled (ID token + access token) |
@@ -47,7 +63,7 @@ scripts/ace-pterodactyl-oauth-deploy.sh <client_id> <client_secret>
 | `pterodactyl_admin` | Panel root admin (`root_admin=1`) on SSO login |
 | (no role) | Normal user |
 
-Zitadel project roles use a nested object claim. A **Complement Token** action adds a flat `groups` claim for oauth2-proxy.
+Zitadel project roles use a nested object claim. A **Complement Token** action adds a flat `groups` claim read by the Social Login callback patch.
 
 ### MANUAL: Complement Token action in Zitadel console
 
@@ -84,30 +100,44 @@ function pterodactylGroups(ctx, api) {
 
 ## Login (SSO)
 
-Normal flow (no button on homepage — immediate redirect):
+Primary SSO URL:
 
-1. Open https://panel.prestonhager.com — Caddy `forward_auth` → oauth2-proxy → Zitadel
-2. Or use https://panel.prestonhager.com/oauth2/start?rd=/
-3. Or https://panel.prestonhager.com/auth/zitadel (redirect alias)
+**https://panel.prestonhager.com/extensions/sociallogin/redirect/zitadel**
 
-Break-glass local login: https://panel.prestonhager.com/auth/login
-
-The break-glass page shows a **Sign in with Zitadel** button (blade patch in `nixos/containers/pterodactyl/auth-core.blade.php`) above the username/password form. Most users never see this page because `/` redirects to Zitadel automatically.
+Users visiting `/auth/login` see Social Login provider buttons (including Zitadel) when the extension is configured. Break-glass local login remains at `/auth/login` for username/password.
 
 ## Alternatives considered
 
 | Approach | Verdict |
 |----------|---------|
 | Upgrade to v1.12 for native OAuth | No — v1.12 has security/fixes only, no OAuth |
-| Blueprint + Social Login extension | Not adopted — adds framework patch layer, paid/community OAuth inside panel would duplicate oauth2-proxy, higher update risk |
-| oauth2-proxy + header-auth (current) | Best fit — same pattern maintainers recommend, works with Zitadel roles via `groups` claim |
+| PrestonHager plugin-manager fork | Removed from prod — replaced by Blueprint extension ecosystem |
+| oauth2-proxy + header-auth (previous) | Removed — replaced by in-panel Blueprint Social Login |
+| Blueprint + Social Login + Zitadel (current) | **Adopted** — free community extension, native login UI, Zitadel via SocialiteProviders |
+
+## Deploy sequence (production)
+
+On ace after pulling config changes:
+
+```bash
+cd /etc/nixos
+nixos-rebuild switch --flake .#ace
+```
+
+Systemd oneshots run in order:
+
+1. `pterodactyl-stock-reset.service` — revert `/pterodactyl/html` to official `release/v1.11.11`
+2. `pterodactyl-blueprint-install.service` — install Blueprint + Social Login extension
+3. `pterodactyl-sso-configure.service` — configure Zitadel OIDC provider and admin role sync
 
 ## Verification on ace
 
 ```bash
-systemctl is-active pterodactyl-oauth2-proxy.service
-curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4180/oauth2/sign_in
-grep AUTH_HEADER /pterodactyl/html/.env
+systemctl is-active pterodactyl-stock-reset pterodactyl-blueprint-install pterodactyl-sso-configure
+test -f /pterodactyl/html/.blueprint && echo blueprint-ok
+test -f /pterodactyl/html/blueprint.sh && echo blueprint-sh-ok
+grep ZITADEL_CLIENT_ID /pterodactyl/html/.env
+curl -sS -o /dev/null -w '%{http_code}\n' https://panel.prestonhager.com/auth/login
 ```
 
 After SSO login as `admin@prestonhager.com`:

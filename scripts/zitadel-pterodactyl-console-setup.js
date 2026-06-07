@@ -16,7 +16,7 @@ const PROJECT_ID = '376196450586990901';
 const ADMIN_USER_ID = '376181820519684386';
 const APP_NAME = 'Pterodactyl';
 const ROLE_KEY = 'pterodactyl_admin';
-const REDIRECT_URI = 'https://panel.prestonhager.com/oauth2/callback';
+const REDIRECT_URI = 'https://panel.prestonhager.com/extensions/sociallogin/callback';
 
 function loadEnv(prefix) {
   const env = fs.readFileSync(SECRETS, 'utf8');

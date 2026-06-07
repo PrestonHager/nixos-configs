@@ -5,14 +5,14 @@ let
   pterodactylImages = import ./pterodactyl-docker.nix {
     inherit pkgs sops-path;
   };
-  inherit (pterodactylImages) panelUpdateEnv forkPanelSrc;
+  inherit (pterodactylImages) panelUpdateEnvFork forkPanelSrc;
   testEnvFile = "/var/lib/pterodactyl-test/pterodactyl.env";
   testPanelDir = "/home/prestonh/Projects/panel";
   testPublicDir = "/pterodactyl-test/public";
   setupMarker = "/var/lib/pterodactyl-test/setup-complete";
   adminCredentialsFile = "/var/lib/pterodactyl-test/admin-credentials";
 
-  panelUpdateEnvLines = pkgs.lib.mapAttrsToList (n: v: "${n}=${v}") panelUpdateEnv;
+  panelUpdateEnvLines = pkgs.lib.mapAttrsToList (n: v: "${n}=${v}") panelUpdateEnvFork;
 
   ensureEnvVar = name: value: ''
     if ! grep -q "^${name}=" "$ENV" 2>/dev/null; then
@@ -374,7 +374,7 @@ EOF
         "/pterodactyl-test/sockets/php:/run/php-fpm"
         "${testEnvFile}:/var/www/pterodactyl/.env:U"
       ];
-      environment = panelUpdateEnv;
+      environment = panelUpdateEnvFork;
       extraOptions = [
         "--pod=pterodactyl-test"
         "--env-file=${testEnvFile}"

@@ -15,7 +15,6 @@
     ./prometheus.nix
     ./pushgateway.nix
     ./pterodactyl.nix
-    ./pterodactyl-oauth.nix
     ./pterodactyl-test.nix
     #./spacetimedb.nix
     #./sui.nix

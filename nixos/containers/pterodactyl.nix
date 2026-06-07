@@ -5,9 +5,14 @@ let
   pterodactylImages = import ./pterodactyl-docker.nix {
     inherit pkgs sops-path;
   };
-  inherit (pterodactylImages) panelUpdateEnv;
+  inherit (pterodactylImages) panelUpdateEnvStock;
 in
 {
+  imports = [
+    ./pterodactyl-stock-reset.nix
+    ./pterodactyl-blueprint.nix
+    ./pterodactyl-sso.nix
+  ];
   sops.secrets = {
     "pterodactyl-env" = {
       sopsFile = "${sops-path}/secrets/containers/pterodactyl.yaml";
@@ -83,7 +88,7 @@ in
         "${config.sops.secrets."pterodactyl-env".path}:/var/www/pterodactyl/.env.initial:U"
       ];
 
-      environment = panelUpdateEnv // {
+      environment = panelUpdateEnvStock // {
         ENV_FILE = "${config.sops.secrets."pterodactyl-env".path}";
       };
 

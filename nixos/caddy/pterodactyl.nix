@@ -109,7 +109,6 @@ in {
       "panel.prestonhager.com".extraConfig = panelSite {
         hostPath = "/pterodactyl/html/public";
         containerPath = "/var/www/pterodactyl";
-        oauth = true;
       };
       "test.panel.prestonhager.com".extraConfig = panelSite {
         hostPath = "/pterodactyl-test/public";
