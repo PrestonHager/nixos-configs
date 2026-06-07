@@ -39,7 +39,7 @@ let
       -e HOME=/var/www/pterodactyl \
       -e COMPOSER_HOME=/tmp/composer \
       pterodactyl \
-      sh -c 'cd /var/www/pterodactyl && composer require socialiteproviders/manager socialiteproviders/zitadel --no-interaction --no-dev --optimize-autoloader'
+      sh -c 'cd /var/www/pterodactyl && composer require socialiteproviders/manager socialiteproviders/zitadel --no-interaction --optimize-autoloader'
 
     install -m 0644 ${zitadelAdminSync} "$panel/app/Listeners/ZitadelAdminSync.php"
     chown pterodactyl:pterodactyl "$panel/app/Listeners/ZitadelAdminSync.php"

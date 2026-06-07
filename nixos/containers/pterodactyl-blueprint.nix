@@ -40,7 +40,7 @@ let
     chmod +x "$panel/blueprint.sh"
     chown pterodactyl:pterodactyl "$panel/.blueprintrc" "$panel/blueprint.sh"
 
-    export PATH="${pkgs.nodejs_22}/bin:${pkgs.yarn}/bin:$PATH"
+    export PATH="${pkgs.bash}/bin:${pkgs.nodejs_22}/bin:${pkgs.yarn}/bin:$PATH"
     export HOME=/var/lib/pterodactyl
     export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
     install -d -m 0750 -o pterodactyl -g pterodactyl /var/lib/pterodactyl
@@ -53,7 +53,7 @@ let
     fi
 
     cd "$panel"
-    runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl PATH="$PATH" bash "$panel/blueprint.sh"
+    runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh"
 
     ${pkgs.curl}/bin/curl -fsSL "${socialloginBlueprintUrl}" -o "$tmp/sociallogin.blueprint"
     install -d -m 0755 "$panel/.blueprint/extensions"
@@ -61,10 +61,10 @@ let
     chown pterodactyl:pterodactyl "$panel/.blueprint/extensions/sociallogin.blueprint"
 
     cd "$panel"
-    if ! runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl PATH="$PATH" bash "$panel/blueprint.sh" -info 2>/dev/null | grep -qi sociallogin; then
+    if ! runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -info 2>/dev/null | grep -qi sociallogin; then
       echo "pterodactyl-blueprint-install: installing Social Login extension..."
-      runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl PATH="$PATH" bash "$panel/blueprint.sh" -install sociallogin \
-        || runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl PATH="$PATH" bash "$panel/blueprint.sh" -i sociallogin
+      runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -install sociallogin \
+        || runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -i sociallogin
     fi
 
     ${pkgs.podman}/bin/podman exec \
@@ -97,6 +97,7 @@ in
       TimeoutStartSec = "60min";
     };
     path = with pkgs; [
+      bash
       curl
       unzip
       git
