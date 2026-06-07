@@ -10,7 +10,7 @@ let
   ssoPluginVersion = "3.5.2.4";
   ssoPluginUrl = "https://github.com/9p4/jellyfin-plugin-sso/releases/download/v${ssoPluginVersion}/sso-authentication_${ssoPluginVersion}.zip";
   ssoPluginDir = "/jf/config/plugins/SSO Authentication/${ssoPluginVersion}";
-  ssoConfigPath = "/jf/config/plugins/configurations/Jellyfin.Plugin.SSO-Auth.xml";
+  ssoConfigPath = "/jf/config/plugins/configurations/SSO-Auth.xml";
   jellyfinRuntimeEnv = "/run/jellyfin/container.env";
   jellyfinSsoSetupScript = pkgs.writeShellScript "jellyfin-sso-setup" ''
     set -euo pipefail
@@ -47,7 +47,7 @@ let
       ${pkgs.curl}/bin/curl -fsSL -o "$tmpdir/sso.zip" "${ssoPluginUrl}"
       mkdir -p "${ssoPluginDir}"
       ${pkgs.unzip}/bin/unzip -o "$tmpdir/sso.zip" -d "${ssoPluginDir}"
-      chown -R jellyfin:jellyfin "${ssoPluginDir}"
+      chown -R jellyfin:jellyfin "/jf/config/plugins/SSO Authentication"
     fi
 
     prestonhGuid="$(${pkgs.sqlite}/bin/sqlite3 /jf/config/data/jellyfin.db "SELECT Id FROM Users WHERE Username='prestonh' LIMIT 1;" 2>/dev/null || true)"
@@ -125,17 +125,21 @@ EOF
 
     brandingPath="/jf/config/config/branding.xml"
     if ! grep -q 'sso/OID/start/${ssoProviderName}' "$brandingPath" 2>/dev/null; then
-      ${pkgs.xmlstarlet}/bin/xmlstarlet ed -L \
-        -u "/BrandingOptions/LoginDisclaimer" -v '<form action="${jellyfinPublicUrl}/sso/OID/start/${ssoProviderName}"><button class="raised block emby-button button-submit">Sign in with Zitadel</button></form>' \
-        "$brandingPath"
+      cat > "$brandingPath" <<BRANDING
+<?xml version="1.0" encoding="utf-8"?>
+<BrandingOptions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <LoginDisclaimer><form action="${jellyfinPublicUrl}/sso/OID/start/${ssoProviderName}"><button class="raised block emby-button button-submit">Sign in with Zitadel</button></form></LoginDisclaimer>
+  <CustomCss />
+  <SplashscreenEnabled>true</SplashscreenEnabled>
+</BrandingOptions>
+BRANDING
       chown jellyfin:jellyfin "$brandingPath"
     fi
 
     marker="/jf/config/.sso-setup-done"
     if [ ! -f "$marker" ]; then
-      echo "jellyfin-sso-setup: restarting jellyfin to load SSO plugin"
+      echo "jellyfin-sso-setup: restart jellyfin to load SSO plugin (run: systemctl restart podman-jellyfin.service)"
       touch "$marker"
-      systemctl restart podman-jellyfin.service
     fi
 
     echo "jellyfin-sso-setup: configured provider ${ssoProviderName} (${jellyfinPublicUrl}/sso/OID/start/${ssoProviderName})"

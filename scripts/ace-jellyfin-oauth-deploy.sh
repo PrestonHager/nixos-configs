@@ -21,7 +21,7 @@ EOF
 nix shell nixpkgs#sops --command sops --encrypt --encrypted-regex '^(data|stringData|jellyfin-.*)$' --in-place secrets/containers/jellyfin.yaml
 
 echo '=== Updated jellyfin-oauth secret ==='
-nix shell nixpkgs#sops --command sops -d secrets/containers/jellyfin.yaml | grep -E '^(JELLYFIN_OIDC|ZITADEL_PROJECT)'
+nix shell nixpkgs#sops --command sops -d secrets/containers/jellyfin.yaml | grep JELLYFIN_OIDC
 
 git add secrets/containers/jellyfin.yaml
 git commit -m "Add Jellyfin OIDC client credentials for Zitadel SSO" --no-gpg-sign || true
