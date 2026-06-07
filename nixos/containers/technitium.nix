@@ -14,6 +14,7 @@ in
   imports = [
     ./technitium-zones.nix
     ./technitium-protocols.nix
+    ./technitium-sso.nix
   ];
 
   systemd.tmpfiles.rules = [

@@ -1,6 +1,6 @@
 # DNS on ace (LanCache + Technitium)
 
-Implementation: `nixos/containers/lancache.nix`, `nixos/containers/technitium.nix`, `nixos/containers/technitium-zones.nix`, Caddy `nixos/caddy/technitium.nix`.
+Implementation: `nixos/containers/lancache.nix`, `nixos/containers/technitium.nix`, `nixos/containers/technitium-zones.nix`, `nixos/containers/technitium-sso.nix`, Caddy `nixos/caddy/technitium.nix`.
 
 ## Query path
 
@@ -178,6 +178,114 @@ Set **primary DNS** to **192.168.5.5** on the router or DHCP scope.
 2. Confirm `systemctl status technitium-sync-zones` is **active (exited)**.
 3. Open **https://dns.prestonhager.com** and sign in as **`admin`** (password in sops).
 4. Confirm forwarders **1.1.1.1 / 1.0.0.1** under Settings if you use a pre-existing data dir.
+
+## Zitadel SSO (web console)
+
+Implementation: `nixos/containers/technitium-sso.nix`, secrets `nixos-secrets/secrets/containers/technitium.yaml` (`technitium-oidc-client-id`, `technitium-oidc-client-secret`), Zitadel setup script `scripts/zitadel-technitium-setup.js`.
+
+| Field | Value |
+|-------|-------|
+| Login URL | https://dns.prestonhager.com |
+| SSO provider | Zitadel — https://zitadel.prestonhager.com |
+| OIDC callback | https://dns.prestonhager.com/sso/callback |
+| Zitadel app | **Technitium** (Home Lab project) |
+| Admin role | Zitadel project role `technitium_admin` → Technitium group **Administrators** |
+
+### Login flow
+
+1. Open **https://dns.prestonhager.com**
+2. Click **Login with SSO** (local `admin` password login remains for break-glass)
+3. Authenticate at Zitadel as user **prestonh**
+4. Technitium provisions/syncs the SSO user and maps `technitium_admin` → **Administrators** on each login
+
+Direct SSO start (same as the button): Technitium redirects to Zitadel authorize with `redirect_uri=https://dns.prestonhager.com/sso/callback`.
+
+### Automated setup (ace)
+
+After pulling this repo to `/etc/nixos`:
+
+```bash
+# 1. Create Zitadel OIDC app + technitium_admin role + grant for prestonh
+cd /etc/nixos
+nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-technitium-setup.js
+
+# 2. Add printed client_id/secret to sops (see technitium.yaml.template)
+cd /home/prestonh/nixos-secrets
+sops secrets/containers/technitium.yaml   # add technitium-oidc-client-id / technitium-oidc-client-secret
+git add secrets/containers/technitium.yaml && git commit -m "Add Technitium OIDC client credentials" && git push
+
+# 3. Deploy
+cd /etc/nixos
+nix flake update nix-secrets
+nixos-rebuild switch --flake /etc/nixos#ace
+
+# 4. Apply SSO config to Technitium
+systemctl restart technitium-sync-sso.service
+curl -s http://127.0.0.1:5380/api/sso/status
+```
+
+`technitium-sync-sso.service` idempotently POSTs `/api/admin/sso/set` when OIDC secrets or desired settings change.
+
+### MANUAL: Zitadel complement token action (required once)
+
+Technitium reads **flat group names** from the OIDC `groups` claim. Zitadel project roles are nested under `urn:zitadel:iam:org:project:roles` unless you add a complement action.
+
+1. Open https://zitadel.prestonhager.com/ui/console/org/actions
+2. **New action** → name e.g. `technitium-flat-roles`
+3. **Trigger**: Complement token — **Pre Userinfo creation** and **Pre access token creation**
+4. Paste this script (from [Zitadel custom_roles example](https://github.com/zitadel/actions/blob/main/examples/custom_roles.js)):
+
+```javascript
+function flatRoles(ctx, api) {
+  if (ctx.v1.user.grants == undefined || ctx.v1.user.grants.count == 0) {
+    return;
+  }
+  let grants = [];
+  ctx.v1.user.grants.grants.forEach(claim => {
+    claim.roles.forEach(role => {
+      grants.push(role);
+    });
+  });
+  api.v1.claims.setClaim('groups', grants);
+}
+```
+
+5. **Save** and attach the action to the org (or ensure it runs for all tokens)
+6. In **Home Lab** → **Applications** → **Technitium**, confirm **Assert Roles on Authentication** (ID token + access token) is enabled (the setup script sets this via API)
+
+Without this action, SSO login may succeed but group mapping fails and users get no Technitium permissions.
+
+### How prestonh becomes Technitium admin
+
+| Step | What |
+|------|------|
+| Zitadel | User **prestonh** receives project role **`technitium_admin`** on **Home Lab** (automated by `zitadel-technitium-setup.js`) |
+| Token | Complement action puts `technitium_admin` in the `groups` claim |
+| Technitium | Group map **`technitium_admin` → `Administrators`** (applied by `technitium-sync-sso.service`) |
+| Login | On SSO sign-in, Technitium syncs membership to local group **Administrators** (full admin) |
+
+Grant additional users: Zitadel console → **Home Lab** → **Authorizations** → grant **`technitium_admin`**.
+
+### Verify SSO
+
+```bash
+# SSO enabled on Technitium
+curl -s http://127.0.0.1:5380/api/sso/status
+
+# Full SSO config (needs admin API token)
+PASS=$(cat /stor/technitium/secrets/admin-password)
+TOKEN=$(curl -sf -X POST http://127.0.0.1:5380/api/user/login \
+  --data-urlencode user=admin --data-urlencode pass="$PASS" | jq -r .token)
+curl -s -H "Authorization: Bearer $TOKEN" \
+  'http://127.0.0.1:5380/api/admin/sso/get?includeGroups=true' | jq .
+
+# Zitadel grant for prestonh
+podman exec zitadel-db psql -U zitadel -d zitadel -c \
+  "SELECT roles FROM projections.user_grants5 WHERE user_id=(SELECT id FROM projections.users14 WHERE username='prestonh');"
+
+# UI: https://dns.prestonhager.com → Login with SSO → prestonh → Administration menu visible
+systemctl status technitium-sync-sso
+```
 
 ## Verify
 

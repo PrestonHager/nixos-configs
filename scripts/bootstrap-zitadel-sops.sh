@@ -13,7 +13,8 @@ fi
 
 for pair in \
   "zitadel-config.yaml.template:zitadel-config.yaml" \
-  "grafana-oauth.yaml.template:grafana-oauth.yaml"; do
+  "grafana-oauth.yaml.template:grafana-oauth.yaml" \
+  "technitium.yaml.template:technitium.yaml"; do
   src="${CONTAINERS}/${pair%%:*}"
   dst="${CONTAINERS}/${pair##*:}"
   if [[ -f "$dst" ]]; then
