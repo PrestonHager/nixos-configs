@@ -72,6 +72,22 @@ let
     export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
     install -d -m 0750 -o pterodactyl -g pterodactyl /var/lib/pterodactyl
 
+    # blueprint.sh tries to mv panel/blueprint → .blueprint/blueprint on every run
+    if [ -d "$panel/blueprint" ] && [ -d "$panel/.blueprint/blueprint" ]; then
+      rm -rf "$panel/blueprint"
+    elif [ -d "$panel/blueprint" ]; then
+      rm -rf "$panel/.blueprint/blueprint"
+      mv "$panel/blueprint" "$panel/.blueprint/blueprint"
+    fi
+
+    blueprint_cli() {
+      if [ "$framework_ready" -eq 1 ]; then
+        env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -bash "$@"
+      else
+        env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" "$@"
+      fi
+    }
+
     if [ ! -d "$panel/node_modules" ]; then
       echo "pterodactyl-blueprint-install: installing panel node dependencies..."
       cd "$panel"
@@ -81,7 +97,7 @@ let
 
     cd "$panel"
     if [ "$framework_ready" -eq 0 ]; then
-      env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh"
+      blueprint_cli
     fi
 
     ${pkgs.curl}/bin/curl -fsSL "${socialloginBlueprintUrl}" -o "$tmp/sociallogin.blueprint"
@@ -90,10 +106,10 @@ let
     chown pterodactyl:pterodactyl "$panel/.blueprint/extensions/sociallogin.blueprint"
 
     cd "$panel"
-    if ! env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -info 2>/dev/null | grep -qi sociallogin; then
+    if ! blueprint_cli -info 2>/dev/null | grep -qi sociallogin; then
       echo "pterodactyl-blueprint-install: installing Social Login extension..."
-      env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -install sociallogin \
-        || env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -i sociallogin
+      blueprint_cli -install sociallogin \
+        || blueprint_cli -i sociallogin
     else
       echo "pterodactyl-blueprint-install: Social Login extension already installed"
     fi
