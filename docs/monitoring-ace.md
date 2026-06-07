@@ -9,6 +9,26 @@ Implementation: `nixos/containers/grafana.nix`, `nixos/containers/prometheus.nix
 | URL | https://grafana.prestonhager.com |
 | Auth | Zitadel OIDC (Generic OAuth); local login form remains enabled for break-glass |
 | Secrets | `grafana-oauth-env` in sops (`grafana-oauth.yaml`) |
+| Image export | Remote `grafana-image-renderer` sidecar in `grafana-pod` (not the deprecated plugin) |
+
+### Dashboard image export (PNG / PDF)
+
+Grafana 13+ no longer supports the in-process image renderer plugin. ace runs the official remote renderer (`grafana/grafana-image-renderer:v5.8.8`) in the same Podman pod as Grafana so both reach each other on loopback.
+
+| Component | URL / port |
+|-----------|------------|
+| Renderer (Grafana → renderer) | `http://127.0.0.1:8081/render` |
+| Callback (renderer → Grafana) | `http://127.0.0.1:3000/` |
+| Public UI (Caddy) | `https://grafana.prestonhager.com` → host `8082` |
+
+**Export in the UI:** open a dashboard → **Share** (top right) → **Export** tab → choose **Save as PNG** or **Save as PDF**.
+
+**Verify after deploy:**
+
+```bash
+curl -sf http://127.0.0.1:8081/metrics | head -1   # renderer up
+curl -sf http://127.0.0.1:8082/api/health          # grafana up
+```
 
 ### Grafana Admin via Zitadel OAuth
 
