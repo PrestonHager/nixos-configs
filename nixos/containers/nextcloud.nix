@@ -138,6 +138,23 @@ EOF
       default_phone_region --value=US
     ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
       strict_transport_security.enabled --type=boolean --value=true
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      overwritehost --value=cloud.prestonhager.com
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      overwriteprotocol --value=https
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      overwrite.cli.url --value="${nextcloudPublicUrl}"
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      trusted_domains 1 --value=cloud.prestonhager.com
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      trusted_proxies 0 --value=127.0.0.1
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      trusted_proxies 1 --value=10.88.0.0/16
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      forwarded_for_headers 0 --value=HTTP_X_FORWARDED_FOR
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      forwarded_for_headers 1 --value=HTTP_X_REAL_IP
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ background:cron
 
     set -a
     # shellcheck disable=SC1091
@@ -162,6 +179,25 @@ EOF
     if [ -n "''${SMTP_PASSWORD:-}" ]; then
       ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
         mail_smtppassword --value="''${SMTP_PASSWORD}"
+    fi
+
+    mailMarker="${ncRoot}/.occ-mail-test-done"
+    if [ ! -f "$mailMarker" ] && [ -n "''${SMTP_PASSWORD:-}" ]; then
+      if ${pkgs.podman}/bin/podman exec -u www-data nextcloud php -r '
+        require "/var/www/html/lib/base.php";
+        $mailer = \OC::$server->getMailer();
+        $message = $mailer->createMessage();
+        $message->setTo(["prestonhager@icloud.com" => "Nextcloud"]);
+        $message->setSubject("Nextcloud SMTP test from ace");
+        $message->setPlainBody("Automated SMTP verification after deploy.");
+        $mailer->send($message);
+      '; then
+        ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:app:set \
+          core mail_test_wizard_completed --value=yes
+        touch "$mailMarker"
+      else
+        echo "nextcloud-occ-config: SMTP test send failed" >&2
+      fi
     fi
 
     if [ ! -f "$marker" ]; then
@@ -217,6 +253,9 @@ EOF
     occ config:app:set files_antivirus av_mode --value=daemon
     occ config:app:set files_antivirus av_host --value=127.0.0.1
     occ config:app:set files_antivirus av_port --value=3310 --type=integer
+    occ config:app:delete files_antivirus av_path 2>/dev/null || true
+
+    occ db:add-missing-indices
 
     for _ in $(seq 1 120); do
       if $podman exec nextcloud test -x /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push; then
@@ -237,6 +276,33 @@ EOF
       echo "nextcloud-occ-maintain: notify_push setup failed; retry after notify_push container is healthy" >&2
       exit 1
     fi
+  '';
+
+  nextcloudCronScript = pkgs.writeShellScript "nextcloud-cron" ''
+    set -euo pipefail
+    podman=${pkgs.podman}/bin/podman
+    for _ in $(seq 1 30); do
+      if $podman exec nextcloud true 2>/dev/null; then
+        break
+      fi
+      sleep 2
+    done
+
+    if ! $podman exec nextcloud true 2>/dev/null; then
+      echo "nextcloud-cron: nextcloud container not running" >&2
+      exit 1
+    fi
+
+    if ! $podman exec nextcloud test -f /var/www/html/config/config.php; then
+      exit 0
+    fi
+
+    if ! $podman exec -u www-data nextcloud php /var/www/html/occ status 2>/dev/null \
+      | grep -q 'installed: true'; then
+      exit 0
+    fi
+
+    $podman exec -u www-data nextcloud php /var/www/html/cron.php
   '';
 
   nextcloudOidcConfigScript = pkgs.writeShellScript "nextcloud-oidc-config" ''
@@ -423,6 +489,24 @@ in
     };
   };
 
+  systemd.services.nextcloud-cron = {
+    description = "Run Nextcloud background jobs (cron.php)";
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = nextcloudCronScript;
+    };
+  };
+
+  systemd.timers.nextcloud-cron = {
+    description = "Run Nextcloud background jobs every 5 minutes";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "3min";
+      OnUnitActiveSec = "5min";
+      Unit = "nextcloud-cron.service";
+    };
+  };
+
   systemd.services.nextcloud-oidc-config = {
     description = "Install user_oidc and configure Zitadel OIDC provider";
     wantedBy = [ "multi-user.target" ];
@@ -513,7 +597,7 @@ in
         # Pod shares network namespace; 127.0.0.1 forces TCP (localhost uses socket).
         MYSQL_HOST = "127.0.0.1";
         REDIS_HOST = "127.0.0.1";
-        TRUSTED_PROXIES = "127.0.0.1";
+        TRUSTED_PROXIES = "127.0.0.1 10.88.0.0/16";
         NEXTCLOUD_TRUSTED_DOMAINS = "cloud.prestonhager.com";
         OVERWRITEHOST = "cloud.prestonhager.com";
         OVERWRITEPROTOCOL = "https";
