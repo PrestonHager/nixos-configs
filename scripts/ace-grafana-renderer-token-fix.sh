@@ -9,16 +9,16 @@ SECRETS=/home/prestonh/nixos-secrets
 cd "$SECRETS"
 nix shell nixpkgs#sops --command sops -d secrets/containers/grafana-oauth.yaml > /tmp/grafana-oauth-dec.yaml
 
-if grep -q '^  GF_RENDERING_RENDERER_TOKEN=' /tmp/grafana-oauth-dec.yaml; then
-  sed -i "s|^  GF_RENDERING_RENDERER_TOKEN=.*|  GF_RENDERING_RENDERER_TOKEN=${TOKEN}|" /tmp/grafana-oauth-dec.yaml
+if grep -q '^    GF_RENDERING_RENDERER_TOKEN=' /tmp/grafana-oauth-dec.yaml; then
+  sed -i "s|^    GF_RENDERING_RENDERER_TOKEN=.*|    GF_RENDERING_RENDERER_TOKEN=${TOKEN}|" /tmp/grafana-oauth-dec.yaml
 else
-  printf '  GF_RENDERING_RENDERER_TOKEN=%s\n' "$TOKEN" >> /tmp/grafana-oauth-dec.yaml
+  printf '    GF_RENDERING_RENDERER_TOKEN=%s\n' "$TOKEN" >> /tmp/grafana-oauth-dec.yaml
 fi
 
-if grep -q '^  AUTH_TOKEN=' /tmp/grafana-oauth-dec.yaml; then
-  sed -i "s|^  AUTH_TOKEN=.*|  AUTH_TOKEN=${TOKEN}|" /tmp/grafana-oauth-dec.yaml
+if grep -q '^    AUTH_TOKEN=' /tmp/grafana-oauth-dec.yaml; then
+  sed -i "s|^    AUTH_TOKEN=.*|    AUTH_TOKEN=${TOKEN}|" /tmp/grafana-oauth-dec.yaml
 else
-  printf '  AUTH_TOKEN=%s\n' "$TOKEN" >> /tmp/grafana-oauth-dec.yaml
+  printf '    AUTH_TOKEN=%s\n' "$TOKEN" >> /tmp/grafana-oauth-dec.yaml
 fi
 
 cp /tmp/grafana-oauth-dec.yaml secrets/containers/grafana-oauth.yaml
