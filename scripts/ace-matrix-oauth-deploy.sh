@@ -16,7 +16,7 @@ nix shell nixpkgs#sops --command sops -d secrets/containers/matrix.yaml >"$plain
 
 get_env_val() {
   local key="$1"
-  awk -v k="$key" -F= '$0 ~ "^" k "=" { sub("^" k "=", ""); print; exit }' "$plain"
+  awk -v k="$key" -F= '$0 ~ k"=" { sub("^[[:space:]]*" k "=", ""); print; exit }' "$plain"
 }
 
 POSTGRES_USER=$(get_env_val POSTGRES_USER)
