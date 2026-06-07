@@ -4,7 +4,6 @@ let
   lanIp = "192.168.5.5";
   cruxBlackbox = "192.168.5.6:9115";
   cruxBlackboxCfg = import ./crux-blackbox-config.nix { inherit lib; };
-  sanitize = s: lib.replaceStrings [ "." ] [ "_" ] s;
 
   httpTargets = [
     "https://panel.prestonhager.com/"
@@ -104,7 +103,7 @@ let
   lanDnsStaticConfigs = map (entry: {
     targets = [ lanIp ];
     labels = {
-      __param_module = "dns_lan_${sanitize entry.host}";
+      __param_module = entry.module;
       instance = "dns://${lanIp}/${entry.host}";
       probe_location = "lan";
       probe_source = "crux";

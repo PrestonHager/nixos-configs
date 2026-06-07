@@ -9,7 +9,7 @@ in {
   services.prometheus.exporters.blackbox = {
     enable = true;
     port = 9115;
-    configFile = pkgs.writeText "crux-blackbox.yml" blackboxCfg.blackboxYml;
+    configFile = "${./crux-blackbox.yml}";
   };
 
   networking.firewall.extraCommands = lib.mkAfter ''

@@ -1,0 +1,29 @@
+modules:
+  http_2xx:
+    prober: http
+    timeout: 15s
+    http:
+      valid_status_codes: [200, 301, 302, 403]
+      preferred_ip_protocol: ip4
+      tls_config:
+        insecure_skip_verify: false
+  http_local:
+    prober: http
+    timeout: 10s
+    http:
+      valid_status_codes: [200, 301, 302, 403, 404]
+      preferred_ip_protocol: ip4
+  dns_lan_grafana:
+    prober: dns
+    timeout: 5s
+    dns:
+      transport_protocol: udp
+      preferred_ip_protocol: ip4
+      query_name: grafana.prestonhager.com
+      query_type: A
+      valid_rcodes:
+        - NOERROR
+      validate_answer_rrs:
+        fail_if_not_matches_regexp:
+          A:
+            - 192.168.5.5
