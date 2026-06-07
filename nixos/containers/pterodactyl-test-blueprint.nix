@@ -108,13 +108,16 @@ let
     export LANG=C.UTF-8
 
     install -d -m 0755 -o prestonh -g users /home/prestonh/.cache/yarn-blueprint-test
-    install -d -m 0755 -o prestonh -g users "$panel/.blueprint"
-    if [ -d "$panel/blueprint" ] && [ -d "$panel/.blueprint/blueprint" ]; then
-      runuser -u prestonh -- rm -rf "$panel/blueprint"
-    elif [ -d "$panel/blueprint" ]; then
-      runuser -u prestonh -- rm -rf "$panel/.blueprint/blueprint" 2>/dev/null || true
-      runuser -u prestonh -- mv "$panel/blueprint" "$panel/.blueprint/blueprint"
-      chown -R prestonh:users "$panel/.blueprint/blueprint"
+    # blueprint.sh relocates panel/blueprint on first-time install; pre-moving breaks asset paths.
+    if [ "$framework_installed" -eq 1 ]; then
+      if [ -d "$panel/blueprint" ] && [ -d "$panel/.blueprint/blueprint" ]; then
+        runuser -u prestonh -- rm -rf "$panel/blueprint"
+      elif [ -d "$panel/blueprint" ]; then
+        install -d -m 0755 -o prestonh -g users "$panel/.blueprint"
+        runuser -u prestonh -- rm -rf "$panel/.blueprint/blueprint" 2>/dev/null || true
+        runuser -u prestonh -- mv "$panel/blueprint" "$panel/.blueprint/blueprint"
+        chown -R prestonh:users "$panel/.blueprint/blueprint"
+      fi
     fi
 
     blueprint_cli() {

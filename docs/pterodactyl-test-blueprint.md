@@ -39,7 +39,7 @@ Same pattern as production, then fork upgrade:
 4. **Git archive overlay** — fork-specific PHP patches not covered by upgrade
 5. **Build/install** `dnsrecords` extension from `plugins/pterodactyl-dns-blueprint/`
 
-Do not bootstrap from the fork archive before step 3; partial fork files leave a broken `.blueprint` tree (missing `assets/`, `private/db/is_installed`, etc.).
+Do not bootstrap from the fork archive before step 3; partial fork files leave a broken `.blueprint` tree (missing `assets/`, `private/db/is_installed`, etc.). Do not pre-move `panel/blueprint` into `.blueprint/blueprint` before step 2 — `blueprint.sh` must perform that relocation itself.
 
 ## Features ported from panel fork
 
