@@ -7,6 +7,22 @@ let
   blueprintReleaseUrl = "https://github.com/BlueprintFramework/framework/releases/latest/download/release.zip";
   socialloginBlueprintUrl = "https://github.com/blueprint-community/extension-sociallogin/releases/download/1.2.0/sociallogin.blueprint";
 
+  toolPath = pkgs.lib.makeBinPath [
+    pkgs.bash
+    pkgs.coreutils
+    pkgs.gawk
+    pkgs.gnused
+    pkgs.gnugrep
+    pkgs.ncurses
+    pkgs.nodejs_22
+    pkgs.yarn
+    pkgs.git
+    pkgs.findutils
+    pkgs.gnutar
+    pkgs.gzip
+    pkgs.procps
+  ];
+
   blueprintRc = pkgs.writeText "pterodactyl-blueprintrc" ''
     WEBUSER="pterodactyl"
     OWNERSHIP="pterodactyl:pterodactyl"
@@ -40,20 +56,21 @@ let
     chmod +x "$panel/blueprint.sh"
     chown pterodactyl:pterodactyl "$panel/.blueprintrc" "$panel/blueprint.sh"
 
-    export PATH="${pkgs.bash}/bin:${pkgs.nodejs_22}/bin:${pkgs.yarn}/bin:$PATH"
+    export PATH="${toolPath}:$PATH"
     export HOME=/var/lib/pterodactyl
+    export TERM=dumb
     export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
     install -d -m 0750 -o pterodactyl -g pterodactyl /var/lib/pterodactyl
 
     if [ ! -d "$panel/node_modules" ]; then
       echo "pterodactyl-blueprint-install: installing panel node dependencies..."
       cd "$panel"
-      runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl PATH="$PATH" yarn install --frozen-lockfile 2>/dev/null \
-        || runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl PATH="$PATH" yarn install
+      runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" yarn install --frozen-lockfile 2>/dev/null \
+        || runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" yarn install
     fi
 
     cd "$panel"
-    runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh"
+    runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh"
 
     ${pkgs.curl}/bin/curl -fsSL "${socialloginBlueprintUrl}" -o "$tmp/sociallogin.blueprint"
     install -d -m 0755 "$panel/.blueprint/extensions"
@@ -61,10 +78,10 @@ let
     chown pterodactyl:pterodactyl "$panel/.blueprint/extensions/sociallogin.blueprint"
 
     cd "$panel"
-    if ! runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -info 2>/dev/null | grep -qi sociallogin; then
+    if ! runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -info 2>/dev/null | grep -qi sociallogin; then
       echo "pterodactyl-blueprint-install: installing Social Login extension..."
-      runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -install sociallogin \
-        || runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -i sociallogin
+      runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -install sociallogin \
+        || runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -i sociallogin
     fi
 
     ${pkgs.podman}/bin/podman exec \
