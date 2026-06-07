@@ -54,6 +54,8 @@ grafana-oauth-env: |
   GF_AUTH_GENERIC_OAUTH_API_URL=https://zitadel.prestonhager.com/oidc/v1/userinfo
   GF_AUTH_GENERIC_OAUTH_USE_PKCE=true
   GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN=true
+  GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH=email
+  GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=email=='admin@prestonhager.com' && 'GrafanaAdmin' || contains(keys("urn:zitadel:iam:org:project:roles"), 'grafana_admin') && 'Admin' || 'Viewer'
 EOF
 nix shell nixpkgs#sops --command sops -e -i secrets/containers/zitadel-config.yaml
 nix shell nixpkgs#sops --command sops -e -i secrets/containers/grafana-oauth.yaml

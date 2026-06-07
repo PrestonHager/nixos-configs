@@ -50,6 +50,8 @@ curl -s https://zitadel.prestonhager.com/ui/console/assets/environment.json | jq
 # api and issuer must both be https://zitadel.prestonhager.com
 ```
 
+Grafana OAuth admin role mapping is documented in [monitoring-ace.md](./monitoring-ace.md).
+
 Useful logs:
 
 ```bash

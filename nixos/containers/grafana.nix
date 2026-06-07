@@ -57,6 +57,8 @@ in {
       # Disable Portunus LDAP; Zitadel OIDC is configured via sops env file.
       GF_AUTH_LDAP_ENABLED = "false";
       GF_AUTH_DISABLE_LOGIN_FORM = "false";
+      # Default org role for new OAuth users when role_attribute_path does not match.
+      GF_USERS_AUTO_ASSIGN_ORG_ROLE = "Viewer";
     };
 
     volumes = [
