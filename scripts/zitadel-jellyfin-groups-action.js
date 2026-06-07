@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Create Jellyfin OIDC app + jellyfin_admin/jellyfin_user roles using admin session (v2 API).
- * Run on ace as root. Requires zitadel-env secrets.
+ * Create jellyfinGroups Complement Token action and fix prestonh grant (admin only).
+ * Run on ace as root. Requires zitadel-env secrets + login-client key.
  */
 const fs = require('fs');
 const crypto = require('crypto');
@@ -15,13 +15,35 @@ const ORG_ID = '376181820519160098';
 const PROJECT_ID = '376196450586990901';
 const PRESTON_USER_ID = '376197075085302069';
 const DYLAN_USER_ID = '376328957357726005';
-const APP_NAME = 'Jellyfin';
+const ACTION_NAME = 'jellyfinGroups';
+const ROLE_CLAIM = 'groups';
 const ADMIN_ROLE = 'jellyfin_admin';
 const USER_ROLE = 'jellyfin_user';
-const REDIRECT_URIS = [
-  'https://jellyfin.prestonhager.com/sso/OID/redirect/zitadel',
-  'https://jellyfin.prestonhager.com/sso/OID/r/zitadel',
-];
+const FLOW_TYPE = '2'; // Complement Token
+const TRIGGER_PRE_USERINFO = '4';
+const TRIGGER_PRE_ACCESS = '5';
+
+const GROUPS_SCRIPT = `function ${ACTION_NAME}(ctx, api) {
+  if (!ctx.v1.user || !ctx.v1.user.grants || ctx.v1.user.grants.count === 0) {
+    return;
+  }
+  const groups = [];
+  for (const grant of ctx.v1.user.grants.grants) {
+    const roles = grant.roles || grant.roleKeys || [];
+    for (const role of roles) {
+      if (role === '${ADMIN_ROLE}') {
+        groups.push('${ADMIN_ROLE}');
+        break;
+      }
+      if (role === '${USER_ROLE}') {
+        groups.push('${USER_ROLE}');
+      }
+    }
+  }
+  if (groups.length > 0) {
+    api.v1.claims.setClaim('${ROLE_CLAIM}', groups);
+  }
+}`;
 
 function loadEnv(prefix) {
   const env = fs.readFileSync(SECRETS, 'utf8');
@@ -122,33 +144,73 @@ async function adminSessionToken() {
   return patched.sessionToken || session.sessionToken;
 }
 
-async function findJellyfinApp(token) {
-  const apps = await mgmt(
+async function findAction(token, name) {
+  const resp = await mgmt(
     'POST',
-    `/management/v1/projects/${PROJECT_ID}/apps/_search`,
+    '/management/v1/actions/_search',
     { query: { offset: '0', limit: 100, asc: true } },
     token,
   );
-  return (apps.result || []).find((a) => a.name === APP_NAME);
+  return (resp.result || []).find((a) => a.name === name);
 }
 
-async function ensureRole(token, roleKey, displayName) {
+async function ensureAction(token) {
+  let action = await findAction(token, ACTION_NAME);
+  if (action) {
+    const detail = await mgmt('GET', `/management/v1/actions/${action.id}`, null, token);
+    const script = detail.action?.script || detail.script || '';
+    if (!script.includes("setClaim('groups'")) {
+      await mgmt(
+        'PUT',
+        `/management/v1/actions/${action.id}`,
+        { name: ACTION_NAME, script: GROUPS_SCRIPT, timeout: '10s', allowedToFail: false },
+        token,
+      );
+      console.log(`Updated action ${ACTION_NAME} script (${action.id})`);
+    } else {
+      console.log(`Action ${ACTION_NAME} already exists (${action.id})`);
+    }
+    return action.id;
+  }
+  const resp = await mgmt(
+    'POST',
+    '/management/v1/actions',
+    { name: ACTION_NAME, script: GROUPS_SCRIPT, timeout: '10s', allowedToFail: false },
+    token,
+  );
+  console.log(`Created action ${ACTION_NAME} (${resp.id})`);
+  return resp.id;
+}
+
+async function getTriggerActionIds(token, triggerType) {
+  return [];
+}
+
+async function attachActionToTrigger(token, triggerType, actionId, label, allGroupActionIds) {
+  const existing = await getTriggerActionIds(token, triggerType);
+  const merged = [...new Set([...existing, ...allGroupActionIds])];
+  if (existing.includes(actionId) && merged.length === existing.length) {
+    console.log(`Action already on ${label} trigger`);
+    return;
+  }
   try {
     await mgmt(
       'POST',
-      `/management/v1/projects/${PROJECT_ID}/roles`,
-      { roleKey, displayName },
+      `/management/v1/flows/${FLOW_TYPE}/trigger/${triggerType}`,
+      { actionIds: merged },
       token,
     );
-    console.log(`Created role ${roleKey}`);
+    console.log(`Attached complement actions to ${label} trigger: ${merged.join(', ')}`);
   } catch (e) {
-    if (String(e.message).includes('already exists') || String(e.message).includes('RoleKeyDuplicated')) {
-      console.log(`Role ${roleKey} exists`);
-    } else throw e;
+    if (String(e.message).includes('No changes') || String(e.message).includes('No Changes')) {
+      console.log(`${label} trigger already has complement actions: ${merged.join(', ')}`);
+      return;
+    }
+    throw e;
   }
 }
 
-async function ensureUserGrant(token, userId, roleKeys, label) {
+async function setUserGrantRoles(token, userId, roleKeys, label) {
   const grants = await mgmt(
     'POST',
     '/management/v1/users/grants/_search',
@@ -156,119 +218,56 @@ async function ensureUserGrant(token, userId, roleKeys, label) {
     token,
   );
   const projectGrant = (grants.result || []).find((g) => g.projectId === PROJECT_ID);
-  const otherRoles = (projectGrant?.roleKeys || []).filter(
+  if (!projectGrant) {
+    await mgmt('POST', `/management/v1/users/${userId}/grants`, { projectId: PROJECT_ID, roleKeys }, token);
+    console.log(`Created grant for ${label}: ${roleKeys.join(', ')}`);
+    return;
+  }
+  const otherRoles = (projectGrant.roleKeys || []).filter(
     (r) => r !== ADMIN_ROLE && r !== USER_ROLE,
   );
   const nextRoles = [...new Set([...otherRoles, ...roleKeys])];
-  const currentJellyfin = (projectGrant?.roleKeys || []).filter((r) => r === ADMIN_ROLE || r === USER_ROLE);
-  if (projectGrant && JSON.stringify(currentJellyfin.sort()) === JSON.stringify(roleKeys.sort())) {
-    console.log(`${label} already has Jellyfin role(s): ${roleKeys.join(', ')}`);
+  const currentJellyfin = (projectGrant.roleKeys || []).filter((r) => r === ADMIN_ROLE || r === USER_ROLE);
+  if (JSON.stringify(currentJellyfin.sort()) === JSON.stringify(roleKeys.sort())) {
+    console.log(`${label} Jellyfin roles already correct: ${roleKeys.join(', ')}`);
     return;
   }
-  if (projectGrant) {
-    await mgmt(
-      'PUT',
-      `/management/v1/users/${userId}/grants/${projectGrant.id}`,
-      { roleKeys: nextRoles },
-      token,
-    );
-  } else {
-    await mgmt(
-      'POST',
-      `/management/v1/users/${userId}/grants`,
-      { projectId: PROJECT_ID, roleKeys },
-      token,
-    );
-  }
-  console.log(`Set ${label} Jellyfin roles: ${roleKeys.join(', ')}`);
-}
-
-async function createOrUpdateApp(token) {
-  let app = await findJellyfinApp(token);
-  if (!app) {
-    const resp = await mgmt(
-      'POST',
-      `/management/v1/projects/${PROJECT_ID}/apps/oidc`,
-      {
-        name: APP_NAME,
-        redirectUris: REDIRECT_URIS,
-        responseTypes: ['OIDC_RESPONSE_TYPE_CODE'],
-        grantTypes: ['OIDC_GRANT_TYPE_AUTHORIZATION_CODE', 'OIDC_GRANT_TYPE_REFRESH_TOKEN'],
-        appType: 'OIDC_APP_TYPE_WEB',
-        authMethodType: 'OIDC_AUTH_METHOD_TYPE_BASIC',
-        accessTokenType: 'OIDC_TOKEN_TYPE_BEARER',
-        idTokenRoleAssertion: true,
-        accessTokenRoleAssertion: true,
-      },
-      token,
-    );
-    console.log(`Created Jellyfin app ${resp.appId}`);
-    return { clientId: resp.clientId, clientSecret: resp.clientSecret };
-  }
-
-  const detail = await mgmt('GET', `/management/v1/projects/${PROJECT_ID}/apps/${app.id}`, null, token);
-  const oidc = detail.app?.oidcConfig || detail.oidcConfig || {};
   await mgmt(
     'PUT',
-    `/management/v1/projects/${PROJECT_ID}/apps/${app.id}`,
-    {
-      name: APP_NAME,
-      oidcConfig: {
-        ...oidc,
-        redirectUris: [...new Set([...(oidc.redirectUris || []), ...REDIRECT_URIS])],
-        accessTokenRoleAssertion: true,
-        idTokenRoleAssertion: true,
-        roleAssertion: true,
-      },
-    },
+    `/management/v1/users/${userId}/grants/${projectGrant.id}`,
+    { roleKeys: nextRoles },
     token,
   );
-  const refreshed = await mgmt('GET', `/management/v1/projects/${PROJECT_ID}/apps/${app.id}`, null, token);
-  const cfg = refreshed.app?.oidcConfig || refreshed.oidcConfig || {};
-  return { clientId: cfg.clientId || app.clientId, clientSecret: cfg.clientSecret || null };
+  console.log(`Updated ${label} Jellyfin roles: ${currentJellyfin.join(', ') || '(none)'} -> ${roleKeys.join(', ')}`);
 }
-
-const GROUPS_ACTION = `function jellyfinGroups(ctx, api) {
-  if (!ctx.v1.user || !ctx.v1.user.grants || ctx.v1.user.grants.count === 0) {
-    return;
-  }
-  const groups = [];
-  for (const grant of ctx.v1.user.grants.grants) {
-    const roles = grant.roles || grant.roleKeys || [];
-    for (const role of roles) {
-      if (role === '${ADMIN_ROLE}') {
-        groups.push('${ADMIN_ROLE}');
-        break;
-      }
-      if (role === '${USER_ROLE}') {
-        groups.push('${USER_ROLE}');
-      }
-    }
-  }
-  if (groups.length > 0) {
-    api.v1.claims.setClaim('groups', groups);
-  }
-}`;
 
 (async () => {
   const token = await adminSessionToken();
   console.log('Admin session established');
-  await ensureRole(token, ADMIN_ROLE, 'Jellyfin Admin');
-  await ensureRole(token, USER_ROLE, 'Jellyfin User');
-  const creds = await createOrUpdateApp(token);
-  await ensureUserGrant(token, PRESTON_USER_ID, [ADMIN_ROLE], 'prestonh');
-  await ensureUserGrant(token, DYLAN_USER_ID, [USER_ROLE], 'dylanh');
-  console.log('\n=== Jellyfin OIDC credentials ===');
-  console.log(`JELLYFIN_OIDC_CLIENT_ID=${creds.clientId}`);
-  if (creds.clientSecret) console.log(`JELLYFIN_OIDC_CLIENT_SECRET=${creds.clientSecret}`);
-  console.log(`ZITADEL_PROJECT_ID=${PROJECT_ID}`);
-  console.log(`ADMIN_ROLE=${ADMIN_ROLE}`);
-  console.log(`USER_ROLE=${USER_ROLE}`);
-  console.log(`REDIRECT_URIS=${REDIRECT_URIS.join(' ')}`);
-  console.log('\n=== Zitadel Complement Token action (automated) ===');
-  console.log('Run: node scripts/zitadel-jellyfin-groups-action.js');
-  console.log('\nManual script reference (claim: groups):\n');
-  console.log(GROUPS_ACTION);
+
+  await setUserGrantRoles(token, PRESTON_USER_ID, [ADMIN_ROLE], 'prestonh');
+  await setUserGrantRoles(token, DYLAN_USER_ID, [USER_ROLE], 'dylanh');
+
+  const actionId = await ensureAction(token);
+
+  const allActions = await mgmt(
+    'POST',
+    '/management/v1/actions/_search',
+    { query: { offset: '0', limit: 100, asc: true } },
+    token,
+  );
+  const groupActionIds = (allActions.result || [])
+    .filter((a) => a.name.endsWith('Groups') && a.state === 'ACTION_STATE_ACTIVE')
+    .map((a) => a.id);
+  console.log(`Active *Groups actions: ${groupActionIds.join(', ')}`);
+
+  await attachActionToTrigger(token, TRIGGER_PRE_USERINFO, actionId, 'Pre Userinfo creation', groupActionIds);
+  await attachActionToTrigger(token, TRIGGER_PRE_ACCESS, actionId, 'Pre access token creation', groupActionIds);
+
+  console.log('\n=== jellyfinGroups complement action ready ===');
+  console.log(`Action ID: ${actionId}`);
+  console.log('Preston: jellyfin_admin only (no jellyfin_user)');
+  console.log('Dylan: jellyfin_user only');
 })().catch((e) => {
   console.error(e.message || e);
   process.exit(1);

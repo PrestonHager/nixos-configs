@@ -101,7 +101,6 @@ let
             <string>openid</string>
             <string>email</string>
             <string>profile</string>
-            <string>groups</string>
             <string>urn:zitadel:iam:org:project:roles</string>
             <string>urn:zitadel:iam:org:project:id:${zitadelProjectId}:aud</string>
           </OidScopes>

@@ -52,9 +52,26 @@ The SSO plugin reads a flat **`groups`** claim. Zitadel project roles use a nest
 | `jellyfin_admin` | Jellyfin administrator |
 | `jellyfin_user` | Authenticated user with library access (`EnableAllFolders`) |
 
-**Important:** Do not grant both `jellyfin_admin` and `jellyfin_user` to the same user — the SSO plugin returns "Check permissions" when multiple role claims are present. Preston receives `jellyfin_admin` only (admin role is also listed under plugin `Roles` for access).
+**Important:** Do not grant both `jellyfin_admin` and `jellyfin_user` to the same user — the SSO plugin returns "Check permissions" when multiple matching `groups` claims are present. Preston receives `jellyfin_admin` only (`jellyfin_admin` is also listed under plugin `Roles` for access).
 
-### MANUAL: Complement Token action in Zitadel console
+### Automated: Complement Token action
+
+Run on ace after roles/grants are configured:
+
+```bash
+cd /etc/nixos
+nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-jellyfin-groups-action.js
+```
+
+This script:
+
+- Creates or updates the `jellyfinGroups` action (ID `376332016783726901` on ace)
+- Attaches it to **Complement Token** triggers (Pre Userinfo + Pre access token)
+- Ensures `prestonh` has `jellyfin_admin` only and `dylanh` has `jellyfin_user` only
+
+The action must read **`grant.roles`** (not `grant.roleKeys`) — Zitadel's complement-token context exposes roles under `roles`. Do **not** request the OIDC `groups` scope in the Jellyfin plugin; the complement action sets the claim and requesting the scope can block `setClaim`.
+
+### MANUAL: Complement Token action (console fallback)
 
 1. Open https://zitadel.prestonhager.com/ui/console/org/actions
 2. **New action** → flow **Complement Token** → name `jellyfinGroups`
@@ -63,17 +80,20 @@ The SSO plugin reads a flat **`groups`** claim. Zitadel project roles use a nest
 
 ```javascript
 function jellyfinGroups(ctx, api) {
-  if (!ctx.v1.user || !ctx.v1.user.grants || !ctx.v1.user.grants.grants) {
+  if (!ctx.v1.user || !ctx.v1.user.grants || ctx.v1.user.grants.count === 0) {
     return;
   }
   const groups = [];
   for (const grant of ctx.v1.user.grants.grants) {
-    const roleKeys = grant.roleKeys || [];
-    if (roleKeys.includes('jellyfin_admin')) {
-      groups.push('jellyfin_admin');
-    }
-    if (roleKeys.includes('jellyfin_user')) {
-      groups.push('jellyfin_user');
+    const roles = grant.roles || grant.roleKeys || [];
+    for (const role of roles) {
+      if (role === 'jellyfin_admin') {
+        groups.push('jellyfin_admin');
+        break;
+      }
+      if (role === 'jellyfin_user') {
+        groups.push('jellyfin_user');
+      }
     }
   }
   if (groups.length > 0) {
@@ -121,6 +141,8 @@ nix flake update nix-secrets
 nixos-rebuild switch --flake .#ace
 rm -f /jf/config/.sso-setup-done
 systemctl restart jellyfin-sso-setup.service
+nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-jellyfin-groups-action.js
+systemctl restart podman-jellyfin.service
 ```
 
 ## Container networking
@@ -148,7 +170,7 @@ nix shell nixpkgs#sqlite -c sqlite3 /jf/config/data/jellyfin.db \
 | Symptom | Likely cause |
 |---------|----------------|
 | `redirect_uri` mismatch | Add both `/sso/OID/redirect/zitadel` and `/sso/OID/r/zitadel` in Zitadel app |
-| "Check permissions" on login | User has both `jellyfin_admin` and `jellyfin_user`, or `groups` claim missing — fix Complement Token action |
+| "Check permissions" on login | Missing `groups` claim (complement action uses `grant.roleKeys` instead of `grant.roles`, or action not on Complement Token flow), user has both `jellyfin_admin` and `jellyfin_user`, or OIDC `groups` scope requested (blocks `setClaim`) — run `scripts/zitadel-jellyfin-groups-action.js` |
 | OIDC discovery timeout | Missing `host-gateway` for `zitadel.prestonhager.com` on the container |
 | Plugin not loaded | Run `systemctl restart jellyfin-sso-setup.service`; check `/jf/config/plugins/SSO Authentication/` |
 | SSO button missing on login page | `branding.xml` LoginDisclaimer HTML must be XML entity-escaped (raw `<form>` tags break parsing); check `podman logs jellyfin` for `Error loading configuration file: branding.xml` |

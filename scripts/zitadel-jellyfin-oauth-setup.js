@@ -173,17 +173,20 @@ async function ensureUserGrant(userId, roleKeys, label) {
 }
 
 const GROUPS_ACTION = `function jellyfinGroups(ctx, api) {
-  if (!ctx.v1.user || !ctx.v1.user.grants || !ctx.v1.user.grants.grants) {
+  if (!ctx.v1.user || !ctx.v1.user.grants || ctx.v1.user.grants.count === 0) {
     return;
   }
   const groups = [];
   for (const grant of ctx.v1.user.grants.grants) {
-    const roleKeys = grant.roleKeys || [];
-    if (roleKeys.includes('${ADMIN_ROLE}')) {
-      groups.push('${ADMIN_ROLE}');
-    }
-    if (roleKeys.includes('${USER_ROLE}')) {
-      groups.push('${USER_ROLE}');
+    const roles = grant.roles || grant.roleKeys || [];
+    for (const role of roles) {
+      if (role === '${ADMIN_ROLE}') {
+        groups.push('${ADMIN_ROLE}');
+        break;
+      }
+      if (role === '${USER_ROLE}') {
+        groups.push('${USER_ROLE}');
+      }
     }
   }
   if (groups.length > 0) {

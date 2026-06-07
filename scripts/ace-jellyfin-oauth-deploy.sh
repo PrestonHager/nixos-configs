@@ -34,6 +34,7 @@ nixos-rebuild switch --flake .#ace 2>&1 | tail -40
 
 rm -f /jf/config/.sso-setup-done
 systemctl restart jellyfin-sso-setup.service
+nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-jellyfin-groups-action.js
 sleep 10
 systemctl is-active jellyfin-sso-setup.service
 systemctl is-active podman-jellyfin.service
