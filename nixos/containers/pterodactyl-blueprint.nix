@@ -55,7 +55,7 @@ let
     framework_ready=0
     if [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
       framework_ready=1
-      echo "pterodactyl-blueprint-install: Blueprint framework files already present"
+      echo "pterodactyl-blueprint-install: Blueprint framework already installed"
     else
       ${pkgs.curl}/bin/curl -fsSL "${blueprintReleaseUrl}" -o "$tmp/release.zip"
       ${pkgs.unzip}/bin/unzip -o "$tmp/release.zip" -d "$panel"
@@ -80,7 +80,9 @@ let
     fi
 
     cd "$panel"
-    env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh"
+    if [ "$framework_ready" -eq 0 ]; then
+      env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh"
+    fi
 
     ${pkgs.curl}/bin/curl -fsSL "${socialloginBlueprintUrl}" -o "$tmp/sociallogin.blueprint"
     install -d -m 0755 "$panel/.blueprint/extensions"
@@ -92,6 +94,8 @@ let
       echo "pterodactyl-blueprint-install: installing Social Login extension..."
       env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -install sociallogin \
         || env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -i sociallogin
+    else
+      echo "pterodactyl-blueprint-install: Social Login extension already installed"
     fi
     chown -R pterodactyl:pterodactyl "$panel"
 
