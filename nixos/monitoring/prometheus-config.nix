@@ -2,7 +2,9 @@
 let
   hostGateway = "10.88.0.1";
   lanIp = "192.168.5.5";
-  blackboxCfg = import ./blackbox-config.nix { inherit lib; };
+  cruxBlackbox = "192.168.5.6:9115";
+  cruxBlackboxCfg = import ./crux-blackbox-config.nix { inherit lib; };
+  sanitize = s: lib.replaceStrings [ "." ] [ "_" ] s;
 
   httpTargets = [
     "https://panel.prestonhager.com/"
@@ -28,7 +30,7 @@ let
     "127.0.0.1:443"
   ];
 
-  lanProbeUrl = "https://${lanIp}/";
+  lanHttpsTargets = map (host: "https://${host}/") cruxBlackboxCfg.lanHttpHosts;
 
   mkBlackboxRelabel = extra: [
     {
@@ -49,15 +51,66 @@ let
     }
   ] ++ extra;
 
-  mkLanStaticConfigs = map (entry: {
-    targets = [ lanProbeUrl ];
+  mkCruxBlackboxRelabel = [
+    {
+      source_labels = [ "__address__" ];
+      target_label = "__param_target";
+    }
+    {
+      source_labels = [ "__param_target" ];
+      target_label = "instance";
+    }
+    {
+      source_labels = [ "__param_module" ];
+      target_label = "module";
+    }
+    {
+      source_labels = [ "vhost" ];
+      target_label = "vhost";
+    }
+    {
+      target_label = "__address__";
+      replacement = cruxBlackbox;
+    }
+    {
+      target_label = "probe_location";
+      replacement = "lan";
+    }
+    {
+      target_label = "probe_source";
+      replacement = "crux";
+    }
+  ];
+
+  lanHttpStaticConfigs = [
+    {
+      targets = lanHttpsTargets;
+      labels = {
+        __param_module = "http_2xx";
+        probe_location = "lan";
+        probe_source = "crux";
+      };
+    }
+    {
+      targets = [ "http://${lanIp}/" ];
+      labels = {
+        __param_module = "http_local";
+        probe_location = "lan";
+        probe_source = "crux";
+      };
+    }
+  ];
+
+  lanDnsStaticConfigs = map (entry: {
+    targets = [ lanIp ];
     labels = {
-      __param_module = entry.module;
-      instance = "https://${entry.host}/";
-      probe_location = "internal";
+      __param_module = "dns_lan_${sanitize entry.host}";
+      instance = "dns://${lanIp}/${entry.host}";
+      probe_location = "lan";
+      probe_source = "crux";
       vhost = entry.host;
     };
-  }) blackboxCfg.lanProbeEntries;
+  }) cruxBlackboxCfg.lanDnsChecks;
 
 in {
   prometheusYml = lib.generators.toYAML { } {
@@ -85,9 +138,12 @@ in {
         static_configs = [{ targets = [ "${hostGateway}:8082" ]; }];
       }
       {
-        job_name = "pushgateway";
+        job_name = "pushgateway-external";
         honor_labels = true;
-        static_configs = [{ targets = [ "${hostGateway}:9091" ]; }];
+        static_configs = [{
+          targets = [ "${hostGateway}:9091" ];
+          labels = { probe_location = "external"; };
+        }];
       }
       {
         job_name = "blackbox-http";
@@ -107,33 +163,14 @@ in {
       {
         job_name = "blackbox-http-lan";
         metrics_path = "/probe";
-        static_configs = mkLanStaticConfigs;
-        relabel_configs = [
-          {
-            source_labels = [ "__address__" ];
-            target_label = "__param_target";
-          }
-          {
-            source_labels = [ "__param_module" ];
-            target_label = "module";
-          }
-          {
-            source_labels = [ "instance" ];
-            target_label = "instance";
-          }
-          {
-            source_labels = [ "probe_location" ];
-            target_label = "probe_location";
-          }
-          {
-            source_labels = [ "vhost" ];
-            target_label = "vhost";
-          }
-          {
-            target_label = "__address__";
-            replacement = "${hostGateway}:9115";
-          }
-        ];
+        static_configs = lanHttpStaticConfigs;
+        relabel_configs = mkCruxBlackboxRelabel;
+      }
+      {
+        job_name = "blackbox-dns-lan";
+        metrics_path = "/probe";
+        static_configs = lanDnsStaticConfigs;
+        relabel_configs = mkCruxBlackboxRelabel;
       }
       {
         job_name = "blackbox-tcp";

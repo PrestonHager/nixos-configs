@@ -12,7 +12,8 @@
       }];
     };
     defaultGateway = "192.168.5.1";
-    nameservers = [ "192.168.5.2" "1.1.1.1" ];
+    # LanCache on ace for split-horizon DNS (LAN probe perspective).
+    nameservers = [ "192.168.5.5" "1.1.1.1" ];
 
     # Setup IP's for local network
     hosts = {
@@ -25,4 +26,8 @@
       ];
     };
   };
+
+  imports = [
+    ../../nixos/monitoring/crux-probes.nix
+  ];
 }

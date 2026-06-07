@@ -1,5 +1,7 @@
-{ config, ... }:
-{
+{ config, lib, ... }:
+let
+  cruxIp = "192.168.5.6";
+in {
   users.users.pushgateway = {
     isSystemUser = true;
     description = "Prometheus Pushgateway";
@@ -25,4 +27,9 @@
     ];
     image = "docker.io/prom/pushgateway:latest";
   };
+
+  # Accept metric pushes from crux external probe timer only (not WAN).
+  networking.firewall.extraCommands = lib.mkAfter ''
+    iptables -A nixos-fw -p tcp -s ${cruxIp} --dport 9091 -j nixos-fw-accept
+  '';
 }

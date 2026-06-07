@@ -7,7 +7,6 @@ in {
     ./exporters.nix
     ./ace-health-exporter.nix
     ./lan-dns-prober.nix
-    ./ace-external-probe.nix
   ];
 
   environment.etc."prometheus/prometheus.yml".text = (import ./prometheus-config.nix { inherit lib; }).prometheusYml;

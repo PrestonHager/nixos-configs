@@ -1,21 +1,24 @@
 #!/usr/bin/env bash
-# Push HTTP probe metrics to Prometheus Pushgateway from an external perspective.
-# Run from any host with outbound HTTPS; defaults target ace Pushgateway on LAN.
+# Push HTTP probe metrics to Prometheus Pushgateway from an external/WAN perspective.
+# Intended to run on crux (192.168.5.6) with outbound Internet; pushes to ace Pushgateway.
 #
 # Environment:
 #   PUSHGATEWAY_URL   Pushgateway base URL (default http://192.168.5.5:9091)
 #   DNS_RESOLVER      Optional resolver for public view (e.g. 1.1.1.1); empty = system DNS
-#   PROBE_SOURCE      Label value for probe_source (default external-script)
+#   PROBE_SOURCE      Label value for probe_source (default crux)
+#   PROBE_JOB         Pushgateway job name (default external-http-probe)
 #   PROBE_TIMEOUT     curl max time in seconds (default 20)
+#   EXTERNAL_PROBE_TARGETS  Comma-separated URLs override
 set -euo pipefail
 
 PUSHGATEWAY_URL="${PUSHGATEWAY_URL:-http://192.168.5.5:9091}"
-DNS_RESOLVER="${DNS_RESOLVER:-}"
-PROBE_SOURCE="${PROBE_SOURCE:-external-script}"
+DNS_RESOLVER="${DNS_RESOLVER:-1.1.1.1}"
+PROBE_SOURCE="${PROBE_SOURCE:-crux}"
 PROBE_TIMEOUT="${PROBE_TIMEOUT:-20}"
 JOB="${PROBE_JOB:-external-http-probe}"
 
-# Hostnames expected to resolve publicly (Cloudflare / WAN). LAN-only names omitted.
+# Publicly reachable ace endpoints (Cloudflare-proxied or port-forwarded on 73.26.67.25).
+# Omit LAN-only vhosts; override with EXTERNAL_PROBE_TARGETS.
 DEFAULT_TARGETS=(
   "https://grafana.prestonhager.com/"
   "https://dns.prestonhager.com/"
@@ -90,18 +93,18 @@ probe_one() {
     http_code="${http_code:-0}"
   fi
 
-  local inst esc_host esc_url
+  local inst esc_host
   inst="$(escape_label "$url")"
   esc_host="$(escape_label "$host")"
 
   cat <<EOF
-probe_success{instance="${inst}",job="${JOB}",probe_location="external",probe_source="${PROBE_SOURCE}",vhost="${esc_host}"} ${success}
-probe_duration_seconds{instance="${inst}",job="${JOB}",probe_location="external",probe_source="${PROBE_SOURCE}",vhost="${esc_host}"} ${elapsed}
-probe_http_status_code{instance="${inst}",job="${JOB}",probe_location="external",probe_source="${PROBE_SOURCE}",vhost="${esc_host}"} ${http_code:-0}
-probe_dns_resolved{instance="${inst}",job="${JOB}",probe_location="external",probe_source="${PROBE_SOURCE}",vhost="${esc_host}"} ${resolve_ok}
+probe_success{instance="${inst}",job="${JOB}",probe_location="external",probe_source="${PROBE_SOURCE}",target="${esc_host}"} ${success}
+probe_duration_seconds{instance="${inst}",job="${JOB}",probe_location="external",probe_source="${PROBE_SOURCE}",target="${esc_host}"} ${elapsed}
+probe_http_status_code{instance="${inst}",job="${JOB}",probe_location="external",probe_source="${PROBE_SOURCE}",target="${esc_host}"} ${http_code:-0}
+probe_dns_resolved{instance="${inst}",job="${JOB}",probe_location="external",probe_source="${PROBE_SOURCE}",target="${esc_host}"} ${resolve_ok}
 EOF
   if [[ -n "$ip" ]]; then
-    printf 'probe_dns_answer{instance="%s",job="%s",probe_location="external",probe_source="%s",vhost="%s",answer="%s"} 1\n' \
+    printf 'probe_dns_answer{instance="%s",job="%s",probe_location="external",probe_source="%s",target="%s",answer="%s"} 1\n' \
       "$inst" "$JOB" "$PROBE_SOURCE" "$esc_host" "$(escape_label "$ip")"
   fi
 }
