@@ -103,6 +103,8 @@ PY
       --provider-display-name=Zitadel \
       --scope="openid profile email urn:zitadel:iam:org:project:roles urn:zitadel:iam:org:project:id:${zitadelProjectId}:aud" \
       --oidc-groups-claim=groups \
+      --reverse-proxy=true \
+      --skip-auth-route=GET=^/oauth2/start$ \
       --skip-auth-route=GET=^/oauth2/sign_in$ \
       --skip-auth-route=GET=^/oauth2/static/.*$
   '';

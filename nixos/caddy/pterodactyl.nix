@@ -51,7 +51,10 @@ let
 
       ${lib.optionalString oauth ''
       handle /oauth2/* {
-        reverse_proxy 127.0.0.1:4180
+        reverse_proxy 127.0.0.1:4180 {
+          header_up X-Real-IP {remote_host}
+          header_up X-Forwarded-Uri {uri}
+        }
       }
 
       handle /auth/zitadel* {
@@ -78,7 +81,12 @@ let
       handle {
         forward_auth 127.0.0.1:4180 {
           uri /oauth2/auth
+          header_up X-Real-IP {remote_host}
           copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups
+          @unauth status 401
+          handle_response @unauth {
+            redir * /oauth2/start?rd={scheme}://{host}{uri} 302
+          }
         }
         request_header X-Auth-Username {http.auth.header.X-Auth-Request-User}
         request_header X-Auth-Email {http.auth.header.X-Auth-Request-Email}
