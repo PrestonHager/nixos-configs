@@ -12,6 +12,7 @@ let
   adminRoleKey = "pterodactyl_admin";
 
   headerAuthMiddleware = ./pterodactyl/HeaderAuthentication.php;
+  authCoreBlade = ./pterodactyl/auth-core.blade.php;
 
   patchHeaderAuthScript = pkgs.writeShellScript "pterodactyl-patch-header-auth" ''
     set -euo pipefail
@@ -71,7 +72,11 @@ PY
     set_kv AUTH_HEADER_GROUPS "X-Auth-Groups"
     set_kv AUTH_HEADER_ADMIN_GROUP "${adminRoleKey}"
 
-    echo "pterodactyl-patch-header-auth: applied header auth middleware and .env SSO settings"
+    authCore="$panel/resources/views/templates/auth/core.blade.php"
+    install -m 0644 ${authCoreBlade} "$authCore"
+    chown pterodactyl:pterodactyl "$authCore"
+
+    echo "pterodactyl-patch-header-auth: applied header auth middleware, SSO login banner, and .env SSO settings"
   '';
 
   oauthEnvFile = config.sops.secrets."pterodactyl-oauth-env".path;

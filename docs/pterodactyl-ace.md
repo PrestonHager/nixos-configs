@@ -11,7 +11,9 @@ Implementation: `nixos/containers/pterodactyl.nix`, `nixos/containers/pterodacty
 | Auth | Zitadel OIDC via **oauth2-proxy** + header-auth middleware (production panel only) |
 | Break-glass local login | `/auth/login` (bypasses forward_auth) |
 
-Stock Pterodactyl v1.11 does **not** support native `OAUTH_CLIENT_ID` env vars. SSO uses oauth2-proxy in front of Caddy with a small header-auth middleware patch (based on pterodactyl/panel#5271).
+Stock Pterodactyl (v1.11 and v1.12) has **no native OAuth/OIDC**. The large in-panel OAuth PR ([#3774](https://github.com/pterodactyl/panel/pull/3774)) was closed without merge; maintainer Dane Everitt directed users to [oauth2-proxy](https://github.com/oauth2-proxy/oauth2-proxy) instead. Header-based auth ([#5271](https://github.com/pterodactyl/panel/pull/5271)) is open but not merged — ace ships a local copy of that middleware. SSO here uses oauth2-proxy in front of Caddy with that header-auth patch.
+
+**There is no in-panel OAuth provider config** like Nextcloud or Jellyfin. Visiting the panel homepage auto-redirects unauthenticated users to Zitadel; a visible **Sign in with Zitadel** button appears only on the break-glass login page (`/auth/login`).
 
 ## Zitadel OIDC application
 
@@ -82,11 +84,23 @@ function pterodactylGroups(ctx, api) {
 
 ## Login (SSO)
 
-1. Open https://panel.prestonhager.com — unauthenticated users are redirected to oauth2-proxy → Zitadel
+Normal flow (no button on homepage — immediate redirect):
+
+1. Open https://panel.prestonhager.com — Caddy `forward_auth` → oauth2-proxy → Zitadel
 2. Or use https://panel.prestonhager.com/oauth2/start?rd=/
 3. Or https://panel.prestonhager.com/auth/zitadel (redirect alias)
 
-Local login (break-glass): https://panel.prestonhager.com/auth/login
+Break-glass local login: https://panel.prestonhager.com/auth/login
+
+The break-glass page shows a **Sign in with Zitadel** button (blade patch in `nixos/containers/pterodactyl/auth-core.blade.php`) above the username/password form. Most users never see this page because `/` redirects to Zitadel automatically.
+
+## Alternatives considered
+
+| Approach | Verdict |
+|----------|---------|
+| Upgrade to v1.12 for native OAuth | No — v1.12 has security/fixes only, no OAuth |
+| Blueprint + Social Login extension | Not adopted — adds framework patch layer, paid/community OAuth inside panel would duplicate oauth2-proxy, higher update risk |
+| oauth2-proxy + header-auth (current) | Best fit — same pattern maintainers recommend, works with Zitadel roles via `groups` claim |
 
 ## Verification on ace
 
