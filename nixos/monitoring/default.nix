@@ -26,6 +26,17 @@ in {
         jsonData:
           timeInterval: 15s
           httpMethod: POST
+      - name: Prometheus (crux)
+        type: prometheus
+        uid: prometheus-crux
+        orgId: 1
+        access: proxy
+        url: http://192.168.5.6:9090
+        isDefault: false
+        editable: false
+        jsonData:
+          timeInterval: 15s
+          httpMethod: POST
   '';
 
   environment.etc."grafana/provisioning/dashboards/ace.yaml".text = ''
@@ -38,12 +49,41 @@ in {
         disableDeletion: false
         editable: true
         options:
-          path: /etc/grafana/dashboards
+          path: /etc/grafana/dashboards/ace
   '';
 
-  environment.etc."grafana/dashboards/ace-overview.json".source = "${grafanaDashboards}/ace-overview.json";
-  environment.etc."grafana/dashboards/ace-services.json".source = "${grafanaDashboards}/ace-services.json";
-  environment.etc."grafana/dashboards/ace-uptime.json".source = "${grafanaDashboards}/ace-uptime.json";
-  environment.etc."grafana/dashboards/ace-http-probes.json".source = "${grafanaDashboards}/ace-http-probes.json";
-  environment.etc."grafana/dashboards/ace-tcp-probes.json".source = "${grafanaDashboards}/ace-tcp-probes.json";
+  environment.etc."grafana/provisioning/dashboards/crux.yaml".text = ''
+    apiVersion: 1
+    providers:
+      - name: Crux
+        orgId: 1
+        folder: Crux
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /etc/grafana/dashboards/crux
+  '';
+
+  environment.etc."grafana/provisioning/dashboards/lan.yaml".text = ''
+    apiVersion: 1
+    providers:
+      - name: LAN
+        orgId: 1
+        folder: LAN
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /etc/grafana/dashboards/lan
+  '';
+
+  environment.etc."grafana/dashboards/ace/ace-overview.json".source = "${grafanaDashboards}/ace-overview.json";
+  environment.etc."grafana/dashboards/ace/ace-services.json".source = "${grafanaDashboards}/ace-services.json";
+  environment.etc."grafana/dashboards/ace/ace-uptime.json".source = "${grafanaDashboards}/ace-uptime.json";
+  environment.etc."grafana/dashboards/ace/ace-http-probes.json".source = "${grafanaDashboards}/ace-http-probes.json";
+  environment.etc."grafana/dashboards/ace/ace-tcp-probes.json".source = "${grafanaDashboards}/ace-tcp-probes.json";
+  environment.etc."grafana/dashboards/crux/crux-uptime.json".source = "${grafanaDashboards}/crux-uptime.json";
+  environment.etc."grafana/dashboards/crux/crux-http-probes.json".source = "${grafanaDashboards}/crux-http-probes.json";
+  environment.etc."grafana/dashboards/lan/lan-status.json".source = "${grafanaDashboards}/lan-status.json";
 }

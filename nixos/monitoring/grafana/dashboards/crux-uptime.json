@@ -1,0 +1,356 @@
+{
+  "uid": "crux-uptime",
+  "title": "Crux Service Uptime",
+  "tags": ["crux", "uptime", "blackbox", "lan"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-24h", "to": "now" },
+  "description": "LAN-perspective uptime from crux Prometheus: HTTPS probes to ace services via LanCache DNS, split-horizon DNS checks, and TCP reachability for ace/crux/nova.",
+  "links": [
+    { "title": "HTTP Probes", "type": "dashboard", "url": "/d/crux-http-probes" },
+    { "title": "LAN Status", "type": "dashboard", "url": "/d/lan-status" },
+    { "title": "Ace Uptime", "type": "dashboard", "url": "/d/ace-uptime" }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Probe summary",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 2,
+      "title": "HTTP LAN Up",
+      "description": "HTTPS to ace vhosts via LanCache DNS on crux",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-crux" },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 4 },
+              { "color": "green", "value": 5 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        { "expr": "sum(probe_success{job=\"blackbox-http-lan\",module=\"http_2xx\"})", "refId": "A" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "DNS Checks OK",
+      "description": "LanCache split-horizon DNS validation",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-crux" },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        { "expr": "sum(probe_success{job=\"blackbox-dns-lan\"})", "refId": "A" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "TCP LAN Up",
+      "description": "443 reachability for ace, crux, nova",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-crux" },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 2 },
+              { "color": "green", "value": 3 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        { "expr": "sum(probe_success{job=\"blackbox-tcp-lan\"})", "refId": "A" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Crux Node Up",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-crux" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "options": { "0": { "color": "red", "index": 1, "text": "DOWN" }, "1": { "color": "green", "index": 0, "text": "UP" } }, "type": "value" }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        { "expr": "up{job=\"node\",host=\"crux\"}", "refId": "A" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "All Probes Up",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-crux" },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 8 },
+              { "color": "green", "value": 10 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        { "expr": "sum(probe_success{job=~\"blackbox-.*\"})", "refId": "A" }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "24h Uptime %",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-crux" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 95 },
+              { "color": "green", "value": 99 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        { "expr": "avg(avg_over_time(probe_success{job=~\"blackbox-.*\"}[24h])) * 100", "refId": "A" }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Mean probe latency by job",
+      "type": "bargauge",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-crux" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "targets": [
+        { "expr": "avg by (job) (probe_duration_seconds{job=~\"blackbox-.*\"})", "legendFormat": "{{job}}", "refId": "A", "instant": true }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "row",
+      "title": "All probes",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 10,
+      "title": "Probe Status",
+      "type": "table",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-crux" },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Status" },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  { "options": { "0": { "color": "red", "index": 1, "text": "DOWN" }, "1": { "color": "green", "index": 0, "text": "UP" } }, "type": "value" }
+                ]
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Latency" },
+            "properties": [{ "id": "unit", "value": "s" }, { "id": "decimals", "value": 3 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Uptime 24h" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "decimals", "value": 2 },
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 95 }, { "color": "green", "value": 99 }] } }
+            ]
+          }
+        ]
+      },
+      "options": { "showHeader": true, "cellHeight": "sm", "sortBy": [{ "desc": true, "displayName": "Latency" }] },
+      "targets": [
+        { "expr": "probe_success{job=~\"blackbox-.*\"}", "format": "table", "instant": true, "refId": "status" },
+        { "expr": "probe_duration_seconds{job=~\"blackbox-.*\"}", "format": "table", "instant": true, "refId": "latency" },
+        { "expr": "probe_http_status_code{job=~\"blackbox-http.*\"}", "format": "table", "instant": true, "refId": "code" },
+        { "expr": "avg_over_time(probe_success{job=~\"blackbox-.*\"}[24h]) * 100", "format": "table", "instant": true, "refId": "uptime" }
+      ],
+      "transformations": [
+        { "id": "seriesToColumns", "options": { "byField": "instance" } },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true, "Time 1": true, "Time 2": true, "Time 3": true,
+              "__name__": true, "__name__ 1": true, "__name__ 2": true, "__name__ 3": true,
+              "job": true, "job 1": true, "job 2": true, "job 3": true,
+              "module": true, "module 1": true, "module 2": true,
+              "probe_location": true, "probe_location 1": true, "probe_location 2": true,
+              "probe_source": true, "probe_source 1": true, "probe_source 2": true
+            },
+            "renameByName": {
+              "Value #status": "Status",
+              "Value #latency": "Latency",
+              "Value #code": "HTTP Code",
+              "Value #uptime": "Uptime 24h",
+              "instance": "Target",
+              "host": "Host",
+              "job 3": "Job"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Probe Success Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-crux" },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "custom": { "drawStyle": "line", "lineInterpolation": "stepAfter", "lineWidth": 2, "fillOpacity": 20, "showPoints": "never" }
+        }
+      },
+      "options": {
+        "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        { "expr": "probe_success{job=~\"blackbox-.*\"}", "legendFormat": "{{job}} {{instance}}", "refId": "A" }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Probe Duration Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 30 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-crux" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 1, "fillOpacity": 5, "showPoints": "never" }
+        }
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "max", "lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        { "expr": "probe_duration_seconds{job=~\"blackbox-.*\"}", "legendFormat": "{{job}} {{instance}}", "refId": "A" }
+      ]
+    }
+  ]
+}

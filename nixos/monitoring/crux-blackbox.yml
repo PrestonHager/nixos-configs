@@ -13,6 +13,9 @@ modules:
     http:
       valid_status_codes: [200, 301, 302, 403, 404]
       preferred_ip_protocol: ip4
+  tcp_connect:
+    prober: tcp
+    timeout: 5s
   dns_lan_grafana:
     prober: dns
     timeout: 5s

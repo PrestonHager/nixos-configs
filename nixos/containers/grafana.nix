@@ -67,11 +67,16 @@ in {
       "/grafana/data:/var/lib/grafana"
       "${etcPath "grafana/provisioning/datasources/prometheus.yaml"}:/etc/grafana/provisioning/datasources/prometheus.yaml:ro"
       "${etcPath "grafana/provisioning/dashboards/ace.yaml"}:/etc/grafana/provisioning/dashboards/ace.yaml:ro"
-      "${etcPath "grafana/dashboards/ace-overview.json"}:/etc/grafana/dashboards/ace-overview.json:ro"
-      "${etcPath "grafana/dashboards/ace-services.json"}:/etc/grafana/dashboards/ace-services.json:ro"
-      "${etcPath "grafana/dashboards/ace-uptime.json"}:/etc/grafana/dashboards/ace-uptime.json:ro"
-      "${etcPath "grafana/dashboards/ace-http-probes.json"}:/etc/grafana/dashboards/ace-http-probes.json:ro"
-      "${etcPath "grafana/dashboards/ace-tcp-probes.json"}:/etc/grafana/dashboards/ace-tcp-probes.json:ro"
+      "${etcPath "grafana/provisioning/dashboards/crux.yaml"}:/etc/grafana/provisioning/dashboards/crux.yaml:ro"
+      "${etcPath "grafana/provisioning/dashboards/lan.yaml"}:/etc/grafana/provisioning/dashboards/lan.yaml:ro"
+      "${etcPath "grafana/dashboards/ace/ace-overview.json"}:/etc/grafana/dashboards/ace/ace-overview.json:ro"
+      "${etcPath "grafana/dashboards/ace/ace-services.json"}:/etc/grafana/dashboards/ace/ace-services.json:ro"
+      "${etcPath "grafana/dashboards/ace/ace-uptime.json"}:/etc/grafana/dashboards/ace/ace-uptime.json:ro"
+      "${etcPath "grafana/dashboards/ace/ace-http-probes.json"}:/etc/grafana/dashboards/ace/ace-http-probes.json:ro"
+      "${etcPath "grafana/dashboards/ace/ace-tcp-probes.json"}:/etc/grafana/dashboards/ace/ace-tcp-probes.json:ro"
+      "${etcPath "grafana/dashboards/crux/crux-uptime.json"}:/etc/grafana/dashboards/crux/crux-uptime.json:ro"
+      "${etcPath "grafana/dashboards/crux/crux-http-probes.json"}:/etc/grafana/dashboards/crux/crux-http-probes.json:ro"
+      "${etcPath "grafana/dashboards/lan/lan-status.json"}:/etc/grafana/dashboards/lan/lan-status.json:ro"
     ];
   };
 }
