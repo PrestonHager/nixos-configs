@@ -8,10 +8,18 @@ in
     ./link-letsencrypt.nix
     ./nfs.nix
     ../../nixos
-    ../../nixos/headless
+    # Ace headless imports podman/containers/monitoring — incompatible with Wings (Docker).
     ../../hardware/dell-optiplex-7050/hardware-configuration.nix
     ../../users/prestonh
   ];
+
+  services.openssh = {
+    enable = true;
+    settings = {
+      PasswordAuthentication = true;
+      KbdInteractiveAuthentication = false;
+    };
+  };
 
   sops.secrets = {
     "crux-samba" = {
