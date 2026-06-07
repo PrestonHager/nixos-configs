@@ -49,6 +49,8 @@ let
 
     echo "pterodactyl-blueprint-install: installing Blueprint framework..."
 
+    rm -f "$panel/.blueprint/lock" 2>/dev/null || true
+
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
 
