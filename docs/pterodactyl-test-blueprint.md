@@ -37,7 +37,7 @@ Same pattern as production, then fork upgrade:
 2. **`blueprint.sh`** first-time install (as root; panel owned by `prestonh`, ACL cleanup via `runuser -u prestonh`)
 3. **`blueprint -upgrade remote PrestonHager/framework`** — fork framework
 4. **Git archive overlay** — fork-specific PHP patches not covered by upgrade
-5. **Build/install** `dnsrecords` extension from `plugins/pterodactyl-dns-blueprint/`
+5. **Install** `dnsrecords` via `blueprint -install '[developer-build]'` from `plugins/pterodactyl-dns-blueprint/` (avoids enabling developer mode for `-build`)
 
 Do not bootstrap from the fork archive before step 3; partial fork files leave a broken `.blueprint` tree (missing `assets/`, `private/db/is_installed`, etc.). Do not pre-move `panel/blueprint` into `.blueprint/blueprint` before step 2 — `blueprint.sh` must perform that relocation itself.
 

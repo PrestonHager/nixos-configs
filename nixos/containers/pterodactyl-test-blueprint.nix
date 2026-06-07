@@ -181,20 +181,13 @@ let
     chown prestonh:users "$panel/.blueprint/extensions/blueprint/private/db/is_installed"
 
     if [ -d "${dnsExtensionSrc}" ]; then
-      echo "pterodactyl-test-blueprint-install: enabling Blueprint developer mode..."
-      ${pkgs.podman}/bin/podman exec pterodactyl-test \
-        php /var/www/pterodactyl/artisan tinker \
-        --execute='DB::table("settings")->updateOrInsert(["key"=>"blueprint::flags:is_developer"],["value"=>serialize(true)]);' \
-        >/dev/null 2>&1 || true
-
-      echo "pterodactyl-test-blueprint-install: building dnsrecords extension..."
+      echo "pterodactyl-test-blueprint-install: installing dnsrecords extension from dev tree..."
       rm -rf "$panel/.blueprint/dev/"*
       cp -a "${dnsExtensionSrc}/." "$panel/.blueprint/dev/"
       chown -R prestonh:users "$panel/.blueprint/dev"
-      blueprint_cli -build
       if ! blueprint_cli -info 2>/dev/null | grep -qi dnsrecords; then
-        blueprint_cli -install dnsrecords \
-          || blueprint_cli -i dnsrecords
+        blueprint_cli -install '[developer-build]' \
+          || blueprint_cli -i '[developer-build]'
       fi
     else
       echo "pterodactyl-test-blueprint-install: DNS extension source missing at ${dnsExtensionSrc}" >&2
