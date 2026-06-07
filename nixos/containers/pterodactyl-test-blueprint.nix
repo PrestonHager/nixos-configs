@@ -107,7 +107,7 @@ let
     }
 
     blueprint_cli_install() {
-      runuser -u prestonh -- env \
+      env \
         HOME=/home/prestonh \
         TERM=dumb \
         YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test \

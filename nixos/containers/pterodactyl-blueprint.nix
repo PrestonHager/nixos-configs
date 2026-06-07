@@ -86,9 +86,9 @@ let
 
     blueprint_cli() {
       if [ "$framework_ready" -eq 1 ]; then
-        env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -bash "$@"
+        env HOME=/var/lib/pterodactyl TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -bash "$@"
       else
-        env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" "$@"
+        env HOME=/var/lib/pterodactyl TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" "$@"
       fi
     }
 
