@@ -105,12 +105,25 @@ EOF
   nix shell nixpkgs#sops --command sops -e -i secrets/containers/nextcloud.yaml
 fi
 
+if [ ! -f secrets/containers/jellyfin.yaml ]; then
+  cat > secrets/containers/jellyfin.yaml <<'EOF'
+jellyfin-oauth-env: |
+  JELLYFIN_OIDC_CLIENT_ID=REPLACE_ZITADEL_CLIENT_ID
+  JELLYFIN_OIDC_CLIENT_SECRET=REPLACE_ZITADEL_CLIENT_SECRET
+  ZITADEL_PROJECT_ID=376196450586990901
+EOF
+  nix shell nixpkgs#sops --command sops -e -i secrets/containers/jellyfin.yaml
+fi
+
 git add secrets/containers/zitadel-config.yaml secrets/containers/grafana-oauth.yaml
 if [ -f secrets/containers/matrix.yaml ]; then
   git add secrets/containers/matrix.yaml
 fi
 if [ -f secrets/containers/nextcloud.yaml ]; then
   git add secrets/containers/nextcloud.yaml
+fi
+if [ -f secrets/containers/jellyfin.yaml ]; then
+  git add secrets/containers/jellyfin.yaml
 fi
 git commit --trailer "Co-authored-by: Cursor <cursoragent@cursor.com>" -m "Add encrypted container secrets for ace (Zitadel, Grafana OAuth, Matrix)" --no-gpg-sign || true
 git push origin main

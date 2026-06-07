@@ -86,7 +86,7 @@ curl -s https://zitadel.prestonhager.com/ui/console/assets/environment.json | jq
 # api and issuer must both be https://zitadel.prestonhager.com
 ```
 
-Grafana OAuth admin role mapping is documented in [monitoring-ace.md](./monitoring-ace.md). Nextcloud OIDC SSO is documented in [nextcloud-ace.md](./nextcloud-ace.md).
+Grafana OAuth admin role mapping is documented in [monitoring-ace.md](./monitoring-ace.md). Nextcloud OIDC SSO is documented in [nextcloud-ace.md](./nextcloud-ace.md). Jellyfin OIDC SSO is documented in [jellyfin-ace.md](./jellyfin-ace.md).
 
 Useful logs:
 
