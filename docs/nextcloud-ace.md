@@ -23,10 +23,16 @@ Create or update the **Nextcloud** OIDC app in the **Home Lab** project (`376196
 | Auth method | Basic (client secret) |
 | Role assertions | Enabled (ID token + access token) |
 
-Automated setup on ace:
+Automated setup on ace (admin session API; preferred):
 
 ```bash
 cd /etc/nixos
+nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-nextcloud-console-setup.js
+```
+
+Fallback (login-client JWT; may lack project permissions):
+
+```bash
 nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-nextcloud-oauth-setup.js
 ```
 
