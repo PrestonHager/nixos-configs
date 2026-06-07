@@ -20,7 +20,7 @@ Zitadel sends mail through the same **iCloud SMTP relay** as Nextcloud.
 |---------|-------|
 | Host | `smtp.mail.me.com:587` (host must include port) |
 | TLS | STARTTLS (`true`) |
-| Auth user | `preston.hager@icloud.com` |
+| Auth user | `prestonhager@icloud.com` (same as Nextcloud; iCloud relay login) |
 | From address | `admin@prestonhager.com` |
 | From name | `Zitadel` |
 | Password | `SMTP_PASSWORD` in `nixos-secrets/secrets/containers/nextcloud.yaml` (shared iCloud app-specific password; injected at runtime by `zitadel-container-env`) |
@@ -45,7 +45,7 @@ The script reads `SMTP_PASSWORD` from `/run/secrets/nextcloud-environment`, sets
 ### Manual console steps (if API script fails)
 
 1. Instance → **Domain Settings** → disable **SMTP Sender Address matches Instance Domain**.
-2. Instance → **Email Provider** → add SMTP: host `smtp.mail.me.com:587`, TLS on, user `preston.hager@icloud.com`, password from sops `SMTP_PASSWORD`, sender `admin@prestonhager.com`.
+2. Instance → **Email Provider** → add SMTP: host `smtp.mail.me.com:587`, TLS on, user `prestonhager@icloud.com`, password from sops `SMTP_PASSWORD`, sender `admin@prestonhager.com`.
 3. Activate the provider and send a test email.
 
 ## First-instance bootstrap

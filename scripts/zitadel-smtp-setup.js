@@ -15,7 +15,7 @@ const AUDIENCE = `https://${PUBLIC_HOST}`;
 
 const SMTP = {
   host: 'smtp.mail.me.com:587',
-  user: 'preston.hager@icloud.com',
+  user: 'prestonhager@icloud.com',
   tls: true,
   from: 'admin@prestonhager.com',
   fromName: 'Zitadel',
