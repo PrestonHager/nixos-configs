@@ -50,7 +50,7 @@ in
   ];
 
   systemd.services.pterodactyl-config-perms = {
-    description = "Ensure Wings can read /etc/pterodactyl/config.yml";
+    description = "Ensure Wings ownership on config and server volumes";
     before = [ "wings.service" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
@@ -61,6 +61,7 @@ in
           chmod 0640 /etc/pterodactyl/config.yml
         fi
         if [ -d /var/lib/pterodactyl ]; then
+          # Docker install/start runs as root and leaves root-owned files Wings cannot write.
           chown -R pterodactyl:pterodactyl /var/lib/pterodactyl
           find /var/lib/pterodactyl -type d -exec chmod 0750 {} \;
           find /var/lib/pterodactyl -maxdepth 1 -type f -exec chmod 0640 {} \;
@@ -75,6 +76,15 @@ in
         fi
       '';
       RemainAfterExit = true;
+    };
+  };
+
+  systemd.timers.pterodactyl-config-perms = {
+    description = "Reconcile Pterodactyl volume ownership after Docker installs";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "2min";
+      OnUnitActiveSec = "5min";
     };
   };
 
@@ -99,7 +109,7 @@ in
       ExecStart = "${inputs.pterodactyl-wings.packages.x86_64-linux.wings}/bin/wings";
       RuntimeDirectory = "wings";
       RuntimeDirectoryMode = "0755";
-      PIDFile = "/var/run/wings/daemon.pid";
+      PIDFile = "/run/wings/daemon.pid";
       AmbientCapabilities = [ "CAP_NET_BIND_SERVICE" ];
       CapabilityBoundingSet = [ "CAP_NET_BIND_SERVICE" ];
       Restart = "on-failure";
