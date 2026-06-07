@@ -33,6 +33,7 @@ grafana-oauth-env: |
   GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=contains(keys("urn:zitadel:iam:org:project:roles"), 'grafana_admin') && 'GrafanaAdmin' || 'Viewer'
   GF_RENDERING_RENDERER_TOKEN=${RENDERER_TOKEN:-REPLACE_RENDERER_TOKEN}
   AUTH_TOKEN=${RENDERER_TOKEN:-REPLACE_RENDERER_TOKEN}
+  GRAFANA_ALERT_EMAILS=preston@hagerfamily.com
 EOF
 }
 
@@ -58,6 +59,8 @@ grafana-oauth-env: |
   GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=contains(keys("urn:zitadel:iam:org:project:roles"), 'grafana_admin') && 'GrafanaAdmin' || 'Viewer'
   GF_RENDERING_RENDERER_TOKEN=REPLACE_RENDERER_TOKEN
   AUTH_TOKEN=REPLACE_RENDERER_TOKEN
+  # Comma-separated list of email alert recipients (provisioned to Grafana contact points).
+  GRAFANA_ALERT_EMAILS=preston@hagerfamily.com
 EOF
 }
 

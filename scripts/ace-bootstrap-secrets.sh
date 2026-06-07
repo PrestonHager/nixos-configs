@@ -58,6 +58,7 @@ grafana-oauth-env: |
   GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH=email
   GF_AUTH_GENERIC_OAUTH_SKIP_ORG_ROLE_SYNC=false
   GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=contains(keys("urn:zitadel:iam:org:project:roles"), 'grafana_admin') && 'GrafanaAdmin' || 'Viewer'
+  GRAFANA_ALERT_EMAILS=preston@hagerfamily.com
 EOF
 nix shell nixpkgs#sops --command sops -e -i secrets/containers/zitadel-config.yaml
 nix shell nixpkgs#sops --command sops -e -i secrets/containers/grafana-oauth.yaml

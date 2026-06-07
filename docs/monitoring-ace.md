@@ -74,6 +74,66 @@ See also `docs/zitadel-ace.md` for console steps.
 
 External and LAN probe perspectives: `docs/monitoring-external-probes.md`.
 
+## Email alerting (Grafana Unified Alerting)
+
+Ace sends operational emails through Grafana’s built-in SMTP relay (same iCloud credentials as Nextcloud/Zitadel). Alert rules and notification routing are **file-provisioned** under `nixos/monitoring/grafana/provisioning/alerting/`; recipients come from sops.
+
+### What triggers email
+
+| Alert | Query / condition | `for` | Severity |
+|-------|-------------------|-------|----------|
+| **Service down** | `probe_success{probe_location=~"local\|lan",job=~"blackbox.*"} == 0` | 5m | critical |
+| **Major update** | `ace_service_version_behind == 3` | immediate | critical |
+| **Patch/minor update** | `ace_service_version_behind == 1 or == 2` | 1h | warning |
+
+Local and LAN blackbox probes are included; external probes are excluded (often flaky). Version metrics come from the `ace-version-check` timer (node_exporter textfile collector).
+
+### SMTP
+
+Non-secret SMTP settings are applied in `nixos/containers/grafana.nix`. The iCloud app-specific password is injected at runtime from `SMTP_PASSWORD` in `nextcloud-environment` (shared with Nextcloud and Zitadel).
+
+| Setting | Value |
+|---------|-------|
+| Host | `smtp.mail.me.com:587` |
+| User | `prestonhager@icloud.com` |
+| From | `admin@prestonhager.com` (name: Grafana Ace Alerts) |
+| TLS | Mandatory STARTTLS |
+
+### Alert recipients
+
+Set comma-separated addresses in sops `grafana-oauth-env` (`secrets/containers/grafana-oauth.yaml`):
+
+```bash
+GRAFANA_ALERT_EMAILS=preston@hagerfamily.com
+# GRAFANA_ALERT_EMAILS=preston@hagerfamily.com,other@example.com
+```
+
+On each Grafana start, `grafana-alerting-provision` reads that variable and writes `/run/grafana/provisioning/alerting/contact-points.yaml` for the `ace-email` receiver.
+
+After editing sops:
+
+```bash
+cd /etc/nixos && nix flake update nix-secrets && nixos-rebuild switch --flake .#ace
+```
+
+### Verify alerting
+
+```bash
+# Runtime env includes SMTP + GRAFANA_ALERT_EMAILS
+grep -E '^(GF_SMTP_|GRAFANA_ALERT_)' /run/grafana/container.env
+
+# Provisioned contact point
+cat /run/grafana/provisioning/alerting/contact-points.yaml
+
+# Grafana health
+curl -sf http://127.0.0.1:8082/api/health
+
+# Send test notification (requires Grafana admin API key or break-glass login)
+# Alerting → Contact points → ace-email → Test
+```
+
+Provisioned rules appear under **Alerting → Alert rules** in folder **Ace Alerts**. File-provisioned resources cannot be edited in the UI (changes must be made in git).
+
 ### One-time grant for an existing OAuth user
 
 If a user logged in before admin mapping was configured, update the Grafana SQLite DB on ace:

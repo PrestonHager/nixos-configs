@@ -8,6 +8,7 @@ in {
     ./ace-health-exporter.nix
     ./ace-version-check.nix
     ./lan-dns-prober.nix
+    ./grafana-alerting.nix
   ];
 
   environment.etc."prometheus/prometheus.yml".text = (import ./prometheus-config.nix { inherit lib; }).prometheusYml;

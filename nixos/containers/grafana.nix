@@ -8,9 +8,59 @@ let
   # Remote image renderer (replaces deprecated in-Grafana plugin). Shares pod network with Grafana.
   imageRendererVersion = "v5.8.8";
   grafanaPort = 8082;
+  grafanaRuntimeEnv = "/run/grafana/container.env";
+  grafanaAlertingDir = "/run/grafana/provisioning/alerting";
   # Host /etc/hosts maps *.prestonhager.com → 127.0.0.1; inside the container that is
   # loopback, not Caddy on the host. Override so server-side OAuth token/userinfo calls work.
   zitadelDomain = "zitadel.prestonhager.com";
+  grafanaContainerEnvScript = pkgs.writeShellScript "grafana-container-env" ''
+    set -euo pipefail
+    mkdir -p /run/grafana/provisioning/alerting
+    cp "${config.sops.secrets."grafana-oauth-env".path}" "${grafanaRuntimeEnv}"
+    ncEnv="${config.sops.secrets."nextcloud-environment".path}"
+    smtpPass="$(grep '^SMTP_PASSWORD=' "$ncEnv" | cut -d= -f2- || true)"
+    if [ -z "$smtpPass" ]; then
+      echo "grafana-container-env: SMTP_PASSWORD missing from nextcloud-environment" >&2
+      exit 1
+    fi
+    grep -v '^GF_SMTP_' "${grafanaRuntimeEnv}" > "${grafanaRuntimeEnv}.tmp" || true
+    mv "${grafanaRuntimeEnv}.tmp" "${grafanaRuntimeEnv}"
+    {
+      printf '%s\n' 'GF_SMTP_ENABLED=true'
+      printf '%s\n' 'GF_SMTP_HOST=smtp.mail.me.com:587'
+      printf '%s\n' 'GF_SMTP_USER=prestonhager@icloud.com'
+      printf 'GF_SMTP_PASSWORD=%s\n' "$smtpPass"
+      printf '%s\n' 'GF_SMTP_FROM_ADDRESS=admin@prestonhager.com'
+      printf '%s\n' 'GF_SMTP_FROM_NAME=Grafana Ace Alerts'
+      printf '%s\n' 'GF_SMTP_STARTTLS_POLICY=Mandatory'
+    } >> "${grafanaRuntimeEnv}"
+    chmod 600 "${grafanaRuntimeEnv}"
+  '';
+  grafanaAlertingProvisionScript = pkgs.writeShellScript "grafana-alerting-provision" ''
+    set -euo pipefail
+    envFile="${grafanaRuntimeEnv}"
+    outFile="${grafanaAlertingDir}/contact-points.yaml"
+    mkdir -p "${grafanaAlertingDir}"
+    emails="$(grep '^GRAFANA_ALERT_EMAILS=' "$envFile" | cut -d= -f2- || true)"
+    if [ -z "$emails" ]; then
+      echo "grafana-alerting-provision: GRAFANA_ALERT_EMAILS missing from ${grafanaRuntimeEnv}" >&2
+      exit 1
+    fi
+    addrs="$(printf '%s' "$emails" | ${pkgs.gnused}/bin/sed 's/[[:space:]]*,[[:space:]]*/;/g; s/[[:space:]]*;[[:space:]]*/;/g')"
+    cat > "$outFile" <<EOF
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: ace-email
+    receivers:
+      - uid: ace-email
+        type: email
+        settings:
+          addresses: $addrs
+          singleEmail: true
+EOF
+    chmod 644 "$outFile"
+  '';
 in {
   sops.secrets = {
     "grafana-oauth-env" = {
@@ -28,11 +78,38 @@ in {
 
   systemd.tmpfiles.rules = [
     "d /grafana/data 0770 grafana grafana -"
+    "d /run/grafana/provisioning/alerting 0755 root root -"
   ];
+
+  systemd.services.grafana-container-env = {
+    description = "Build Grafana container env (OAuth + shared iCloud SMTP password)";
+    before = [ "grafana-alerting-provision.service" "podman-grafana.service" ];
+    requiredBy = [ "podman-grafana.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = false;
+      ExecStart = grafanaContainerEnvScript;
+    };
+  };
+
+  systemd.services.grafana-alerting-provision = {
+    description = "Generate Grafana alerting contact points from GRAFANA_ALERT_EMAILS";
+    after = [ "grafana-container-env.service" ];
+    before = [ "podman-grafana.service" ];
+    requiredBy = [ "podman-grafana.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = false;
+      ExecStart = grafanaAlertingProvisionScript;
+    };
+  };
 
   # Recreate containers when secrets change (podman does not reload --env-file).
   systemd.services.podman-grafana.restartTriggers = [
     config.sops.secrets."grafana-oauth-env".path
+    config.sops.secrets."nextcloud-environment".path
+    (pkgs.writeText "grafana-alert-rules" (builtins.readFile ../monitoring/grafana/provisioning/alerting/alert-rules.yaml))
+    (pkgs.writeText "grafana-notification-policies" (builtins.readFile ../monitoring/grafana/provisioning/alerting/notification-policies.yaml))
   ];
   systemd.services.podman-grafana-image-renderer.restartTriggers = [
     config.sops.secrets."grafana-oauth-env".path
@@ -86,7 +163,7 @@ in {
     ];
 
     environmentFiles = [
-      config.sops.secrets."grafana-oauth-env".path
+      grafanaRuntimeEnv
     ];
 
     environment = {
@@ -96,7 +173,7 @@ in {
       GF_SERVER_ROOT_URL = "https://grafana.prestonhager.com/";
       GF_SERVER_ENFORCE_DOMAIN = "true";
       GF_SERVER_ENABLE_GZIP = "true";
-      # Zitadel OIDC is configured via sops env file.
+      # Zitadel OIDC and SMTP password are configured via runtime env file.
       GF_AUTH_LDAP_ENABLED = "false";
       GF_AUTH_DISABLE_LOGIN_FORM = "false";
       # Default org role for new OAuth users when role_attribute_path does not match.
@@ -106,6 +183,7 @@ in {
       GF_RENDERING_SERVER_URL = "http://127.0.0.1:8081/render";
       GF_RENDERING_CALLBACK_URL = "http://127.0.0.1:3000/";
       GF_RENDERING_TIMEOUT = "30";
+      GF_UNIFIED_ALERTING_ENABLED = "true";
     };
 
     volumes = [
@@ -116,6 +194,9 @@ in {
       "${etcPath "grafana/provisioning/dashboards/ace.yaml"}:/etc/grafana/provisioning/dashboards/ace.yaml:ro"
       "${etcPath "grafana/provisioning/dashboards/crux.yaml"}:/etc/grafana/provisioning/dashboards/crux.yaml:ro"
       "${etcPath "grafana/provisioning/dashboards/lan.yaml"}:/etc/grafana/provisioning/dashboards/lan.yaml:ro"
+      "${grafanaAlertingDir}/contact-points.yaml:/etc/grafana/provisioning/alerting/contact-points.yaml:ro"
+      "${etcPath "grafana/provisioning/alerting/alert-rules.yaml"}:/etc/grafana/provisioning/alerting/alert-rules.yaml:ro"
+      "${etcPath "grafana/provisioning/alerting/notification-policies.yaml"}:/etc/grafana/provisioning/alerting/notification-policies.yaml:ro"
       "${etcPath "grafana/dashboards/ace/ace-overview.json"}:/etc/grafana/dashboards/ace/ace-overview.json:ro"
       "${etcPath "grafana/dashboards/ace/ace-services.json"}:/etc/grafana/dashboards/ace/ace-services.json:ro"
       "${etcPath "grafana/dashboards/ace/ace-uptime.json"}:/etc/grafana/dashboards/ace/ace-uptime.json:ro"
