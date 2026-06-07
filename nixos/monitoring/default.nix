@@ -1,15 +1,17 @@
 { config, pkgs, lib, ... }:
 let
-  promCfg = import ./prometheus-config.nix { inherit lib; };
+  blackboxCfg = import ./blackbox-config.nix { inherit lib; };
   grafanaDashboards = ./grafana/dashboards;
 in {
   imports = [
     ./exporters.nix
     ./ace-health-exporter.nix
+    ./lan-dns-prober.nix
+    ./ace-external-probe.nix
   ];
 
-  environment.etc."prometheus/prometheus.yml".text = promCfg.prometheusYml;
-  environment.etc."prometheus/blackbox.yml".source = ./blackbox.yml;
+  environment.etc."prometheus/prometheus.yml".text = (import ./prometheus-config.nix { inherit lib; }).prometheusYml;
+  environment.etc."prometheus/blackbox.yml".text = blackboxCfg.blackboxYml;
 
   environment.etc."grafana/provisioning/datasources/prometheus.yaml".text = ''
     apiVersion: 1

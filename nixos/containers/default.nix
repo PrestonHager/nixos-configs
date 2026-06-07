@@ -13,6 +13,7 @@
     ./nextcloud.nix
     #./phorge.nix
     ./prometheus.nix
+    ./pushgateway.nix
     ./pterodactyl.nix
     ./pterodactyl-test.nix
     #./spacetimedb.nix

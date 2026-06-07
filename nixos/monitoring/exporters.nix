@@ -13,7 +13,7 @@
   services.prometheus.exporters.blackbox = {
     enable = true;
     port = 9115;
-    configFile = pkgs.writeText "blackbox.yml" (builtins.readFile ./blackbox.yml);
+    configFile = pkgs.writeText "blackbox.yml" (import ./blackbox-config.nix { inherit lib; }).blackboxYml;
   };
 
   systemd.tmpfiles.rules = [
