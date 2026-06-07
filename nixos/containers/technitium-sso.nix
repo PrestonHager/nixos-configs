@@ -38,7 +38,7 @@ let
     desired_hash=$(${pkgs.coreutils}/bin/sha256sum "$OIDC_ENV" | ${pkgs.coreutils}/bin/cut -d' ' -f1)
     desired_hash="''${desired_hash};scopes=${ssoScopes};role=${adminRoleKey}"
 
-    if [ -f "$HASH_FILE" ] && [ "$(cat "$HASH_FILE")" = "$desired_hash" ]; then
+    if [ -f "$HASH_FILE" ] && [ "$(cat "$HASH_FILE")" = "''${desired_hash}" ]; then
       exit 0
     fi
 
@@ -68,7 +68,7 @@ let
       --data-urlencode "ssoAllowSignupOnlyForMappedUsers=true" \
       --data-urlencode "ssoGroupMap=${adminRoleKey}|${adminLocalGroup}" >/dev/null
 
-    echo "$desired_hash" > "$HASH_FILE"
+    echo "''${desired_hash}" > "$HASH_FILE"
   '';
 in
 {
