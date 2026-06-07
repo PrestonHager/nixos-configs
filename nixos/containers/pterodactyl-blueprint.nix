@@ -71,6 +71,8 @@ let
     export PATH="${toolPath}:$PATH"
     export HOME=/var/lib/pterodactyl
     export TERM=dumb
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
     export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
     install -d -m 0750 -o pterodactyl -g pterodactyl /var/lib/pterodactyl
 
@@ -110,8 +112,8 @@ let
     cd "$panel"
     if ! blueprint_cli -info 2>/dev/null | grep -qi sociallogin; then
       echo "pterodactyl-blueprint-install: installing Social Login extension..."
-      blueprint_cli -install sociallogin \
-        || blueprint_cli -i sociallogin
+      rm -f "$panel/.blueprint/lock"
+      blueprint_cli -install sociallogin
     else
       echo "pterodactyl-blueprint-install: Social Login extension already installed"
     fi

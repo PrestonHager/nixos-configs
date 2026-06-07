@@ -72,7 +72,7 @@ let
     echo "pterodactyl-test-blueprint-install: applying PrestonHager/framework@${blueprintForkBranch}..."
 
     if [ ! -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed" ]; then
-      rm -rf "$panel/.blueprint" "$panel/blueprint" 2>/dev/null || true
+      runuser -u prestonh -- rm -rf "$panel/.blueprint" "$panel/blueprint" 2>/dev/null || true
     fi
 
     archive="$fork_dir/release-overlay.zip"
@@ -106,8 +106,8 @@ let
         ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -bash "$@"
     }
 
-    blueprint_cli_root() {
-      env \
+    blueprint_cli_install() {
+      runuser -u prestonh -- env \
         HOME=/home/prestonh \
         TERM=dumb \
         YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test \
@@ -126,7 +126,8 @@ let
     cd "$panel"
     if [ ! -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed" ]; then
       echo "pterodactyl-test-blueprint-install: running Blueprint first-time installer..."
-      blueprint_cli_root
+      rm -f /usr/local/bin/blueprint
+      blueprint_cli_install
       chown -R prestonh:users "$panel"
       if [ ! -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed" ]; then
         echo "pterodactyl-test-blueprint-install: Blueprint first-time install did not complete" >&2
