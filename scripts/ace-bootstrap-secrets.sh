@@ -48,14 +48,15 @@ grafana-oauth-env: |
   GF_AUTH_GENERIC_OAUTH_NAME=Zitadel
   GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP=true
   GF_AUTH_GENERIC_OAUTH_CLIENT_ID=REPLACE_ZITADEL_CLIENT_ID
-  GF_AUTH_GENERIC_OAUTH_SCOPES=openid profile email
+  GF_AUTH_GENERIC_OAUTH_SCOPES=openid profile email urn:zitadel:iam:org:project:roles urn:zitadel:iam:org:project:id:REPLACE_PROJECT_ID:aud
   GF_AUTH_GENERIC_OAUTH_AUTH_URL=https://zitadel.prestonhager.com/oauth/v2/authorize
   GF_AUTH_GENERIC_OAUTH_TOKEN_URL=https://zitadel.prestonhager.com/oauth/v2/token
   GF_AUTH_GENERIC_OAUTH_API_URL=https://zitadel.prestonhager.com/oidc/v1/userinfo
   GF_AUTH_GENERIC_OAUTH_USE_PKCE=true
   GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN=true
   GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH=email
-  GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=email=='admin@prestonhager.com' && 'GrafanaAdmin' || contains(keys("urn:zitadel:iam:org:project:roles"), 'grafana_admin') && 'Admin' || 'Viewer'
+  GF_AUTH_GENERIC_OAUTH_SKIP_ORG_ROLE_SYNC=false
+  GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=contains(keys("urn:zitadel:iam:org:project:roles"), 'grafana_admin') && 'GrafanaAdmin' || 'Viewer'
 EOF
 nix shell nixpkgs#sops --command sops -e -i secrets/containers/zitadel-config.yaml
 nix shell nixpkgs#sops --command sops -e -i secrets/containers/grafana-oauth.yaml

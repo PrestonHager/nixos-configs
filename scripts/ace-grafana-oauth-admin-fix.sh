@@ -5,7 +5,7 @@ set -euo pipefail
 
 export SOPS_AGE_KEY_FILE=/var/lib/sops/age/keys.txt
 SECRETS=/home/prestonh/nixos-secrets
-ROLE_PATH='email=='\''admin@prestonhager.com'\'' && '\''GrafanaAdmin'\'' || contains(keys("urn:zitadel:iam:org:project:roles"), '\''grafana_admin'\'') && '\''Admin'\'' || '\''Viewer'\'''
+ROLE_PATH='contains(keys("urn:zitadel:iam:org:project:roles"), '\''grafana_admin'\'') && '\''GrafanaAdmin'\'' || '\''Viewer'\'''
 
 cd "$SECRETS"
 

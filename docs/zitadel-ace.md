@@ -58,3 +58,30 @@ Useful logs:
 podman logs zitadel-login --tail 50
 podman logs zitadel --tail 50
 ```
+
+## Grafana OAuth admin role
+
+Grafana at https://grafana.prestonhager.com uses the **Home Lab** project OIDC app (`Grafana`, client ID in sops). Users with Zitadel project role `grafana_admin` receive Grafana **Server Admin** on login when OAuth env vars are configured (see `docs/monitoring-ace.md`).
+
+### Assign `grafana_admin` in the console
+
+1. Open https://zitadel.prestonhager.com/ui/console/org/projects
+2. Select project **Home Lab**
+3. **Roles** → create role `grafana_admin` if it does not exist (display name e.g. *Grafana Admin*)
+4. **Authorizations** → find the user → **New grant** → select role `grafana_admin` → save
+5. **Applications** → **Grafana** → enable **Assert Roles on Authentication** (ID token and access token role assertion)
+6. In Grafana: **Sign out**, then **Sign in with Zitadel** again
+
+Role claims appear in userinfo as `urn:zitadel:iam:org:project:roles` with `grafana_admin` as an object key. Grafana scopes must include `urn:zitadel:iam:org:project:roles` and the project audience scope (configured in sops).
+
+### Verify on ace
+
+```bash
+# Zitadel grant for admin user
+podman exec zitadel-db psql -U zitadel -d zitadel -c \
+  "SELECT roles FROM projections.user_grants5 WHERE user_id=(SELECT id FROM projections.users14 WHERE username='admin@prestonhager.com');"
+
+# Grafana server admin flag after re-login
+nix shell nixpkgs#sqlite -c sqlite3 /grafana/data/grafana.db \
+  "SELECT email, is_admin FROM user WHERE email='admin@prestonhager.com';"
+```

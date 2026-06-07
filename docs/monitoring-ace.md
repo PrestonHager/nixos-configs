@@ -16,26 +16,38 @@ OAuth users are **not** Grafana server admins unless `role_attribute_path` maps 
 
 Current mapping (in sops):
 
-- `admin@prestonhager.com` → `GrafanaAdmin` (server admin + org Admin)
-- Zitadel project role `grafana_admin` (when present in token/userinfo) → org `Admin`
+- Zitadel project role `grafana_admin` (in userinfo claim `urn:zitadel:iam:org:project:roles`) → `GrafanaAdmin`
 - Everyone else → org `Viewer`
 
-Required sops env vars:
+Required sops env vars (`secrets/containers/grafana-oauth.yaml`):
 
 ```bash
 GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN=true
-GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=email=='admin@prestonhager.com' && 'GrafanaAdmin' || contains(keys("urn:zitadel:iam:org:project:roles"), 'grafana_admin') && 'Admin' || 'Viewer'
+GF_AUTH_GENERIC_OAUTH_SKIP_ORG_ROLE_SYNC=false
 GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH=email
+GF_AUTH_GENERIC_OAUTH_SCOPES=openid profile email urn:zitadel:iam:org:project:roles urn:zitadel:iam:org:project:id:376196450586990901:aud
+GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=contains(keys("urn:zitadel:iam:org:project:roles"), 'grafana_admin') && 'GrafanaAdmin' || 'Viewer'
 ```
 
-Optional Zitadel console setup for role-based access (instead of email-only):
+Zitadel emits project roles as an object keyed by role name, for example:
 
-1. In the Grafana OIDC application, enable **Assert Roles on Authentication**.
-2. Create project roles `grafana_admin` and/or `grafana_editor`.
-3. Grant roles to users under **Authorizations**.
-4. Add scope `urn:zitadel:iam:org:project:roles` to `GF_AUTH_GENERIC_OAUTH_SCOPES` if roles are not in userinfo by default.
+```json
+"urn:zitadel:iam:org:project:roles": {
+  "grafana_admin": { "376196450586990901": "prestonhager.com" }
+}
+```
 
-After changing sops, redeploy ace (`nixos-rebuild switch`) so the Grafana container restarts with the new env file.
+Grafana evaluates JMESPath against userinfo; `contains(keys("urn:zitadel:iam:org:project:roles"), 'grafana_admin')` checks for the role key.
+
+Zitadel setup (Home Lab project):
+
+1. Create project role `grafana_admin` (Roles tab).
+2. Assign the role to users under **Authorizations**.
+3. In the Grafana OIDC application, enable **Assert Roles on Authentication** (access token + ID token role assertion).
+4. After changing sops, run `nix flake update nix-secrets && nixos-rebuild switch --flake .#ace` on ace so the Grafana container restarts with the new env file.
+5. Sign out of Grafana and sign in with Zitadel again so roles are re-evaluated.
+
+See also `docs/zitadel-ace.md` for console steps.
 
 ### One-time grant for an existing OAuth user
 
