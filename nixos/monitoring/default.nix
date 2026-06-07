@@ -16,8 +16,7 @@ in {
     deleteDatasources:
       # Legacy UI datasource pointed at https://prometheus.prestonhager.com, which
       # resolves to 127.0.0.1 inside the Grafana container and breaks all panels.
-      - name: prometheus
-        orgId: 1
+      # Grafana 13 requires uid (not name) for deleteDatasources entries.
       - uid: ceui14844tqm8b
         orgId: 1
     datasources:
