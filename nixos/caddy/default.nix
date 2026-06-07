@@ -7,13 +7,13 @@
     # Reverse proxy configuration
     #./forgejo.nix
     ./jellyfin.nix
+    ./loopback-health.nix
     ./matrix.nix
     ./technitium.nix
     ./grafana.nix
     ./mediawiki.nix
     ./nextcloud.nix
     #./phorge.nix
-    #./portunus.nix
     ./prometheus.nix
     ./pterodactyl.nix
     #./spacetime.nix

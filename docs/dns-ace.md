@@ -113,7 +113,7 @@ This zone overrides public Cloudflare answers for LAN clients using ace as DNS. 
 | grafana | CNAME | grafana.internal.prestonhager.com |
 | cloud | CNAME | cloud.internal.prestonhager.com |
 | dns | CNAME | dns.internal.prestonhager.com |
-| ai, panel, test.panel, prometheus, jellyfin, vault, wg, metrics.wg, zitadel, portunus, git, matrix, spacetime, test.sui, faucet.test.sui, indexer.test.sui, factorio, game, lancache, mc, vpn | CNAME | ace.internal.prestonhager.com |
+| ai, panel, test.panel, prometheus, jellyfin, vault, wg, metrics.wg, zitadel, git, matrix, spacetime, test.sui, faucet.test.sui, indexer.test.sui, factorio, game, lancache, mc, vpn | CNAME | ace.internal.prestonhager.com |
 | crux.lc1.nm.us | CNAME | crux.internal.prestonhager.com |
 | nova.lc1.nm.us | CNAME | nova.internal.prestonhager.com |
 
@@ -126,7 +126,7 @@ Public Cloudflare CNAMEs that target `ip1.lc1.nm.us.prestonhager.com` (73.26.67.
 | Public name | LAN target |
 |-------------|------------|
 | cloud, dns, grafana | matching `*.internal.prestonhager.com` A → 192.168.5.5 |
-| ace, ai, factorio, faucet.test.sui, game, indexer.test.sui, jellyfin, lancache, matrix, mc, metrics.wg, panel, portunus, prometheus, spacetime, test.panel, test.sui, vault, vpn, wg, zitadel | ace.internal.prestonhager.com → 192.168.5.5 |
+| ace, ai, factorio, faucet.test.sui, game, indexer.test.sui, jellyfin, lancache, matrix, mc, metrics.wg, panel, prometheus, spacetime, test.panel, test.sui, vault, vpn, wg, zitadel | ace.internal.prestonhager.com → 192.168.5.5 |
 | crux.lc1.nm.us | crux.internal.prestonhager.com → 192.168.5.6 |
 | nova.lc1.nm.us | nova.internal.prestonhager.com → 192.168.5.7 |
 

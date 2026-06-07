@@ -54,7 +54,7 @@ in {
       GF_SERVER_ROOT_URL = "https://grafana.prestonhager.com/";
       GF_SERVER_ENFORCE_DOMAIN = "true";
       GF_SERVER_ENABLE_GZIP = "true";
-      # Disable Portunus LDAP; Zitadel OIDC is configured via sops env file.
+      # Zitadel OIDC is configured via sops env file.
       GF_AUTH_LDAP_ENABLED = "false";
       GF_AUTH_DISABLE_LOGIN_FORM = "false";
       # Default org role for new OAuth users when role_attribute_path does not match.

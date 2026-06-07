@@ -12,7 +12,6 @@
     # ./nextcloud-aio.nix (disabled; use nextcloud.nix)
     ./nextcloud.nix
     #./phorge.nix
-    #./portunus.nix
     ./prometheus.nix
     ./pterodactyl.nix
     ./pterodactyl-test.nix

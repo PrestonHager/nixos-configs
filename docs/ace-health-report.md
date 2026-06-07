@@ -15,7 +15,7 @@
 | **Healthy** | 23 | Core infra, most app stacks, LAN DNS, Technitium DoH/DoT |
 | **Degraded** | 4 | Nextcloud warnings, MediaWiki upgrade vhost, elevated load metric |
 | **Down / broken** | 1 | Matrix (no backend) |
-| **Not configured** | 4 | Matrix homeserver, Portunus, Forgejo, Spacetime/Sui (commented out in flake) |
+| **Not configured** | 3 | Matrix homeserver, Forgejo, Spacetime/Sui (commented out in flake) |
 
 **Overall:** Ace is **operational** for production workloads (Nextcloud, Grafana, Zitadel, Pterodactyl, Jellyfin, Vaultwarden, LAN DNS). The main gap is **Matrix** (Caddy vhost exists but Synapse is disabled).
 
@@ -53,7 +53,6 @@
 | **MediaWiki (com)** | https://loftiawiki.com | ✅ Healthy | HTTP 301 |
 | **MediaWiki upgrade** | https://upgrade.loftiawiki.org | ⚠️ Degraded | HTTP 403 |
 | **Matrix (Caddy only)** | https://matrix.prestonhager.com | ❌ Down | HTTP 502; backend `:6167` connection refused; Synapse **not enabled** on ace |
-| **Portunus** | — | ➖ N/A | Container/caddy import commented out |
 | **Forgejo / Phorge / Spacetime / Sui** | — | ➖ N/A | Commented out in `containers/default.nix` / `caddy/default.nix` |
 
 ---
@@ -230,7 +229,7 @@ Probed from ace via loopback (`--resolve …:443:127.0.0.1`):
 
 ### Low priority
 4. **MediaWiki upgrade vhost** — Investigate HTTP 403 on `upgrade.loftiawiki.org` if that instance should be publicly reachable.
-5. **Prometheus blackbox targets** — Remove or fix probes for `matrix.prestonhager.com` and `portunus.prestonhager.com` (not deployed) to reduce false alerts.
+5. **Prometheus blackbox targets** — Remove or fix probes for `matrix.prestonhager.com` (not deployed) to reduce false alerts.
 6. **ace-health load warning** — Review `server-health.sh` threshold logic on 48-core host (0.85 load is not elevated).
 
 ---
@@ -243,4 +242,4 @@ From `nixos/containers/default.nix` + `nixos/caddy/default.nix` on branch `dell-
 
 **Enabled Caddy vhosts:** Jellyfin, Matrix, Technitium/DoH, Grafana, MediaWiki, Nextcloud, Prometheus, Pterodactyl, Vaultwarden, WG Portal, Zitadel
 
-**Disabled / commented:** Forgejo, Phorge, Portunus, SpacetimeDB, Sui, Nextcloud AIO, Matrix homeserver (`hosts/ace/default.nix`)
+**Disabled / commented:** Forgejo, Phorge, SpacetimeDB, Sui, Nextcloud AIO, Matrix homeserver (`hosts/ace/default.nix`)
