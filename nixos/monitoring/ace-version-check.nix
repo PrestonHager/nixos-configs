@@ -1,4 +1,7 @@
 { pkgs, ... }:
+let
+  caddyBin = "${pkgs.caddy}/bin/caddy";
+in
 {
   systemd.tmpfiles.rules = [
     "d /var/lib/ace-version-cache 0755 root root -"
@@ -13,9 +16,10 @@
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-      ExecStart = pkgs.writeShellScript "ace-version-check-run" (
-        builtins.readFile ./scripts/ace-version-check.sh
-      );
+      ExecStart = pkgs.writeShellScript "ace-version-check-run" ''
+        export CADDY="${caddyBin}"
+        ${builtins.readFile ./scripts/ace-version-check.sh}
+      '';
     };
   };
 

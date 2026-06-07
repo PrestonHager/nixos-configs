@@ -270,8 +270,8 @@ current_mariadb() {
 }
 
 current_caddy() {
-  local v
-  v="$(caddy version 2>/dev/null | sed -n '1s/^v\\?\([^ ]*\\).*/\\1/p' || true)"
+  local v caddy_bin="${CADDY:-caddy}"
+  v="$("$caddy_bin" version 2>/dev/null | sed -n '1s/^v\?\([^ ]*\).*/\1/p' || true)"
   normalize_version "$v"
 }
 
@@ -317,7 +317,7 @@ current_clamav() {
   fi
   if container_running nextcloud-clamav; then
     v="$(podman exec nextcloud-clamav clamd --version 2>/dev/null \
-      | awk '{print $2}' | tr -d '/ClamAV' || true)"
+      | sed -n 's/^ClamAV \([0-9.]*\)\/.*/\1/p' || true)"
     normalize_version "$v"
     return 0
   fi
@@ -351,7 +351,7 @@ current_notify_push() {
   emit_service nextcloud "$(current_nextcloud)" "$(github_latest nextcloud/server)"
   emit_service zitadel "$(current_zitadel)" "$(github_latest zitadel/zitadel)"
   emit_service matrix-synapse "$(current_synapse)" "$(github_latest matrix-org/synapse)"
-  emit_service technitium "$(current_technitium)" "$(github_latest Technitium/DNS)"
+  emit_service technitium "$(current_technitium)" "$(github_latest TechnitiumSoftware/DnsServer)"
   emit_service jellyfin "$(current_jellyfin)" "$(github_latest jellyfin/jellyfin)"
   emit_service vaultwarden "$(current_vaultwarden)" "$(github_latest dani-garcia/vaultwarden)"
   emit_service mariadb "$(current_mariadb)" "$(github_latest MariaDB/server)"
