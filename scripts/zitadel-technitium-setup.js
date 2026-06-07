@@ -65,20 +65,21 @@ function sessionApi(method, path, body, bearer) {
 async function adminSessionToken() {
   const loginName = loadEnv('ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME=');
   const password = loadEnv('ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD=');
-  const session = await sessionApi('POST', '/v2/sessions', { checks: { user: { loginName } } }, makeToken());
-  const patched = await sessionApi(
+  const loginJwt = makeToken();
+  const session = await sessionApi('POST', '/v2/sessions', { checks: { user: { loginName } } }, loginJwt);
+  await sessionApi(
     'PATCH',
     `/v2/sessions/${session.sessionId}`,
     { checks: { password: { password } } },
-    session.sessionToken,
+    loginJwt,
   );
   const tokenResp = await sessionApi(
     'POST',
     `/v2/sessions/${session.sessionId}/token`,
     {},
-    patched.sessionToken || session.sessionToken,
+    loginJwt,
   );
-  return tokenResp.token || tokenResp.sessionToken || patched.sessionToken;
+  return tokenResp.token;
 }
 
 function loadEnv(prefix) {
