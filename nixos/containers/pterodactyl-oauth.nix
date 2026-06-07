@@ -6,6 +6,7 @@ let
   zitadelIssuer = "https://zitadel.prestonhager.com";
   zitadelProjectId = "376196450586990901";
   panelPublicUrl = "https://panel.prestonhager.com";
+  panelDomain = "panel.prestonhager.com";
   oauthRedirectUri = "${panelPublicUrl}/oauth2/callback";
   oauthProxyListen = "127.0.0.1:4180";
   adminRoleKey = "pterodactyl_admin";
@@ -100,6 +101,8 @@ PY
       --cookie-secure=true \
       --set-xauthrequest=true \
       --pass-user-headers=false \
+      --user-id-claim=preferred_username \
+      --whitelist-domain=${panelDomain} \
       --provider-display-name=Zitadel \
       --scope="openid profile email urn:zitadel:iam:org:project:roles urn:zitadel:iam:org:project:id:${zitadelProjectId}:aud" \
       --oidc-groups-claim=groups \
