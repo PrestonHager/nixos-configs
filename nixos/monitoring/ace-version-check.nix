@@ -13,9 +13,9 @@
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-      ExecStart = pkgs.writeShellScript "ace-version-check-run" ''
-        ${./scripts/ace-version-check.sh}
-      '';
+      ExecStart = pkgs.writeShellScript "ace-version-check-run" (
+        builtins.readFile ./scripts/ace-version-check.sh
+      );
     };
   };
 
