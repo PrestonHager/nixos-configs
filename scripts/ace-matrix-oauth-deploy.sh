@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Write Matrix OIDC credentials into sops and redeploy ace.
-# Usage: ace-matrix-oauth-deploy.sh <client_id> <client_secret>
+# Usage: ace-matrix-oauth-deploy.sh <client_id> [client_secret]
 set -euo pipefail
 
 export SOPS_AGE_KEY_FILE=/var/lib/sops/age/keys.txt
 SECRETS=/home/prestonh/nixos-secrets
 PROJECT_ID='376196450586990901'
 CLIENT_ID="${1:?client_id required}"
-CLIENT_SECRET="${2:?client_secret required}"
+CLIENT_SECRET="${2:-}"
 
 cd "$SECRETS"
 

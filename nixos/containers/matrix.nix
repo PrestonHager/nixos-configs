@@ -31,9 +31,17 @@ let
       echo "matrix-synapse-init: missing required secrets" >&2
       exit 1
     fi
-    if [ -z "$oidcClientId" ] || [ -z "$oidcClientSecret" ] || [ -z "$zitadelProjectId" ]; then
-      echo "matrix-synapse-init: missing OIDC secrets in matrix-oauth-env" >&2
+    if [ -z "$oidcClientId" ] || [ -z "$zitadelProjectId" ]; then
+      echo "matrix-synapse-init: missing OIDC client_id or project_id in matrix-oauth-env" >&2
       exit 1
+    fi
+
+    oidcSecretBlock=""
+    pkceBlock=""
+    if [ -n "$oidcClientSecret" ]; then
+      oidcSecretBlock="    client_secret: \"$oidcClientSecret\""
+    else
+      pkceBlock="    pkce_method: always"
     fi
 
     signingKey="${synapseDataDir}/${matrixDomain}.signing.key"
@@ -104,7 +112,8 @@ oidc_providers:
     discover: true
     issuer: "${zitadelIssuer}"
     client_id: "$oidcClientId"
-    client_secret: "$oidcClientSecret"
+$oidcSecretBlock
+$pkceBlock
     scopes:
       - openid
       - profile
