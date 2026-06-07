@@ -69,6 +69,7 @@ let
     rm -f "$env_backup" "$setup_backup"
 
     rm -rf "$panel/storage/app/plugins" "$panel/public/plugins" 2>/dev/null || true
+    rm -rf "$panel/.blueprint" "$panel/blueprint" "$panel/blueprint.sh" "$panel/.blueprintrc" 2>/dev/null || true
 
     chown -R prestonh:users "$panel"
     find "$panel" -type d -exec chmod 2775 {} +

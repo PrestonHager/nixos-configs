@@ -71,6 +71,10 @@ let
 
     echo "pterodactyl-test-blueprint-install: applying PrestonHager/framework@${blueprintForkBranch}..."
 
+    if [ ! -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed" ]; then
+      rm -rf "$panel/.blueprint" "$panel/blueprint" 2>/dev/null || true
+    fi
+
     archive="$fork_dir/release-overlay.zip"
     $GIT -C "$fork_dir" archive --format=zip HEAD -o "$archive"
     ${pkgs.unzip}/bin/unzip -o "$archive" -d "$panel"
@@ -117,6 +121,10 @@ let
     if [ ! -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed" ]; then
       echo "pterodactyl-test-blueprint-install: running Blueprint first-time installer..."
       blueprint_cli
+      if [ ! -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed" ]; then
+        echo "pterodactyl-test-blueprint-install: Blueprint first-time install did not complete" >&2
+        exit 1
+      fi
     else
       echo "pterodactyl-test-blueprint-install: upgrading Blueprint framework..."
       blueprint_cli -upgrade remote PrestonHager/framework "${blueprintForkBranch}" <<< "y" \
