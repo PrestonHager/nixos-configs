@@ -31,6 +31,7 @@ in {
       };
       redirectUris = {
         grafana = "https://grafana.prestonhager.com/login/generic_oauth";
+        matrix = "https://matrix.prestonhager.com/_synapse/client/oidc/callback";
         vaultwarden = "https://vault.prestonhager.com/identity/connect/oidc-signin";
       };
     };

@@ -3,15 +3,19 @@
 let
   sops-path = builtins.toString inputs.nix-secrets;
   matrixDomain = "matrix.prestonhager.com";
-  synapseImage = "docker.io/matrixdotorg/synapse:v1.127.0";
+  synapseImage = "matrixdotorg/synapse:v1.127.0";
   synapseDataDir = "/matrix/data";
   synapsePostgresDir = "/matrix/postgres";
+  synapseOidcDir = ./matrix;
   synapsePort = 6167;
+  zitadelDomain = "zitadel.prestonhager.com";
+  zitadelIssuer = "https://${zitadelDomain}";
   synapseInitScript = pkgs.writeShellScript "matrix-synapse-init" ''
     set -euo pipefail
 
     dbEnv="${config.sops.secrets."matrix-db-env".path}"
     secrets="${config.sops.secrets."matrix-secrets".path}"
+    oauthEnv="${config.sops.secrets."matrix-oauth-env".path}"
 
     install -d -m 0750 -o matrix -g matrix ${synapseDataDir}
 
@@ -19,9 +23,16 @@ let
     regSecret="$(grep '^SYNAPSE_REGISTRATION_SHARED_SECRET=' "$secrets" | cut -d= -f2-)"
     macaroonSecret="$(grep '^SYNAPSE_MACAROON_SECRET_KEY=' "$secrets" | cut -d= -f2-)"
     formSecret="$(grep '^SYNAPSE_FORM_SECRET=' "$secrets" | cut -d= -f2-)"
+    oidcClientId="$(grep '^SYNAPSE_OIDC_CLIENT_ID=' "$oauthEnv" | cut -d= -f2-)"
+    oidcClientSecret="$(grep '^SYNAPSE_OIDC_CLIENT_SECRET=' "$oauthEnv" | cut -d= -f2-)"
+    zitadelProjectId="$(grep '^ZITADEL_PROJECT_ID=' "$oauthEnv" | cut -d= -f2-)"
 
     if [ -z "$pgPass" ] || [ -z "$regSecret" ] || [ -z "$macaroonSecret" ] || [ -z "$formSecret" ]; then
       echo "matrix-synapse-init: missing required secrets" >&2
+      exit 1
+    fi
+    if [ -z "$oidcClientId" ] || [ -z "$oidcClientSecret" ] || [ -z "$zitadelProjectId" ]; then
+      echo "matrix-synapse-init: missing OIDC secrets in matrix-oauth-env" >&2
       exit 1
     fi
 
@@ -81,6 +92,32 @@ suppress_key_server_warning: true
 
 trusted_key_servers:
   - server_name: "matrix.org"
+
+modules:
+  - module: zitadel_oidc_mapper.ZitadelAdminModule
+    config:
+      admin_role: matrix_admin
+
+oidc_providers:
+  - idp_id: zitadel
+    idp_name: "Zitadel"
+    discover: true
+    issuer: "${zitadelIssuer}"
+    client_id: "$oidcClientId"
+    client_secret: "$oidcClientSecret"
+    scopes:
+      - openid
+      - profile
+      - email
+      - urn:zitadel:iam:org:project:roles
+      - urn:zitadel:iam:org:project:id:$zitadelProjectId:aud
+    user_mapping_provider:
+      module: zitadel_oidc_mapper.ZitadelOidcMappingProvider
+      config:
+        localpart_template: "{{ user.preferred_username.split('@')[0] | lower }}"
+        display_name_template: "{{ user.name }}"
+        email_template: "{{ user.email }}"
+        admin_role: matrix_admin
 EOF
 
     chown matrix:matrix "$homeserver"
@@ -95,6 +132,10 @@ in {
     "matrix-secrets" = {
       sopsFile = "${sops-path}/secrets/containers/matrix.yaml";
       key = "matrix-secrets";
+    };
+    "matrix-oauth-env" = {
+      sopsFile = "${sops-path}/secrets/containers/matrix.yaml";
+      key = "matrix-oauth-env";
     };
   };
 
@@ -140,6 +181,8 @@ in {
     restartTriggers = [
       config.sops.secrets."matrix-db-env".path
       config.sops.secrets."matrix-secrets".path
+      config.sops.secrets."matrix-oauth-env".path
+      synapseInitScript
     ];
   };
 
@@ -188,18 +231,24 @@ in {
     cmd = [ "run" ];
     extraOptions = [
       "--pod=matrix-pod"
+      "--add-host=${zitadelDomain}:host-gateway"
     ];
     user = "matrix:matrix";
+    environment = {
+      PYTHONPATH = "/oidc";
+    };
     volumes = [
       "/etc/passwd:/etc/passwd:ro"
       "/etc/group:/etc/group:ro"
       "${synapseDataDir}:/data"
+      "${synapseOidcDir}:/oidc:ro"
     ];
   };
 
   systemd.services.podman-matrix-synapse.restartTriggers = [
     config.sops.secrets."matrix-db-env".path
     config.sops.secrets."matrix-secrets".path
+    config.sops.secrets."matrix-oauth-env".path
     synapseInitScript
   ];
 }

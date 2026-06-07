@@ -80,6 +80,17 @@ EOF
   nix shell nixpkgs#sops --command sops -e -i secrets/containers/matrix.yaml
 fi
 
+if ! nix shell nixpkgs#sops --command sops -d secrets/containers/matrix.yaml 2>/dev/null | grep -q '^SYNAPSE_OIDC_CLIENT_ID='; then
+  cat >>secrets/containers/matrix.yaml <<'EOF'
+
+matrix-oauth-env: |
+  SYNAPSE_OIDC_CLIENT_ID=REPLACE_ZITADEL_CLIENT_ID
+  SYNAPSE_OIDC_CLIENT_SECRET=REPLACE_ZITADEL_CLIENT_SECRET
+  ZITADEL_PROJECT_ID=REPLACE_PROJECT_ID
+EOF
+  nix shell nixpkgs#sops --command sops -e -i secrets/containers/matrix.yaml
+fi
+
 git add secrets/containers/zitadel-config.yaml secrets/containers/grafana-oauth.yaml
 if [ -f secrets/containers/matrix.yaml ]; then
   git add secrets/containers/matrix.yaml
