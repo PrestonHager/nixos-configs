@@ -77,6 +77,13 @@ let
 
     archive="$fork_dir/release-overlay.zip"
     $GIT -C "$fork_dir" archive --format=zip HEAD -o "$archive"
+
+    if [ ! -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed" ]; then
+      framework_zip="$fork_dir/framework-bootstrap.zip"
+      $GIT -C "$fork_dir" archive --format=zip HEAD blueprint blueprint.sh scripts .blueprintrc.prestonhager.example -o "$framework_zip"
+      ${pkgs.unzip}/bin/unzip -o "$framework_zip" -d "$panel"
+    fi
+
     ${pkgs.unzip}/bin/unzip -o "$archive" -d "$panel"
     chown -R prestonh:users "$panel"
 
