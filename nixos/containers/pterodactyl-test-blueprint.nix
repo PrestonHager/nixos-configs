@@ -94,10 +94,6 @@ let
     install -d -m 0755 -o prestonh -g users "$panel/.blueprint"
     if [ -d "$panel/blueprint" ] && [ -d "$panel/.blueprint/blueprint" ]; then
       rm -rf "$panel/blueprint"
-    elif [ -d "$panel/blueprint" ]; then
-      rm -rf "$panel/.blueprint/blueprint"
-      mv "$panel/blueprint" "$panel/.blueprint/blueprint"
-      chown -R prestonh:users "$panel/.blueprint/blueprint"
     fi
 
     blueprint_cli() {
