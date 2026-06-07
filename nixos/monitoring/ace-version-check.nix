@@ -9,7 +9,7 @@
     after = [ "network-online.target" "podman.service" ];
     wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
-    path = with pkgs; [ bash coreutils curl jq podman caddy ];
+    path = with pkgs; [ bash coreutils curl jq podman caddy gawk gnused ];
     serviceConfig = {
       Type = "oneshot";
       User = "root";

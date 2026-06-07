@@ -44,9 +44,12 @@ github_latest() {
   fi
 
   if [[ -n "$version" ]]; then
-    jq -n --arg v "$version" --argjson t "$now" '{version:$v,fetched_at:$t}' > "$cache"
-    printf '%s\n' "$version"
-    return 0
+    version="$(normalize_version "$version")"
+    if [[ -n "$version" ]]; then
+      jq -n --arg v "$version" --argjson t "$now" '{version:$v,fetched_at:$t}' > "$cache"
+      printf '%s\n' "$version"
+      return 0
+    fi
   fi
 
   if [[ -f "$cache" ]]; then
@@ -58,6 +61,12 @@ normalize_version() {
   local v="${1:-}"
   v="${v#v}"
   v="${v#V}"
+  v="${v#release/}"
+  v="${v#release-v}"
+  v="${v#Release/}"
+  v="${v#Release-v}"
+  v="${v#mariadb-}"
+  v="${v#MARIADB-}"
   v="${v%%-*}"
   v="${v%%+*}"
   v="${v%%_stable*}"
@@ -69,7 +78,17 @@ normalize_version() {
     printf '%s\n' "${BASH_REMATCH[1]}"
     return 0
   fi
-  printf '%s\n' "$v"
+  printf '%s\n' ""
+}
+
+container_tag() {
+  local name="$1" image tag
+  image="$(podman ps -a --filter "name=^${name}$" --format '{{.Image}}' 2>/dev/null | head -1 || true)"
+  if [[ -z "$image" ]]; then
+    image="$(podman inspect "$name" --format '{{.ImageName}}' 2>/dev/null | head -1 || true)"
+  fi
+  tag="${image##*:}"
+  normalize_version "$tag"
 }
 
 parse_semver() {
@@ -134,23 +153,12 @@ compare_versions() {
   BEHIND=1
 }
 
-container_tag() {
-  local name="$1"
-  podman inspect "$name" --format '{{.ImageName}}' 2>/dev/null \
-    | awk -F: '{print $NF}' \
-    | head -1 \
-    || true
-}
-
 container_running() {
   podman inspect "$1" --format '{{.State.Running}}' 2>/dev/null | grep -qx true
 }
 
 version_from_container_tag() {
-  local name="$1"
-  local tag
-  tag="$(container_tag "$name")"
-  normalize_version "$tag"
+  container_tag "$1"
 }
 
 emit_service() {
@@ -263,7 +271,7 @@ current_mariadb() {
 
 current_caddy() {
   local v
-  v="$(caddy version 2>/dev/null | awk '{print $1}' || true)"
+  v="$(caddy version 2>/dev/null | sed -n '1s/^v\\?\([^ ]*\\).*/\\1/p' || true)"
   normalize_version "$v"
 }
 
@@ -350,7 +358,7 @@ current_notify_push() {
   emit_service caddy "$(current_caddy)" "$(github_latest caddyserver/caddy)"
   emit_service pterodactyl-panel "$(current_pterodactyl)" "$(github_latest pterodactyl/panel)"
   emit_service redis "$(current_redis)" "$(github_latest redis/redis)"
-  emit_service clamav "$(current_clamav)" "$(github_latest Cisco-Talos/clamav-devel)"
+  emit_service clamav "$(current_clamav)" "$(github_latest Cisco-Talos/clamav-release)"
   emit_service notify_push "$(current_notify_push)" "$(github_latest nextcloud/notify_push)"
 } > "$TMP"
 
