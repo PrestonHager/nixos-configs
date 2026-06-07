@@ -180,15 +180,16 @@ async function disableSenderDomainCheck(token) {
 }
 
 async function testProvider(token, id) {
+  const body = { receiverAddress: SMTP.from };
   try {
-    await adminApi('POST', `/admin/v1/smtp/${id}/_test`, {}, token);
-    console.log('SMTP test email sent');
+    await adminApi('POST', `/admin/v1/smtp/${id}/_test`, body, token);
+    console.log(`SMTP test email sent to ${SMTP.from}`);
     return;
   } catch (err) {
     if (!String(err.message).includes('404')) throw err;
   }
-  await adminApi('POST', `/admin/v1/email/smtp/${id}/_test`, {}, token);
-  console.log('SMTP test email sent');
+  await adminApi('POST', `/admin/v1/email/smtp/${id}/_test`, body, token);
+  console.log(`SMTP test email sent to ${SMTP.from}`);
 }
 
 (async () => {
