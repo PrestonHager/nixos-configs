@@ -1,0 +1,283 @@
+{
+  "fields": [
+    {
+      "key": "cloudflare_api_token",
+      "type": "password",
+      "label": "Cloudflare API Token",
+      "description": "Token with Zone.DNS Edit and Zone.Zone Read permissions for your Cloudflare account.",
+      "surfaces": ["admin"],
+      "storage": "config",
+      "required": true,
+      "sensitive": true,
+      "audit": true
+    },
+    {
+      "key": "zone_id",
+      "type": "string",
+      "label": "Default Zone ID",
+      "description": "Cloudflare zone ID used for relative hostnames and auto-provisioned records.",
+      "surfaces": ["admin"],
+      "storage": "config",
+      "required": true,
+      "placeholder": "your-zone-id"
+    },
+    {
+      "key": "base_domain",
+      "type": "string",
+      "label": "Base Domain",
+      "description": "Default zone apex (e.g. example.com). Bare subdomains entered by users are appended to this domain.",
+      "surfaces": ["admin"],
+      "storage": "config",
+      "required": true,
+      "placeholder": "example.com"
+    },
+    {
+      "key": "auto_provision_enabled",
+      "type": "boolean",
+      "label": "Auto-provision on install",
+      "description": "Automatically create A and SRV records when a server finishes installing.",
+      "surfaces": ["admin"],
+      "storage": "config",
+      "default": true
+    },
+    {
+      "key": "default_ttl",
+      "type": "integer",
+      "label": "Default TTL",
+      "description": "Default DNS TTL for new records (1 = automatic for Cloudflare).",
+      "surfaces": ["admin"],
+      "storage": "config",
+      "default": 1,
+      "min": 1
+    },
+    {
+      "key": "srv_profiles",
+      "type": "list",
+      "label": "SRV Profiles",
+      "itemLabel": "Profile",
+      "description": "Profile definitions for game/service SRV records. Choose a preset or leave preset empty and set custom service/proto.",
+      "surfaces": ["admin"],
+      "storage": "config",
+      "default": [],
+      "itemFields": [
+        {
+          "key": "id",
+          "type": "string",
+          "label": "Profile ID",
+          "required": true,
+          "placeholder": "minecraft-java"
+        },
+        {
+          "key": "preset",
+          "type": "select",
+          "label": "Preset",
+          "options": [
+            { "value": "minecraft-java", "label": "Minecraft Java" },
+            { "value": "minecraft-bedrock", "label": "Minecraft Bedrock" },
+            { "value": "factorio", "label": "Factorio" },
+            { "value": "terraria", "label": "Terraria" },
+            { "value": "rust", "label": "Rust" },
+            { "value": "valheim", "label": "Valheim" },
+            { "value": "ark", "label": "ARK" },
+            { "value": "mumble", "label": "Mumble" }
+          ]
+        },
+        {
+          "key": "label",
+          "type": "string",
+          "label": "Display Label",
+          "placeholder": "Minecraft Java"
+        },
+        {
+          "key": "service",
+          "type": "string",
+          "label": "Service",
+          "placeholder": "_minecraft",
+          "description": "Required when no preset is selected."
+        },
+        {
+          "key": "proto",
+          "type": "select",
+          "label": "Protocol",
+          "options": [
+            { "value": "_tcp", "label": "TCP" },
+            { "value": "_udp", "label": "UDP" }
+          ]
+        },
+        {
+          "key": "port",
+          "type": "integer",
+          "label": "Port",
+          "min": 1,
+          "description": "Optional. Defaults to the server primary allocation port."
+        },
+        {
+          "key": "priority",
+          "type": "integer",
+          "label": "Priority",
+          "default": 0
+        },
+        {
+          "key": "weight",
+          "type": "integer",
+          "label": "Weight",
+          "default": 5
+        },
+        {
+          "key": "auto_provision",
+          "type": "boolean",
+          "label": "Auto-provision on install",
+          "default": false
+        }
+      ]
+    },
+    {
+      "key": "primary_domains",
+      "type": "list",
+      "label": "Primary Domains",
+      "itemLabel": "Domain",
+      "description": "Additional hosted domains clients may select for vanity hostnames.",
+      "surfaces": ["admin"],
+      "storage": "config",
+      "default": [],
+      "itemFields": [
+        {
+          "key": "id",
+          "type": "string",
+          "label": "Domain ID",
+          "required": true,
+          "placeholder": "games"
+        },
+        {
+          "key": "domain",
+          "type": "string",
+          "label": "Domain",
+          "required": true,
+          "placeholder": "games.example.com"
+        },
+        {
+          "key": "zone_id",
+          "type": "string",
+          "label": "Zone ID",
+          "description": "Optional. Defaults to the default zone ID."
+        },
+        {
+          "key": "client_selectable",
+          "type": "boolean",
+          "label": "Client selectable",
+          "default": true
+        }
+      ]
+    },
+    {
+      "key": "subdomain_generation",
+      "type": "select",
+      "label": "Subdomain generation",
+      "description": "Strategy for auto-generated hostnames on server install.",
+      "surfaces": ["admin"],
+      "storage": "config",
+      "default": "server_slug",
+      "options": [
+        { "value": "server_slug", "label": "Server name slug + UUID suffix" },
+        { "value": "random_words", "label": "Random word pairs" },
+        { "value": "random_hex", "label": "Random hex" },
+        { "value": "uuid_only", "label": "UUID prefix" }
+      ]
+    },
+    {
+      "key": "client_subdomain_policy",
+      "type": "select",
+      "label": "Client subdomain policy",
+      "description": "When clients may change their vanity hostname.",
+      "surfaces": ["admin"],
+      "storage": "config",
+      "default": "never",
+      "options": [
+        { "value": "never", "label": "Never (admin only)" },
+        { "value": "once_on_create", "label": "Once on create" },
+        { "value": "limited", "label": "Limited changes per period" },
+        { "value": "always", "label": "Always" }
+      ]
+    },
+    {
+      "key": "client_change_limit",
+      "type": "integer",
+      "label": "Client change limit",
+      "description": "Maximum hostname changes per rolling period when policy is limited.",
+      "surfaces": ["admin"],
+      "storage": "config",
+      "default": 1,
+      "min": 0
+    },
+    {
+      "key": "client_change_period_hours",
+      "type": "integer",
+      "label": "Change period (hours)",
+      "description": "Rolling window for the client change limit.",
+      "surfaces": ["admin"],
+      "storage": "config",
+      "default": 168,
+      "min": 1
+    },
+    {
+      "key": "reserved_labels",
+      "type": "list",
+      "label": "Reserved labels",
+      "itemLabel": "Label",
+      "description": "Hostname labels blocked from client and admin vanity selection.",
+      "surfaces": ["admin"],
+      "storage": "config",
+      "default": [],
+      "itemFields": [
+        {
+          "key": "label",
+          "type": "string",
+          "label": "Label",
+          "required": true,
+          "placeholder": "admin"
+        }
+      ]
+    },
+    {
+      "key": "min_label_length",
+      "type": "integer",
+      "label": "Minimum label length",
+      "surfaces": ["admin"],
+      "storage": "config",
+      "default": 3,
+      "min": 1
+    },
+    {
+      "key": "max_label_length",
+      "type": "integer",
+      "label": "Maximum label length",
+      "surfaces": ["admin"],
+      "storage": "config",
+      "default": 32,
+      "min": 3
+    },
+    {
+      "key": "allow_custom_domain",
+      "type": "boolean",
+      "label": "Allow custom domains",
+      "description": "Enable CNAME/TXT custom domain verification for clients.",
+      "surfaces": ["admin"],
+      "storage": "config",
+      "default": false
+    },
+    {
+      "key": "custom_domain_mode",
+      "type": "select",
+      "label": "Custom domain mode",
+      "description": "How clients may attach external domains.",
+      "surfaces": ["admin"],
+      "storage": "config",
+      "default": "cname",
+      "options": [
+        { "value": "cname", "label": "CNAME verification only" },
+        { "value": "nameserver", "label": "Nameserver delegation only" },
+        { "value": "both", "label": "CNAME and nameserver delegation" }
+      ]
+    }
+  ]
+}
