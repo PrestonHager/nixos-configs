@@ -82,10 +82,8 @@ let
       framework_zip="$fork_dir/framework-bootstrap.zip"
       $GIT -C "$fork_dir" archive --format=zip HEAD blueprint blueprint.sh scripts .blueprintrc.prestonhager.example -o "$framework_zip"
       ${pkgs.unzip}/bin/unzip -o "$framework_zip" -d "$panel"
+      chown -R prestonh:users "$panel"
     fi
-
-    ${pkgs.unzip}/bin/unzip -o "$archive" -d "$panel"
-    chown -R prestonh:users "$panel"
 
     install -m 0644 ${blueprintRc} "$panel/.blueprintrc"
     chmod +x "$panel/blueprint.sh"
@@ -148,6 +146,13 @@ let
       blueprint_cli -upgrade remote PrestonHager/framework "${blueprintForkBranch}" <<< "y" \
         || blueprint_cli -upgrade remote "https://github.com/PrestonHager/framework.git" "${blueprintForkBranch}" <<< "y"
     fi
+
+    echo "pterodactyl-test-blueprint-install: overlaying fork PHP patches..."
+    ${pkgs.unzip}/bin/unzip -o "$archive" -d "$panel"
+    chown -R prestonh:users "$panel"
+    install -m 0644 ${blueprintRc} "$panel/.blueprintrc"
+    chmod +x "$panel/blueprint.sh"
+    chown prestonh:users "$panel/.blueprintrc" "$panel/blueprint.sh"
 
     if [ -d "${dnsExtensionSrc}" ]; then
       echo "pterodactyl-test-blueprint-install: building dnsrecords extension..."
