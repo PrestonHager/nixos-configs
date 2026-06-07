@@ -125,6 +125,8 @@ async function ensureProjectRole() {
   } catch (err) {
     if (String(err.message).includes('already exists') || String(err.message).includes('RoleKeyDuplicated')) {
       console.log(`Project role ${ROLE_KEY} already exists`);
+    } else if (String(err.message).includes('No matching permissions')) {
+      console.warn(`WARN: cannot create role ${ROLE_KEY} via API (${err.message}); create it in Zitadel console if missing`);
     } else {
       throw err;
     }
@@ -132,29 +134,37 @@ async function ensureProjectRole() {
 }
 
 async function ensureUserGrant() {
-  const grants = await api('POST', '/management/v1/users/grants/_search', {
-    query: { offset: '0', limit: 100, asc: true },
-    queries: [{ userIdQuery: { userId: ADMIN_USER_ID } }],
-  });
-  const existing = (grants.result || []).find(
-    (g) => g.projectId === PROJECT_ID && (g.roleKeys || []).includes(ROLE_KEY),
-  );
-  if (existing) {
-    console.log(`Admin user already has ${ROLE_KEY}`);
-    return;
+  try {
+    const grants = await api('POST', '/management/v1/users/grants/_search', {
+      query: { offset: '0', limit: 100, asc: true },
+      queries: [{ userIdQuery: { userId: ADMIN_USER_ID } }],
+    });
+    const existing = (grants.result || []).find(
+      (g) => g.projectId === PROJECT_ID && (g.roleKeys || []).includes(ROLE_KEY),
+    );
+    if (existing) {
+      console.log(`Admin user already has ${ROLE_KEY}`);
+      return;
+    }
+    const projectGrant = (grants.result || []).find((g) => g.projectId === PROJECT_ID);
+    if (projectGrant) {
+      const roleKeys = [...new Set([...(projectGrant.roleKeys || []), ROLE_KEY])];
+      await api('PUT', `/management/v1/users/${ADMIN_USER_ID}/grants/${projectGrant.id}`, { roleKeys });
+      console.log(`Updated grant ${projectGrant.id} with ${ROLE_KEY}`);
+      return;
+    }
+    await api('POST', `/management/v1/users/${ADMIN_USER_ID}/grants`, {
+      projectId: PROJECT_ID,
+      roleKeys: [ROLE_KEY],
+    });
+    console.log(`Granted ${ROLE_KEY} to admin user`);
+  } catch (err) {
+    if (String(err.message).includes('No matching permissions')) {
+      console.warn(`WARN: cannot grant ${ROLE_KEY} via API; assign role in Zitadel console Authorizations`);
+      return;
+    }
+    throw err;
   }
-  const projectGrant = (grants.result || []).find((g) => g.projectId === PROJECT_ID);
-  if (projectGrant) {
-    const roleKeys = [...new Set([...(projectGrant.roleKeys || []), ROLE_KEY])];
-    await api('PUT', `/management/v1/users/${ADMIN_USER_ID}/grants/${projectGrant.id}`, { roleKeys });
-    console.log(`Updated grant ${projectGrant.id} with ${ROLE_KEY}`);
-    return;
-  }
-  await api('POST', `/management/v1/users/${ADMIN_USER_ID}/grants`, {
-    projectId: PROJECT_ID,
-    roleKeys: [ROLE_KEY],
-  });
-  console.log(`Granted ${ROLE_KEY} to admin user`);
 }
 
 (async () => {
