@@ -4,7 +4,7 @@ let
   sops-path = builtins.toString inputs.nix-secrets;
   ncRoot = "/stor/nextcloud";
   # 34.0.1 not published on Docker Hub yet (github.com/nextcloud/docker/issues/2584)
-  nextcloudImage = "docker.io/library/nextcloud:34.0.1";
+  nextcloudImage = "docker.io/library/nextcloud:34.0.0";
   clamavImage = "docker.io/clamav/clamav:stable";
   nextcloudPublicUrl = "https://cloud.prestonhager.com";
   nextcloudPushUrl = "${nextcloudPublicUrl}/push";
