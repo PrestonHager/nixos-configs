@@ -64,12 +64,13 @@ let
       portforward_dry_run=0
     fi
 
-    ${pkgs.coreutils}/bin/cp ${configurePhp} /tmp/configure-test-extensions.php
-    ${pkgs.podman}/bin/podman cp /tmp/configure-test-extensions.php pterodactyl-test:/tmp/configure-test-extensions.php
+    ${pkgs.coreutils}/bin/cp ${configurePhp} ${testPanelDir}/configure-test-extensions.php
+    ${pkgs.coreutils}/bin/chown prestonh:users ${testPanelDir}/configure-test-extensions.php
     ${pkgs.podman}/bin/podman exec \
       -e PORTFORWARD_DRY_RUN="$portforward_dry_run" \
       pterodactyl-test \
-      php /tmp/configure-test-extensions.php
+      php /var/www/pterodactyl/configure-test-extensions.php
+    ${pkgs.coreutils}/bin/rm -f ${testPanelDir}/configure-test-extensions.php
 
     echo "pterodactyl-test-blueprint-extensions-configure: homelab defaults applied (portforward dry_run=$portforward_dry_run)"
   '';
