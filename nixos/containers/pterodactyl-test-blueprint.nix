@@ -174,7 +174,7 @@ let
     extension_backend_integrated() {
       for ext in sociallogin dnsrecords portforward; do
         [ -e "$panel/app/BlueprintFramework/Extensions/$ext" ] || return 1
-        [ -f "$panel/app/Http/Controllers/Admin/Extensions/$ext/${ext}ExtensionController.php" ] || return 1
+        [ -f "$panel/app/Http/Controllers/Admin/Extensions/$ext/''${ext}ExtensionController.php" ] || return 1
       done
     }
 
