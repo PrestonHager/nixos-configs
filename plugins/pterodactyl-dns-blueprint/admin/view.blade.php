@@ -58,22 +58,16 @@
                         <input type="text" class="form-control" id="technitium_default_zone" name="technitium_default_zone" value="{{ old('technitium_default_zone', $settings['technitium_default_zone'] ?? 'prestonhager.com') }}">
                     </div>
                     <div class="checkbox">
-                        <label>
-                            <input type="checkbox" name="dry_run" value="1" @checked(old('dry_run', $settings['dry_run'] ?? false))>
-                            Dry-run mode (log intended DNS changes without API calls)
-                        </label>
+                        <input type="checkbox" id="dns_dry_run" name="dry_run" value="1" @checked(old('dry_run', $settings['dry_run'] ?? false))>
+                        <label for="dns_dry_run">Dry-run mode (log intended DNS changes without API calls)</label>
                     </div>
                     <div class="checkbox">
-                        <label>
-                            <input type="checkbox" name="update_on_allocation_change" value="1" @checked(old('update_on_allocation_change', $settings['update_on_allocation_change'] ?? true))>
-                            Update SRV records when primary allocation changes
-                        </label>
+                        <input type="checkbox" id="dns_update_on_allocation_change" name="update_on_allocation_change" value="1" @checked(old('update_on_allocation_change', $settings['update_on_allocation_change'] ?? true))>
+                        <label for="dns_update_on_allocation_change">Update SRV records when primary allocation changes</label>
                     </div>
                     <div class="checkbox">
-                        <label>
-                            <input type="checkbox" name="auto_provision_enabled" value="1" @checked(old('auto_provision_enabled', $settings['auto_provision_enabled'] ?? true))>
-                            Auto-provision A + SRV records on server install
-                        </label>
+                        <input type="checkbox" id="dns_auto_provision_enabled" name="auto_provision_enabled" value="1" @checked(old('auto_provision_enabled', $settings['auto_provision_enabled'] ?? true))>
+                        <label for="dns_auto_provision_enabled">Auto-provision A + SRV records on server install</label>
                     </div>
                     <div class="form-group">
                         <label for="default_ttl">Default TTL</label>
@@ -96,10 +90,8 @@
                         </select>
                     </div>
                     <div class="checkbox">
-                        <label>
-                            <input type="checkbox" name="allow_custom_domain" value="1" @checked(old('allow_custom_domain', $settings['allow_custom_domain'] ?? false))>
-                            Allow custom domains (CNAME / nameserver verification)
-                        </label>
+                        <input type="checkbox" id="dns_allow_custom_domain" name="allow_custom_domain" value="1" @checked(old('allow_custom_domain', $settings['allow_custom_domain'] ?? false))>
+                        <label for="dns_allow_custom_domain">Allow custom domains (CNAME / nameserver verification)</label>
                     </div>
                 </div>
                 <div class="box-footer">

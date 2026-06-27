@@ -208,8 +208,14 @@ let
         fi
 
         if [ -n "$src_view" ]; then
+          view_needs_sync=0
           if [ ! -f "$view" ] || extension_admin_view_corrupted "$ext"; then
-            echo "pterodactyl-blueprint-install: installing $ext admin view from plugin source..."
+            view_needs_sync=1
+          elif ! cmp -s "$src_view" "$view"; then
+            view_needs_sync=1
+          fi
+          if [ "$view_needs_sync" -eq 1 ]; then
+            echo "pterodactyl-blueprint-install: syncing $ext admin view from plugin source..."
             install -d -m 0755 -o pterodactyl -g pterodactyl "$(dirname "$view")"
             cp -a "$src_view" "$view"
             chown pterodactyl:pterodactyl "$view"

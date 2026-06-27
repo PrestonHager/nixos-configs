@@ -30,10 +30,12 @@
                 @method('PATCH')
                 <div class="box-body">
                     <div class="checkbox">
-                        <label><input type="checkbox" name="enabled" value="1" @checked(old('enabled', $settings['enabled'] ?? false))> Enable extension</label>
+                        <input type="checkbox" id="pf_enabled" name="enabled" value="1" @checked(old('enabled', $settings['enabled'] ?? false))>
+                        <label for="pf_enabled">Enable extension</label>
                     </div>
                     <div class="checkbox">
-                        <label><input type="checkbox" name="dry_run" value="1" @checked(old('dry_run', $settings['dry_run'] ?? true))> Dry-run mode (log only)</label>
+                        <input type="checkbox" id="pf_dry_run" name="dry_run" value="1" @checked(old('dry_run', $settings['dry_run'] ?? true))>
+                        <label for="pf_dry_run">Dry-run mode (log only)</label>
                     </div>
                     <div class="form-group">
                         <label for="router_host">Router host</label>
@@ -53,10 +55,12 @@
                         <input type="text" class="form-control" id="wan_interface" name="wan_interface" value="{{ old('wan_interface', $settings['wan_interface'] ?? 'GigabitEthernet0/0') }}">
                     </div>
                     <div class="checkbox">
-                        <label><input type="checkbox" name="auto_forward_on_install" value="1" @checked(old('auto_forward_on_install', $settings['auto_forward_on_install'] ?? false))> Auto-forward primary allocation on server install</label>
+                        <input type="checkbox" id="pf_auto_forward_on_install" name="auto_forward_on_install" value="1" @checked(old('auto_forward_on_install', $settings['auto_forward_on_install'] ?? false))>
+                        <label for="pf_auto_forward_on_install">Auto-forward primary allocation on server install</label>
                     </div>
                     <div class="checkbox">
-                        <label><input type="checkbox" name="auto_remove_on_delete" value="1" @checked(old('auto_remove_on_delete', $settings['auto_remove_on_delete'] ?? true))> Auto-remove mappings on server delete</label>
+                        <input type="checkbox" id="pf_auto_remove_on_delete" name="auto_remove_on_delete" value="1" @checked(old('auto_remove_on_delete', $settings['auto_remove_on_delete'] ?? true))>
+                        <label for="pf_auto_remove_on_delete">Auto-remove mappings on server delete</label>
                     </div>
                     <div class="form-group">
                         <label for="node_ip_map_json">Node IP map (JSON)</label>
