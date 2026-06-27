@@ -88,17 +88,6 @@
       "Review https://jellyfin.org/docs/general/installation/ before approving."
     ]
   },
-  "prometheus": {
-    "enabled": true,
-    "strategy": "podman-pull",
-    "containerName": "prometheus",
-    "image": "docker.io/prom/prometheus:latest",
-    "postUpgradeUnits": ["podman-prometheus.service"],
-    "majorWarnings": [
-      "Major Prometheus releases may deprecate PromQL features or change scrape behavior.",
-      "Review release notes and verify Ace alert rules after upgrading."
-    ]
-  },
   "pterodactyl-panel": {
     "enabled": true,
     "strategy": "nix-bump",
