@@ -33,7 +33,8 @@
   # Configure networking for the host
   networking = {
     defaultGateway = "192.168.5.1";
-    nameservers = [ "192.168.5.2" "1.1.1.1" ];
+    # Technitium on ace (192.168.5.5:53); avoid looping through external resolvers first.
+    nameservers = [ "192.168.5.5" "1.1.1.1" ];
     interfaces.bond0 = {
       useDHCP = false;
       ipv4.addresses = [ {

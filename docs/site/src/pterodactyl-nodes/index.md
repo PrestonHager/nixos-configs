@@ -16,15 +16,17 @@ Both nodes share `hosts/pterodactyl-nodes/default.nix` with host-specific overri
 | Wings | `inputs.pterodactyl-wings` overlay binary, `wings.service` |
 | Docker | Enabled (Wings requirement; ace uses Podman instead) |
 | TLS certs | NFS symlink from ace Let's Encrypt (`link-letsencrypt.nix`) |
-| DNS | Clients use ace LanCache `192.168.5.5`; nodes resolve panel via `/etc/hosts` or Technitium |
+| DNS | Clients use ace Technitium `192.168.5.5`; nodes resolve panel via `/etc/hosts` or Technitium |
 | Monitoring | crux runs local Prometheus + blackbox probes (`nixos/monitoring/crux-*.nix`) |
 
-## LAN DNS names
+## LAN DNS names (preferred)
 
-| Legacy (Wings TLS) | Preferred LAN name |
-|----------------------|-------------------|
-| `crux.lc1.nm.us.prestonhager.com` | `crux.prestonhager.com` → 192.168.5.6 |
-| `nova.lc1.nm.us.prestonhager.com` | `nova.prestonhager.com` → 192.168.5.7 |
+| Hostname | LAN IP |
+|----------|--------|
+| `crux.lc1.nm.us.prestonhager.com` | **192.168.5.6** |
+| `nova.lc1.nm.us.prestonhager.com` | **192.168.5.7** |
+
+Shorter aliases (`crux.prestonhager.com`, `nova.prestonhager.com`) also resolve on LAN via Technitium CNAMEs.
 
 Deploy a node:
 

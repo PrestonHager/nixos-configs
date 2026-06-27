@@ -1,39 +1,24 @@
-﻿# LanCache on ace
+﻿# LanCache on ace (deprecated)
 
-Implementation: `nixos/containers/lancache.nix` (monolithic + lancache-dns pod). Upstream DNS: **Technitium** via `nixos/containers/technitium.nix`. Full chain: **`docs/dns-ace.md`**.
+> **Status:** Disabled as of 2026-06. Technitium serves primary LAN DNS on **192.168.5.5:53**. LanCache was removed because it slowed DNS resolution for the whole network.
+>
+> See **`docs/dns-ace.md`** for the current DNS stack.
 
-## Storage
+## Previous architecture
+
+When enabled, `nixos/containers/lancache.nix` ran a Podman pod (monolithic + lancache-dns) that:
+
+- Answered **192.168.5.5:53** for LAN clients
+- Hijacked game CDN hostnames for local caching
+- Forwarded other queries to Technitium via a podman-bridge socat relay (`10.88.0.1:53` → `127.0.0.1:5353`)
+
+## Storage (retained on disk)
 
 - `CACHE_ROOT`: `/stor/lancache/cache` (1.4T `/stor` volume)
 - `CACHE_DISK_SIZE`: 1000g cap
 
-## IPs and ports
+## Re-enabling (not recommended)
 
-| Service | Bind | Notes |
-|---------|------|-------|
-| Caddy | `192.168.5.5:80/443` | Unchanged for `*.prestonhager.com` |
-| lancache-dns | `192.168.5.5:53` udp/tcp | **House / game LAN DNS** (DHCP → 192.168.5.5) |
-| LanCache HTTP/HTTPS (pod) | host `8084` → cache `:80`, `8443` → `:443` | CDN clients use DNS to reach cache IP |
-| Technitium (upstream) | `127.0.0.1:5353` | LanCache `UPSTREAM_DNS=10.88.0.1` (relay) |
-
-`LANCACHE_IP` / `DNS_BIND_IP`: **192.168.5.5** (bond0).
-
-## DHCP / DNS setup
-
-Point house or gaming clients at **192.168.5.5** as DNS. Ace host resolver stays **192.168.5.2** (see `hosts/ace/default.nix`).
-
-## Cloudflare
-
-Use **DNS only** (grey cloud) for ace app hostnames — same pattern as grafana/vault (CNAME → `ip1.lc1.nm.us.prestonhager.com` → WAN NAT). Do **not** orange-cloud private LAN IPs.
-
-| Type | Name | Content | Proxy |
-|------|------|---------|-------|
-| CNAME | `dns` (and other ace apps) | `ip1.lc1.nm.us.prestonhager.com` | DNS only (grey) |
-
-See **`docs/dns-ace.md`** (also in the docs site under Shared → DNS).
-
-## Local hosts (Caddy apps on ace)
-
-See `nixos/local-service-hosts.nix` — includes **`dns.prestonhager.com`**, `cloud.prestonhager.com`, `zitadel.prestonhager.com`, etc.
-
-Do not add CDN hostnames to hosts; clients resolve those via lancache-dns.
+1. Uncomment `./lancache.nix` in `nixos/containers/default.nix`
+2. Revert Technitium to loopback-only DNS binding in `technitium.nix` (remove `192.168.5.5:53` publish; restore upstream relay services)
+3. `nixos-rebuild switch --flake /etc/nixos#ace`

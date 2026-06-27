@@ -25,7 +25,7 @@ let
     GIT_CONFIG_SYSTEM = "/etc/gitconfig";
   };
 
-    # Test panel uses stock Pterodactyl + PrestonHager Blueprint fork (see pterodactyl-test-blueprint.nix).
+    # Test panel uses stock Pterodactyl + upstream Blueprint (see pterodactyl-test-blueprint.nix).
   panelUpdateEnvTest = panelUpdateEnvStock;
 
   waitForServices = ''

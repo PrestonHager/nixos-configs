@@ -1,3 +1,7 @@
+# DEPRECATED: LanCache disabled in nixos/containers/default.nix (2026-06).
+# Technitium serves primary LAN DNS on 192.168.5.5:53 — see technitium.nix and docs/dns-ace.md.
+# Kept for reference if game CDN caching is re-enabled later.
+
 { config, pkgs, lib, ... }:
 
 let

@@ -7,12 +7,12 @@ Main homelab server on a Dell PowerEdge R730xd at **192.168.5.5**.
 | Hostname | `ace` |
 | Flake | `nixos-rebuild switch --flake /etc/nixos#ace` |
 | Gateway | 192.168.5.1 (Astracap) |
-| Resolver | 192.168.5.2, 1.1.1.1 |
+| Resolver | 192.168.5.5, 1.1.1.1 |
 | Bond | `eno1` + `eno2` → `bond0` (802.3ad LACP) |
 
 ## Stack
 
-Ace runs **Caddy** on `:80`/`:443` for `*.prestonhager.com`, **LanCache DNS** on `:53`, **Technitium** authoritative zones, and Podman containers (Grafana, Prometheus, Nextcloud, Zitadel, Pterodactyl, Jellyfin, Vaultwarden, Matrix/Synapse, MediaWiki, WG Portal, and more).
+Ace runs **Caddy** on `:80`/`:443` for `*.prestonhager.com`, **Technitium DNS** on `:53`, and Podman containers (Grafana, Prometheus, Nextcloud, Zitadel, Pterodactyl, Jellyfin, Vaultwarden, Matrix/Synapse, MediaWiki, WG Portal, and more). LanCache is disabled.
 
 Config entry points:
 

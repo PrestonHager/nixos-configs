@@ -29,9 +29,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # PrestonHager Blueprint fork (test.panel only; tracked for rev pinning)
+    # Upstream Blueprint framework (test.panel; tracked for rev pinning)
     blueprint-framework = {
-      url = "github:PrestonHager/framework/feat/prestonhager-plugin-manager";
+      url = "github:BlueprintFramework/framework";
       flake = false;
     };
   };

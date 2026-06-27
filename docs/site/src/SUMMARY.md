@@ -6,7 +6,8 @@
 
 - [Overview](ace/index.md)
 - [Health Report](ace/health-report.md)
-- [DNS / LanCache](ace/lancache.md)
+- [DNS (Technitium)](shared/dns.md)
+- [LanCache (deprecated)](ace/lancache.md)
 - [Jellyfin](ace/jellyfin.md)
 - [Matrix](ace/matrix.md)
 - [Monitoring](ace/monitoring.md)

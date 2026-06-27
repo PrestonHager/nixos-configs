@@ -132,7 +132,7 @@
     {
       "id": 17,
       "title": "LAN Up (crux)",
-      "description": "HTTPS from crux via LanCache DNS; blackbox on 192.168.5.6:9115",
+      "description": "HTTPS from crux via Technitium DNS; blackbox on 192.168.5.6:9115",
       "type": "stat",
       "gridPos": {
         "h": 3,
@@ -376,7 +376,7 @@
     {
       "id": 21,
       "title": "LAN DNS split-horizon",
-      "description": "Per-hostname LanCache DNS resolution checks",
+      "description": "Per-hostname Technitium DNS resolution checks",
       "type": "table",
       "gridPos": {
         "h": 4,
@@ -1746,7 +1746,7 @@
     },
     {
       "id": 17,
-      "title": "LanCache DNS OK",
+      "title": "Technitium DNS OK",
       "description": "Split-horizon A records via dig @192.168.5.5",
       "type": "stat",
       "gridPos": {
@@ -1850,7 +1850,7 @@
     },
     {
       "id": 19,
-      "title": "LanCache DNS Records",
+      "title": "Technitium DNS Records",
       "type": "table",
       "gridPos": {
         "h": 8,

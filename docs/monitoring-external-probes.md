@@ -1,6 +1,6 @@
 # Internal and external HTTP monitoring for Ace
 
-Options for monitoring Ace services from **inside the LAN** (split-horizon DNS, LanCache) and from **outside** (public Internet).
+Options for monitoring Ace services from **inside the LAN** (split-horizon DNS, Technitium) and from **outside** (public Internet).
 
 Related: `docs/monitoring-ace.md`, `docs/dns-ace.md`.
 
@@ -17,7 +17,7 @@ flowchart LR
     PROM[Prometheus :9090]
     BBlocal[blackbox_exporter :9115 local]
   end
-  BB -->|"HTTPS via LanCache DNS"| ace
+  BB -->|"HTTPS via Technitium DNS"| ace
   PROM -->|"scrape /probe"| BB
   EXT -->|"curl public URLs"| WAN[Internet]
   EXT -->|"POST metrics"| PG
@@ -30,7 +30,7 @@ flowchart LR
 | Label | Meaning | Source |
 |-------|---------|--------|
 | `local` | Ace host loopback / `/etc/hosts` path | `blackbox-http`, `blackbox-tcp` on ace |
-| `lan` | LAN client path from crux via LanCache DNS | `blackbox-http-lan`, `blackbox-dns-lan` scraping crux `:9115` |
+| `lan` | LAN client path from crux via Technitium DNS | `blackbox-http-lan`, `blackbox-dns-lan` scraping crux `:9115` |
 | `external` | Public DNS + WAN path | Pushgateway ← `scripts/ace-external-probe-push.sh` on crux |
 
 Additional labels: `probe_source=crux` on LAN and external probes.
@@ -41,7 +41,7 @@ DNS split-horizon health on ace: `ace_dns_probe_success` from `lan-dns-prober` (
 
 ## Part 1 — LAN: blackbox on crux
 
-**crux** (`192.168.5.6`) runs `prometheus-blackbox-exporter` on `:9115` with LanCache DNS (`192.168.5.5`).
+**crux** (`192.168.5.6`) runs `prometheus-blackbox-exporter` on `:9115` with Technitium DNS (`192.168.5.5`).
 
 ### HTTP targets (via LAN DNS)
 
@@ -101,7 +101,7 @@ Prometheus scrape job: **`pushgateway-external`** (`honor_labels: true`).
 
 - LAN row: crux blackbox metrics
 - External row: pushgateway metrics
-- DNS row: `ace_dns_probe_success` (ace-side LanCache check)
+- DNS row: `ace_dns_probe_success` (ace-side Technitium split-horizon check)
 
 Dashboard URLs (on ace Grafana):
 
@@ -118,8 +118,6 @@ Dashboard URLs (on ace Grafana):
 ```bash
 git pull
 sudo nixos-rebuild switch --flake /etc/nixos#ace
-systemctl status lan-dns-prober.timer
-curl -s http://127.0.0.1:9091/metrics | head
 ```
 
 ### crux
@@ -127,57 +125,15 @@ curl -s http://127.0.0.1:9091/metrics | head
 ```bash
 git pull
 sudo nixos-rebuild switch --flake /etc/nixos#crux
-systemctl status prometheus-blackbox-exporter ace-external-probe-push.timer
-curl -s http://127.0.0.1:9115/metrics | head
 ```
 
-### Verify in Prometheus
-
-```promql
-probe_success{probe_location="lan"}
-probe_success{probe_location="external"}
-probe_success{probe_location="local"}
-ace_dns_probe_success
-```
-
----
-
-## Manual configuration
-
-### Public probe targets
-
-Edit `DEFAULT_TARGETS` in `scripts/ace-external-probe-push.sh` or set on crux:
+Verify:
 
 ```bash
-EXTERNAL_PROBE_TARGETS="https://dns.prestonhager.com/,https://grafana.prestonhager.com/"
+# On crux
+curl -sS http://127.0.0.1:9115/metrics | head
+systemctl status ace-external-probe-push.timer
+
+# On ace
+curl -sS 'http://127.0.0.1:9090/api/v1/query?query=probe_success{probe_location="lan"}' | jq .
 ```
-
-Most ace vhosts are **LAN-only** (Technitium split-horizon). Only Cloudflare-proxied or port-forwarded names on `73.26.67.25` are meaningful for external monitors. Trim the default list to match what is actually reachable from the Internet.
-
-### Optional: UptimeRobot / VPS
-
-For redundancy, run the same script from a VPS or use [UptimeRobot](https://uptimerobot.com/) free tier (5 min interval) for alerting. Point pushes at `http://192.168.5.5:9091` only from trusted LAN/VPN sources.
-
-### Optional: extra LAN HTTP targets on crux
-
-Add probe URLs to `lanHttpTargets` in `nixos/monitoring/crux-blackbox-config.nix` (used automatically by prometheus-config and crux-prometheus-config).
-
----
-
-## Security notes
-
-- Pushgateway accepts pushes on LAN port **9091**; firewall restricts to crux (`192.168.5.6`) only.
-- Do not expose Pushgateway or blackbox ports through Cloudflare or WAN.
-- External probe metrics use grouping key `job=external-http-probe`, `instance=crux`.
-
----
-
-## Comparison (reference)
-
-| Option | Cost | Interval | Effort | Prometheus-native |
-|--------|------|----------|--------|-------------------|
-| Crux blackbox (implemented) | Free | 15s | Medium | Yes |
-| Ace loopback blackbox (implemented) | Free | 15s | Low | Yes |
-| Crux pushgateway WAN probes (implemented) | Free | 5 min | Low | Yes |
-| UptimeRobot | Free | 5 min | Low | Via bridge |
-| VPS blackbox + Pushgateway | Free | 1–5 min | Medium | Yes |

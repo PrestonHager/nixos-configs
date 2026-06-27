@@ -7,7 +7,7 @@
   "version": 1,
   "refresh": "30s",
   "time": { "from": "now-24h", "to": "now" },
-  "description": "LAN-perspective uptime from crux Prometheus: HTTPS probes to ace services via LanCache DNS, split-horizon DNS checks, and TCP reachability for ace/crux/nova.",
+  "description": "LAN-perspective uptime from crux Prometheus: HTTPS probes to ace services via Technitium DNS, split-horizon DNS checks, and TCP reachability for ace/crux/nova.",
   "links": [
     { "title": "HTTP Probes", "type": "dashboard", "url": "/d/crux-http-probes" },
     { "title": "LAN Status", "type": "dashboard", "url": "/d/lan-status" },
@@ -25,7 +25,7 @@
     {
       "id": 2,
       "title": "HTTP LAN Up",
-      "description": "HTTPS to ace vhosts via LanCache DNS on crux",
+      "description": "HTTPS to ace vhosts via Technitium DNS on crux",
       "type": "stat",
       "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus-crux" },
@@ -56,7 +56,7 @@
     {
       "id": 3,
       "title": "DNS Checks OK",
-      "description": "LanCache split-horizon DNS validation",
+      "description": "Technitium split-horizon DNS validation",
       "type": "stat",
       "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus-crux" },

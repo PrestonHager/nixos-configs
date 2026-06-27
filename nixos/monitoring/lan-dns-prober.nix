@@ -18,7 +18,7 @@ let
     TMP="''${OUT_FILE}.$$"
     mkdir -p "$OUT_DIR"
     {
-      echo '# HELP ace_dns_probe_success Whether LanCache DNS returns the expected LAN A record (1=yes).'
+      echo '# HELP ace_dns_probe_success Whether Technitium DNS returns the expected LAN A record (1=yes).'
       echo '# TYPE ace_dns_probe_success gauge'
       echo '# HELP ace_dns_probe_responder Which nameserver answered the query.'
       echo '# TYPE ace_dns_probe_responder gauge'
@@ -53,7 +53,7 @@ let
   '';
 in {
   systemd.services.lan-dns-prober = {
-    description = "Export LanCache DNS split-horizon probe metrics";
+    description = "Export Technitium DNS split-horizon probe metrics";
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
@@ -66,7 +66,7 @@ in {
   };
 
   systemd.timers.lan-dns-prober = {
-    description = "Run LanCache DNS probe every minute";
+    description = "Run Technitium DNS probe every minute";
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnBootSec = "3min";

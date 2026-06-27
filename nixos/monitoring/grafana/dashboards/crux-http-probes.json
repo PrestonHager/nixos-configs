@@ -7,7 +7,7 @@
   "version": 1,
   "refresh": "30s",
   "time": { "from": "now-24h", "to": "now" },
-  "description": "LAN-perspective HTTP blackbox probes from crux to ace web services (via LanCache DNS).",
+  "description": "LAN-perspective HTTP blackbox probes from crux to ace web services (via Technitium DNS).",
   "links": [
     { "title": "Crux Uptime", "type": "dashboard", "url": "/d/crux-uptime" },
     { "title": "LAN Status", "type": "dashboard", "url": "/d/lan-status" }

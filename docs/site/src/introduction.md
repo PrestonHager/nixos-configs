@@ -16,7 +16,7 @@ Homelab documentation for the [nixos-configs](https://github.com/PrestonHager/ni
 | Device | IP | SSH alias |
 |--------|-----|-----------|
 | Astracap (Cisco router) | 192.168.5.1 | `ssh astracap` |
-| Technitium / LanCache DNS | 192.168.5.5 | — |
+| Technitium DNS | 192.168.5.5 | — |
 | Astraquasar (Cisco switch) | 192.168.5.3 | `ssh astraquasar` |
 
 ## Accessing this site

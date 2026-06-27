@@ -43,9 +43,8 @@
 | **Nextcloud Redis** | — | ✅ Healthy | Running |
 | **Nextcloud ClamAV** | — | ✅ Healthy | ClamAV 1.5.2/28023; `podman-nextcloud-clamav` active |
 | **Nextcloud notify_push** | — | ✅ Healthy | Active; push endpoint responding; slow DB pool acquire warning in logs |
-| **Technitium DNS** | https://dns.prestonhager.com | ✅ Healthy | Authoritative LAN DNS **OK**; web console HTTP 200; **DoH/DoT verified** (see §3) |
-| **LanCache** | — | ✅ Healthy | Container running |
-| **LanCache DNS** | `192.168.5.5:53` | ✅ Healthy | Resolves internal CNAMEs to ace/crux |
+| **Technitium DNS** | https://dns.prestonhager.com | ✅ Healthy | Primary LAN DNS on **192.168.5.5:53**; web console HTTP 200; **DoH/DoT verified** (see §3) |
+| **LanCache** | — | ➖ Disabled | Removed from `containers/default.nix` (slowed DNS) |
 | **Jellyfin** | https://jellyfin.prestonhager.com | ✅ Healthy | HTTP 302; container `(healthy)` |
 | **Vaultwarden** | https://vault.prestonhager.com | ✅ Healthy | HTTP 200 |
 | **WG Portal** | https://wg.prestonhager.com | ✅ Healthy | HTTP 301; metrics vhost HTTP 403 (expected) |
@@ -61,7 +60,7 @@
 
 ## 3. DNS Stack Results
 
-### Authoritative / LAN DNS (Technitium via LanCache-DNS on `:53`)
+### Authoritative / LAN DNS (Technitium on `:53`)
 
 Queries against `@192.168.5.5`:
 
@@ -72,16 +71,15 @@ Queries against `@192.168.5.5`:
 | `zitadel.prestonhager.com` | CNAME → `ace.internal.prestonhager.com` → **192.168.5.5** |
 | `dns.prestonhager.com` | CNAME → `dns.internal.prestonhager.com` → **192.168.5.5** |
 | `ace.internal.prestonhager.com` | **192.168.5.5** |
-| `crux.prestonhager.com` | CNAME → `crux.internal.prestonhager.com` → **192.168.5.6** |
+| `crux.lc1.nm.us.prestonhager.com` | CNAME → `crux.internal.prestonhager.com` → **192.168.5.6** |
 
-### Internal relay paths
+### Internal paths
 
 | Path | Port | Status |
 |------|------|--------|
 | Technitium loopback | `127.0.0.1:5353` | ✅ Listening |
 | Technitium web/API | `127.0.0.1:5380` | ✅ HTTP 200 |
-| Podman bridge relay | `10.88.0.1:53` | ✅ Active (`technitium-upstream-relay` + TCP) |
-| LanCache-DNS on bond0 | `192.168.5.5:53` | ✅ Active |
+| Technitium on bond0 | `192.168.5.5:53` | ✅ Active (primary LAN DNS) |
 
 ### DNS-over-HTTPS (DoH)
 
@@ -125,8 +123,6 @@ Core host services:
 | `prometheus-node-exporter` | active |
 | `prometheus-blackbox-exporter` | active |
 | `ace-health-exporter.timer` | active (oneshot service runs on schedule) |
-| `technitium-upstream-relay` | active |
-| `technitium-upstream-relay-tcp` | active |
 | `technitium-sync-protocols` | active (exited) |
 
 ---
@@ -135,7 +131,7 @@ Core host services:
 
 ### Running (all expected stacks up)
 
-26 podman systemd units active. Key containers: `grafana`, `prometheus`, `nextcloud` (+ db/redis/clamav/notify-push), `zitadel` (+ db/login), `technitium`, `lancache`, `lancache-dns`, `jellyfin`, `vaultwarden`, `wg-portal`, `pterodactyl` (+ db/redis), `pterodactyl-test` (+ db/redis), `mediawiki` (+ db/redis/upgrade).
+26 podman systemd units active. Key containers: `grafana`, `prometheus`, `nextcloud` (+ db/redis/clamav/notify-push), `zitadel` (+ db/login), `technitium`, `jellyfin`, `vaultwarden`, `wg-portal`, `pterodactyl` (+ db/redis), `pterodactyl-test` (+ db/redis), `mediawiki` (+ db/redis/upgrade).
 
 ### Exited (stale / harmless)
 
@@ -239,7 +235,7 @@ Probed from ace via loopback (`--resolve …:443:127.0.0.1`):
 
 From `nixos/containers/default.nix` + `nixos/caddy/default.nix` on branch `dell-poweredge-r730xd`:
 
-**Enabled containers:** Grafana, Jellyfin, MediaWiki, Nextcloud, Prometheus, Pterodactyl (+ test), Vaultwarden, WG Portal, Technitium, LanCache, Zitadel, **Matrix (Synapse + Postgres)**
+**Enabled containers:** Grafana, Jellyfin, MediaWiki, Nextcloud, Prometheus, Pterodactyl (+ test), Vaultwarden, WG Portal, Technitium, Zitadel, **Matrix (Synapse + Postgres)**
 
 **Enabled Caddy vhosts:** Jellyfin, Matrix, Technitium/DoH, Grafana, MediaWiki, Nextcloud, Prometheus, Pterodactyl, Vaultwarden, WG Portal, Zitadel, **serverdocs** (LAN-only)
 

@@ -57,7 +57,7 @@
     {
       "id": 3,
       "title": "Ace Services Up (LAN)",
-      "description": "HTTPS from crux via LanCache DNS (ace Prometheus)",
+      "description": "HTTPS from crux via Technitium DNS (ace Prometheus)",
       "type": "stat",
       "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
