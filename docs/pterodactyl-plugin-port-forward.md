@@ -77,13 +77,29 @@ Generate a **2048-bit RSA** key, encrypt in nix-secrets, rebuild:
 sudo bash /etc/nixos/scripts/ace-pterodactyl-router-ssh-deploy.sh /path/to/pterodactyl-router-ssh-key
 ```
 
-Authorize the printed public key on Astracap for user **`pterofwd`** (serial console):
+Authorize the printed public key on Astracap for user **`pterofwd`** (serial console recommended):
 
 ```powershell
 $env:CISCO_ENABLE_PASSWORD = (& scripts/get-cisco-enable.ps1)
-$env:PTEROFWD_PUBKEY = "$env:TEMP\pterofwd_astracap.pub"
+$env:PTEROFWD_PUBKEY = "C:\path\to\pterofwd_astracap.pub"
+$env:ASTRACAP_SERIAL_PORT = "COM6"   # USB console adapter
 python scripts/astracap-setup-pterofwd.py
 Remove-Item Env:CISCO_ENABLE_PASSWORD
+```
+
+SSH-based alternative (when console unavailable, may require manual IOS `key-string` paste):
+
+```powershell
+$env:CISCO_ENABLE_PASSWORD = (& scripts/get-cisco-enable.ps1)
+$env:PTEROFWD_PUBKEY = "C:\path\to\pterofwd_astracap.pub"
+python scripts/astracap-setup-pterofwd-ssh.py
+Remove-Item Env:CISCO_ENABLE_PASSWORD
+```
+
+Verify from ace panel container:
+
+```bash
+podman exec pterodactyl ssh -F /pterodactyl/secrets/portforward-ssh-config astracap "show ip interface brief"
 ```
 
 Mount router SSH key via sops (see Secrets). Extension appears under **Admin → Extensions → Port Forward**.

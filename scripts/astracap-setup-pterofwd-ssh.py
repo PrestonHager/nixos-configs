@@ -57,7 +57,15 @@ def send(proc: subprocess.Popen[str], cmd: str, delay: float = 1.0) -> str:
     return chunk
 
 
-def run_ios_config(identity: str, enable_pw: str, username: str, pubkey_path: str, privilege: int) -> int:
+def run_ios_config(
+    identity: str,
+    enable_pw: str,
+    username: str,
+    pubkey_path: str,
+    privilege: int,
+    *,
+    create_user: bool = True,
+) -> int:
     with open(pubkey_path, encoding="utf-8") as f:
         pubkey_line = f.read().strip()
     parts = pubkey_line.split(None, 2)
@@ -83,7 +91,8 @@ def run_ios_config(identity: str, enable_pw: str, username: str, pubkey_path: st
     step(enable_pw, 1.5)
     step("terminal length 0", 0.8)
     step("configure terminal", 1.0)
-    step(f"username {username} privilege {privilege}", 1.0)
+    if create_user:
+        step(f"username {username} privilege {privilege}", 1.0)
     step("ip ssh pubkey-chain", 1.0)
     step(f"username {username}", 1.0)
     step("key-string", 1.2)
@@ -115,6 +124,11 @@ def main() -> int:
     parser.add_argument("--pubkey", default=os.environ.get("PTEROFWD_PUBKEY", ""))
     parser.add_argument("--username", default=os.environ.get("CISCO_SSH_USER", DEFAULT_USER))
     parser.add_argument("--privilege", type=int, default=15)
+    parser.add_argument(
+        "--no-create-user",
+        action="store_true",
+        help="Only add pubkey to an existing IOS username",
+    )
     args = parser.parse_args()
 
     if not args.pubkey:
@@ -129,7 +143,14 @@ def main() -> int:
         print("Set CISCO_ENABLE_PASSWORD", file=sys.stderr)
         return 2
 
-    return run_ios_config(args.identity, enable_pw, args.username, args.pubkey, args.privilege)
+    return run_ios_config(
+        args.identity,
+        enable_pw,
+        args.username,
+        args.pubkey,
+        args.privilege,
+        create_user=not args.no_create_user,
+    )
 
 
 if __name__ == "__main__":
