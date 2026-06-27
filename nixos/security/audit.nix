@@ -16,9 +16,5 @@ in {
       "-w /etc/sudoers -p wa -k sudoers"
       "-w /etc/sudoers.d -p wa -k sudoers"
     ];
-
-    systemd.services.auditd.serviceConfig = {
-      LogsDirectory = "audit";
-    };
   };
 }
