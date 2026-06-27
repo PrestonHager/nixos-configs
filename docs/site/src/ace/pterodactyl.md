@@ -1,1 +1,1 @@
-{{#include _includes/pterodactyl-ace.md}}
+{{#include ../_includes/pterodactyl-ace.md}}

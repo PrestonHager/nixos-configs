@@ -1,1 +1,1 @@
-{{#include _includes/jellyfin-ace.md}}
+{{#include ../_includes/jellyfin-ace.md}}

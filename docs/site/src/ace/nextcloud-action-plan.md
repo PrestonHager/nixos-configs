@@ -1,1 +1,1 @@
-{{#include _includes/nextcloud-action-plan.md}}
+{{#include ../_includes/nextcloud-action-plan.md}}

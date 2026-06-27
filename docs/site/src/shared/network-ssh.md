@@ -1,1 +1,1 @@
-{{#include _includes/network-ssh-ace.md}}
+{{#include ../_includes/network-ssh-ace.md}}

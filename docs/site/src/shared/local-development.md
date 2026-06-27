@@ -61,6 +61,6 @@ sudo nixos-rebuild switch --flake /etc/nixos#ace
 |------|---------|
 | `docs/*.md` | Canonical service runbooks (edit these) |
 | `docs/site/SUMMARY.md` | mdBook navigation |
-| `docs/site/src/**` | Thin wrappers with `{{#include _includes/...}}` |
+| `docs/site/src/**` | Thin wrappers with `{{#include ../_includes/...}}` (path relative to chapter) |
 | `nixos/caddy/serverdocs.nix` | Caddy vhost (LAN-only) |
 | `docs/site/default.nix` | Nix derivation for `mdbook build` |

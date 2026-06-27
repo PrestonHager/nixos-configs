@@ -1,1 +1,1 @@
-{{#include _includes/monitoring-external-probes.md}}
+{{#include ../_includes/monitoring-external-probes.md}}
