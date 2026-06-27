@@ -8,6 +8,7 @@
     ../../nixos
     ../../nixos/headless
     ../../nixos/security
+    ../../nixos/nextcloud-migrate.nix
     # include SAMBA for file sharing
     #../../nixos/samba
     # include nfs for caddy lets encrypt certs

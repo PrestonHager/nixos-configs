@@ -46,9 +46,12 @@
         includesSrc = ./docs;
       };
     in {
-    packages.${system} = {
+    packages.${system} = let
+      pkgs = nixpkgs.legacyPackages.${system};
+    in {
       docs = docsSite;
       default = docsSite;
+      nextcloud-migrate = import ./scripts/nextcloud-migrate { inherit pkgs; lib = nixpkgs.lib; };
     };
 
     devShells.${system}.docs-dev = nixpkgs.legacyPackages.${system}.mkShell {

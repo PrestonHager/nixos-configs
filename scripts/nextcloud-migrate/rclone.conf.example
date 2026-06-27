@@ -1,0 +1,26 @@
+# Example rclone remotes for OneDrive → Nextcloud migration.
+# Copy to a path outside git (e.g. /run/nextcloud-migrate/rclone.conf on ace).
+# Set RCLONE_CONFIG in nextcloud-migrate-env (sops) to that path.
+#
+# Generate obscured Nextcloud app password:
+#   rclone obscure 'your-app-password'
+
+[onedrive]
+type = onedrive
+# Paste token JSON from workstation OAuth (see README.md).
+token = {"access_token":"REPLACE","token_type":"Bearer","refresh_token":"REPLACE","expiry":"REPLACE"}
+drive_id = REPLACE_DRIVE_ID
+drive_type = personal
+
+# iCloud Drive (Linux: app-specific password; see README)
+[icloud]
+type = icloud
+apple_id = prestonhager@icloud.com
+password = REPLACE_APP_SPECIFIC_PASSWORD
+
+[nextcloud]
+type = webdav
+url = https://cloud.prestonhager.com/remote.php/dav/files/USERNAME/
+vendor = nextcloud
+user = USERNAME
+pass = REPLACE_OBFUSCATED_APP_PASSWORD
