@@ -3,7 +3,7 @@ info:
   identifier: 'dnsrecords'
   description: 'Manage Cloudflare and Technitium DNS records from the Pterodactyl admin panel (SRV profiles, auto-provision, vanity hostnames).'
   flags: ''
-  version: '1.4.2'
+  version: '1.4.3'
   target: 'beta-2025-09'
   author: 'Preston Hager'
   icon: ''

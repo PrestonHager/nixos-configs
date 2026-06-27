@@ -165,21 +165,12 @@ class ServerAccessor
 
     public function getNetworkSummary(int $serverId): NetworkSummary
     {
-        $server = $this->find($serverId);
+        $server = Server::query()->with('allocations')->find($serverId);
         if (is_null($server)) {
             throw new PluginException(sprintf('Server %d was not found.', $serverId));
         }
 
-        $summary = new ServerSummary(
-            id: $server->id,
-            uuid: $server->uuid,
-            name: $server->name,
-            status: $server->status,
-            nodeId: $server->node_id,
-            ownerId: $server->owner_id,
-            allocationId: $server->allocation_id,
-            externalId: $server->external_id,
-        );
+        $summary = self::serverSummaryFromModel($server);
 
         $allocations = $server->allocations->map(static function (Allocation $allocation) use ($server) {
             return new AllocationSummary(
