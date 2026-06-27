@@ -79,10 +79,17 @@ let
           | ${pkgs.gnugrep}/bin/grep -q 'extensions/sociallogin'
     }
 
+    blueprint_site_config_integrated() {
+      grep -q 'disable_attribution' "$panel/app/Http/ViewComposers/AssetComposer.php" 2>/dev/null \
+        && grep -q 'disable_attribution' "$panel/resources/scripts/state/settings.ts" 2>/dev/null \
+        && grep -q 'blueprint.dashboard.dashboard' "$panel/resources/views/templates/wrapper.blade.php" 2>/dev/null
+    }
+
     blueprint_frontend_integrated() {
       grep -q '@blueprint/components/Authentication/Container/AfterContent' \
         "$panel/resources/scripts/components/auth/LoginFormContainer.tsx" 2>/dev/null \
         && grep -q "'@blueprint'" "$panel/webpack.config.js" 2>/dev/null \
+        && blueprint_site_config_integrated \
         && ${pkgs.gnugrep}/bin/grep -rq sociallogin "$panel/public/assets/"*.js 2>/dev/null
     }
 
@@ -101,9 +108,42 @@ let
       chown pterodactyl:pterodactyl "$panel/webpack.config.js"
     }
 
+    ensure_blueprint_site_config_patches() {
+      if blueprint_site_config_integrated; then
+        return 0
+      fi
+
+      echo "pterodactyl-blueprint-install: restoring Blueprint site configuration patches from release..."
+      patch_tmp=$(mktemp -d)
+      ${pkgs.curl}/bin/curl -fsSL "${blueprintReleaseUrl}" -o "$patch_tmp/release.zip"
+      ${pkgs.unzip}/bin/unzip -o "$patch_tmp/release.zip" \
+        app/Http/ViewComposers/AssetComposer.php \
+        resources/scripts/state/settings.ts \
+        resources/views/templates/wrapper.blade.php \
+        -d "$patch_tmp/extract"
+      cp "$patch_tmp/extract/app/Http/ViewComposers/AssetComposer.php" \
+        "$panel/app/Http/ViewComposers/AssetComposer.php"
+      cp "$patch_tmp/extract/resources/scripts/state/settings.ts" \
+        "$panel/resources/scripts/state/settings.ts"
+      cp "$patch_tmp/extract/resources/views/templates/wrapper.blade.php" \
+        "$panel/resources/views/templates/wrapper.blade.php"
+      chown pterodactyl:pterodactyl \
+        "$panel/app/Http/ViewComposers/AssetComposer.php" \
+        "$panel/resources/scripts/state/settings.ts" \
+        "$panel/resources/views/templates/wrapper.blade.php"
+      rm -rf "$patch_tmp"
+    }
+
     ensure_blueprint_frontend_patches() {
       login_form="$panel/resources/scripts/components/auth/LoginFormContainer.tsx"
-      if grep -q '@blueprint/components/Authentication/Container/AfterContent' "$login_form" 2>/dev/null; then
+      needs_login_patch=0
+      if ! grep -q '@blueprint/components/Authentication/Container/AfterContent' "$login_form" 2>/dev/null; then
+        needs_login_patch=1
+      fi
+
+      ensure_blueprint_site_config_patches
+
+      if [ "$needs_login_patch" -eq 0 ]; then
         ensure_blueprint_webpack_alias
         return 0
       fi
@@ -230,6 +270,9 @@ let
 
       ${pkgs.podman}/bin/podman exec pterodactyl \
         php /var/www/pterodactyl/artisan migrate --force
+
+      ${pkgs.podman}/bin/podman exec pterodactyl \
+        php /var/www/pterodactyl/artisan db:seed --class=BlueprintSeeder --force
 
       ${pkgs.podman}/bin/podman exec pterodactyl \
         php /var/www/pterodactyl/artisan config:clear
