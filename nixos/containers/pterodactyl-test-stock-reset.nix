@@ -61,8 +61,9 @@ let
     fi
 
     $GIT fetch --depth=1 origin "${officialBranch}"
-    $GIT checkout -B "${officialBranch}" "origin/${officialBranch}"
+    $GIT checkout -f -B "${officialBranch}" "origin/${officialBranch}"
     $GIT reset --hard "origin/${officialBranch}"
+    $GIT clean -fd -e .env -e .setup_done
 
     cp -a "$env_backup" "$panel/.env" 2>/dev/null || true
     cp -a "$setup_backup" "$panel/.setup_done" 2>/dev/null || true
@@ -70,6 +71,7 @@ let
 
     rm -rf "$panel/storage/app/plugins" "$panel/public/plugins" 2>/dev/null || true
     runuser -u prestonh -- rm -rf "$panel/.blueprint" "$panel/blueprint" "$panel/blueprint.sh" "$panel/.blueprintrc" 2>/dev/null || true
+    runuser -u prestonh -- rm -rf "$panel/vendor" "$panel/node_modules" 2>/dev/null || true
 
     chown -R prestonh:users "$panel"
     find "$panel" -type d -exec chmod 2775 {} +
@@ -85,8 +87,7 @@ let
       -e HOME=/var/www/pterodactyl \
       -e COMPOSER_HOME=/tmp/composer \
       pterodactyl-test \
-      sh -c 'cd /var/www/pterodactyl && composer install --no-dev --optimize-autoloader' \
-      2>/dev/null || true
+      sh -c 'cd /var/www/pterodactyl && composer install --no-dev --optimize-autoloader'
 
     rm -f "${stateDir}/blueprint-fork-installed" "${stateDir}/blueprint-installed"
     echo "stock-${officialBranch}" > "$marker"

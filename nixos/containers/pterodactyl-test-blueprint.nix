@@ -398,7 +398,7 @@ let
         -e HOME=/var/www/pterodactyl \
         -e COMPOSER_HOME=/tmp/composer \
         pterodactyl-test \
-        sh -c 'cd /var/www/pterodactyl && composer install --no-dev --optimize-autoloader'
+        sh -c 'cd /var/www/pterodactyl && rm -rf vendor && composer install --no-dev --optimize-autoloader'
 
       ${pkgs.podman}/bin/podman exec pterodactyl-test \
         php /var/www/pterodactyl/artisan migrate --force
@@ -597,6 +597,7 @@ in
     wants = [
       "pterodactyl-test-stock-reset.service"
     ];
+    requires = [ "pterodactyl-test-stock-reset.service" ];
     before = [ "pterodactyl-test-setup.service" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
