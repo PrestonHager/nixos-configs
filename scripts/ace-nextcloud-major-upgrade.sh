@@ -29,8 +29,13 @@ resolve_target_34() {
     echo "34.0.1"
     return
   fi
-  echo "ace-nextcloud-major-upgrade: 34.0.1 image not published yet; using 34.0.0" >&2
-  echo "34.0.0"
+  if podman manifest inspect docker.io/library/nextcloud:34.0.0 >/dev/null 2>&1; then
+    echo "ace-nextcloud-major-upgrade: 34.0.1 image not published yet; using 34.0.0" >&2
+    echo "34.0.0"
+    return
+  fi
+  echo "ace-nextcloud-major-upgrade: no Nextcloud 34 image found on Docker Hub" >&2
+  exit 1
 }
 
 set_image_tag() {
@@ -84,7 +89,7 @@ main() {
   fi
 
   target_34="$(resolve_target_34)"
-  for ver in 32.0.12 33.0.6 "$target_34"; do
+  for ver in 32 33 "$target_34"; do
     major="${ver%%.*}"
     current_major="${start%%.*}"
     if [[ "$current_major" -ge "$major" ]]; then
