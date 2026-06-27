@@ -5,7 +5,7 @@ let
   logDir = "/var/log/cisco-syslog";
 in {
   config = lib.mkIf (cfg.enable && cfg.cisco.enable && cfg.role == "central") {
-    services.rsyslog = {
+    services.rsyslogd = {
       enable = true;
       extraConfig = ''
         # Cisco IOS / IOS-XE remote syslog (UDP 514)
