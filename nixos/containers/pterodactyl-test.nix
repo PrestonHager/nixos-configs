@@ -9,7 +9,7 @@ let
   officialPanelSrc = "https://github.com/pterodactyl/panel.git";
   testEnvFile = "/var/lib/pterodactyl-test/pterodactyl.env";
   testPanelDir = "/home/prestonh/Projects/panel";
-  testPublicDir = "/pterodactyl-test/public";
+  testPanelMountDir = "/pterodactyl-test/html";
   setupMarker = "/var/lib/pterodactyl-test/setup-complete";
   adminCredentialsFile = "/var/lib/pterodactyl-test/admin-credentials";
   zitadelDomain = "zitadel.prestonhager.com";
@@ -165,7 +165,7 @@ in
   ];
 
   systemd.services.pterodactyl-test-public-mount = {
-    description = "Bind-mount test panel public dir for Caddy static file access";
+    description = "Bind-mount test panel tree for Caddy static file access";
     wantedBy = [ "multi-user.target" ];
     before = [ "caddy.service" "podman-pterodactyl-test.service" ];
     after = [ "pterodactyl-test-panel-perms.service" ];
@@ -176,11 +176,15 @@ in
     path = [ pkgs.util-linux pkgs.coreutils ];
     script = ''
       set -euo pipefail
-      install -d -m 0755 ${testPublicDir}
-      if ! ${pkgs.util-linux}/bin/mountpoint -q ${testPublicDir}; then
-        ${pkgs.util-linux}/bin/mount --bind ${testPanelDir}/public ${testPublicDir}
+      legacy_public="${testPanelMountDir%/html}/public"
+      install -d -m 0755 ${testPanelMountDir}
+      if ${pkgs.util-linux}/bin/mountpoint -q "$legacy_public"; then
+        ${pkgs.util-linux}/bin/umount "$legacy_public"
       fi
-      chmod 0755 ${testPublicDir}
+      if ! ${pkgs.util-linux}/bin/mountpoint -q ${testPanelMountDir}; then
+        ${pkgs.util-linux}/bin/mount --bind ${testPanelDir} ${testPanelMountDir}
+      fi
+      chmod 0755 ${testPanelMountDir}
     '';
   };
 

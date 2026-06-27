@@ -148,15 +148,49 @@ let
       assets_ext="$panel/public/assets/extensions"
       install -d -m 2775 -o prestonh -g users "$assets_ext"
       for ext in blueprint sociallogin dnsrecords portforward; do
-        if [ ! -d "$panel/.blueprint/extensions/$ext/assets" ]; then
+        target="$panel/.blueprint/extensions/$ext/assets"
+        if [ ! -d "$target" ]; then
           continue
         fi
-        if [ -L "$assets_ext/$ext" ] || [ -d "$assets_ext/$ext" ]; then
+        link="$assets_ext/$ext"
+        resolved=""
+        if [ -L "$link" ]; then
+          resolved=$(${pkgs.coreutils}/bin/readlink -f "$link" 2>/dev/null || true)
+        fi
+        if [ "$resolved" = "$target" ]; then
           continue
         fi
+        if [ -e "$link" ] && [ ! -L "$link" ]; then
+          continue
+        fi
+        rm -f "$link"
         echo "pterodactyl-test-blueprint-install: linking $ext extension assets into public..."
-        ln -sfn "../../../.blueprint/extensions/$ext/assets" "$assets_ext/$ext"
-        chown -h prestonh:users "$assets_ext/$ext"
+        ln -sfn "../../../.blueprint/extensions/$ext/assets" "$link"
+        chown -h prestonh:users "$link"
+      done
+    }
+
+    extension_public_asset_file() {
+      ext="$1"
+      if [ "$ext" = "blueprint" ]; then
+        echo "$panel/public/assets/extensions/blueprint/logo.jpg"
+      else
+        echo "$panel/public/assets/extensions/$ext/icon.jpg"
+      fi
+    }
+
+    extension_public_assets_integrated() {
+      caddy_root="/pterodactyl-test/html/public"
+      for ext in blueprint sociallogin dnsrecords portforward; do
+        asset=$(extension_public_asset_file "$ext")
+        [ -f "$asset" ] || return 1
+        caddy_asset="$caddy_root/assets/extensions/$ext"
+        if [ "$ext" = "blueprint" ]; then
+          caddy_file="$caddy_asset/logo.jpg"
+        else
+          caddy_file="$caddy_asset/icon.jpg"
+        fi
+        [ -f "$caddy_file" ] || return 1
       done
     }
 
@@ -252,12 +286,6 @@ let
         2026_06_26_000001_add_dnsrecords_audit_log.php \
         2026_06_26_000001_create_portforward_extension_tables.php; do
         [ -f "$panel/database/migrations/$migration" ] || return 1
-      done
-    }
-
-    extension_public_assets_integrated() {
-      for ext in blueprint sociallogin dnsrecords portforward; do
-        [ -e "$panel/public/assets/extensions/$ext" ] || return 1
       done
     }
 
