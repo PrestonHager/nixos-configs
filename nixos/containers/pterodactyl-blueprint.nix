@@ -60,18 +60,51 @@ let
     }
 
     blueprint_integrated() {
-      [ -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed" ] \
+      grep -q 'Providers\\Blueprint\\RouteServiceProvider' "$panel/app/Providers/AppServiceProvider.php" \
+        && grep -q "'blueprint'" "$panel/app/Http/Kernel.php" \
+        && [ -f "$panel/routes/blueprint/web/sociallogin.php" ] \
         && ${pkgs.podman}/bin/podman exec pterodactyl \
           php /var/www/pterodactyl/artisan route:list 2>/dev/null \
           | ${pkgs.gnugrep}/bin/grep -q 'extensions/sociallogin'
     }
 
+    ensure_blueprint_core_patches() {
+      app_provider="$panel/app/Providers/AppServiceProvider.php"
+      needs_kernel=0
+      needs_app=0
+      if ! grep -q "'blueprint'" "$panel/app/Http/Kernel.php" 2>/dev/null; then
+        needs_kernel=1
+      fi
+      if ! grep -q 'Providers\\Blueprint\\RouteServiceProvider' "$app_provider" 2>/dev/null; then
+        needs_app=1
+      fi
+      if [ "$needs_kernel" -eq 0 ] && [ "$needs_app" -eq 0 ]; then
+        return 0
+      fi
+
+      echo "pterodactyl-blueprint-install: restoring Blueprint Kernel/AppServiceProvider patches from release..."
+      patch_tmp=$(mktemp -d)
+      trap 'rm -rf "$patch_tmp"' RETURN
+      ${pkgs.curl}/bin/curl -fsSL "${blueprintReleaseUrl}" -o "$patch_tmp/release.zip"
+      if [ "$needs_kernel" -eq 1 ]; then
+        ${pkgs.unzip}/bin/unzip -o "$patch_tmp/release.zip" app/Http/Kernel.php -d "$patch_tmp/extract"
+        cp "$patch_tmp/extract/app/Http/Kernel.php" "$panel/app/Http/Kernel.php"
+      fi
+      if [ "$needs_app" -eq 1 ]; then
+        ${pkgs.unzip}/bin/unzip -o "$patch_tmp/release.zip" app/Providers/AppServiceProvider.php -d "$patch_tmp/extract"
+        cp "$patch_tmp/extract/app/Providers/AppServiceProvider.php" "$app_provider"
+      fi
+      chown pterodactyl:pterodactyl "$panel/app/Http/Kernel.php" "$app_provider"
+    }
+
     rerun_blueprint_framework() {
       echo "pterodactyl-blueprint-install: re-running Blueprint framework install..."
+      ensure_blueprint_core_patches
       rm -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed"
       rm -f "$panel/.blueprint/lock" 2>/dev/null || true
       cd "$panel"
-      blueprint_cli_install
+      env BLUEPRINT_ENVIRONMENT=ci HOME=/var/lib/pterodactyl TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 PATH="$PATH" \
+        ${pkgs.bash}/bin/bash "$panel/blueprint.sh"
       if blueprint_cli -info 2>/dev/null | grep -qi sociallogin; then
         echo "pterodactyl-blueprint-install: re-registering Social Login extension routes..."
         rm -f "$panel/.blueprint/lock"
@@ -101,6 +134,8 @@ let
     }
 
     post_install_hooks() {
+      ensure_blueprint_core_patches
+
       ${pkgs.podman}/bin/podman exec \
         -e HOME=/var/www/pterodactyl \
         -e COMPOSER_HOME=/tmp/composer \
