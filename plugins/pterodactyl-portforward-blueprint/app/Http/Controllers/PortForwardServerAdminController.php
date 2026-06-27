@@ -16,7 +16,7 @@ class PortForwardServerAdminController extends Controller
     {
         $model = Server::query()->with('node')->findOrFail($server);
         $context = PluginContext::make();
-        $config = Services::config($context)->all();
+        $settings = $context->config()->all();
 
         $nodeTarget = null;
         $nodeTargetError = null;
@@ -32,7 +32,7 @@ class PortForwardServerAdminController extends Controller
             [
                 'server' => $model,
                 'apiBase' => '/extensions/portforward/admin/servers/' . $model->id,
-                'settings' => $config,
+                'settings' => $settings,
                 'nodeTarget' => $nodeTarget,
                 'nodeTargetError' => $nodeTargetError,
             ],
