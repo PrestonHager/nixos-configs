@@ -248,9 +248,9 @@ const GROUPS_ACTION = `function nextcloudGroups(ctx, api) {
   console.log(`ZITADEL_PROJECT_ID=${PROJECT_ID}`);
   console.log(`ADMIN_ROLE=${ROLE_KEY}`);
   console.log(`REDIRECT_URI=${REDIRECT_URI}`);
-  console.log('\n=== MANUAL: Zitadel Complement Token action (required for admin group mapping) ===');
-  console.log('See docs/nextcloud-ace.md — create action nextcloudGroups on Complement Token flow:\n');
-  console.log(GROUPS_ACTION);
+  console.log('\n=== Zitadel Complement Token action (required for admin group mapping) ===');
+  console.log('Run: nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-homelab-groups-action.js');
+  console.log('(Unified homelabGroups — per-service *Groups actions overwrite the shared groups claim)');
 })().catch((e) => {
   console.error(e.message || e);
   process.exit(1);

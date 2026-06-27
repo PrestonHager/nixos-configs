@@ -82,32 +82,26 @@ Zitadel project roles use a nested object claim (`urn:zitadel:iam:org:project:ro
 | `nextcloud_admin` | Added to Nextcloud `admin` group (server admin) on SSO login |
 | (no role) | Normal user |
 
-### MANUAL: Complement Token action in Zitadel console
+**Important:** Only one Complement Token action may set the `groups` claim. Per-service actions (`jellyfinGroups`, `pterodactylGroups`, etc.) overwrite each other — the last one wins and drops `admin` for Nextcloud. Use the unified `homelabGroups` action instead.
 
-1. Open https://zitadel.prestonhager.com/ui/console/org/actions
-2. **New action** → flow **Complement Token** → name `nextcloudGroups`
-3. Triggers: **Pre Userinfo creation**, **Pre access token creation**
-4. Script:
+Automated setup on ace:
 
-```javascript
-function nextcloudGroups(ctx, api) {
-  if (!ctx.v1.user || !ctx.v1.user.grants || !ctx.v1.user.grants.grants) {
-    return;
-  }
-  const groups = [];
-  for (const grant of ctx.v1.user.grants.grants) {
-    const roleKeys = grant.roleKeys || [];
-    if (roleKeys.includes('nextcloud_admin')) {
-      groups.push('admin');
-      break;
-    }
-  }
-  api.v1.claims.setClaim('groups', groups);
-}
+```bash
+cd /etc/nixos
+nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-homelab-groups-action.js
 ```
 
-5. **Flows** → **Complement Token** → add `nextcloudGroups` to the flow (before token/userinfo is returned)
-6. Save and activate
+Verify the token includes `groups: ["admin", ...]`:
+
+```bash
+nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-nextcloud-userinfo-test.js
+```
+
+Full OIDC diagnostic:
+
+```bash
+scripts/ace-nextcloud-oidc-diagnose.sh
+```
 
 ### Assign `nextcloud_admin` in the Zitadel console
 
