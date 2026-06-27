@@ -24,8 +24,7 @@ in
   systemd.services.pterodactyl-blueprint-extensions-env = {
     description = "Write Pterodactyl Blueprint extension environment file";
     wantedBy = [ "multi-user.target" ];
-    after = [ "sops-nix.service" ];
-    requires = [ "sops-nix.service" ];
+    after = [ "network-online.target" ];
     before = [ "podman-pterodactyl.service" ];
     serviceConfig = {
       Type = "oneshot";
