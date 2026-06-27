@@ -5,6 +5,7 @@
   imports = [
     ./programs/tmux.nix
     ./programs/neovim.nix
+    ./programs/ssh.nix
   ];
 
   # Add the brave browser
