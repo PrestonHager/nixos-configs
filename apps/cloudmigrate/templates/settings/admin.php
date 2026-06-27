@@ -43,4 +43,12 @@
 
 	<button type="submit" class="button primary"><?php p($l->t('Save')); ?></button>
 	<span id="cloudmigrate-admin-status"></span>
+
+	<h3><?php p($l->t('Apple iCloud (rclone)')); ?></h3>
+	<p class="hint">
+		<?php p($l->t('iCloud Drive migrations run server-side via rclone inside the Nextcloud container. Users supply an app-specific password in the app UI; no iCloud secrets belong in admin settings.')); ?>
+	</p>
+	<label for="rclone_path"><?php p($l->t('rclone binary path (optional)')); ?></label>
+	<input id="rclone_path" name="rclone_path" type="text" value="<?php p($_['rclonePath']); ?>" placeholder="/usr/local/bin/rclone" />
+	<p class="hint"><?php p($l->t('Leave empty to auto-detect. On ace, rclone is bind-mounted at /usr/local/bin/rclone.')); ?></p>
 </form>

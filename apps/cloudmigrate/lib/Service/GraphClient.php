@@ -110,22 +110,72 @@ class GraphClient {
 		$endpoint = $itemId === null
 			? self::GRAPH_BASE . '/me/drive/root/children'
 			: self::GRAPH_BASE . '/me/drive/items/' . rawurlencode($itemId) . '/children';
+		return $this->fetchAllChildren($accessToken, $endpoint);
+	}
+
+	/**
+	 * Resolve a drive item by path relative to the OneDrive root (e.g. Documents/Reports).
+	 *
+	 * @return array{id: string, name: string, path: string, folder: bool, size: int}
+	 */
+	public function resolvePath(string $userId, string $relativePath): array {
+		$normalized = PathValidator::normalizeOneDrivePath($relativePath);
+		$accessToken = $this->refreshTokenIfNeeded($userId);
 		$client = $this->clientService->newClient();
-		$response = $client->get($endpoint, [
+		$url = $normalized === ''
+			? self::GRAPH_BASE . '/me/drive/root'
+			: self::GRAPH_BASE . '/me/drive/root:/' . $this->encodePathSegments($normalized) . ':';
+		$response = $client->get($url, [
 			'headers' => ['Authorization' => 'Bearer ' . $accessToken],
 		]);
-		$data = json_decode($response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+		$entry = json_decode($response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+		if (!isset($entry['id'])) {
+			throw new \RuntimeException('OneDrive path not found: ' . $relativePath);
+		}
+		return $this->mapDriveItem($entry);
+	}
+
+	public function itemDisplayPath(array $item): string {
+		return $this->parentPath($item);
+	}
+
+	/**
+	 * @return list<array{id: string, name: string, path: string, folder: bool, size: int}>
+	 */
+	private function fetchAllChildren(string $accessToken, string $endpoint): array {
+		$client = $this->clientService->newClient();
 		$items = [];
-		foreach ($data['value'] ?? [] as $entry) {
-			$items[] = [
-				'id' => $entry['id'],
-				'name' => $entry['name'],
-				'path' => $this->parentPath($entry),
-				'folder' => isset($entry['folder']),
-				'size' => (int)($entry['size'] ?? 0),
-			];
+		$url = $endpoint;
+		while ($url !== '') {
+			$response = $client->get($url, [
+				'headers' => ['Authorization' => 'Bearer ' . $accessToken],
+			]);
+			$data = json_decode($response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+			foreach ($data['value'] ?? [] as $entry) {
+				$items[] = $this->mapDriveItem($entry);
+			}
+			$url = (string)($data['@odata.nextLink'] ?? '');
 		}
 		return $items;
+	}
+
+	/**
+	 * @param array<string, mixed> $entry
+	 * @return array{id: string, name: string, path: string, folder: bool, size: int}
+	 */
+	private function mapDriveItem(array $entry): array {
+		return [
+			'id' => (string)$entry['id'],
+			'name' => (string)($entry['name'] ?? ''),
+			'path' => $this->parentPath($entry),
+			'folder' => isset($entry['folder']),
+			'size' => (int)($entry['size'] ?? 0),
+		];
+	}
+
+	private function encodePathSegments(string $path): string {
+		$segments = explode('/', $path);
+		return implode('/', array_map('rawurlencode', $segments));
 	}
 
 	public function getDriveItem(string $userId, string $itemId): array {

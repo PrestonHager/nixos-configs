@@ -13,13 +13,14 @@ use Psr\Log\LoggerInterface;
 
 class MigrationService {
 	public const DEST_ONEDRIVE = 'Migrated/OneDrive';
-	public const DEST_ICLOUD_DRIVE = 'Migrated/iCloud/Drive';
+	public const DEST_ICLOUD = 'Migrated/iCloud';
 	public const DEST_ICLOUD_PHOTOS = 'Migrated/iCloud/Photos';
 
 	public function __construct(
 		private MigrationMapper $mapper,
 		private IJobList $jobList,
 		private GraphClient $graphClient,
+		private RcloneRunner $rcloneRunner,
 		private TokenStore $tokenStore,
 		private IRootFolder $rootFolder,
 		private LoggerInterface $logger,
@@ -31,18 +32,76 @@ class MigrationService {
 		string $folderId,
 		string $sourceLabel,
 		bool $dryRun,
-		string $destSubpath = 'Files',
+		string $destBase = self::DEST_ONEDRIVE,
+		string $destSubpath = '',
 	): MigrationEntity {
 		if (!$this->tokenStore->isOneDriveConnected($userId)) {
 			throw new \RuntimeException('Connect OneDrive before starting migration');
 		}
+
+		if ($folderId === '' || $folderId === 'root') {
+			$resolved = $this->graphClient->resolvePath($userId, '');
+			$folderId = $resolved['id'];
+		} else {
+			$raw = $this->graphClient->getDriveItem($userId, $folderId);
+			if (!isset($raw['folder'])) {
+				throw new \RuntimeException('Source must be a folder');
+			}
+			$resolved = $raw;
+		}
+
+		$displayPath = $this->graphClient->itemDisplayPath($resolved);
+		if ($displayPath === '') {
+			$displayPath = 'OneDrive';
+		}
+		if ($sourceLabel !== '' && $sourceLabel !== '/') {
+			$displayPath = $sourceLabel;
+		}
+
+		$destPath = PathValidator::normalizeDestPath($destBase, $destSubpath);
+
 		$entity = new MigrationEntity();
 		$entity->setUserId($userId);
 		$entity->setProvider('onedrive');
 		$entity->setStatus('queued');
-		$entity->setSourcePath($sourceLabel);
+		$entity->setSourcePath($displayPath);
 		$entity->setSourceItemId($folderId);
-		$entity->setDestPath(self::DEST_ONEDRIVE . '/' . trim($destSubpath, '/'));
+		$entity->setDestPath($destPath);
+		$entity->setDryRun($dryRun);
+		$entity->setProgress(0);
+		$entity->setTotalFiles(0);
+		$entity->setCopiedFiles(0);
+		$entity->setCreatedAt(time());
+		$entity->setUpdatedAt(time());
+		$inserted = $this->mapper->insert($entity);
+		$this->jobList->add(\OCA\CloudMigrate\BackgroundJob\MigrationJob::class, [
+			'migrationId' => $inserted->getId(),
+		]);
+		return $inserted;
+	}
+
+	public function startIcloudMigration(
+		string $userId,
+		string $sourcePath,
+		string $sourceLabel,
+		bool $dryRun,
+		string $destPath = self::DEST_ICLOUD,
+	): MigrationEntity {
+		if (!$this->tokenStore->isIcloudConfigured($userId)) {
+			throw new \RuntimeException('Connect iCloud before starting migration');
+		}
+		if (!$this->rcloneRunner->isAvailable()) {
+			throw new \RuntimeException('rclone is not available on the server. Ask an administrator to install rclone for the Nextcloud container.');
+		}
+		$normalizedSource = PathValidator::normalizeOneDrivePath($sourcePath);
+		$validatedDest = PathValidator::normalizeDestPath($destPath);
+		$entity = new MigrationEntity();
+		$entity->setUserId($userId);
+		$entity->setProvider('icloud');
+		$entity->setStatus('queued');
+		$entity->setSourcePath($sourceLabel);
+		$entity->setSourceItemId($normalizedSource);
+		$entity->setDestPath($validatedDest);
 		$entity->setDryRun($dryRun);
 		$entity->setProgress(0);
 		$entity->setTotalFiles(0);
@@ -68,6 +127,8 @@ class MigrationService {
 		try {
 			if ($entity->getProvider() === 'onedrive') {
 				$this->runOneDrive($entity);
+			} elseif ($entity->getProvider() === 'icloud') {
+				$this->runIcloud($entity);
 			} else {
 				throw new \RuntimeException('Provider not implemented: ' . $entity->getProvider());
 			}
@@ -107,6 +168,47 @@ class MigrationService {
 			$entity->setUpdatedAt(time());
 			$this->mapper->update($entity);
 		}
+	}
+
+	private function runIcloud(MigrationEntity $entity): void {
+		$userId = $entity->getUserId();
+		$sourcePath = $entity->getSourceItemId();
+		$destPath = $entity->getDestPath();
+		$dryRun = $entity->isDryRun();
+
+		$files = $this->rcloneRunner->listFilesRecursive($userId, $sourcePath);
+		$total = count($files);
+		$entity->setTotalFiles($total);
+		$this->mapper->update($entity);
+
+		if ($dryRun) {
+			$entity->setCopiedFiles($total);
+			$entity->setProgress(100);
+			$entity->setUpdatedAt(time());
+			$this->mapper->update($entity);
+			return;
+		}
+
+		$localDest = $this->rcloneRunner->resolveUserFilesPath($userId, $destPath);
+		if ($sourcePath !== '') {
+			$localDest .= '/' . $sourcePath;
+		}
+
+		$entity->setProgress(10);
+		$entity->setUpdatedAt(time());
+		$this->mapper->update($entity);
+
+		$this->rcloneRunner->copyToLocal($userId, $sourcePath, $localDest, false);
+
+		$entity->setCopiedFiles($total);
+		$entity->setProgress(90);
+		$entity->setUpdatedAt(time());
+		$this->mapper->update($entity);
+
+		$this->rcloneRunner->scanUserFiles($userId, $destPath);
+
+		$entity->setCopiedFiles($total);
+		$entity->setProgress(100);
 	}
 
 	private function ensureParentFolders(\OCP\Files\Folder $userFolder, string $path): void {

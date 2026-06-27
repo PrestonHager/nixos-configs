@@ -22,11 +22,23 @@
 			</div>
 
 			<div id="onedrive-migrate" hidden>
-				<label for="onedrive-folder"><?php p($l->t('Source folder')); ?></label>
-				<select id="onedrive-folder"></select>
+				<label><?php p($l->t('Source folder')); ?></label>
+				<div id="onedrive-browser" class="cloudmigrate-browser">
+					<nav id="onedrive-breadcrumb" class="cloudmigrate-breadcrumb" aria-label="<?php p($l->t('OneDrive folder path')); ?>"></nav>
+					<div id="onedrive-folder-list" class="cloudmigrate-folder-list"></div>
+					<p id="onedrive-selected" class="hint"></p>
+				</div>
+				<label for="onedrive-path"><?php p($l->t('Or enter OneDrive path')); ?></label>
+				<div class="cloudmigrate-path-row">
+					<input id="onedrive-path" type="text" placeholder="<?php p($l->t('e.g. Documents/Reports')); ?>" />
+					<button id="onedrive-path-go" class="button" type="button"><?php p($l->t('Go')); ?></button>
+				</div>
 
-				<label for="onedrive-dest"><?php p($l->t('Destination under Migrated/OneDrive/')); ?></label>
-				<input id="onedrive-dest" type="text" value="Files" />
+				<label for="onedrive-dest-base"><?php p($l->t('Destination base path in Nextcloud Files')); ?></label>
+				<input id="onedrive-dest-base" type="text" value="Migrated/OneDrive" />
+
+				<label for="onedrive-dest-sub"><?php p($l->t('Destination subfolder (optional)')); ?></label>
+				<input id="onedrive-dest-sub" type="text" placeholder="<?php p($l->t('e.g. Documents — leave empty to mirror source name')); ?>" />
 
 				<label class="cloudmigrate-checkbox">
 					<input id="onedrive-dryrun" type="checkbox" />
@@ -40,24 +52,55 @@
 			</div>
 		</section>
 
-		<section class="cloudmigrate-card cloudmigrate-card-muted" id="icloud-section">
+		<section class="cloudmigrate-card" id="icloud-section">
 			<h3><?php p($l->t('Apple iCloud')); ?></h3>
 			<p class="hint">
-				<?php p($l->t('Apple does not offer a public web OAuth API for iCloud Drive comparable to Microsoft Graph. Phase 2 supports storing an app-specific password (encrypted in Nextcloud) as a fallback; Drive and Photos copy jobs are not yet implemented.')); ?>
+				<?php p($l->t('Apple does not offer a public OAuth API for iCloud Drive. Connect with an app-specific password (stored encrypted); migration runs server-side via rclone.')); ?>
 			</p>
-			<details>
-				<summary><?php p($l->t('App-specific password (optional, Phase 2 scaffold)')); ?></summary>
+			<p id="icloud-rclone-hint" class="hint error" hidden></p>
+
+			<div id="icloud-connect">
 				<p class="hint">
-					<?php p($l->t('Generate at appleid.apple.com → Sign-In and Security → App-Specific Passwords. Stored encrypted per user in this app — never in git or sops.')); ?>
+					<?php p($l->t('Generate at appleid.apple.com → Sign-In and Security → App-Specific Passwords.')); ?>
 				</p>
 				<label for="icloud-apple-id"><?php p($l->t('Apple ID')); ?></label>
 				<input id="icloud-apple-id" type="email" autocomplete="username" />
 				<label for="icloud-password"><?php p($l->t('App-specific password')); ?></label>
 				<input id="icloud-password" type="password" autocomplete="current-password" />
-				<button id="icloud-save" class="button" type="button"><?php p($l->t('Save credentials')); ?></button>
-				<button id="icloud-disconnect" class="button" type="button" hidden><?php p($l->t('Remove credentials')); ?></button>
-			</details>
-			<p class="cloudmigrate-badge"><?php p($l->t('Coming soon: Drive via server-side rclone, Photos via icloudpd background job')); ?></p>
+				<div class="cloudmigrate-actions">
+					<button id="icloud-save" class="button primary" type="button"><?php p($l->t('Connect iCloud')); ?></button>
+				</div>
+			</div>
+
+			<div id="icloud-connected" hidden>
+				<div class="cloudmigrate-actions">
+					<button id="icloud-disconnect" class="button" type="button"><?php p($l->t('Remove credentials')); ?></button>
+				</div>
+
+				<div id="icloud-migrate">
+					<label for="icloud-folder"><?php p($l->t('Source folder')); ?></label>
+					<select id="icloud-folder">
+						<option value="" data-label="<?php p($l->t('All iCloud Drive files')); ?>"><?php p($l->t('All iCloud Drive files')); ?></option>
+					</select>
+
+					<label for="icloud-source-path"><?php p($l->t('Or enter source path (optional)')); ?></label>
+					<input id="icloud-source-path" type="text" placeholder="<?php p($l->t('e.g. Documents/Archive')); ?>" />
+
+					<label for="icloud-dest"><?php p($l->t('Destination path in Nextcloud Files')); ?></label>
+					<input id="icloud-dest" type="text" value="Migrated/iCloud" />
+
+					<label class="cloudmigrate-checkbox">
+						<input id="icloud-dryrun" type="checkbox" />
+						<?php p($l->t('Dry run (count files only, no copy)')); ?>
+					</label>
+
+					<div class="cloudmigrate-actions">
+						<button id="icloud-start" class="button primary" type="button"><?php p($l->t('Start migration')); ?></button>
+					</div>
+					<p id="icloud-action-feedback" class="cloudmigrate-inline-feedback" hidden aria-live="polite"></p>
+				</div>
+			</div>
+			<p class="cloudmigrate-badge"><?php p($l->t('iCloud Photos via icloudpd — coming soon')); ?></p>
 		</section>
 
 		<section class="cloudmigrate-card" id="migration-status-section">

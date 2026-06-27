@@ -6,13 +6,23 @@ Nextcloud web extension for one-time migration from **Microsoft OneDrive** and (
 - **Path in repo:** `apps/cloudmigrate/`
 - **Deployed to:** `/var/www/html/custom_apps/cloudmigrate` on ace
 
-## Features (Phase 1)
+## Features
+
+### OneDrive (Phase 1)
 
 - Admin settings: Azure Application (client) ID, optional client secret, tenant (`common`)
 - Per-user OneDrive OAuth (Microsoft Graph) — refresh tokens encrypted in Nextcloud app config
-- UI: connect, pick root folder, dry-run, start migration, progress
-- Background queued job copies files via Graph API into `Migrated/OneDrive/Files/` (configurable subpath)
+- UI: connect, browse folders, dry-run, start migration, progress
+- Background queued job copies files via Graph API into `Migrated/OneDrive/` (configurable path)
 - `occ cloudmigrate:run <id>` for manual job execution
+
+### iCloud Drive (Phase 2)
+
+- **Auth:** App-specific password per user (password encrypted via `ICrypto`; Apple ID stored in app config)
+- **Engine:** Server-side **rclone** `icloud` remote with ephemeral per-job config (no credentials on disk)
+- UI: connect, pick root folder or enter path, configurable destination (default `Migrated/iCloud`), dry-run, shared migration status
+- Requires **rclone** in the Nextcloud container (bind-mounted on ace via `nextcloud.nix`)
+- **Not yet:** iCloud Photos (`icloudpd` background job)
 
 ## Microsoft Azure app registration
 
@@ -54,15 +64,28 @@ podman exec -u www-data nextcloud php /var/www/html/occ app:enable cloudmigrate
 podman exec -u www-data nextcloud php /var/www/html/occ maintenance:repair
 ```
 
-## iCloud (Phase 2 — limitations)
+## iCloud (Phase 2)
 
 Apple does **not** provide a public OAuth web flow for iCloud Drive comparable to Microsoft Graph.
 
 | Approach | Status |
 |----------|--------|
 | CloudKit / Sign in with Apple | Not suitable for bulk Drive file export in a browser app |
-| App-specific password | Scaffolded in UI; stored encrypted per user; server-side rclone/icloudpd job **not yet implemented** |
-| iCloud Photos (`icloudpd`) | Requires server background job; cannot run in browser — deferred |
+| App-specific password | **Implemented** — encrypted per user; server-side rclone copy job |
+| iCloud Photos (`icloudpd`) | Requires server background job — **not yet implemented** |
+
+### Admin (ace)
+
+- Deploy includes rclone bind-mounted at `/usr/local/bin/rclone` in the Nextcloud container
+- Optional **rclone binary path** override in **Settings → Administration → Cloud Migrate**
+- No Apple or iCloud secrets in admin settings — users enter app-specific passwords in the app UI
+
+### User flow
+
+1. Generate an [app-specific password](https://appleid.apple.com) for iCloud
+2. **Cloud Migrate → Apple iCloud → Connect iCloud**
+3. Select **All iCloud Drive files** or a folder, set destination (default `Migrated/iCloud`), dry-run optional
+4. Progress appears under **Migration status** (same queue as OneDrive)
 
 See `docs/nextcloud-cloud-migrate-app.md` for the full user guide.
 

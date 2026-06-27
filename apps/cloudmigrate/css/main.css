@@ -82,7 +82,83 @@
 	color: var(--color-text-maxcontrast);
 }
 
-.cloudmigrate-badge {
+.cloudmigrate-path-row {
+	display: flex;
+	gap: 0.5rem;
+	max-width: 28rem;
+	margin-bottom: 0.5rem;
+}
+
+.cloudmigrate-path-row input {
+	flex: 1;
+	min-width: 0;
+}
+
+.cloudmigrate-browser {
+	border: 1px solid var(--color-border);
+	border-radius: var(--border-radius);
+	padding: 0.75rem;
+	max-width: 28rem;
+	margin-bottom: 0.75rem;
+	background: var(--color-main-background);
+}
+
+.cloudmigrate-breadcrumb {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.25rem;
+	margin-bottom: 0.5rem;
+	font-size: 0.9em;
+}
+
+.cloudmigrate-breadcrumb-sep {
+	color: var(--color-text-maxcontrast);
+}
+
+.cloudmigrate-breadcrumb-item {
+	background: none;
+	border: none;
+	padding: 0.15rem 0.25rem;
+	color: var(--color-primary-element);
+	cursor: pointer;
+	font: inherit;
+}
+
+.cloudmigrate-breadcrumb-item:hover {
+	text-decoration: underline;
+}
+
+.cloudmigrate-folder-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	max-height: 14rem;
+	overflow-y: auto;
+}
+
+.cloudmigrate-folder-item {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	text-align: left;
+	padding: 0.35rem 0.5rem;
+	border: 1px solid transparent;
+	border-radius: var(--border-radius);
+	background: var(--color-background-hover);
+	cursor: pointer;
+	font: inherit;
+	color: inherit;
+}
+
+.cloudmigrate-folder-item:hover {
+	border-color: var(--color-primary-element);
+}
+
+.cloudmigrate-folder-item .icon-folder {
+	opacity: 0.85;
+}
+
 	display: inline-block;
 	margin-top: 0.75rem;
 	padding: 0.25rem 0.5rem;

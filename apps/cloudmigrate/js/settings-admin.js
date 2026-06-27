@@ -6,6 +6,7 @@ document.getElementById('cloudmigrate-admin-form').addEventListener('submit', fu
 		onedrive_client_secret: form.onedrive_client_secret.value,
 		onedrive_tenant: form.onedrive_tenant.value,
 		onedrive_redirect_uri_base: form.onedrive_redirect_uri_base.value,
+		rclone_path: form.rclone_path.value,
 	};
 	const status = document.getElementById('cloudmigrate-admin-status');
 	fetch(OC.generateUrl('/apps/cloudmigrate/settings/admin'), {

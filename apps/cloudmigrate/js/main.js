@@ -6,15 +6,29 @@
 	const onedriveConnect = document.getElementById('onedrive-connect');
 	const onedriveDisconnect = document.getElementById('onedrive-disconnect');
 	const onedriveMigrate = document.getElementById('onedrive-migrate');
-	const onedriveFolder = document.getElementById('onedrive-folder');
 	const onedriveStart = document.getElementById('onedrive-start');
 	const onedriveAdminHint = document.getElementById('onedrive-admin-hint');
 	const onedriveActionFeedback = document.getElementById('onedrive-action-feedback');
+	const onedriveBreadcrumb = document.getElementById('onedrive-breadcrumb');
+	const onedriveFolderList = document.getElementById('onedrive-folder-list');
+	const onedriveSelected = document.getElementById('onedrive-selected');
+	const onedrivePath = document.getElementById('onedrive-path');
+	const onedrivePathGo = document.getElementById('onedrive-path-go');
 	const migrationList = document.getElementById('migration-list');
 	const migrationStatusSection = document.getElementById('migration-status-section');
+	const icloudConnect = document.getElementById('icloud-connect');
+	const icloudConnected = document.getElementById('icloud-connected');
+	const icloudFolder = document.getElementById('icloud-folder');
+	const icloudStart = document.getElementById('icloud-start');
+	const icloudRcloneHint = document.getElementById('icloud-rclone-hint');
+	const icloudActionFeedback = document.getElementById('icloud-action-feedback');
 
 	let pollTimer = null;
 	let lastActiveMigrationCount = 0;
+	let onedriveConnected = false;
+	let foldersLoaded = false;
+	let icloudFoldersLoaded = false;
+	let selectedFolder = { id: 'root', path: 'OneDrive', label: 'OneDrive' };
 
 	const flash = appRoot.dataset.flash;
 	if (flash) {
@@ -149,6 +163,89 @@
 		lastActiveMigrationCount = active ? migrations.filter((m) => m.status === 'queued' || m.status === 'running').length : 0;
 	}
 
+	function updateSelectedDisplay() {
+		const fileHint = selectedFolder.fileCount != null
+			? t('cloudmigrate', '{count} file(s) in this folder (subfolders scanned during migration).', { count: selectedFolder.fileCount })
+			: '';
+		onedriveSelected.textContent = t('cloudmigrate', 'Selected: {path}', { path: selectedFolder.label }) +
+			(fileHint ? ' — ' + fileHint : '');
+	}
+
+	function renderBreadcrumb(breadcrumb) {
+		if (!breadcrumb || !breadcrumb.length) {
+			onedriveBreadcrumb.innerHTML = '';
+			return;
+		}
+		onedriveBreadcrumb.innerHTML = breadcrumb.map((crumb, idx) => {
+			const sep = idx > 0 ? '<span class="cloudmigrate-breadcrumb-sep">›</span>' : '';
+			return sep + '<button type="button" class="cloudmigrate-breadcrumb-item" data-folder-id="' +
+				escapeHtml(crumb.id) + '">' + escapeHtml(crumb.name) + '</button>';
+		}).join('');
+		onedriveBreadcrumb.querySelectorAll('.cloudmigrate-breadcrumb-item').forEach((btn) => {
+			btn.addEventListener('click', () => browseFolder(btn.dataset.folderId));
+		});
+	}
+
+	function renderFolderList(data) {
+		const folders = data.folders || [];
+		if (!folders.length) {
+			onedriveFolderList.innerHTML = '<p class="hint">' + t('cloudmigrate', 'No subfolders here.') + '</p>';
+			return;
+		}
+		onedriveFolderList.innerHTML = folders.map((f) =>
+			'<button type="button" class="cloudmigrate-folder-item" data-folder-id="' + escapeHtml(f.id) + '" data-folder-path="' + escapeHtml(f.path || f.name) + '">' +
+			'<span class="icon-folder"></span> ' + escapeHtml(f.name) +
+			'</button>'
+		).join('');
+		onedriveFolderList.querySelectorAll('.cloudmigrate-folder-item').forEach((btn) => {
+			btn.addEventListener('click', () => browseFolder(btn.dataset.folderId));
+		});
+	}
+
+	function browseFolder(folderId) {
+		return api('/api/onedrive/browse?folderId=' + encodeURIComponent(folderId)).then(({ ok, json }) => {
+			if (!ok) {
+				setInlineFeedback(onedriveActionFeedback, json.message || t('cloudmigrate', 'Could not browse OneDrive.'), 'error');
+				return;
+			}
+			renderBreadcrumb(json.breadcrumb);
+			renderFolderList(json);
+			selectedFolder = {
+				id: json.folderId,
+				path: json.folderPath || 'OneDrive',
+				label: json.folderPath || 'OneDrive',
+				fileCount: json.fileCount,
+			};
+			onedrivePath.value = json.folderPath || '';
+			updateSelectedDisplay();
+		});
+	}
+
+	function loadBrowser() {
+		return browseFolder('root').then(() => {
+			foldersLoaded = true;
+		});
+	}
+
+	function loadIcloudFolders() {
+		if (!icloudFolder) return Promise.resolve();
+		return api('/api/icloud/folders').then(({ ok, json }) => {
+			if (!ok) {
+				setInlineFeedback(icloudActionFeedback, json.message || t('cloudmigrate', 'Could not load iCloud folders.'), 'error');
+				return;
+			}
+			const allLabel = t('cloudmigrate', 'All iCloud Drive files');
+			const options = ['<option value="" data-label="' + escapeHtml(allLabel) + '">' + escapeHtml(allLabel) + '</option>'];
+			(json.folders || []).forEach((f) => {
+				options.push(
+					'<option value="' + escapeHtml(f.path) + '" data-label="' + escapeHtml(f.name) + '">' + escapeHtml(f.name) + '</option>'
+				);
+			});
+			icloudFolder.innerHTML = options.join('');
+			icloudFoldersLoaded = true;
+		});
+	}
+
 	function refreshStatus() {
 		return api('/api/status').then(({ ok, json }) => {
 			if (!ok) {
@@ -165,26 +262,35 @@
 			}
 			onedriveDisconnect.hidden = !od.connected;
 			onedriveMigrate.hidden = !od.connected;
-			if (od.connected) {
-				loadFolders();
+			if (od.connected && !onedriveConnected) {
+				foldersLoaded = false;
 			}
+			if (od.connected && !foldersLoaded) {
+				loadBrowser();
+			}
+			onedriveConnected = od.connected;
 			const ic = json.icloud;
-			document.getElementById('icloud-disconnect').hidden = !ic.configured;
+			icloudConnect.hidden = ic.configured;
+			icloudConnected.hidden = !ic.configured;
+			if (ic.configured && ic.rcloneAvailable) {
+				icloudRcloneHint.hidden = true;
+				icloudRcloneHint.textContent = '';
+				if (!icloudFoldersLoaded) {
+					loadIcloudFolders();
+				}
+			} else if (ic.configured && !ic.rcloneAvailable) {
+				icloudRcloneHint.hidden = false;
+				icloudRcloneHint.textContent = t('cloudmigrate', 'rclone is not installed in the Nextcloud container. Ask an administrator to deploy rclone (Settings → Administration → Cloud Migrate).');
+			} else {
+				icloudRcloneHint.hidden = true;
+				icloudFoldersLoaded = false;
+			}
+			if (icloudStart) {
+				icloudStart.disabled = ic.configured && !ic.rcloneAvailable;
+			}
 			const migrations = json.migrations || [];
 			renderMigrations(migrations);
 			configurePolling(migrations);
-		});
-	}
-
-	function loadFolders() {
-		api('/api/onedrive/folders').then(({ ok, json }) => {
-			if (!ok) {
-				setInlineFeedback(onedriveActionFeedback, json.message || t('cloudmigrate', 'Could not load OneDrive folders.'), 'error');
-				return;
-			}
-			onedriveFolder.innerHTML = (json.folders || []).map((f) =>
-				'<option value="' + escapeHtml(f.id) + '" data-label="' + escapeHtml(f.name) + '">' + escapeHtml(f.name) + '</option>'
-			).join('');
 		});
 	}
 
@@ -194,20 +300,42 @@
 				notify(json.message || t('cloudmigrate', 'Disconnect failed.'), 'error');
 				return;
 			}
+			foldersLoaded = false;
+			onedriveConnected = false;
 			refreshStatus();
 		});
 	});
 
+	onedrivePathGo.addEventListener('click', () => {
+		const path = onedrivePath.value.trim();
+		if (!path) {
+			browseFolder('root');
+			return;
+		}
+		setInlineFeedback(onedriveActionFeedback, t('cloudmigrate', 'Resolving path…'), 'loading');
+		api('/api/onedrive/resolve-path?path=' + encodeURIComponent(path)).then(({ ok, json }) => {
+			if (!ok) {
+				setInlineFeedback(onedriveActionFeedback, json.message || t('cloudmigrate', 'Path not found.'), 'error');
+				return;
+			}
+			setInlineFeedback(onedriveActionFeedback, '', '');
+			browseFolder(json.folderId);
+		});
+	});
+
 	onedriveStart.addEventListener('click', () => {
-		const opt = onedriveFolder.selectedOptions[0];
-		if (!opt) {
+		if (!selectedFolder.id) {
 			const msg = t('cloudmigrate', 'Select a source folder first.');
 			setInlineFeedback(onedriveActionFeedback, msg, 'error');
 			notify(msg, 'error');
 			return;
 		}
 		const dryRun = document.getElementById('onedrive-dryrun').checked;
-		const destSubpath = document.getElementById('onedrive-dest').value || 'Files';
+		const destBase = document.getElementById('onedrive-dest-base').value || 'Migrated/OneDrive';
+		let destSubpath = document.getElementById('onedrive-dest-sub').value.trim();
+		if (!destSubpath && selectedFolder.label && selectedFolder.label !== 'OneDrive') {
+			destSubpath = selectedFolder.label.split('/').pop();
+		}
 		const loadingLabel = dryRun
 			? t('cloudmigrate', 'Starting dry run…')
 			: t('cloudmigrate', 'Starting migration…');
@@ -219,8 +347,9 @@
 			method: 'POST',
 			body: {
 				provider: 'onedrive',
-				folderId: opt.value,
-				sourceLabel: opt.dataset.label || opt.textContent,
+				folderId: selectedFolder.id,
+				sourceLabel: selectedFolder.label,
+				destBase,
 				destSubpath,
 				dryRun,
 			},
@@ -237,10 +366,10 @@
 
 			const m = json.migration || {};
 			const msg = dryRun
-				? t('cloudmigrate', 'Dry run queued for "{source}". Results will appear in Migration status below.', { source: m.sourcePath || opt.textContent })
+				? t('cloudmigrate', 'Dry run queued for "{source}". Results will appear in Migration status below.', { source: m.sourcePath || selectedFolder.label })
 				: t('cloudmigrate', 'Migration queued for "{source}" → {dest}. Progress appears below.', {
-					source: m.sourcePath || opt.textContent,
-					dest: m.destPath || destSubpath,
+					source: m.sourcePath || selectedFolder.label,
+					dest: m.destPath || destBase,
 				});
 
 			setInlineFeedback(onedriveActionFeedback, msg, 'success');
@@ -256,6 +385,9 @@
 	});
 
 	document.getElementById('icloud-save').addEventListener('click', () => {
+		const saveBtn = document.getElementById('icloud-save');
+		const loadingLabel = t('cloudmigrate', 'Saving credentials…');
+		setButtonLoading(saveBtn, true, loadingLabel);
 		api('/api/icloud/credentials', {
 			method: 'POST',
 			body: {
@@ -263,10 +395,12 @@
 				appPassword: document.getElementById('icloud-password').value,
 			},
 		}).then(({ ok, json }) => {
+			setButtonLoading(saveBtn, false);
 			const msg = json.message || (ok ? t('cloudmigrate', 'Saved') : t('cloudmigrate', 'Save failed.'));
 			if (ok) {
 				showFlash(msg, 'success');
 				notify(msg);
+				document.getElementById('icloud-password').value = '';
 			} else {
 				showFlash(msg, 'error');
 				notify(msg, 'error');
@@ -278,6 +412,64 @@
 	document.getElementById('icloud-disconnect').addEventListener('click', () => {
 		api('/api/disconnect/icloud', { method: 'POST' }).then(refreshStatus);
 	});
+
+	if (icloudStart) {
+	icloudStart.addEventListener('click', () => {
+		const manualPath = document.getElementById('icloud-source-path').value.trim();
+		const opt = icloudFolder.selectedOptions[0];
+		const sourcePath = manualPath !== '' ? manualPath : (opt ? opt.value : '');
+		const sourceLabel = manualPath !== ''
+			? manualPath
+			: (opt && opt.dataset.label ? opt.dataset.label : t('cloudmigrate', 'All iCloud Drive files'));
+		const dryRun = document.getElementById('icloud-dryrun').checked;
+		const destPath = document.getElementById('icloud-dest').value || 'Migrated/iCloud';
+		const loadingLabel = dryRun
+			? t('cloudmigrate', 'Starting dry run…')
+			: t('cloudmigrate', 'Starting migration…');
+
+		setButtonLoading(icloudStart, true, loadingLabel);
+		setInlineFeedback(icloudActionFeedback, loadingLabel, 'loading');
+
+		api('/api/migrate', {
+			method: 'POST',
+			body: {
+				provider: 'icloud',
+				sourcePath,
+				sourceLabel,
+				destPath,
+				dryRun,
+			},
+		}).then(({ ok, json }) => {
+			setButtonLoading(icloudStart, false);
+
+			if (!ok) {
+				const msg = json.message || t('cloudmigrate', 'Migration failed to start.');
+				setInlineFeedback(icloudActionFeedback, msg, 'error');
+				showFlash(msg, 'error');
+				notify(msg, 'error');
+				return;
+			}
+
+			const m = json.migration || {};
+			const msg = dryRun
+				? t('cloudmigrate', 'Dry run queued for "{source}". Results will appear in Migration status below.', { source: m.sourcePath || sourceLabel })
+				: t('cloudmigrate', 'Migration queued for "{source}" → {dest}. Progress appears below.', {
+					source: m.sourcePath || sourceLabel,
+					dest: m.destPath || destPath,
+				});
+
+			setInlineFeedback(icloudActionFeedback, msg, 'success');
+			showFlash(msg, 'success');
+			notify(msg);
+
+			refreshStatus().then(() => {
+				if (migrationStatusSection) {
+					migrationStatusSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				}
+			});
+		});
+	});
+	}
 
 	refreshStatus();
 })();

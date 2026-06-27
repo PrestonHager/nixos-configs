@@ -672,6 +672,7 @@ in
         "/etc/passwd:/etc/passwd:ro"
         "/etc/group:/etc/group:ro"
         "${ncRoot}/data/:/var/www/html/"
+        "${pkgs.rclone}/bin/rclone:/usr/local/bin/rclone:ro"
         "${nextcloudApacheHsts}:/etc/apache2/conf-enabled/z-nextcloud-hsts.conf:ro"
         "${nextcloudApacheTimeouts}:/etc/apache2/conf-enabled/z-nextcloud-timeouts.conf:ro"
       ];
