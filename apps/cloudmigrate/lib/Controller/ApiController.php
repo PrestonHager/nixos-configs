@@ -9,13 +9,13 @@ use OCA\CloudMigrate\Db\MigrationEntity;
 use OCA\CloudMigrate\Service\MigrationService;
 use OCA\CloudMigrate\Service\OneDriveService;
 use OCA\CloudMigrate\Service\TokenStore;
-use OCP\AppFramework\ApiController;
+use OCP\AppFramework\ApiController as BaseApiController;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IRequest;
 use OCP\IUserSession;
 
-class ApiController extends ApiController {
+class ApiController extends BaseApiController {
 	public function __construct(
 		string $appName,
 		IRequest $request,
