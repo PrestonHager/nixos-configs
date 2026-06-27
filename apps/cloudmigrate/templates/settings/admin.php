@@ -23,9 +23,20 @@
 	<input id="onedrive_tenant" name="onedrive_tenant" type="text" value="<?php p($_['tenant']); ?>" placeholder="common" />
 	<p class="hint"><?php p($l->t('Use "common" for personal and work/school Microsoft accounts.')); ?></p>
 
-	<label><?php p($l->t('Redirect URI (add in Azure)')); ?></label>
+	<label><?php p($l->t('Redirect URI (register in Azure)')); ?></label>
 	<input type="text" readonly value="<?php p($_['redirectUri']); ?>" onclick="this.select();" />
+	<p class="hint">
+		<?php p($l->t('Add this exact URI under Azure → App registration → Authentication → Web → Redirect URIs. Microsoft requires an exact match (scheme, host, path — no trailing slash).')); ?>
+	</p>
+	<?php if (!empty($_['redirectUriCandidates']) && count($_['redirectUriCandidates']) > 1): ?>
+	<label><?php p($l->t('Also register (if Connect still fails)')); ?></label>
+	<input type="text" readonly value="<?php p($_['redirectUriCandidates'][1]); ?>" onclick="this.select();" />
+	<p class="hint"><?php p($l->t('Some Nextcloud setups use index.php in app URLs; register both URIs in Azure if unsure.')); ?></p>
+	<?php endif; ?>
 
+	<label for="onedrive_redirect_uri_base"><?php p($l->t('Redirect URI base override (optional)')); ?></label>
+	<input id="onedrive_redirect_uri_base" name="onedrive_redirect_uri_base" type="url" value="<?php p($_['redirectUriBase']); ?>" placeholder="https://cloud.prestonhager.com" />
+	<p class="hint"><?php p($l->t('Leave empty to auto-detect from Nextcloud. Set only if auto-detect is wrong (reverse proxy, custom domain).')); ?></p>
 	<p class="hint">
 		<?php p($l->t('API permissions (delegated): Files.Read, User.Read, offline_access')); ?>
 	</p>

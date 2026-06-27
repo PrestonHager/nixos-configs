@@ -6,6 +6,7 @@ namespace OCA\CloudMigrate\Service;
 
 use OCA\CloudMigrate\AppInfo\Application;
 use OCP\Http\Client\IClientService;
+use OCP\IConfig;
 use OCP\IURLGenerator;
 use Psr\Log\LoggerInterface;
 
@@ -13,10 +14,13 @@ class GraphClient {
 	private const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 	private const AUTH_BASE = 'https://login.microsoftonline.com';
 
+	private const OAUTH_ROUTE_PATH = '/apps/cloudmigrate/oauth/onedrive';
+
 	public function __construct(
 		private TokenStore $tokenStore,
 		private IClientService $clientService,
 		private IURLGenerator $urlGenerator,
+		private IConfig $config,
 		private LoggerInterface $logger,
 	) {
 	}
@@ -25,6 +29,7 @@ class GraphClient {
 		$clientId = $this->tokenStore->getAdminClientId();
 		$tenant = $this->tokenStore->getAdminTenant();
 		$redirectUri = $this->getRedirectUri();
+		$this->logger->info('OneDrive OAuth authorization redirect_uri=' . $redirectUri, ['app' => Application::APP_ID]);
 		$params = http_build_query([
 			'client_id' => $clientId,
 			'response_type' => 'code',
@@ -164,7 +169,39 @@ class GraphClient {
 	}
 
 	public function getRedirectUri(): string {
+		$overrideBase = $this->tokenStore->getAdminRedirectUriBase();
+		if ($overrideBase !== '') {
+			return rtrim($overrideBase, '/') . self::OAUTH_ROUTE_PATH;
+		}
+
+		$route = $this->urlGenerator->linkToRoute(Application::APP_ID . '.oauth.onedrive');
+		if ($route !== '' && str_contains($route, '/oauth/onedrive')) {
+			return $this->urlGenerator->getAbsoluteURL($route);
+		}
+
+		$base = rtrim($this->config->getSystemValueString('overwrite.cli.url'), '/');
+		if ($base !== '') {
+			return $base . self::OAUTH_ROUTE_PATH;
+		}
+
 		return $this->urlGenerator->linkToRouteAbsolute(Application::APP_ID . '.oauth.onedrive');
+	}
+
+	/**
+	 * @return list<string> URIs to register in Azure (primary + index.php variant).
+	 */
+	public function getRedirectUriCandidates(): array {
+		$primary = $this->getRedirectUri();
+		$candidates = [$primary];
+		if (str_contains($primary, '/index.php/apps/')) {
+			$alternate = str_replace('/index.php/apps/', '/apps/', $primary);
+		} else {
+			$alternate = preg_replace('#^(https?://[^/]+)/apps/#', '$1/index.php/apps/', $primary);
+		}
+		if (is_string($alternate) && $alternate !== $primary) {
+			$candidates[] = $alternate;
+		}
+		return array_values(array_unique($candidates));
 	}
 
 	private function parentPath(array $entry): string {

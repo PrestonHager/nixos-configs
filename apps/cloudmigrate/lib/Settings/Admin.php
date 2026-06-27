@@ -24,6 +24,8 @@ class Admin implements ISettings {
 			'clientId' => $this->tokenStore->getAdminClientId(),
 			'tenant' => $this->tokenStore->getAdminTenant(),
 			'redirectUri' => $this->graphClient->getRedirectUri(),
+			'redirectUriCandidates' => $this->graphClient->getRedirectUriCandidates(),
+			'redirectUriBase' => $this->tokenStore->getAdminRedirectUriBase(),
 			'hasSecret' => $this->tokenStore->getAdminClientSecret() !== '',
 		], '');
 	}

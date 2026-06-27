@@ -25,7 +25,8 @@ class SettingsController extends Controller {
 		$clientId = trim((string)($params['onedrive_client_id'] ?? ''));
 		$clientSecret = trim((string)($params['onedrive_client_secret'] ?? ''));
 		$tenant = trim((string)($params['onedrive_tenant'] ?? 'common'));
-		$this->tokenStore->setAdminSettings($clientId, $clientSecret, $tenant);
+		$redirectUriBase = trim((string)($params['onedrive_redirect_uri_base'] ?? ''));
+		$this->tokenStore->setAdminSettings($clientId, $clientSecret, $tenant, $redirectUriBase);
 		return new DataResponse(['ok' => true]);
 	}
 }

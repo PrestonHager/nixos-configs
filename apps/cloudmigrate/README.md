@@ -18,21 +18,32 @@ Nextcloud web extension for one-time migration from **Microsoft OneDrive** and (
 
 1. Open [Azure Portal → App registrations](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade)
 2. **New registration**
-   - Name: `Nextcloud Cloud Migrate` (any label)
+   - Name: `Hager Cloud` or `Nextcloud Cloud Migrate` (any label)
    - Supported account types: *Accounts in any organizational directory and personal Microsoft accounts*
-   - Redirect URI: **Web** → `https://cloud.prestonhager.com/index.php/apps/cloudmigrate/oauth/onedrive`
-3. **Certificates & secrets** — create a client secret if using a confidential client (optional for public/mobile flow)
-4. **API permissions** → Microsoft Graph → Delegated:
+   - Redirect URI: **Web** → `https://cloud.prestonhager.com/apps/cloudmigrate/oauth/onedrive`
+3. **Authentication** → add alternate if needed: `https://cloud.prestonhager.com/index.php/apps/cloudmigrate/oauth/onedrive`
+4. **Certificates & secrets** — create a client secret if using a confidential client (optional for public/mobile flow)
+5. **API permissions** → Microsoft Graph → Delegated:
    - `Files.Read`
    - `User.Read`
    - `offline_access`
-5. Copy **Application (client) ID** into Nextcloud **Settings → Administration → Cloud Migrate**
+6. Copy **Application (client) ID** into Nextcloud **Settings → Administration → Cloud Migrate**
 
 ### Redirect URI (exact)
+
+Primary (ace — pretty URLs):
+
+```
+https://cloud.prestonhager.com/apps/cloudmigrate/oauth/onedrive
+```
+
+Alternate (register in Azure if Connect still fails):
 
 ```
 https://cloud.prestonhager.com/index.php/apps/cloudmigrate/oauth/onedrive
 ```
+
+No `/callback` suffix. Confirm the live value in admin settings.
 
 ## Enable on ace
 

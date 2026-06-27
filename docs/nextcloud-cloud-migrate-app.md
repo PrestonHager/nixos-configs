@@ -26,42 +26,36 @@ Tokens and passwords are stored **per user** in the Nextcloud app database (encr
 2. Go to **Microsoft Entra ID** → **App registrations** → **New registration**.  
    Direct link: [App registrations blade](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade)
 3. Configure:
-   - **Name:** `Nextcloud Cloud Migrate` (any descriptive name)
+   - **Name:** `Hager Cloud` or `Nextcloud Cloud Migrate` (any descriptive name)
    - **Supported account types:** *Accounts in any organizational directory and personal Microsoft accounts*
-   - **Redirect URI:** Platform **Web**, URL:
-     ```
-     https://cloud.prestonhager.com/index.php/apps/cloudmigrate/oauth/onedrive
-     ```
-4. After creation, copy the **Application (client) ID**.
-5. (Optional) **Certificates & secrets** → **New client secret** — required only if you register a confidential client. Public clients can omit the secret.
-6. **API permissions** → **Add a permission** → **Microsoft Graph** → **Delegated permissions**:
+   - **Redirect URI:** Platform **Web** — see exact URIs below
+4. After creation, open **Authentication** → **Web** → **Redirect URIs** and add **both** of these (ace uses pretty URLs; Azure requires an exact match):
+
+   **Primary (required on ace):**
+   ```
+   https://cloud.prestonhager.com/apps/cloudmigrate/oauth/onedrive
+   ```
+
+   **Alternate (add if Connect still fails):**
+   ```
+   https://cloud.prestonhager.com/index.php/apps/cloudmigrate/oauth/onedrive
+   ```
+
+   There is no `/callback` suffix — the same route handles the OAuth return.
+
+   The admin settings page (**Settings → Administration → Cloud Migrate**) shows the live redirect URI this instance sends to Microsoft. Copy that value if your hostname differs.
+
+5. Copy the **Application (client) ID**.
+6. (Optional) **Certificates & secrets** → **New client secret** — required only if you register a confidential client. Public clients can omit the secret.
+7. **API permissions** → **Add a permission** → **Microsoft Graph** → **Delegated permissions**:
    - `Files.Read` (read user files)
    - `User.Read` (sign-in)
    - `offline_access` (refresh token)
-7. Click **Grant admin consent** if your tenant requires it (personal accounts usually do not).
+8. Click **Grant admin consent** if your tenant requires it (personal accounts usually do not).
 
-### Redirect URI (exact — register in Azure)
+### Redirect URI mismatch (`invalid_request`)
 
-The OAuth callback uses the **same URL** for authorization start and Microsoft redirect. Register this **Web** redirect URI on the app (e.g. **Hager Cloud**):
-
-```
-https://cloud.prestonhager.com/index.php/apps/cloudmigrate/oauth/onedrive
-```
-
-If pretty URLs are enabled (no `index.php` in the browser), also add:
-
-```
-https://cloud.prestonhager.com/apps/cloudmigrate/oauth/onedrive
-```
-
-Confirm the live value in Nextcloud: **Settings → Administration → Cloud Migrate** (read-only **Redirect URI** field), or on ace:
-
-```bash
-podman exec -u www-data nextcloud php /var/www/html/occ config:app:get cloudmigrate client_id
-podman exec nextcloud php /path/to/cloudmigrate-redirect-uri.php   # optional diagnostic
-```
-
-**Redirect URI mismatch** (`invalid_request` … `redirect_uri`) means Azure does not list the exact URL the app sends — add the URI above with no trailing slash.
+Azure must list the **exact** URL the app sends (no trailing slash, no `/callback` suffix). On ace the primary URI is the pretty-URL form without `index.php`. Confirm the live value in **Settings → Administration → Cloud Migrate** (read-only field). If Connect still fails after adding the primary URI, register the alternate `index.php` variant from step 4 as well.
 
 ### Publisher domain verification
 

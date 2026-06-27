@@ -435,7 +435,7 @@ Both can coexist: CLI for TB-scale operator bulk; web app for self-service per-u
 
 - Admin: Azure Client ID / secret / tenant in **Settings → Administration → Cloud Migrate**
 - User: **Connect OneDrive** → OAuth redirect URI  
-  `https://cloud.prestonhager.com/index.php/apps/cloudmigrate/oauth/onedrive`
+  `https://cloud.prestonhager.com/apps/cloudmigrate/oauth/onedrive` (also register `…/index.php/apps/…` variant if needed)
 - Permissions: `Files.Read`, `User.Read`, `offline_access`
 - UI: folder picker, dry-run, start migration, progress
 - Background `MigrationJob` copies via Microsoft Graph into `Migrated/OneDrive/`

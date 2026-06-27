@@ -88,12 +88,18 @@ class TokenStore {
 		return $this->config->getAppValue(Application::APP_ID, 'onedrive_tenant', 'common');
 	}
 
-	public function setAdminSettings(string $clientId, string $clientSecret, string $tenant): void {
+	/** Optional override for OAuth redirect base (scheme + host, no trailing slash). */
+	public function getAdminRedirectUriBase(): string {
+		return $this->config->getAppValue(Application::APP_ID, 'onedrive_redirect_uri_base', '');
+	}
+
+	public function setAdminSettings(string $clientId, string $clientSecret, string $tenant, string $redirectUriBase = ''): void {
 		$this->config->setAppValue(Application::APP_ID, 'onedrive_client_id', $clientId);
 		if ($clientSecret !== '') {
 			$this->config->setAppValue(Application::APP_ID, 'onedrive_client_secret', $clientSecret);
 		}
 		$this->config->setAppValue(Application::APP_ID, 'onedrive_tenant', $tenant !== '' ? $tenant : 'common');
+		$this->config->setAppValue(Application::APP_ID, 'onedrive_redirect_uri_base', trim($redirectUriBase));
 	}
 
 	public function isOneDriveConnected(string $userId): bool {
