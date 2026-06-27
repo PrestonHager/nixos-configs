@@ -18,8 +18,9 @@ runuser -u prestonh -- rm -rf \
 echo "=== Installing Blueprint framework ==="
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
+UNZIP="${UNZIP:-/run/current-system/sw/bin/unzip}"
 curl -fsSL "$bp_url" -o "$tmp/release.zip"
-unzip -o "$tmp/release.zip" -d "$panel"
+"$UNZIP" -o "$tmp/release.zip" -d "$panel"
 chown -R prestonh:users "$panel"
 cat > "$panel/.blueprintrc" <<'EOF'
 WEBUSER="prestonh"
