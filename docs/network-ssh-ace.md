@@ -10,8 +10,8 @@ Windows (`~/.ssh/config`) and NixOS (home-manager `programs.ssh`) use the same s
 Host astracap
   HostName 192.168.5.1
   User prestonh
-  IdentityFile ~/.ssh/id_rsa_astracap
   IdentitiesOnly yes
+  IdentityFile ~/.ssh/id_rsa_astracap
   IdentityAgent none
   KexAlgorithms +diffie-hellman-group14-sha1
   HostKeyAlgorithms +ssh-rsa
@@ -38,8 +38,8 @@ ssh astracap "show ip interface brief"
 Host astraquasar
   HostName 192.168.5.3
   User admin
-  IdentityFile ~/.ssh/id_rsa_astracap
   IdentitiesOnly yes
+  IdentityFile ~/.ssh/id_rsa_astracap
   IdentityAgent none
   KexAlgorithms +diffie-hellman-group14-sha1
   HostKeyAlgorithms +ssh-rsa
@@ -60,30 +60,83 @@ Verify:
 ssh astraquasar "show version"
 ```
 
-## NixOS deployment (ace, crux, ph-nixos)
+## NixOS deployment (ace, crux, nova, ph-nixos)
 
-Home-manager for **`prestonh`** on all three hosts:
+Home-manager for **`prestonh`** on all NixOS hosts that import `users/prestonh`:
+
+| Host | Flake target |
+|------|----------------|
+| ace | `#ace` |
+| crux | `#crux` |
+| nova | `#nova` |
+| ph-nixos | `#ph-nixos` |
 
 | File | Purpose |
 |------|---------|
-| `users/prestonh/programs/ssh.nix` | `Host astracap` / `Host astraquasar` match blocks |
-| `users/prestonh/home-config.nix` | sops secret `ssh/id_rsa_astracap` → `~/.ssh/id_rsa_astracap` |
+| `users/prestonh/programs/ssh.nix` | `Host astracap` / `Host astraquasar` match blocks (legacy KEX; keys via SSH agent) |
+| `users/prestonh/programs/bitwarden.nix` | `bitwarden-cli`, Vaultwarden server URL, `bw-ssh.sh` helper |
+| `users/prestonh/config/nushell/bitwarden.nu` | `bw-unlock-ssh` for Nushell sessions |
 
-**One-time:** add the private key to **nix-secrets** (never commit the key here):
-
-```bash
-# In nix-secrets repo, edit secrets/home-manager/prestonh/secrets.yaml
-sops secrets/home-manager/prestonh/secrets.yaml
-# Add: ssh/id_rsa_astracap: <PEM contents>
-```
-
-Generate a new 2048-bit key if needed (on any host):
+Rebuild after pulling:
 
 ```bash
-ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa_astracap -C 'preston@astracap-lan'
+sudo nixos-rebuild switch --flake /etc/nixos#ace    # or #crux, #nova, #ph-nixos
 ```
 
-Then rebuild: `sudo nixos-rebuild switch --flake /etc/nixos#ace` (or `#crux`, `#ph-nixos`).
+## Bitwarden CLI + SSH agent
+
+SSH private keys for Cisco LAN devices live in **Vaultwarden** (not nix-secrets or the repo). Home-manager installs **`bitwarden-cli`** (`bw`) and sets the default server to **`https://vault.prestonhager.com`**.
+
+### Vault items
+
+| Item | Type | Use |
+|------|------|-----|
+| **`id_rsa_astracap`** | SSH key | Private key for `ssh astracap` and `ssh astraquasar` (2048-bit RSA) |
+| **Astracap Router Info** | Login | Cisco enable password (console / scripts; not SSH key) |
+
+Store the astracap key as a Bitwarden **SSH key** item named **`id_rsa_astracap`**. The public half must still be on the router/switch (`ip ssh pubkey-chain`); see [Authorize SSH pubkey](#authorize-ssh-pubkey-serial-console).
+
+### First-time setup (once per host)
+
+```bash
+bw config server https://vault.prestonhager.com   # also set by home-manager activation
+bw login                                          # email + master password; optional 2FA
+bw unlock                                         # verify access
+```
+
+Never commit `BW_PASSWORD`, API keys, session tokens, or private keys.
+
+### Per-session SSH (NixOS)
+
+Unlock the vault and start the Bitwarden SSH agent, then use normal `ssh` aliases:
+
+**Bash / sh:**
+
+```bash
+source ~/.config/bitwarden/bw-ssh.sh
+ssh astracap "show ip interface brief"
+```
+
+Equivalent manual steps:
+
+```bash
+export BW_SESSION="$(bw unlock --raw)"
+eval "$(bw ssh-agent)"
+ssh astracap
+```
+
+**Nushell** (after rebuild; `bitwarden.nu` is sourced from `env.nu`):
+
+```nu
+bw-unlock-ssh
+ssh astracap
+```
+
+`programs.ssh.enableAgent = true` is enabled in home-manager. Cisco hosts rely on **`SSH_AUTH_SOCK`** from `bw ssh-agent`; home-manager match blocks keep legacy KEX / host-key algorithms only (no on-disk `IdentityFile`).
+
+### Windows / Cursor
+
+Keep a local `~/.ssh/id_rsa_astracap` or use Bitwarden CLI on Windows with the same unlock + `bw ssh-agent` flow. MCP config: see [Vaultwarden MCP](#vaultwarden-mcp-cursor) below.
 
 ## Vaultwarden MCP (Cursor)
 

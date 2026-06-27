@@ -17,14 +17,6 @@ in
       "yubikey/u2f_keys" = {
         sopsFile = "${sops-path}/secrets/home-manager/prestonh/secrets.yaml";
       };
-      # 2048-bit RSA key for Cisco IOS pubkey-chain (astracap / astraquasar).
-      # Add to nix-secrets: sops secrets/home-manager/prestonh/secrets.yaml
-      #   ssh/id_rsa_astracap: <PEM private key>
-      "ssh/id_rsa_astracap" = {
-        sopsFile = "${sops-path}/secrets/home-manager/prestonh/secrets.yaml";
-        path = "${config.home.homeDirectory}/.ssh/id_rsa_astracap";
-        mode = "0600";
-      };
     };
   };
 
