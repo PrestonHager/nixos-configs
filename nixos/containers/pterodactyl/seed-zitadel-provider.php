@@ -17,7 +17,7 @@ $bp = app(\Pterodactyl\BlueprintFramework\Libraries\ExtensionLibrary\Admin\Bluep
 $bp->dbSet('sociallogin', 'allow_register', '1');
 $bp->dbSet('sociallogin', 'allow_connecting', '1');
 
-\Pterodactyl\BlueprintFramework\Extensions\sociallogin\SocialProvider::updateOrCreate(
+\Pterodactyl\Models\SocialProvider::updateOrCreate(
     ['short_name' => 'zitadel'],
     [
         'enabled' => true,

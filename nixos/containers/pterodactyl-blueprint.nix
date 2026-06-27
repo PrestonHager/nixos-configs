@@ -72,6 +72,11 @@ let
       rm -f "$panel/.blueprint/lock" 2>/dev/null || true
       cd "$panel"
       blueprint_cli_install
+      if blueprint_cli -info 2>/dev/null | grep -qi sociallogin; then
+        echo "pterodactyl-blueprint-install: re-registering Social Login extension routes..."
+        rm -f "$panel/.blueprint/lock"
+        blueprint_cli -install sociallogin
+      fi
     }
 
     install_dnsrecords_extension() {
