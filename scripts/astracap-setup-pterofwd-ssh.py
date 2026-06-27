@@ -10,7 +10,6 @@ import sys
 import time
 
 DEFAULT_KEY = os.path.expanduser(r"~\.ssh\id_rsa_astracap")
-DEFAULT_PUBKEY = ""
 DEFAULT_USER = "pterofwd"
 DEFAULT_HOST = "192.168.5.1"
 DEFAULT_SSH_USER = "prestonh"
@@ -38,6 +37,26 @@ def ssh_base(identity: str) -> list[str]:
     ]
 
 
+def send(proc: subprocess.Popen[str], cmd: str, delay: float = 1.0) -> str:
+    assert proc.stdin is not None
+    assert proc.stdout is not None
+    proc.stdin.write(cmd + "\n")
+    proc.stdin.flush()
+    time.sleep(delay)
+    chunk = ""
+    while proc.stdout.readable():
+        try:
+            part = proc.stdout.read1(4096).decode("utf-8", "replace")
+        except Exception:
+            break
+        if not part:
+            break
+        chunk += part
+        if proc.stdout in (None,):
+            break
+    return chunk
+
+
 def run_ios_config(identity: str, enable_pw: str, username: str, pubkey_path: str, privilege: int) -> int:
     with open(pubkey_path, encoding="utf-8") as f:
         pubkey_line = f.read().strip()
@@ -47,37 +66,44 @@ def run_ios_config(identity: str, enable_pw: str, username: str, pubkey_path: st
         return 2
     key_data = parts[1]
 
-    lines = [
-        "enable",
-        enable_pw,
-        "terminal length 0",
-        "configure terminal",
-        f"username {username} privilege {privilege}",
-        "ip ssh pubkey-chain",
-        f"username {username}",
-        "key-string",
-    ]
-    for i in range(0, len(key_data), 64):
-        lines.append(key_data[i : i + 64])
-    lines.extend(["", "exit", "exit", "end", "write memory", "exit"])
-
-    script = "\n".join(lines) + "\n"
     proc = subprocess.Popen(
         ssh_base(identity),
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
+        bufsize=0,
         text=True,
     )
-    assert proc.stdin is not None
-    proc.stdin.write(script)
-    proc.stdin.close()
+    out: list[str] = []
 
-    output = proc.stdout.read() if proc.stdout else ""
-    code = proc.wait(timeout=120)
-    if "key-hash" not in output and "key-string" not in output and code != 0:
+    def step(cmd: str, delay: float = 1.2) -> None:
+        out.append(send(proc, cmd, delay))
+
+    step("enable", 0.8)
+    step(enable_pw, 1.5)
+    step("terminal length 0", 0.8)
+    step("configure terminal", 1.0)
+    step(f"username {username} privilege {privilege}", 1.0)
+    step("ip ssh pubkey-chain", 1.0)
+    step(f"username {username}", 1.0)
+    step("key-string", 1.2)
+    for i in range(0, len(key_data), 64):
+        step(key_data[i : i + 64], 0.8)
+    step("", 1.0)
+    step("exit", 0.8)
+    step("exit", 0.8)
+    step("end", 1.0)
+    step("write memory", 3.0)
+    step("exit", 0.8)
+
+    if proc.stdin:
+        proc.stdin.close()
+    output = "".join(out)
+    proc.wait(timeout=30)
+
+    if "key-hash" not in output and "key-string" not in output:
         print(output)
-        print("Pubkey install may have failed.", file=sys.stderr)
+        print("Pubkey install failed — no key-hash in router output.", file=sys.stderr)
         return 1
     print(f"SSH pubkey authorized for {username} on {DEFAULT_HOST}.")
     return 0
@@ -86,7 +112,7 @@ def run_ios_config(identity: str, enable_pw: str, username: str, pubkey_path: st
 def main() -> int:
     parser = argparse.ArgumentParser(description="Authorize pterofwd SSH key on Astracap via SSH")
     parser.add_argument("--identity", default=os.environ.get("ASTRACAP_IDENTITY", DEFAULT_KEY))
-    parser.add_argument("--pubkey", default=os.environ.get("PTEROFWD_PUBKEY", DEFAULT_PUBKEY), required=False)
+    parser.add_argument("--pubkey", default=os.environ.get("PTEROFWD_PUBKEY", ""))
     parser.add_argument("--username", default=os.environ.get("CISCO_SSH_USER", DEFAULT_USER))
     parser.add_argument("--privilege", type=int, default=15)
     args = parser.parse_args()
