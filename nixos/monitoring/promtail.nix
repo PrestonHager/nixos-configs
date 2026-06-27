@@ -93,17 +93,15 @@ in {
       DynamicUser = lib.mkForce false;
       User = "alloy";
       Group = "alloy";
-      SupplementaryGroups = [
-        "systemd-journal"
-        "audit"
-      ] ++ lib.optionals (cfg.role == "central") [ "suricata" ];
+      SupplementaryGroups = [ "systemd-journal" ]
+        ++ lib.optionals (cfg.role == "central" && cfg.suricata.enable) [ "suricata" ];
     };
 
     users.users.alloy = {
       isSystemUser = true;
       group = "alloy";
-      extraGroups = [ "systemd-journal" "audit" ]
-        ++ lib.optionals (cfg.role == "central") [ "suricata" ];
+      extraGroups = [ "systemd-journal" ]
+        ++ lib.optionals (cfg.role == "central" && cfg.suricata.enable) [ "suricata" ];
     };
     users.groups.alloy = { };
   };

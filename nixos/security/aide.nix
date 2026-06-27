@@ -5,9 +5,10 @@ let
   dbPath = "/var/lib/aide/aide.db";
   dbNewPath = "/var/lib/aide/aide.db.new";
   configFile = pkgs.writeText "aide.conf" ''
-    @@define DBFILE ${dbPath}
-    @@define DATABASE_OUT ${dbNewPath}
-    @@define LOGFILE /var/log/aide/aide.log
+    database=file:${dbPath}
+    database_out=file:${dbNewPath}
+    database_new=file:${dbNewPath}
+    logfile=/var/log/aide/aide.log
     /etc p+i+u+g+sha256
     /root p+i+u+g+sha256
     !/etc/nixos/.git
@@ -18,7 +19,7 @@ let
     set -euo pipefail
     mkdir -p /var/lib/aide /var/log/aide
     ${pkgs.aide}/bin/aide --config=${configFile} --init
-    mv ${dbNewPath} ${dbPath}
+    mv -f ${dbNewPath} ${dbPath}
     logger -t homelab-aide "AIDE database initialized on ${cfg.hostName}"
   '';
   aideCheck = pkgs.writeShellScript "aide-check" ''
@@ -63,9 +64,8 @@ in {
       };
     };
 
-    # Refresh baseline after each nixos-rebuild switch.
     system.activationScripts.homelabAideInit = lib.stringAfter [ "users" ] ''
-      ${aideInit}
+      ${aideInit} || true
     '';
 
     systemd.tmpfiles.rules = [

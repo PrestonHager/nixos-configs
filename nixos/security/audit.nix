@@ -15,7 +15,6 @@ in {
       "-w /etc/nixos -p wa -k nixos-config"
       "-w /etc/ssh/sshd_config -p wa -k sshd-config"
     ] ++ lib.optionals cfg.phase2.enable [
-      "-a always,exit -F arch=b64 -S setuid -F a0=0 -k setuid-root"
       "-w /etc/sudoers -p wa -k sudoers"
       "-w /etc/sudoers.d -p wa -k sudoers"
     ];
