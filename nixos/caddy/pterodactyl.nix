@@ -111,7 +111,7 @@ in {
         containerPath = "/var/www/pterodactyl";
       };
       "test.panel.prestonhager.com".extraConfig = panelSite {
-        hostPath = "/pterodactyl-test/html/public";
+        hostPath = "/pterodactyl-test/public";
         containerPath = "/var/www/pterodactyl";
         phpPort = "9002";
       };

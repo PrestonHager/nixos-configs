@@ -2,17 +2,22 @@
 set -euo pipefail
 
 panel=/home/prestonh/Projects/panel
-mount=/pterodactyl-test/html
-legacy=/pterodactyl-test/public
+public=/pterodactyl-test/public
+blueprint=/pterodactyl-test/.blueprint
 
-install -d -m 0755 "$mount"
-if mountpoint -q "$legacy"; then
-  umount "$legacy"
-  echo "unmounted legacy $legacy"
+# Tear down full-panel mount if a prior fix attempt left it in place.
+if mountpoint -q /pterodactyl-test/html; then
+  umount /pterodactyl-test/html || true
 fi
-if ! mountpoint -q "$mount"; then
-  mount --bind "$panel" "$mount"
-  echo "mounted $panel -> $mount"
+
+install -d -m 0755 /pterodactyl-test "$public" "$blueprint"
+if ! mountpoint -q "$public"; then
+  mount --bind "$panel/public" "$public"
+  echo "mounted public"
+fi
+if ! mountpoint -q "$blueprint"; then
+  mount --bind "$panel/.blueprint" "$blueprint"
+  echo "mounted blueprint"
 fi
 
 assets_ext="$panel/public/assets/extensions"
@@ -22,7 +27,6 @@ for ext in blueprint sociallogin dnsrecords portforward; do
   rm -f "$assets_ext/$ext"
   ln -sfn "../../../.blueprint/extensions/$ext/assets" "$assets_ext/$ext"
   chown -h prestonh:users "$assets_ext/$ext"
-  echo "linked $ext -> $(readlink "$assets_ext/$ext")"
 done
 
 systemctl reload caddy 2>/dev/null || systemctl restart caddy
@@ -44,4 +48,4 @@ for url in "${urls[@]}"; do
   echo "  magic: $magic"
 done
 
-namei -l "$mount/public/assets/extensions/dnsrecords/icon.jpg" | tail -3
+namei -l "$public/assets/extensions/dnsrecords/icon.jpg" | tail -4

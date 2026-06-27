@@ -180,15 +180,14 @@ let
     }
 
     extension_public_assets_integrated() {
-      caddy_root="/pterodactyl-test/html/public"
+      caddy_root="/pterodactyl-test/public"
       for ext in blueprint sociallogin dnsrecords portforward; do
         asset=$(extension_public_asset_file "$ext")
         [ -f "$asset" ] || return 1
-        caddy_asset="$caddy_root/assets/extensions/$ext"
         if [ "$ext" = "blueprint" ]; then
-          caddy_file="$caddy_asset/logo.jpg"
+          caddy_file="$caddy_root/assets/extensions/blueprint/logo.jpg"
         else
-          caddy_file="$caddy_asset/icon.jpg"
+          caddy_file="$caddy_root/assets/extensions/$ext/icon.jpg"
         fi
         [ -f "$caddy_file" ] || return 1
       done
