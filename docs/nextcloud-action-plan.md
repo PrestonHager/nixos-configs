@@ -3,7 +3,7 @@
 **Updated:** 2026-06-07 (MDT)  
 **Host:** ace (`192.168.5.5`)  
 **URL:** https://cloud.prestonhager.com  
-**Version:** 31.0.14.1 (latest 31.x patch; NC 31 is EOL — upgrade to 32+ planned separately)  
+**Version:** 34.0.1 (upgraded from 31.0.14.1 via stepped major-version migration)  
 **Config:** `nixos/containers/nextcloud.nix`, `nixos/caddy/nextcloud.nix`
 
 ---
@@ -36,7 +36,7 @@
 | WebSocket / notify_push | Already healthy; admin "WebSocket" warning is **Whiteboard** app, not push |
 | Missing DB indices | Added to maintain script + applied manually |
 | Email not verified | SMTP send OK; UI wizard flag set via occ |
-| Version 31.0.14.1 / security F | Already on latest 31.x patch; F rating is NC 31 EOL — evaluate NC 32 upgrade |
+| Version 34.0.x | Upgraded from NC 31 (2026-06-27); resolves EOL security rating |
 
 ---
 
@@ -138,4 +138,4 @@ journalctl -u nextcloud-cron.service -u podman-nextcloud.service -f
 | `cron.php` manual run | ✅ `lastcron` updated to current timestamp |
 | Trusted proxies in config.php | ✅ `127.0.0.1`, `10.88.0.0/16` |
 | DB missing indices setup check | ✅ None |
-| Image pin `31.0.14` | ✅ Already latest 31.x on Docker Hub |
+| Image pin `34.0.1` | ✅ Target pin in `nextcloud.nix` (falls back to 34.0.0 if Docker Hub tag pending) |

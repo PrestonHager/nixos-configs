@@ -7,9 +7,31 @@ Implementation: `nixos/containers/nextcloud.nix`, Caddy `nixos/caddy/nextcloud.n
 | Field | Value |
 |-------|-------|
 | URL | https://cloud.prestonhager.com |
-| Version | Nextcloud 31 (official container image) |
+| Version | Nextcloud 34 (official container image, pinned in `nextcloud.nix`) |
 | Auth | Zitadel OIDC via `user_oidc` app; local login remains available (`?direct=1`) |
 | Break-glass local admin | `nextcloud-admin` (password in sops `nextcloud-environment`) |
+
+## Major version upgrade (31 → 34)
+
+Nextcloud requires stepping through each major release (32, 33, 34). Image pin: `docker.io/library/nextcloud:34.0.1` in `nixos/containers/nextcloud.nix`. Sidecars unchanged: MariaDB 11.4, Redis, ClamAV stable, notify_push (same Nextcloud image).
+
+Before upgrading, back up `/stor/nextcloud/data` and `/stor/nextcloud/mysql`.
+
+On ace after `git pull`:
+
+```bash
+cd /etc/nixos
+chmod +x scripts/ace-nextcloud-major-upgrade.sh
+ACE_NC_UPGRADE_CONFIRM=yes scripts/ace-nextcloud-major-upgrade.sh
+```
+
+If Docker Hub has not published `34.0.1` yet, the script falls back to `34.0.0` and restores the committed nix pin when the tag appears. After upgrade, verify:
+
+```bash
+podman exec -u www-data nextcloud php /var/www/html/occ status
+curl -sS https://cloud.prestonhager.com/status.php
+systemctl is-active podman-nextcloud podman-nextcloud-db podman-nextcloud-redis
+```
 
 ## Zitadel OIDC application
 

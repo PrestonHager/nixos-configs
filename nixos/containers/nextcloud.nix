@@ -3,7 +3,7 @@
 let
   sops-path = builtins.toString inputs.nix-secrets;
   ncRoot = "/stor/nextcloud";
-  nextcloudImage = "docker.io/library/nextcloud:31.0.14";
+  nextcloudImage = "docker.io/library/nextcloud:34.0.1";
   clamavImage = "docker.io/clamav/clamav:stable";
   nextcloudPublicUrl = "https://cloud.prestonhager.com";
   nextcloudPushUrl = "${nextcloudPublicUrl}/push";
