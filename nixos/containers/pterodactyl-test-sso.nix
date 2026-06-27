@@ -69,14 +69,14 @@ if 'services.zitadel.base_url' not in text:
         '        config([\n            "services.{$provider->short_name}.client_id"',
     ]:
         if n in text:
-            insert = '''        if ($provider->short_name === 'zitadel') {
-            config([
-                'services.zitadel.base_url' => env('ZITADEL_BASE_URL', 'https://zitadel.prestonhager.com'),
-                'services.zitadel.project_id' => env('ZITADEL_PROJECT_ID'),
-            ]);
-        }
-
-'''
+            insert = (
+                "        if ($provider->short_name === 'zitadel') {\n"
+                "            config([\n"
+                "                'services.zitadel.base_url' => env('ZITADEL_BASE_URL', 'https://zitadel.prestonhager.com'),\n"
+                "                'services.zitadel.project_id' => env('ZITADEL_PROJECT_ID'),\n"
+                "            ]);\n"
+                "        }\n\n"
+            )
             text = text.replace(n, insert + n, 1)
             break
 if 'syncZitadelAdminRole' not in text and 'auth()->login($user, true);' in text:
@@ -85,23 +85,22 @@ if 'syncZitadelAdminRole' not in text and 'auth()->login($user, true);' in text:
         'auth()->login($user, true);\n        $this->syncZitadelAdminRole($user, $socialUser);',
         1,
     )
-    method = '''
-    protected function syncZitadelAdminRole($user, $socialUser): void
-    {
-        $raw = $socialUser->user ?? [];
-        $groups = [];
-        if (isset($raw['groups']) && is_array($raw['groups'])) {
-            $groups = $raw['groups'];
-        }
-        session()->put('zitadel_sso_groups', $groups);
-        $isAdmin = in_array('pterodactyl_admin', $groups, true);
-        if ($user->root_admin !== $isAdmin) {
-            $user->root_admin = $isAdmin;
-            $user->save();
-        }
-    }
-
-'''
+    method = (
+        "\n    protected function syncZitadelAdminRole($user, $socialUser): void\n"
+        "    {\n"
+        "        $raw = $socialUser->user ?? [];\n"
+        "        $groups = [];\n"
+        "        if (isset($raw['groups']) && is_array($raw['groups'])) {\n"
+        "            $groups = $raw['groups'];\n"
+        "        }\n"
+        "        session()->put('zitadel_sso_groups', $groups);\n"
+        "        $isAdmin = in_array('pterodactyl_admin', $groups, true);\n"
+        "        if ($user->root_admin !== $isAdmin) {\n"
+        "            $user->root_admin = $isAdmin;\n"
+        "            $user->save();\n"
+        "        }\n"
+        "    }\n\n"
+    )
     text = text.replace("\n    /**\n     * Link a social account", method + "\n    /**\n     * Link a social account", 1)
 open(path, 'w').write(text)
 PY
