@@ -88,7 +88,7 @@ let
       sh -c 'cd /var/www/pterodactyl && composer install --no-dev --optimize-autoloader' \
       2>/dev/null || true
 
-    rm -f "${stateDir}/blueprint-fork-installed"
+    rm -f "${stateDir}/blueprint-fork-installed" "${stateDir}/blueprint-installed"
     echo "stock-${officialBranch}" > "$marker"
     chown pterodactyl:pterodactyl "$marker"
     echo "pterodactyl-test-stock-reset: test panel is stock ${officialBranch}"
