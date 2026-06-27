@@ -418,6 +418,7 @@ in
   systemd.tmpfiles.rules = [
     "d ${ncRoot} 0770 root root -"
     "d ${ncRoot}/data 0770 www-data www-data -"
+    "d ${ncRoot}/data/custom_apps 0755 www-data www-data -"
     "d ${ncRoot}/mysql 0770 nm-iodine nscd -"
     "d ${ncRoot}/redis 0770 nm-iodine nscd -"
     "d ${ncRoot}/clamav 0770 nm-iodine nscd -"
