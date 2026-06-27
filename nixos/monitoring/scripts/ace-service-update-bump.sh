@@ -36,8 +36,13 @@ if git diff --name-only -- flake.lock | grep -qx flake.lock \
   git checkout -- flake.lock
 fi
 
-if ! git pull --rebase --autostash origin "$branch"; then
-  echo "git pull --rebase failed; resolve ${ACE_NIXOS_DIR} manually" >&2
+if ! git fetch origin "$branch"; then
+  echo "git fetch origin ${branch} failed" >&2
+  exit 1
+fi
+
+if ! git rebase --autostash "origin/${branch}"; then
+  echo "git rebase onto origin/${branch} failed; resolve ${ACE_NIXOS_DIR} manually" >&2
   git status -sb >&2 || true
   exit 1
 fi
@@ -53,11 +58,14 @@ while IFS= read -r rule; do
   version="${prefix}${TARGET}"
 
   awk -v m="$match" -v s="$suffix" -v v="$version" '
-    index($0, m) == 1 {
-      print m v s
-      next
+    {
+      p = index($0, m)
+      if (p > 0) {
+        print substr($0, 1, p - 1) m v s
+        next
+      }
+      print
     }
-    { print }
   ' "$tmp" > "${tmp}.new"
   mv "${tmp}.new" "$tmp"
 done < <(jq -c --arg s "$SERVICE" '.[$s].bumpRules[]?' "$ACE_REGISTRY")
