@@ -13,7 +13,7 @@ This guide covers the **web UI** migration path. The operator CLI in `scripts/ne
 | Source | Phase 1 (web app) | Destination on Nextcloud |
 |--------|-------------------|---------------------------|
 | Microsoft OneDrive | OAuth + Graph API copy job | `files/Migrated/OneDrive/Files/` (or `Pictures/`) |
-| Apple iCloud Drive | Scaffold only (app-specific password UI) | `files/Migrated/iCloud/Drive/` (planned) |
+| Apple iCloud Drive | App-specific password + rclone copy job | `files/Migrated/iCloud/` (configurable) |
 | Apple iCloud Photos | Not in browser — planned background job | `files/Migrated/iCloud/Photos/` (planned) |
 
 Tokens and passwords are stored **per user** in the Nextcloud app database (encrypted). Nothing is committed to git or sops.
@@ -141,15 +141,26 @@ podman exec -u www-data nextcloud php /var/www/html/occ cloudmigrate:run <migrat
 
 ---
 
-## 6. iCloud (Phase 2 scaffold)
+## 6. iCloud Drive migration
 
-The iCloud section shows:
+Apple does not expose iCloud Drive through OAuth like Microsoft Graph. This app uses an **app-specific password** (revocable at [appleid.apple.com](https://appleid.apple.com)) stored encrypted per user.
 
-- Honest limitation: no public Drive OAuth for web apps.
-- Optional **app-specific password** form — credentials saved encrypted; **no copy job yet**.
-- Badge: Drive via server-side rclone and Photos via icloudpd — coming in Phase 2.
+1. Open **Cloud Migrate → Apple iCloud**
+2. Enter Apple ID and app-specific password → **Connect iCloud**
+3. Choose **All iCloud Drive files** or a top-level folder, or type a source path (e.g. `Documents/Archive`)
+4. Set **destination path** (default `Migrated/iCloud`)
+5. Enable **Dry run** to count files without copying
+6. Click **Start migration**
 
-**Security note:** App-specific passwords can be revoked anytime at appleid.apple.com. Prefer this over storing your primary Apple ID password.
+Jobs use the same **Migration status** panel and background queue as OneDrive. The server runs `rclone copy` with a temporary config; credentials are never written to git or sops.
+
+**Administrator:** ace deploy bind-mounts rclone at `/usr/local/bin/rclone`. After NixOS deploy, recreate the Nextcloud container if rclone was added for the first time.
+
+**Security:** Revoke the app-specific password anytime at appleid.apple.com. Never use your primary Apple ID password.
+
+### iCloud Photos (not yet)
+
+Bulk photo library export requires **icloudpd** on the server — planned as a separate background job.
 
 ---
 
