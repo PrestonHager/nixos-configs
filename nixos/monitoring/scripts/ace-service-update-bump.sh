@@ -67,7 +67,7 @@ while IFS= read -r rule; do
   esc_version="${esc_version//|/\\|}"
   esc_version="${esc_version//&/\\&}"
 
-  sed -i "s|\(${esc_match}\)[^\"]*\(${esc_suffix}\)|\1${esc_version}\2|g" "$tmp"
+  sed -i "s|\(${esc_match}\)[^\"]*|\1${esc_version}|g" "$tmp"
 done < <(jq -c --arg s "$SERVICE" '.[$s].bumpRules[]?' "$ACE_REGISTRY")
 
 if [[ "$(cat "$path")" == "$(cat "$tmp")" ]]; then
