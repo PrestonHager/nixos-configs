@@ -4,6 +4,8 @@ Implementation: `nixos/containers/technitium.nix`, `nixos/containers/technitium-
 
 LanCache (`nixos/containers/lancache.nix`) is **disabled** — it was slowing DNS resolution. Technitium is the primary LAN DNS server.
 
+Physical path: [Network topology](network-topology.md) (Astracap DHCP hands clients DNS **192.168.5.5**).
+
 ## Query path
 
 ```mermaid

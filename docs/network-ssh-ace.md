@@ -186,6 +186,14 @@ Remove-Item Env:CISCO_ENABLE_PASSWORD
 | astracap | ✅ `ssh astracap` | Pubkey for `prestonh` |
 | astraquasar | ✅ `ssh astraquasar` | Pubkey for `admin`; vty `login local` required |
 
+
+## Network configuration docs
+
+| Document | Content |
+|----------|---------|
+| [Network topology](network-topology.md) | Full homelab diagram, DNS flow, addressing |
+| [Astracap router](network-astracap-router.md) | WAN/LAN, NAT, DHCP, ACLs |
+| [Astraquasar switch](network-astraquasar-switch.md) | VLANs, ports, uplinks |
 ## Related LAN hosts
 
 | SSH alias | IP | User |

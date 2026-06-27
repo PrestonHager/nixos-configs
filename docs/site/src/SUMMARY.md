@@ -1,4 +1,4 @@
-# Server Docs
+﻿# Server Docs
 
 [Introduction](introduction.md)
 
@@ -30,6 +30,9 @@
 # Shared
 
 - [IDS & Security Monitoring Plan](shared/security-ids-plan.md)
+- [Network topology](shared/network-topology.md)
+- [Astracap router](shared/network-astracap.md)
+- [Astraquasar switch](shared/network-astraquasar.md)
 - [Network & SSH / Bitwarden](shared/network-ssh.md)
 - [DNS on ace](shared/dns.md)
 - [Monitoring (Grafana + Prometheus)](shared/monitoring.md)
