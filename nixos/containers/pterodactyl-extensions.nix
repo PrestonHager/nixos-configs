@@ -24,6 +24,7 @@ in
     description = "Write Pterodactyl Blueprint extension environment file";
     wantedBy = [ "multi-user.target" ];
     after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
     before = [ "podman-pterodactyl.service" ];
     serviceConfig = {
       Type = "oneshot";

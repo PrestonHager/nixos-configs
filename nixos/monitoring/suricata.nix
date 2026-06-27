@@ -46,6 +46,7 @@ in {
     systemd.services.suricata = {
       description = "Suricata IDS (IDS mode)";
       after = [ "network-online.target" "systemd-modules-load.service" ];
+      wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
         Type = "simple";

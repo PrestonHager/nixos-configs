@@ -5,24 +5,33 @@
   # Bitwarden CLI (`bw ssh-agent`); see docs/network-ssh-ace.md.
   programs.ssh = {
     enable = true;
-    matchBlocks = {
+    enableDefaultConfig = false;
+    settings = {
+      "*" = {
+        ForwardAgent = false;
+        AddKeysToAgent = "no";
+        Compression = false;
+        ServerAliveInterval = 0;
+        ServerAliveCountMax = 3;
+        HashKnownHosts = false;
+        UserKnownHostsFile = "~/.ssh/known_hosts";
+        ControlMaster = "no";
+        ControlPath = "~/.ssh/master-%r@%n:%p";
+        ControlPersist = "no";
+      };
       astracap = {
-        hostname = "192.168.5.1";
-        user = "prestonh";
-        extraOptions = {
-          KexAlgorithms = "+diffie-hellman-group14-sha1";
-          HostKeyAlgorithms = "+ssh-rsa";
-          PubkeyAcceptedAlgorithms = "+ssh-rsa";
-        };
+        HostName = "192.168.5.1";
+        User = "prestonh";
+        KexAlgorithms = "+diffie-hellman-group14-sha1";
+        HostKeyAlgorithms = "+ssh-rsa";
+        PubkeyAcceptedAlgorithms = "+ssh-rsa";
       };
       astraquasar = {
-        hostname = "192.168.5.3";
-        user = "admin";
-        extraOptions = {
-          KexAlgorithms = "+diffie-hellman-group14-sha1";
-          HostKeyAlgorithms = "+ssh-rsa";
-          PubkeyAcceptedAlgorithms = "+ssh-rsa";
-        };
+        HostName = "192.168.5.3";
+        User = "admin";
+        KexAlgorithms = "+diffie-hellman-group14-sha1";
+        HostKeyAlgorithms = "+ssh-rsa";
+        PubkeyAcceptedAlgorithms = "+ssh-rsa";
       };
     };
   };

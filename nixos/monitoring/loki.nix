@@ -43,6 +43,7 @@ in {
     systemd.services.loki = {
       description = "Grafana Loki log aggregation";
       after = [ "network-online.target" ];
+      wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
         Type = "simple";

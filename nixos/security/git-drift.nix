@@ -64,6 +64,7 @@ in {
     systemd.services.homelab-git-drift = {
       description = "Check /etc/nixos for uncommitted or unpushed drift";
       after = [ "network-online.target" ];
+      wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
         Type = "oneshot";
