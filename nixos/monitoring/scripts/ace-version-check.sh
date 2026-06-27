@@ -81,14 +81,29 @@ normalize_version() {
   printf '%s\n' ""
 }
 
-container_tag() {
-  local name="$1" image tag
+container_image_ref() {
+  local name="$1" image
   image="$(podman ps -a --filter "name=^${name}$" --format '{{.Image}}' 2>/dev/null | head -1 || true)"
   if [[ -z "$image" ]]; then
     image="$(podman inspect "$name" --format '{{.ImageName}}' 2>/dev/null | head -1 || true)"
   fi
-  tag="${image##*:}"
-  normalize_version "$tag"
+  printf '%s\n' "$image"
+}
+
+container_image_raw_tag() {
+  local name="$1" image="${2:-}"
+  if [[ -z "$image" ]]; then
+    image="$(container_image_ref "$name")"
+  fi
+  if [[ "$image" == *@* ]]; then
+    printf '%s\n' "latest"
+    return 0
+  fi
+  printf '%s\n' "${image##*:}"
+}
+
+container_tag() {
+  normalize_version "$(container_image_raw_tag "$1")"
 }
 
 parse_semver() {
@@ -187,10 +202,11 @@ emit_service() {
 }
 
 current_grafana() {
-  local tag v
-  tag="$(container_tag grafana)"
-  if [[ "$tag" != "latest" && -n "$(normalize_version "$tag")" ]]; then
-    normalize_version "$tag"
+  local raw tag v
+  raw="$(container_image_raw_tag grafana)"
+  tag="$(normalize_version "$raw")"
+  if [[ "$raw" != "latest" && -n "$tag" ]]; then
+    printf '%s\n' "$tag"
     return 0
   fi
   v="$(curl -fsSL --connect-timeout 3 --max-time 10 http://127.0.0.1:8082/api/health 2>/dev/null \
@@ -199,22 +215,31 @@ current_grafana() {
 }
 
 current_prometheus() {
-  local tag v
-  tag="$(container_tag prometheus)"
-  if [[ "$tag" != "latest" && -n "$(normalize_version "$tag")" ]]; then
-    normalize_version "$tag"
+  local raw tag v
+  raw="$(container_image_raw_tag prometheus)"
+  tag="$(normalize_version "$raw")"
+  if [[ "$raw" != "latest" && -n "$tag" ]]; then
+    printf '%s\n' "$tag"
     return 0
   fi
   v="$(curl -fsSL --connect-timeout 3 --max-time 10 http://127.0.0.1:9090/api/v1/status/buildinfo 2>/dev/null \
     | jq -r '.data.version // empty' || true)"
+  if [[ -n "$v" ]]; then
+    normalize_version "$v"
+    return 0
+  fi
+  if container_running prometheus; then
+    v="$(podman exec prometheus prometheus --version 2>/dev/null | head -1 | awk '{print $3}' || true)"
+  fi
   normalize_version "$v"
 }
 
 current_nextcloud() {
-  local tag v
-  tag="$(container_tag nextcloud)"
-  if [[ "$tag" != "latest" && -n "$(normalize_version "$tag")" ]]; then
-    normalize_version "$tag"
+  local raw tag v
+  raw="$(container_image_raw_tag nextcloud)"
+  tag="$(normalize_version "$raw")"
+  if [[ "$raw" != "latest" && -n "$tag" ]]; then
+    printf '%s\n' "$tag"
     return 0
   fi
   if container_running nextcloud; then

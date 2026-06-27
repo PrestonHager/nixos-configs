@@ -60,14 +60,66 @@ in
     };
     serviceConfig = {
       Type = "oneshot";
+      RemainAfterExit = true;
       Restart = "no";
       ExecStart = pkgs.writeShellScript "pod-pterodactyl" ''
-        ${pkgs.podman}/bin/podman pod exists pterodactyl || \
-        ${pkgs.podman}/bin/podman pod create -p 9001:9000 \
+        set -euo pipefail
+        podman=${pkgs.podman}/bin/podman
+
+        pod_network_ok() {
+          $podman container exists pterodactyl 2>/dev/null || return 0
+          $podman container exists pterodactyl-redis 2>/dev/null || return 0
+          $podman exec pterodactyl redis-cli -h 127.0.0.1 ping 2>/dev/null | grep -q PONG
+        }
+
+        if $podman pod exists pterodactyl && ! pod_network_ok; then
+          echo "pod-pterodactyl: panel cannot reach redis in pod; recreating pod"
+          $podman pod stop -t 30 pterodactyl || true
+          $podman pod rm -f pterodactyl
+        fi
+
+        $podman pod exists pterodactyl || \
+        $podman pod create -p 9001:9000 \
           --memory 8G --cpus 0 pterodactyl
       '';
     };
-    path = [ pkgs.podman ];
+    path = [ pkgs.podman pkgs.coreutils pkgs.gnugrep ];
+  };
+
+  systemd.services.pterodactyl-pod-network-check = {
+    description = "Ensure Pterodactyl pod containers share network namespace";
+    after = [
+      "podman-pterodactyl.service"
+      "podman-pterodactyl-db.service"
+      "podman-pterodactyl-redis.service"
+    ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      TimeoutStartSec = "10min";
+      ExecStart = pkgs.writeShellScript "pterodactyl-pod-network-check" ''
+        set -euo pipefail
+        podman=${pkgs.podman}/bin/podman
+
+        if $podman exec pterodactyl redis-cli -h 127.0.0.1 ping 2>/dev/null | grep -q PONG; then
+          echo "pterodactyl-pod-network-check: pod network OK"
+          exit 0
+        fi
+
+        echo "pterodactyl-pod-network-check: redis unreachable from panel; recreating pod" >&2
+        systemctl stop podman-pterodactyl.service podman-pterodactyl-db.service podman-pterodactyl-redis.service
+        $podman pod stop -t 30 pterodactyl || true
+        $podman pod rm -f pterodactyl
+        systemctl start pod-pterodactyl.service podman-pterodactyl-redis.service podman-pterodactyl-db.service podman-pterodactyl.service
+        sleep 5
+        $podman exec pterodactyl redis-cli -h 127.0.0.1 ping | grep -q PONG
+        systemctl restart podman-pterodactyl.service
+        $podman exec pterodactyl php /var/www/pterodactyl/artisan config:clear
+        $podman exec pterodactyl php /var/www/pterodactyl/artisan cache:clear
+      '';
+    };
+    path = [ pkgs.podman pkgs.coreutils pkgs.systemd pkgs.gnugrep pkgs.procps ];
   };
 
   # Define the container
