@@ -55,10 +55,12 @@ for ln in key.splitlines():
 path.write_text("\n".join(out) + "\n")
 PY
 
+cp "$TMP" secrets/containers/pterodactyl.yaml
 nix shell nixpkgs#sops --command sops \
   --encrypt \
   --encrypted-regex '^(pterodactyl-router-ssh-key|pterodactyl-password|pterodactyl-env)$' \
   --in-place secrets/containers/pterodactyl.yaml
+rm -f "$TMP"
 
 echo "=== pterodactyl-router-ssh-key fingerprint ==="
 ssh-keygen -lf "$PUB_PATH"
