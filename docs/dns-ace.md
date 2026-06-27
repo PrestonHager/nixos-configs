@@ -285,7 +285,77 @@ Technitium already forwards unknown names to 1.1.1.1; `_acme-challenge` subdomai
 
 ## DHCP (house / game LAN)
 
-Set **primary DNS** to **192.168.5.5** on the router or DHCP scope.
+Astracap already advertises **192.168.5.5** (Technitium) as primary DNS and **1.1.1.1** as secondary — see [Astracap router](network-astracap-router.md). Desktops and servers that honor DHCP resolve ace services to LAN IPs. **iOS often does not** (see below).
+
+## iPhone / iOS (split-horizon and NAT hairpin)
+
+### Symptom
+
+`https://cloud.prestonhager.com` (and other ace Caddy apps) work on desktops and servers on WiFi, but **fail on iPhone** (Safari, Nextcloud app) while on the same LAN.
+
+### Root cause (most likely)
+
+**No NAT hairpin** on Astracap. LAN clients that resolve ace hostnames to the **public WAN IP** (`73.26.67.25` via `ip1.lc1.nm.us.prestonhager.com`) cannot reach ace — connections to `:443` on that address **time out** from inside the LAN.
+
+Verified from ace (June 2026):
+
+| Resolved target | `https://cloud.prestonhager.com` from LAN |
+|-----------------|----------------------------------------|
+| `192.168.5.5` (Technitium split-horizon) | ✅ HTTP 302 → `/login` |
+| `73.26.67.25` (public DNS path) | ❌ Connection timeout |
+
+Desktops/servers work because they use **Technitium** (`192.168.5.5` from DHCP or manual config). iPhones often bypass it:
+
+| iOS behavior | Effect on WiFi |
+|--------------|----------------|
+| **Limit IP Address Tracking** / iCloud Private Relay | Uses Apple/Cloudflare DNS instead of DHCP → public IP → timeout |
+| **Manual DNS** (1.1.1.1, 8.8.8.8, AdGuard, NextDNS) | Public answers → timeout |
+| **Secondary DNS fallback** to `1.1.1.1` when Technitium is slow | Intermittent public answers → flaky or broken |
+| **Encrypted DNS (DoH)** to a third party | Public answers → timeout |
+
+On **cellular (LTE/5G)**, public DNS is correct and HTTPS should work (grey-cloud CNAME → `ip1.lc1` → `73.26.67.25`). If WiFi fails but LTE works, split-horizon + hairpin is confirmed.
+
+### DNS answers (expected)
+
+| Resolver | `cloud.prestonhager.com` | Notes |
+|----------|--------------------------|-------|
+| `@192.168.5.5` (Technitium) | CNAME → `cloud.internal.prestonhager.com` → **192.168.5.5** | Use on LAN |
+| `@1.1.1.1` (public) | CNAME → `ip1.lc1.nm.us.prestonhager.com` → **73.26.67.25** | Use off-LAN only |
+| AAAA | *(none)* | IPv4 only; not the cause if A record exists |
+
+Repo config for `cloud` is correct: `internalHosts.cloud` and `prestonhagerHosts.cloud` in `technitium-zones.nix`; `cloud` is in `scripts/ace-cloudflare-dns-sync.sh` (grey CNAME to `ip1.lc1`). No Nix zone change required for this symptom.
+
+### Fix on iPhone (WiFi)
+
+Pick **one** approach:
+
+1. **Use house DNS (simplest)**  
+   Settings → Wi‑Fi → (i) next to your network → **Configure DNS** → **Manual** → add **192.168.5.5** only (remove 1.1.1.1 / automatic entries).
+
+2. **Use homelab DoH (encrypted, split-horizon aware)**  
+   Install an iOS DNS profile or use a client that supports DoH:  
+   `https://dns.prestonhager.com/dns-query`  
+   (Technitium returns LAN answers for `*.prestonhager.com` when the query reaches ace.)
+
+3. **Reduce Private Relay interference**  
+   Settings → Apple ID → iCloud → **Private Relay** → turn off for the home network, or disable **Limit IP Address Tracking** on the Wi‑Fi network (iOS 15+).
+
+4. **Forget and rejoin Wi‑Fi** after changing DNS so DHCP options refresh.
+
+### Verify on iPhone
+
+- Install a DNS lookup app (or Shortcuts) and query `cloud.prestonhager.com`. On home WiFi you want **192.168.5.5**, not **73.26.67.25**.
+- Safari: `https://cloud.prestonhager.com` should redirect to `/login`.
+- Toggle WiFi off (LTE only): should still work via public IP.
+
+### Optional router change (not in Nix)
+
+Enabling **NAT hairpin / NAT loopback** on Astracap would let LAN clients use public DNS answers and still reach ace. Cisco IOS 15.7 can do this with additional `ip nat inside source static` + interface NAT tweaks; not configured today. Prefer fixing client DNS on WiFi unless you need hairpin for other reasons.
+
+### Related
+
+- Nextcloud: [nextcloud-action-plan.md](nextcloud-action-plan.md)  
+- Empty Cloudflare proxy body (orange cloud): [Ace Caddy apps](#ace-caddy-apps-grafana-vault-cloud-panel-) above — distinct from hairpin; public curl should show non-zero body and `Via: Caddy`, not `Server: cloudflare` with `Content-Length: 0`.
 
 ## Technitium first run
 
