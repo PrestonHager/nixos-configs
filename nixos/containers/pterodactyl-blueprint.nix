@@ -59,8 +59,19 @@ let
       env HOME=/var/lib/pterodactyl TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" "$@"
     }
 
+    ensure_sociallogin_models() {
+      datadir="$panel/.blueprint/extensions/sociallogin/private"
+      if [ ! -f "$panel/app/Models/SocialProvider.php" ] && [ -f "$datadir/SocialProvider.php" ]; then
+        echo "pterodactyl-blueprint-install: installing Social Login model files..."
+        cp -f "$datadir/SocialProvider.php" "$panel/app/Models/SocialProvider.php"
+        cp -f "$datadir/SocialConnection.php" "$panel/app/Models/SocialConnection.php"
+        chown pterodactyl:pterodactyl "$panel/app/Models/SocialProvider.php" "$panel/app/Models/SocialConnection.php"
+      fi
+    }
+
     blueprint_integrated() {
-      grep -q 'Providers\\Blueprint\\RouteServiceProvider' "$panel/app/Providers/AppServiceProvider.php" \
+      [ -f "$panel/app/Models/SocialProvider.php" ] \
+        && grep -q 'Providers\\Blueprint\\RouteServiceProvider' "$panel/app/Providers/AppServiceProvider.php" \
         && grep -q "'blueprint'" "$panel/app/Http/Kernel.php" \
         && [ -f "$panel/routes/blueprint/web/sociallogin.php" ] \
         && ${pkgs.podman}/bin/podman exec pterodactyl \
@@ -135,6 +146,7 @@ let
 
     post_install_hooks() {
       ensure_blueprint_core_patches
+      ensure_sociallogin_models
 
       ${pkgs.podman}/bin/podman exec \
         -e HOME=/var/www/pterodactyl \
