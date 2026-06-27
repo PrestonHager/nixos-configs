@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Unified Complement Token action: merge all Home Lab service roles into one groups claim.
- * Replaces per-service *Groups actions that overwrite each other (last writer wins).
+ * Create pterodactyl_test_admin project role and grant to prestonh.
+ * Test panel only — production continues to use pterodactyl_admin.
  * Run on ace as root. Requires zitadel-env secrets + login-client key.
  */
 const fs = require('fs');
@@ -13,34 +13,9 @@ const SECRETS = '/run/secrets/zitadel-env';
 const PUBLIC_HOST = 'zitadel.prestonhager.com';
 const AUDIENCE = `https://${PUBLIC_HOST}`;
 const ORG_ID = '376181820519160098';
-const ACTION_NAME = 'homelabGroups';
-const FLOW_TYPE = '2'; // Complement Token
-const TRIGGER_PRE_USERINFO = '4';
-const TRIGGER_PRE_ACCESS = '5';
-
-// Single action sets groups once with all applicable values for every service.
-const GROUPS_SCRIPT = `function ${ACTION_NAME}(ctx, api) {
-  if (!ctx.v1.user || !ctx.v1.user.grants || ctx.v1.user.grants.count === 0) {
-    return;
-  }
-  const roles = new Set();
-  for (const grant of ctx.v1.user.grants.grants) {
-    for (const role of grant.roles || grant.roleKeys || []) {
-      roles.add(role);
-    }
-  }
-  const groups = [];
-  if (roles.has('nextcloud_admin')) groups.push('admin');
-  if (roles.has('jellyfin_admin')) groups.push('jellyfin_admin');
-  else if (roles.has('jellyfin_user')) groups.push('jellyfin_user');
-  if (roles.has('pterodactyl_admin')) groups.push('pterodactyl_admin');
-  if (roles.has('pterodactyl_test_admin')) groups.push('pterodactyl_test_admin');
-  if (roles.has('technitium_admin')) groups.push('technitium_admin');
-  else if (roles.has('technitium_user')) groups.push('technitium_user');
-  if (groups.length > 0) {
-    api.v1.claims.setClaim('groups', groups);
-  }
-}`;
+const PROJECT_ID = '376196450586990901';
+const PRESTON_USER_ID = '376197075085302069';
+const ROLE_KEY = 'pterodactyl_test_admin';
 
 function loadEnv(prefix) {
   const env = fs.readFileSync(SECRETS, 'utf8');
@@ -141,68 +116,78 @@ async function adminSessionToken() {
   return patched.sessionToken || session.sessionToken;
 }
 
-async function findAction(token, name) {
-  const resp = await mgmt(
-    'POST',
-    '/management/v1/actions/_search',
-    { query: { offset: '0', limit: 100, asc: true } },
-    token,
-  );
-  return (resp.result || []).find((a) => a.name === name);
-}
-
-async function ensureAction(token) {
-  let action = await findAction(token, ACTION_NAME);
-  if (action) {
-    await mgmt(
-      'PUT',
-      `/management/v1/actions/${action.id}`,
-      { name: ACTION_NAME, script: GROUPS_SCRIPT, timeout: '10s', allowedToFail: false },
-      token,
-    );
-    console.log(`Updated action ${ACTION_NAME} (${action.id})`);
-    return action.id;
-  }
-  const resp = await mgmt(
-    'POST',
-    '/management/v1/actions',
-    { name: ACTION_NAME, script: GROUPS_SCRIPT, timeout: '10s', allowedToFail: false },
-    token,
-  );
-  console.log(`Created action ${ACTION_NAME} (${resp.id})`);
-  return resp.id;
-}
-
-async function setTriggerActions(token, triggerType, actionIds, label) {
+async function ensureRole(token) {
   try {
-    await mgmt(
+    const resp = await mgmt(
       'POST',
-      `/management/v1/flows/${FLOW_TYPE}/trigger/${triggerType}`,
-      { actionIds },
+      `/management/v1/projects/${PROJECT_ID}/roles`,
+      { roleKey: ROLE_KEY, displayName: 'Pterodactyl Test Admin' },
       token,
     );
-    console.log(`${label}: ${actionIds.join(', ')}`);
+    console.log(`Created role ${ROLE_KEY} (id: ${resp.details?.sequence || resp.sequence || 'n/a'})`);
+    return resp;
   } catch (e) {
-    if (String(e.message).includes('No changes') || String(e.message).includes('No Changes')) {
-      console.log(`${label} already set: ${actionIds.join(', ')}`);
-      return;
+    if (String(e.message).includes('already exists') || String(e.message).includes('RoleKeyDuplicated')) {
+      console.log(`Role ${ROLE_KEY} already exists`);
+      const roles = await mgmt(
+        'POST',
+        `/management/v1/projects/${PROJECT_ID}/roles/_search`,
+        { query: { offset: '0', limit: 100, asc: true } },
+        token,
+      );
+      const role = (roles.result || []).find((r) => r.key === ROLE_KEY);
+      if (role) console.log(`Role id: ${role.id || role.roleId || JSON.stringify(role)}`);
+      return role;
     }
     throw e;
   }
 }
 
+async function ensureGrant(token) {
+  const grants = await mgmt(
+    'POST',
+    '/management/v1/users/grants/_search',
+    {
+      query: { offset: '0', limit: 100, asc: true },
+      queries: [{ userIdQuery: { userId: PRESTON_USER_ID } }],
+    },
+    token,
+  );
+  const existing = (grants.result || []).find(
+    (g) => g.projectId === PROJECT_ID && (g.roleKeys || []).includes(ROLE_KEY),
+  );
+  if (existing) {
+    console.log(`prestonh already has ${ROLE_KEY}`);
+    return;
+  }
+  const projectGrant = (grants.result || []).find((g) => g.projectId === PROJECT_ID);
+  if (projectGrant) {
+    await mgmt(
+      'PUT',
+      `/management/v1/users/${PRESTON_USER_ID}/grants/${projectGrant.id}`,
+      { roleKeys: [...new Set([...(projectGrant.roleKeys || []), ROLE_KEY])] },
+      token,
+    );
+  } else {
+    await mgmt(
+      'POST',
+      `/management/v1/users/${PRESTON_USER_ID}/grants`,
+      { projectId: PROJECT_ID, roleKeys: [ROLE_KEY] },
+      token,
+    );
+  }
+  console.log(`Granted ${ROLE_KEY} to prestonh (${PRESTON_USER_ID})`);
+}
+
 (async () => {
   const token = await adminSessionToken();
   console.log('Admin session established');
-
-  const homelabId = await ensureAction(token);
-
-  // Replace per-service *Groups actions with unified homelabGroups on both triggers.
-  await setTriggerActions(token, TRIGGER_PRE_USERINFO, [homelabId], 'Pre Userinfo trigger');
-  await setTriggerActions(token, TRIGGER_PRE_ACCESS, [homelabId], 'Pre access token trigger');
-
-  console.log('\n=== homelabGroups complement action deployed ===');
-  console.log('groups claim now includes admin, jellyfin_*, pterodactyl_admin, pterodactyl_test_admin, technitium_* as applicable');
+  console.log(`Project: Home Lab (${PROJECT_ID})`);
+  await ensureRole(token);
+  await ensureGrant(token);
+  console.log('\n=== Next: deploy homelabGroups action ===');
+  console.log('nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-homelab-groups-action.js');
+  console.log(`\nTEST_ADMIN_ROLE=${ROLE_KEY}`);
   console.log('Users must sign out and sign in again for token refresh');
 })().catch((e) => {
   console.error(e.message || e);

@@ -10,7 +10,8 @@ let
   ssoCallbackPath = "/extensions/sociallogin/callback";
   ssoRedirectPath = "/extensions/sociallogin/redirect/zitadel";
 
-  zitadelAdminSync = ./pterodactyl/ZitadelAdminSync.php;
+  zitadelTestAdminSync = ./pterodactyl/ZitadelTestAdminSync.php;
+  testAdminGroup = "pterodactyl_test_admin";
   seedProviderPhp = ./pterodactyl/seed-zitadel-provider.php;
   ssoEnvFile = config.sops.secrets."pterodactyl-oauth-env".path;
 
@@ -50,8 +51,9 @@ let
       pterodactyl-test \
       sh -c 'cd /var/www/pterodactyl && composer require socialiteproviders/manager socialiteproviders/zitadel --no-interaction --optimize-autoloader'
 
-    install -m 0644 ${zitadelAdminSync} "$panel/app/Listeners/ZitadelAdminSync.php"
-    chown prestonh:users "$panel/app/Listeners/ZitadelAdminSync.php"
+    install -m 0644 ${zitadelTestAdminSync} "$panel/app/Listeners/ZitadelTestAdminSync.php"
+    chown prestonh:users "$panel/app/Listeners/ZitadelTestAdminSync.php"
+    rm -f "$panel/app/Listeners/ZitadelAdminSync.php"
 
     providers_file=$(find "$panel" -path '*/sociallogin/*SocialAuthController.php' 2>/dev/null | head -1)
     if [ -z "$providers_file" ]; then
@@ -97,7 +99,7 @@ if 'syncZitadelAdminRole' not in text and 'auth()->login($user, true);' in text:
         "            $groups = $raw['groups'];\n"
         "        }\n"
         "        session()->put('zitadel_sso_groups', $groups);\n"
-        "        $isAdmin = in_array('pterodactyl_admin', $groups, true);\n"
+        "        $isAdmin = in_array('${testAdminGroup}', $groups, true);\n"
         "        if ($user->root_admin !== $isAdmin) {\n"
         "            $user->root_admin = $isAdmin;\n"
         "            $user->save();\n"
@@ -110,25 +112,38 @@ PY
       chown prestonh:users "$providers_file"
     fi
 
+    if [ -n "$providers_file" ] && grep -q syncZitadelAdminRole "$providers_file"; then
+      ${pkgs.gnused}/bin/sed -i "s/in_array('pterodactyl_admin'/in_array('${testAdminGroup}'/g" "$providers_file"
+      chown prestonh:users "$providers_file"
+    fi
+
     app_provider="$panel/app/Providers/AppServiceProvider.php"
-    if [ -f "$app_provider" ] && ! grep -q ZitadelAdminSync "$app_provider"; then
+    if [ -f "$app_provider" ]; then
+      if grep -q ZitadelAdminSync "$app_provider"; then
+        ${pkgs.gnused}/bin/sed -i 's/ZitadelAdminSync/ZitadelTestAdminSync/g' "$app_provider"
+        chown prestonh:users "$app_provider"
+      fi
+    fi
+
+    app_provider="$panel/app/Providers/AppServiceProvider.php"
+    if [ -f "$app_provider" ] && ! grep -q ZitadelTestAdminSync "$app_provider"; then
       if ! grep -q 'use Illuminate\\Support\\Facades\\Event;' "$app_provider"; then
         ${pkgs.gnused}/bin/sed -i '/^namespace Pterodactyl\\Providers;/a use Illuminate\\Support\\Facades\\Event;' "$app_provider"
       fi
       if ! grep -q 'use Illuminate\\Auth\\Events\\Login;' "$app_provider"; then
         ${pkgs.gnused}/bin/sed -i '/^namespace Pterodactyl\\Providers;/a use Illuminate\\Auth\\Events\\Login;' "$app_provider"
       fi
-      if ! grep -q 'use Pterodactyl\\Listeners\\ZitadelAdminSync;' "$app_provider"; then
-        ${pkgs.gnused}/bin/sed -i '/^namespace Pterodactyl\\Providers;/a use Pterodactyl\\Listeners\\ZitadelAdminSync;' "$app_provider"
+      if ! grep -q 'use Pterodactyl\\Listeners\\ZitadelTestAdminSync;' "$app_provider"; then
+        ${pkgs.gnused}/bin/sed -i '/^namespace Pterodactyl\\Providers;/a use Pterodactyl\\Listeners\\ZitadelTestAdminSync;' "$app_provider"
       fi
       ${pkgs.python3}/bin/python3 - "$app_provider" <<'PY'
 import sys
 path = sys.argv[1]
 text = open(path).read()
-if 'ZitadelAdminSync' not in text:
+if 'ZitadelTestAdminSync' not in text:
     text = text.replace(
         'public function boot(): void\n    {',
-        'public function boot(): void\n    {\n        Event::listen(Login::class, ZitadelAdminSync::class);',
+        'public function boot(): void\n    {\n        Event::listen(Login::class, ZitadelTestAdminSync::class);',
         1,
     )
     open(path, 'w').write(text)

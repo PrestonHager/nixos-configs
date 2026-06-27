@@ -16,7 +16,7 @@ How to use the **DNS Records** and **Port Forward** Blueprint extensions on the 
 All extension settings and per-server tabs require a **root administrator** account (`root_admin=1` in the panel database).
 
 - **Production:** Sign in with Zitadel SSO. Your Zitadel user must have the `pterodactyl_admin` role, which maps to root admin in the panel.
-- **Test:** Sign in with Zitadel SSO (same Home Lab OIDC app and `pterodactyl_admin` role), or use the local admin account from `/var/lib/pterodactyl-test/admin-credentials` on ace.
+- **Test:** Sign in with Zitadel SSO. Your Zitadel user must have the `pterodactyl_test_admin` role for root admin on the test panel (or use the local admin account from `/var/lib/pterodactyl-test/admin-credentials` on ace). The production `pterodactyl_admin` role does **not** grant admin on the test panel.
 
 If you are logged in but do not see **Admin** in the sidebar, or **Extensions** under Admin, you are not a root admin.
 
@@ -152,7 +152,8 @@ Use the **test panel** to validate DNS extension changes before deploying to pro
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| No **Admin** menu | Not root admin | Use SSO account with `pterodactyl_admin` role, or local admin on test panel |
+| No **Admin** menu (test) | Not root admin | Use SSO account with `pterodactyl_test_admin` role, or local admin on test panel |
+| No **Admin** menu (production) | Not root admin | Use SSO account with `pterodactyl_admin` role |
 | Admin exists but no **Extensions** | Wrong panel / cache | Hard refresh; confirm URL is production panel |
 | Looking for “Blueprint” top menu | Misconception | Go to **Admin → Extensions** instead |
 | DNS / NAT tabs missing on server view | Extension not installed or wrapper not loaded | Run `pterodactyl-blueprint-install.service` on ace; check routes |

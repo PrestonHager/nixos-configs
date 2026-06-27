@@ -45,11 +45,32 @@ The test panel shares the **Home Lab** Zitadel OIDC application with production.
 - `https://panel.prestonhager.com/extensions/sociallogin/callback`
 - `https://test.panel.prestonhager.com/extensions/sociallogin/callback`
 
+### Admin roles (test vs production)
+
+| Zitadel project role | Panel | Effect |
+|----------------------|-------|--------|
+| `pterodactyl_admin` | Production only | `root_admin=1` on `panel.prestonhager.com` |
+| `pterodactyl_test_admin` | Test only | `root_admin=1` on `test.panel.prestonhager.com` |
+
+Both roles live in the **Home Lab** Zitadel project (`376196450586990901`). The unified `homelabGroups` complement action emits both into the OIDC `groups` claim when granted; each panel maps only its own role.
+
+Setup scripts (run on ace as root):
+
+```bash
+# Create role + grant prestonh
+nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-pterodactyl-test-admin-setup.js
+
+# Refresh homelabGroups action (includes pterodactyl_test_admin in groups claim)
+nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-homelab-groups-action.js
+```
+
+Test panel SSO uses `ZitadelTestAdminSync` and checks `pterodactyl_test_admin` only — `pterodactyl_admin` does **not** grant admin on the test panel.
+
 NixOS modules:
 
 | File | Purpose |
 |------|---------|
-| `nixos/containers/pterodactyl-test-sso.nix` | Seed Zitadel provider, SocialiteProviders driver, admin role sync |
+| `nixos/containers/pterodactyl-test-sso.nix` | Seed Zitadel provider, SocialiteProviders driver, test admin role sync (`pterodactyl_test_admin`) |
 | `nixos/containers/pterodactyl-test.nix` | Proxy/session `.env` (`TRUSTED_PROXIES`, `SESSION_*`), Zitadel host-gateway on pod |
 
 OAuth client ID/secret come from sops (`secrets/containers/pterodactyl-oauth.yaml`) — same credentials as production; only `ZITADEL_REDIRECT_URI` and `APP_URL` differ.
@@ -130,6 +151,16 @@ systemctl restart pterodactyl-test-sso-configure.service
 
 # Watch first-time migration
 journalctl -u pterodactyl-test-stock-reset -u pterodactyl-test-blueprint-install -u pterodactyl-test-sso-configure -f
+```
+
+Verify SSO admin (after Zitadel role grant + sign out/in):
+
+```bash
+# prestonh should have pterodactyl_test_admin in Zitadel Authorizations
+nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-pterodactyl-test-admin-setup.js
+
+# Sign in at https://test.panel.prestonhager.com/extensions/sociallogin/redirect/zitadel
+# Admin menu should appear; production panel unchanged unless pterodactyl_admin is granted
 ```
 
 Verify:
