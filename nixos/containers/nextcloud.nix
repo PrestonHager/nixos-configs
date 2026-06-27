@@ -243,10 +243,13 @@ EOF
     fi
     occ app:enable notify_push
 
-    if ! occ app:list 2>/dev/null | grep -qE '(^| )- cloudmigrate:'; then
-      occ app:install cloudmigrate
+    if $podman exec nextcloud test -d /var/www/html/custom_apps/cloudmigrate; then
+      if ! occ app:list 2>/dev/null | grep -qE '(^| )- cloudmigrate:'; then
+        occ app:enable cloudmigrate || echo "nextcloud-occ-maintain: cloudmigrate enable failed" >&2
+      else
+        occ app:enable cloudmigrate 2>/dev/null || true
+      fi
     fi
-    occ app:enable cloudmigrate
 
     for _ in $(seq 1 120); do
       if $podman exec nextcloud bash -c 'exec 3<>/dev/tcp/127.0.0.1/3310' 2>/dev/null; then
