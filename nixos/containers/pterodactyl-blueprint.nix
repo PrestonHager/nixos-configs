@@ -279,6 +279,73 @@ let
         && grep -q 'blueprint.dashboard.dashboard' "$panel/resources/views/templates/wrapper.blade.php" 2>/dev/null
     }
 
+    blueprint_admin_layout_integrated() {
+      grep -q 'blueprint.admin.admin' "$panel/resources/views/layouts/admin.blade.php" 2>/dev/null \
+        && grep -q 'blueprint.import' "$panel/resources/views/layouts/admin.blade.php" 2>/dev/null
+    }
+
+    blueprint_placeholder_integrated() {
+      [ -f "$panel/app/BlueprintFramework/Services/PlaceholderService/BlueprintPlaceholderService.php" ] \
+        && ! grep -q '"::v"' "$panel/app/BlueprintFramework/Services/PlaceholderService/BlueprintPlaceholderService.php" 2>/dev/null
+    }
+
+    blueprint_framework_version() {
+      ${pkgs.gnugrep}/bin/grep -m1 '^VERSION=' "$panel/blueprint.sh" 2>/dev/null \
+        | ${pkgs.gnused}/bin/sed 's/VERSION="\(.*\)".*/\1/' \
+        | ${pkgs.gnused}/bin/sed 's/ #;//'
+    }
+
+    refresh_blueprint_framework_release() {
+      tmp=$(mktemp -d)
+      trap 'rm -rf "$tmp"' RETURN
+      ${pkgs.curl}/bin/curl -fsSL "${blueprintReleaseUrl}" -o "$tmp/release.zip"
+      current=$(blueprint_framework_version || echo "unknown")
+      remote=$(${pkgs.unzip}/bin/unzip -p "$tmp/release.zip" blueprint.sh 2>/dev/null \
+        | ${pkgs.gnugrep}/bin/grep -m1 '^VERSION=' \
+        | ${pkgs.gnused}/bin/sed 's/VERSION="\(.*\)".*/\1/' \
+        | ${pkgs.gnused}/bin/sed 's/ #;//' || echo "unknown")
+      if [ "$current" = "$remote" ] \
+        && blueprint_admin_layout_integrated \
+        && blueprint_placeholder_integrated; then
+        return 0
+      fi
+      echo "pterodactyl-blueprint-install: refreshing Blueprint release ($current -> $remote)..."
+      ${pkgs.unzip}/bin/unzip -o "$tmp/release.zip" -d "$panel"
+      chown -R pterodactyl:pterodactyl "$panel"
+      install -m 0644 ${blueprintRc} "$panel/.blueprintrc"
+      chmod +x "$panel/blueprint.sh"
+      chown pterodactyl:pterodactyl "$panel/.blueprintrc" "$panel/blueprint.sh"
+      if [ -d "$panel/blueprint" ] && [ -d "$panel/.blueprint/blueprint" ]; then
+        rm -rf "$panel/blueprint"
+      elif [ -d "$panel/blueprint" ]; then
+        rm -rf "$panel/.blueprint/blueprint"
+        mv "$panel/blueprint" "$panel/.blueprint/blueprint"
+      fi
+    }
+
+    ensure_blueprint_admin_layout_patches() {
+      if blueprint_admin_layout_integrated \
+        && [ -f "$panel/resources/views/blueprint/admin/admin.blade.php" ]; then
+        return 0
+      fi
+      echo "pterodactyl-blueprint-install: restoring Blueprint admin layout patches from release..."
+      patch_tmp=$(mktemp -d)
+      ${pkgs.curl}/bin/curl -fsSL "${blueprintReleaseUrl}" -o "$patch_tmp/release.zip"
+      ${pkgs.unzip}/bin/unzip -o "$patch_tmp/release.zip" \
+        resources/views/layouts/admin.blade.php \
+        "resources/views/blueprint/admin/*" \
+        -d "$patch_tmp/extract"
+      install -d -m 0755 -o pterodactyl -g pterodactyl "$panel/resources/views/blueprint/admin"
+      cp "$patch_tmp/extract/resources/views/layouts/admin.blade.php" \
+        "$panel/resources/views/layouts/admin.blade.php"
+      cp -a "$patch_tmp/extract/resources/views/blueprint/admin/." \
+        "$panel/resources/views/blueprint/admin/"
+      chown -R pterodactyl:pterodactyl \
+        "$panel/resources/views/layouts/admin.blade.php" \
+        "$panel/resources/views/blueprint/admin"
+      rm -rf "$patch_tmp"
+    }
+
     blueprint_frontend_integrated() {
       grep -q '@blueprint/components/Authentication/Container/AfterContent' \
         "$panel/resources/scripts/components/auth/LoginFormContainer.tsx" 2>/dev/null \
@@ -414,7 +481,9 @@ let
 
     rerun_blueprint_framework() {
       echo "pterodactyl-blueprint-install: re-running Blueprint framework install..."
+      refresh_blueprint_framework_release
       ensure_blueprint_core_patches
+      ensure_blueprint_admin_layout_patches
       rm -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed"
       rm -f "$panel/.blueprint/lock" 2>/dev/null || true
       cd "$panel"
@@ -425,6 +494,7 @@ let
         rm -f "$panel/.blueprint/lock"
         blueprint_cli -install sociallogin
       fi
+      ensure_blueprint_admin_layout_patches
       ensure_blueprint_frontend_patches
       ensure_frontend_built
     }
@@ -480,6 +550,7 @@ let
       ensure_public_assets_extension_symlinks
       ensure_extension_admin_files
       ensure_extension_migrations
+      ensure_blueprint_admin_layout_patches
       ensure_blueprint_frontend_patches
       ensure_frontend_built
 
@@ -519,6 +590,8 @@ let
     }
 
     if blueprint_integrated \
+      && blueprint_admin_layout_integrated \
+      && blueprint_placeholder_integrated \
       && extension_backend_integrated \
       && [ -d "$panel/.blueprint/assets/Extensions" ] \
       && [ -d "$panel/.blueprint/extensions/sociallogin" ] \
@@ -577,6 +650,14 @@ let
         post_install_hooks
         write_marker
         echo "pterodactyl-blueprint-install: Blueprint site config and frontend repaired on production panel"
+        exit 0
+      fi
+      if ! blueprint_admin_layout_integrated || ! blueprint_placeholder_integrated; then
+        echo "pterodactyl-blueprint-install: admin layout or Blueprint version incomplete, repairing..."
+        rerun_blueprint_framework
+        post_install_hooks
+        write_marker
+        echo "pterodactyl-blueprint-install: Blueprint admin layout and version repaired on production panel"
         exit 0
       fi
     fi
