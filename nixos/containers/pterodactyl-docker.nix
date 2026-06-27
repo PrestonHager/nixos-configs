@@ -283,7 +283,7 @@ EOF
   ];
 in
 {
-  inherit panelUpdateEnvStock panelUpdateEnvTest forkPanelSrc;
+  inherit panelUpdateEnvStock panelUpdateEnvTest forkPanelSrc version;
 
   setupImage = pkgs.dockerTools.buildImage {
     name = "pterodactyl-setup";

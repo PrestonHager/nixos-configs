@@ -5,7 +5,7 @@ let
   pterodactylImages = import ./pterodactyl-docker.nix {
     inherit pkgs sops-path;
   };
-  inherit (pterodactylImages) panelUpdateEnvStock;
+  inherit (pterodactylImages) panelUpdateEnvStock version;
 in
 {
   imports = [
@@ -98,7 +98,7 @@ in
       ];
 
       # Finally, the pterodactyl runtime image and version
-      image = "pterodactyl-runtime:v1.11.11";
+      image = "pterodactyl-runtime:v${version}";
       imageFile = pterodactylImages.runtimeImage;
     };
 
