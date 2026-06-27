@@ -33,6 +33,10 @@ let
       Header always set Strict-Transport-Security "max-age=15552000; includeSubDomains"
     </IfModule>
   '';
+  nextcloudApacheTimeouts = pkgs.writeText "nextcloud-timeouts.conf" ''
+    # Web upgrades can run long DB migrations; default 300s is tight.
+    Timeout 3600
+  '';
   ncRuntimeEnv = "/run/nextcloud/container.env";
   nextcloudEnvScript = pkgs.writeShellScript "nextcloud-container-env" ''
     set -euo pipefail
@@ -171,6 +175,9 @@ EOF
       forwarded_for_headers 0 --value=HTTP_X_FORWARDED_FOR
     ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
       forwarded_for_headers 1 --value=HTTP_X_REAL_IP
+    # occ upgrade (nextcloud-occ-maintain) sets this true; keep web updater available.
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      upgrade.disable-web --type=boolean --value=false
     ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ background:cron
 
     set -a
@@ -253,6 +260,7 @@ EOF
     fi
 
     occ upgrade --no-interaction
+    occ config:system:set upgrade.disable-web --type=boolean --value=false
 
     if ! occ app:list 2>/dev/null | grep -qE '(^| )- notify_push:'; then
       occ app:install notify_push
@@ -665,6 +673,7 @@ in
         "/etc/group:/etc/group:ro"
         "${ncRoot}/data/:/var/www/html/"
         "${nextcloudApacheHsts}:/etc/apache2/conf-enabled/z-nextcloud-hsts.conf:ro"
+        "${nextcloudApacheTimeouts}:/etc/apache2/conf-enabled/z-nextcloud-timeouts.conf:ro"
       ];
       environment = {
         APACHE_PORT = "80";

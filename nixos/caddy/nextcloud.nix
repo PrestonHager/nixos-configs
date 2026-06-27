@@ -53,6 +53,10 @@ in
         header_up X-Forwarded-For {remote_host}
         header_up X-Forwarded-Proto {scheme}
         flush_interval -1
+        transport http {
+          read_timeout 1h
+          write_timeout 1h
+        }
       }
     '';
   };
