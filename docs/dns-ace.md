@@ -183,6 +183,58 @@ curl -sS -D - -o /dev/null -w 'bytes=%{size_download}\n' https://vault.prestonha
 
 DoT on port 853 does not traverse Cloudflare's HTTP proxy; use WAN NAT or LAN/VPN (see above).
 
+### Cloudflare DNS-01 for Caddy (automatic TLS)
+
+**Status:** Wired in `nixos/caddy/acme-dns.nix`; **disabled** until `homelab.caddy.cloudflareAcme.enable = true` on ace and the sops secret exists.
+
+With DNS-01, Caddy creates temporary `_acme-challenge` TXT records in Cloudflare via API. You no longer need to add each new hostname to Cloudflare manually for certificate issuance — only for **client routing** (grey-cloud CNAME to `ip1.lc1` when the service must be reachable from the public Internet).
+
+#### Token setup (nix-secrets, not this repo)
+
+1. In [Cloudflare](https://dash.cloudflare.com/profile/api-tokens) create a **scoped token**:
+   - **Permissions:** Zone → DNS → Edit; Zone → Zone → Read
+   - **Zone resources:** Include → `prestonhager.com`
+2. In the **nix-secrets** repo, create `secrets/cloudflare.yaml`:
+
+   ```yaml
+   acme-env: |
+     CLOUDFLARE_API_TOKEN=your_token_here
+   ```
+
+3. Encrypt with sops (`sops secrets/cloudflare.yaml`), push nix-secrets, then on ace:
+
+   ```bash
+   nix flake update nix-secrets
+   ```
+
+4. In `hosts/ace/default.nix`, set `homelab.caddy.cloudflareAcme.enable = true;` and rebuild ace.
+
+Implementation uses `pkgs.caddy.withPlugins` with `github.com/caddy-dns/cloudflare@v0.2.2` and global `acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}`.
+
+#### Split-horizon and `_acme-challenge`
+
+LAN clients resolve `*.prestonhager.com` via Technitium. During issuance, Caddy must verify TXT records in **public** Cloudflare DNS. If validation fails with “DNS problem: NXDOMAIN” for `_acme-challenge`, confirm propagation externally:
+
+```bash
+dig @1.1.1.1 _acme-challenge.grafana.prestonhager.com TXT +short
+```
+
+Technitium already forwards unknown names to 1.1.1.1; `_acme-challenge` subdomains are not in the LAN zone, so they should recurse correctly. If you add LAN overrides for a hostname, keep `_acme-challenge.<name>` off the Technitium primary zone.
+
+#### What still needs Cloudflare DNS records
+
+| Purpose | Cloudflare record | Technitium (LAN) | Notes |
+|---------|-------------------|------------------|-------|
+| **TLS issuance (DNS-01)** | Zone API token only | — | Caddy writes `_acme-challenge` TXT automatically |
+| **Public HTTPS to ace** | Grey CNAME → `ip1.lc1.nm.us.prestonhager.com` | A/CNAME → `192.168.5.5` | Still required for WAN clients (grafana, vault, dns, …) |
+| **LAN-only IDS/monitoring** | **None** | `internal.prestonhager.com` A records | Loki `:3100`, Alloy, Suricata logs — no vhost |
+| **Grafana (IDS UI)** | `grafana` CNAME (existing) | `grafana.internal` → ace | Caddy → `:8082`; no new hostname for IDS |
+| **Prometheus** | `prometheus` CNAME (existing) | same | Caddy LAN-restricted (`192.168.8.0/24`, `10.88.0.0/16`) |
+| **Suricata / Alertmanager** | None | None | No UI; alerts via Grafana email |
+| **Wings nodes** | `crux`/`nova.lc1.nm.us` A (existing) | internal A | Caddy cert copy to NFS (`certificates.nix`) |
+
+**IDS stack adds no new public hostnames.** Security logs use Loki on ace `:3100` (firewall: crux/nova only). Operators use existing **https://grafana.prestonhager.com** (Explore → Loki, Alerting → Security folder).
+
 ## Local hosts (ace)
 
 `nixos/local-service-hosts.nix` includes **`dns.prestonhager.com`** → `127.0.0.1` and internal names on LAN IPs. Apply with your usual `nixos-rebuild switch` on ace.

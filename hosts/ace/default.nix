@@ -72,5 +72,8 @@
     promtail.enable = true;
     suricata.enable = true;
   };
+
+  # Optional: enable after adding secrets/cloudflare.yaml to nix-secrets (docs/dns-ace.md).
+  # homelab.caddy.cloudflareAcme.enable = true;
 }
 

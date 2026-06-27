@@ -1,8 +1,8 @@
 # Homelab IDS & Security Monitoring — Deployment Plan
 
-**Status:** Phase 1 implemented; Phase 2 core in progress (see `nixos/security/`, `nixos/monitoring/`)  
+**Status:** Phase 1 deployed; Phase 2 core deployed on ace/crux (AIDE init pending first successful check on some hosts); Phase 3 response stubs on ace. Nova unreachable at verification time.  
 **Test cases:** [`security-ids-test-cases.md`](security-ids-test-cases.md)  
-**Updated:** 2026-06-26  
+**Updated:** 2026-06-27  
 **Branch:** `dell-poweredge-r730xd`  
 **Scope:** ace, crux, nova (NixOS); Astracap router; Astraquasar switch; LAN `192.168.5.0/24` (and related subnets)
 
@@ -387,6 +387,24 @@ Reference: existing email alert rules in `docs/monitoring-ace.md` (service down,
 | `docs/ace-health-report.md` | Service health baseline |
 | `docs/dns-ace.md` | Technitium DNS (blocklist response) |
 | Pterodactyl node pages | crux/nova workload context |
+
+---
+
+## Appendix B — IDS endpoints, DNS, and TLS
+
+| Endpoint | Host | Port / path | LAN vs public | Cloudflare DNS | Caddy vhost |
+|----------|------|-------------|---------------|----------------|-------------|
+| **Grafana** (dashboards, Security alerts) | ace | `https://grafana.prestonhager.com` → `:8082` | Public + LAN | Grey CNAME → `ip1.lc1` (existing) | Yes |
+| **Loki** (log store) | ace | `:3100` HTTP | LAN only (`.5.6`, `.5.7`) | None | No |
+| **Alloy** (log shipper) | all NixOS | pushes to Loki | — | None | No |
+| **Prometheus** | ace | `https://prometheus.prestonhager.com` | LAN-restricted Caddy | Grey CNAME (existing) | Yes |
+| **Suricata** EVE JSON | ace | `/var/log/suricata/` → Loki | — | None | No |
+| **Cisco syslog** | ace | UDP `:514` → file → Loki | LAN (router/switch) | None | No |
+| **Technitium DNS logs** | ace | `/stor/technitium/logs` → Loki | — | `dns` CNAME for DoH only | Yes (`dns.prestonhager.com`) |
+| **Alertmanager** | — | Not deployed | Grafana Unified Alerting | None | No |
+| **Phase 3 response scripts** | ace | `/etc/homelab-security/response/` | SSH only | None | No |
+
+TLS for Caddy vhosts: HTTP-01 today (WAN NAT → ace `:443`). Optional **Cloudflare DNS-01** (`nixos/caddy/acme-dns.nix`, `docs/dns-ace.md`) auto-provisions `_acme-challenge` TXT records; grey-cloud CNAMEs remain required for public client routing.
 
 ---
 

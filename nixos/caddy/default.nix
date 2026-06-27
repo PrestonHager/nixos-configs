@@ -3,6 +3,7 @@
 {
   # Comment or uncomment the following imports to customize caddy
   imports = [
+    ./acme-dns.nix
     ./certificates.nix
     # Reverse proxy configuration
     #./forgejo.nix

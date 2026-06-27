@@ -5,9 +5,10 @@ let
   dbPath = "/var/lib/aide/aide.db";
   dbNewPath = "/var/lib/aide/aide.db.new";
   configFile = pkgs.writeText "aide.conf" ''
-    @@define DBFILE ${dbPath}
-    @@define DATABASE_OUT ${dbNewPath}
-    @@define LOGFILE /var/log/aide/aide.log
+    database_in=file:${dbPath}
+    database_out=file:${dbNewPath}
+    database_new=file:${dbNewPath}
+    logfile=/var/log/aide/aide.log
     /etc p+i+u+g+sha256
     /root p+i+u+g+sha256
     !/etc/nixos/.git
@@ -26,7 +27,7 @@ let
       echo "AIDE init did not produce expected database output" >&2
       exit 1
     fi
-    logger -t homelab-aide "AIDE database initialized on ${cfg.hostName}"
+    ${pkgs.util-linux}/bin/logger -t homelab-aide "AIDE database initialized on ${cfg.hostName}"
   '';
   aideCheck = pkgs.writeShellScript "aide-check" ''
     set -euo pipefail
@@ -35,9 +36,9 @@ let
       exit 1
     fi
     if ${pkgs.aide}/bin/aide --config=${configFile} --check; then
-      logger -t homelab-aide "AIDE check passed on ${cfg.hostName}"
+      ${pkgs.util-linux}/bin/logger -t homelab-aide "AIDE check passed on ${cfg.hostName}"
     else
-      logger -t homelab-aide "AIDE check FAILED on ${cfg.hostName}"
+      ${pkgs.util-linux}/bin/logger -t homelab-aide "AIDE check FAILED on ${cfg.hostName}"
       exit 1
     fi
   '';
