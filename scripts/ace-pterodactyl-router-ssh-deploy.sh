@@ -29,7 +29,7 @@ else
   : >"$TMP"
 fi
 
-python3 - "$TMP" "$KEY_PATH" <<'PY'
+nix shell nixpkgs#python3 --command python3 - "$TMP" "$KEY_PATH" <<'PY'
 import pathlib
 import sys
 
