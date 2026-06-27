@@ -64,7 +64,8 @@ let
       portforward_dry_run=0
     fi
 
-    ${pkgs.podman}/bin/podman cp ${configurePhp} pterodactyl-test:/tmp/configure-test-extensions.php
+    ${pkgs.coreutils}/bin/cp ${configurePhp} /tmp/configure-test-extensions.php
+    ${pkgs.podman}/bin/podman cp /tmp/configure-test-extensions.php pterodactyl-test:/tmp/configure-test-extensions.php
     ${pkgs.podman}/bin/podman exec \
       -e PORTFORWARD_DRY_RUN="$portforward_dry_run" \
       pterodactyl-test \
