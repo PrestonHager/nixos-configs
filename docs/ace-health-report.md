@@ -167,7 +167,7 @@ No **unhealthy** containers reported (`podman ps --filter health=unhealthy` empt
 ### Nextcloud
 ```
 installed: true
-version: 31.0.14.1
+version: 34.0.0.12
 maintenance: false
 needsDbUpgrade: false
 ```
