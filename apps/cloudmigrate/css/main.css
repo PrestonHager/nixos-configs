@@ -1,16 +1,7 @@
-/* Nextcloud 34 app shell — #app-content is the scroll container */
-#content.app-cloudmigrate {
-	display: flex;
-	flex-direction: column;
-	height: 100%;
-}
-
-#content.app-cloudmigrate #app-content {
-	flex: 1 1 auto;
-	overflow-y: auto;
-	overflow-x: hidden;
+/* App content padding; scroll handled by Nextcloud core #app-content */
+#app-content #cloudmigrate-app {
 	padding: 20px;
-	-webkit-overflow-scrolling: touch;
+	padding-bottom: 44px;
 }
 
 #cloudmigrate-app .cloudmigrate-lead {
