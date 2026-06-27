@@ -194,6 +194,7 @@ Remove-Item Env:CISCO_ENABLE_PASSWORD
 | [Network topology](network-topology.md) | Full homelab diagram, DNS flow, addressing |
 | [Astracap router](network-astracap-router.md) | WAN/LAN, NAT, DHCP, ACLs |
 | [Astraquasar switch](network-astraquasar-switch.md) | VLANs, ports, uplinks |
+
 ## Related LAN hosts
 
 | SSH alias | IP | User |
