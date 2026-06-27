@@ -1,48 +1,44 @@
 @php
     $isAdminServerView = request()->is('admin/servers/view/*');
-    $serverId = $isAdminServerView ? (int) request()->segment(4) : null;
+    $isDnsServerPage = request()->is('extensions/dnsrecords/admin/servers/view/*');
+    $serverId = null;
+
+    if ($isAdminServerView) {
+        $serverId = (int) request()->segment(4);
+    } elseif ($isDnsServerPage) {
+        $serverId = (int) request()->segment(6);
+    }
+
     $serverUuid = $serverId ? optional(\Pterodactyl\Models\Server::find($serverId))->uuid : null;
+    $dnsPageUrl = $serverId ? url("/extensions/dnsrecords/admin/servers/view/{$serverId}") : null;
 @endphp
 
-@if ($isAdminServerView && $serverId && $serverUuid)
+@if (($isAdminServerView || $isDnsServerPage) && $serverId && $serverUuid && $dnsPageUrl)
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            var nav = document.querySelector('.nav-tabs');
-            var content = document.querySelector('.tab-content');
-            if (!nav || !content || document.getElementById('dns-tab')) {
+            var nav = document.querySelector('.nav-tabs-custom .nav.nav-tabs') || document.querySelector('ul.nav-tabs');
+            if (!nav || document.getElementById('dnsrecords-server-nav')) {
                 return;
             }
 
             var tab = document.createElement('li');
-            tab.innerHTML = '<a href="#dns-tab" data-toggle="tab" aria-expanded="false">DNS</a>';
-            nav.appendChild(tab);
+            tab.id = 'dnsrecords-server-nav';
+            @if ($isDnsServerPage)
+            tab.className = 'active';
+            @endif
+            tab.innerHTML = '<a href="{{ $dnsPageUrl }}">DNS</a>';
 
-            var pane = document.createElement('div');
-            pane.className = 'tab-pane';
-            pane.id = 'dns-tab';
-            pane.innerHTML = '<div id="plugin-root-com-prestonhager-dns"></div>';
-            content.appendChild(pane);
-
-            window.__PterodactylPluginContext = {
-                rootId: 'plugin-root-com-prestonhager-dns',
-                pluginId: 'com.prestonhager.dns',
-                serverId: {{ $serverId }},
-                serverUuid: @json($serverUuid),
-                apiBase: '/extensions/dnsrecords/admin/servers/{{ $serverId }}',
-                csrfToken: @json(csrf_token()),
-                getPermissions: function () { return ['*']; },
-                hasFullAccess: function () { return true; },
-                getRootClass: function () { return 'dns-plugin-admin'; }
-            };
-
-            var script = document.createElement('script');
-            script.src = '/extensions/dnsrecords/dns-admin.js';
-            script.onload = function () {
-                if (typeof window.PterodactylPlugin_com_prestonhager_dns === 'function') {
-                    window.PterodactylPlugin_com_prestonhager_dns();
+            var manageLink = nav.querySelector('a[href*="/manage"]');
+            if (manageLink && manageLink.parentElement) {
+                nav.insertBefore(tab, manageLink.parentElement);
+            } else {
+                var deleteTab = nav.querySelector('.tab-danger');
+                if (deleteTab) {
+                    nav.insertBefore(tab, deleteTab);
+                } else {
+                    nav.appendChild(tab);
                 }
-            };
-            document.body.appendChild(script);
+            }
         });
     </script>
 @endif

@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Http\Controllers\DnsApiController;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Http\Controllers\DnsServerAdminController;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Listeners\RegisterServerEventListeners;
 
 RegisterServerEventListeners::boot();
@@ -12,6 +13,10 @@ RegisterServerEventListeners::boot();
 */
 
 Route::middleware(['web', 'auth', 'admin'])->group(function () {
+    Route::get('/admin/servers/view/{server}', [DnsServerAdminController::class, 'show'])
+        ->where('server', '[0-9]+')
+        ->name('extensions.dnsrecords.admin.servers.view');
+
     Route::group(['prefix' => '/admin/servers/{server}'], function () {
         Route::get('/records', [DnsApiController::class, 'recordsIndex']);
         Route::post('/records', [DnsApiController::class, 'recordsStore']);

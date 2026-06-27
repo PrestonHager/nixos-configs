@@ -104,7 +104,8 @@
                 <h3 class="box-title">Admin server DNS tab</h3>
             </div>
             <div class="box-body">
-                <p>Open any server in the admin panel (<code>/admin/servers/view/{id}</code>). A <strong>DNS</strong> tab is injected by this extension for root administrators.</p>
+                <p>Open any server in the admin panel (<code>/admin/servers/view/{id}</code>). A <strong>DNS</strong> tab appears in the server navigation for root administrators.</p>
+                <p>Server DNS page: <code>/extensions/dnsrecords/admin/servers/view/{serverId}</code></p>
                 <p>API base for the admin UI: <code>/extensions/dnsrecords/admin/servers/{serverId}/...</code></p>
             </div>
         </div>

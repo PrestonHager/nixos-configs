@@ -77,6 +77,15 @@
                 </div>
             </form>
         </div>
+        <div class="box">
+            <div class="box-header with-border">
+                <h3 class="box-title">Per-server NAT tab</h3>
+            </div>
+            <div class="box-body">
+                <p>Open any server in the admin panel (<code>/admin/servers/view/{id}</code>). A <strong>Network / NAT</strong> tab appears in the server navigation for root administrators.</p>
+                <p>Server NAT page: <code>/extensions/portforward/admin/servers/view/{serverId}</code></p>
+            </div>
+        </div>
     </div>
 </div>
 @endsection

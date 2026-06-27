@@ -297,7 +297,7 @@ let
         src="$2"
         dest="$panel/.blueprint/extensions/$ext"
         [ -d "$src" ] && [ -d "$dest" ] || return 0
-        for sub in app database routes public; do
+        for sub in app database routes public views; do
           [ -d "$src/$sub" ] || continue
           if ! ${pkgs.diffutils}/bin/diff -qr "$src/$sub" "$dest/$sub" >/dev/null 2>&1; then
             echo "pterodactyl-test-blueprint-install: syncing $ext/$sub from plugin source..."
@@ -307,8 +307,24 @@ let
           fi
         done
       }
+      sync_extension_wrapper() {
+        ext="$1"
+        src="$2"
+        src_wrapper="$src/admin/wrapper.blade.php"
+        dest="$panel/.blueprint/extensions/$ext"
+        dest_wrapper="$dest/wrappers/admin.blade.php"
+        [ -f "$src_wrapper" ] && [ -d "$dest" ] || return 0
+        install -d -m 0755 -o prestonh -g users "$(dirname "$dest_wrapper")"
+        if [ ! -f "$dest_wrapper" ] || ! cmp -s "$src_wrapper" "$dest_wrapper"; then
+          echo "pterodactyl-test-blueprint-install: syncing $ext admin wrapper from plugin source..."
+          cp -a "$src_wrapper" "$dest_wrapper"
+          chown prestonh:users "$dest_wrapper"
+        fi
+      }
       sync_extension_backend dnsrecords "${dnsExtensionSrc}"
       sync_extension_backend portforward "${portforwardExtensionSrc}"
+      sync_extension_wrapper dnsrecords "${dnsExtensionSrc}"
+      sync_extension_wrapper portforward "${portforwardExtensionSrc}"
     }
 
     ensure_extension_migrations() {
