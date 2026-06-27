@@ -57,7 +57,7 @@ run_panel "yarn install"
 echo "=== blueprint.sh framework ==="
 nix shell nixpkgs#yarn nixpkgs#nodejs_22 nixpkgs#bash --command \
   runuser -u prestonh -- env HOME=/home/prestonh BLUEPRINT_ENVIRONMENT=ci TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 \
-  bash -c "cd '$panel' && ./blueprint.sh"
+  bash -c "cd '$panel' && bash ./blueprint.sh"
 
 echo "=== sociallogin ==="
 curl -fsSL "$sl_url" -o "$tmp/sociallogin.blueprint"
@@ -65,7 +65,7 @@ cp "$tmp/sociallogin.blueprint" "$panel/sociallogin.blueprint"
 chown prestonh:users "$panel/sociallogin.blueprint"
 nix shell nixpkgs#yarn nixpkgs#nodejs_22 nixpkgs#bash --command \
   runuser -u prestonh -- env HOME=/home/prestonh TERM=dumb \
-  bash -c "cd '$panel' && rm -f .blueprint/lock && ./blueprint.sh -install sociallogin"
+  bash -c "cd '$panel' && rm -f .blueprint/lock && bash ./blueprint.sh -install sociallogin"
 rm -f "$panel/sociallogin.blueprint"
 
 install_dev_ext() {
@@ -75,7 +75,7 @@ install_dev_ext() {
   chown -R prestonh:users "$panel/.blueprint/dev"
   nix shell nixpkgs#yarn nixpkgs#nodejs_22 nixpkgs#bash --command \
     runuser -u prestonh -- env HOME=/home/prestonh TERM=dumb \
-    bash -c "cd '$panel' && rm -f .blueprint/lock && ./blueprint.sh -install '[developer-build]'"
+    bash -c "cd '$panel' && rm -f .blueprint/lock && bash ./blueprint.sh -install '[developer-build]'"
 }
 
 echo "=== dnsrecords ==="
