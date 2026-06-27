@@ -150,6 +150,8 @@ EOF
     ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
       maintenance_window_start --type=integer --value=3
     ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
+      serverid --type=integer --value=0
+    ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
       default_phone_region --value=US
     ${pkgs.podman}/bin/podman exec -u www-data nextcloud php /var/www/html/occ config:system:set \
       strict_transport_security.enabled --type=boolean --value=true
@@ -395,7 +397,8 @@ EOF
     fi
     occ app:enable user_oidc
 
-    occ config:app:set user_oidc allow_multiple_user_backends --value=1 --type=integer
+    occ config:app:delete user_oidc allow_multiple_user_backends 2>/dev/null || true
+    occ config:app:set user_oidc allow_multiple_user_backends --value=1 --type=string
     occ config:system:set user_oidc login_label --value="Sign in with Zitadel"
     occ config:system:set user_oidc enrich_login_id_token_with_userinfo --value=true --type=boolean
     # DnsPinMiddleware uses PHP DNS (not /etc/hosts); allow LAN-resolved ace services.

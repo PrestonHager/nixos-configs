@@ -198,6 +198,37 @@ podman exec -u www-data nextcloud php occ config:app:get whiteboard jwt_secret_k
 
 Admin **Settings → Administration → Overview** should no longer show the whiteboard WebSocket warning.
 
+## Administration overview warnings
+
+Reference for **Settings → Administration → Overview** items on ace (single-node homelab).
+
+| Warning | Status | Notes |
+|---------|--------|-------|
+| Errors in logs | Fixed (Jun 2026) | Historical noise from NC34 upgrade; see [Log errors](#log-errors) below. Truncate `data/nextcloud.log` after fixes to reset the counter. |
+| Mimetype migrations | Fixed on deploy | `nextcloud-occ-config.service` runs `occ maintenance:repair --include-expensive` once (marker `/stor/nextcloud/.occ-expensive-repair-done`). Re-run manually after major upgrades: `occ maintenance:repair --include-expensive`. |
+| Server ID (`serverid`) | Fixed on deploy | Single-node: `occ config:system:set serverid --type=integer --value=0`. Distinct from `instanceid` (auto-generated at install). |
+| Email server | Configured | iCloud SMTP via sops `SMTP_PASSWORD` in `nextcloud-environment`; `mail_test_wizard_completed=yes` set after first successful test. Optional — many homelabs skip outbound mail. |
+| AppAPI deploy daemon | Optional / ignore | `app_api` is bundled with NC34 but Ex-Apps (Talk bot, etc.) are not used. Safe to dismiss unless you install Ex-Apps and need a HaRP/daemon. |
+| Second factor (2FA) | Optional | `twofactor_totp`, `twofactor_nextcloud_notification`, and `twofactor_backupcodes` are installed. Zitadel already provides MFA; enforcing NC 2FA for OIDC users is optional. To enforce for all local users: `occ twofactorauth:enforce --group=admin` (or per-group). |
+| Whiteboard WebSocket | Fixed on deploy | See [Whiteboard real-time collaboration](#whiteboard-real-time-collaboration). |
+
+### Log errors
+
+Top causes in `data/nextcloud.log` since the NC 31→34 upgrade (June 2026):
+
+| Count (approx.) | App | Message | Resolution |
+|-----------------|-----|---------|------------|
+| ~780 | `cloudmigrate` | `registerCommand()` undefined on NC34 | Fixed in `apps/cloudmigrate` — `Application.php` no longer registers OCC commands via bootstrap. Historical entries only after redeploy. |
+| ~960 | `user_oidc` | `allow_multiple_user_backends` AppConfig type conflict (integer vs string) | Fixed: delete key, re-set with `--type=string`. Nix `nextcloud-oidc-config.service` applies this on deploy. |
+
+After confirming no new errors:
+
+```bash
+podman exec nextcloud truncate -s 0 /var/www/html/data/nextcloud.log
+```
+
+Active monitoring probes (`Blackbox-Exporter` hitting `/login` every ~30s) previously amplified log volume from the `user_oidc` warning.
+
 ## Verification on ace
 
 ```bash
