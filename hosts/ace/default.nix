@@ -7,6 +7,7 @@
     ../../nixos/local-service-hosts.nix
     ../../nixos
     ../../nixos/headless
+    ../../nixos/security
     # include SAMBA for file sharing
     #../../nixos/samba
     # include nfs for caddy lets encrypt certs
@@ -57,6 +58,19 @@
         "crux.lc1.nm.us.prestonhager.com"
       ];
     };
+  };
+
+  homelab.security = {
+    enable = true;
+    hostName = "ace";
+    role = "central";
+    phase2.enable = true;
+    cisco.enable = true;
+    # Set true after adding secrets/cisco.yaml to nix-secrets (TC-1.3).
+    cisco.backup.enable = false;
+    loki.enable = true;
+    promtail.enable = true;
+    suricata.enable = true;
   };
 }
 

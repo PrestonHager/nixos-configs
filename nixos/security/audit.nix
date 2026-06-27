@@ -1,0 +1,27 @@
+{ config, lib, ... }:
+
+let
+  cfg = config.homelab.security;
+in {
+  config = lib.mkIf cfg.enable {
+    security.audit.enable = true;
+
+    security.audit.rules = [
+      "-a always,exit -F arch=b64 -S execve -F euid=0 -k root-exec"
+      "-a always,exit -F arch=b64 -S execve -F euid=0 -F exe=/usr/bin/sudo -k sudo-exec"
+      "-w /etc/passwd -p wa -k identity"
+      "-w /etc/group -p wa -k identity"
+      "-w /etc/shadow -p wa -k identity"
+      "-w /etc/nixos -p wa -k nixos-config"
+      "-w /etc/ssh/sshd_config -p wa -k sshd-config"
+    ] ++ lib.optionals cfg.phase2.enable [
+      "-a always,exit -F arch=b64 -S setuid -F a0=0 -k setuid-root"
+      "-w /etc/sudoers -p wa -k sudoers"
+      "-w /etc/sudoers.d -p wa -k sudoers"
+    ];
+
+    systemd.services.auditd.serviceConfig = {
+      LogsDirectory = "audit";
+    };
+  };
+}

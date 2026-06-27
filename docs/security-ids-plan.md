@@ -1,11 +1,12 @@
 # Homelab IDS & Security Monitoring — Deployment Plan
 
-**Status:** Planning only (not implemented)  
+**Status:** Phase 1 implemented; Phase 2 core in progress (see `nixos/security/`, `nixos/monitoring/`)  
+**Test cases:** [`security-ids-test-cases.md`](security-ids-test-cases.md)  
 **Updated:** 2026-06-26  
 **Branch:** `dell-poweredge-r730xd`  
 **Scope:** ace, crux, nova (NixOS); Astracap router; Astraquasar switch; LAN `192.168.5.0/24` (and related subnets)
 
-This document is a practical homelab plan for **detecting unauthorized changes and suspicious activity** and **responding** when something looks wrong. It references existing monitoring (`docs/monitoring-ace.md`) and network access patterns (`docs/network-ssh-ace.md`) but does not add NixOS modules or secrets.
+This document is a practical homelab plan for **detecting unauthorized changes and suspicious activity** and **responding** when something looks wrong. It references existing monitoring (`docs/monitoring-ace.md`) and network access patterns (`docs/network-ssh-ace.md`). NixOS modules live under `nixos/security/` and `nixos/monitoring/`; validate with the test-case doc above.
 
 ---
 
@@ -42,7 +43,7 @@ This document is a practical homelab plan for **detecting unauthorized changes a
 
 **Existing observability (ace):** Grafana + Prometheus, blackbox probes, `node_exporter`, `ace-health-exporter`, email alerting via Grafana Unified Alerting. See `docs/monitoring-ace.md` and `docs/monitoring-external-probes.md`.
 
-**Log aggregation today:** systemd journal on each host; container logs via Podman; no centralized Loki stack documented yet. Phase 1 should add a log path before heavy IDS rules.
+**Log aggregation today:** Loki + Promtail on ace (`nixos/monitoring/loki.nix`, `promtail.nix`); journals and security logs from crux/nova forward to ace. Cisco syslog → ace rsyslog (`nixos/security/cisco-syslog.nix`). See **TC-1.5** in [`security-ids-test-cases.md`](security-ids-test-cases.md).
 
 ---
 
@@ -176,7 +177,7 @@ flowchart TD
 | **Outbound C2 (host-level)** | Optional osquery scheduled queries | ace first | 3 | Heavier; evaluate after Suricata |
 | **Metrics anomalies** | Prometheus: connection count, disk, failed units | All hosts | 1 | Partially covered by `node_exporter` + ace-health |
 
-**NixOS modules to evaluate (implementation later):** `services.aide`, `security.audit`, `services.fail2ban`, `systemd.services` timers for git/nix-store checks. No module code in this plan.
+**NixOS modules (implemented):** `nixos/security/` (`homelab.security.*`), `nixos/monitoring/loki.nix`, `promtail.nix`, `suricata.nix`, Grafana Security alert rules. Cisco IOS syslog/backup steps: test cases **TC-1.2**, **TC-1.3**, and [Cisco integration](security-ids-test-cases.md#cisco-integration-phase-12).
 
 ### 4.2 Network devices
 
@@ -379,6 +380,7 @@ Reference: existing email alert rules in `docs/monitoring-ace.md` (service down,
 
 | Doc | Relevance |
 |-----|-----------|
+| [`security-ids-test-cases.md`](security-ids-test-cases.md) | **Validation** — setup, execution, troubleshooting per phase |
 | `docs/monitoring-ace.md` | Grafana, Prometheus, email alerting |
 | `docs/monitoring-external-probes.md` | External vs LAN probe context |
 | `docs/network-ssh-ace.md` | Cisco SSH, credentials in Vaultwarden |

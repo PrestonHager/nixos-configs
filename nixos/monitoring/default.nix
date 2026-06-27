@@ -10,6 +10,10 @@ in {
     ./ace-service-auto-update.nix
     ./lan-dns-prober.nix
     ./grafana-alerting.nix
+    ./loki.nix
+    ./promtail.nix
+    ./suricata.nix
+    ./grafana-security-alerting.nix
   ];
 
   environment.etc."prometheus/prometheus.yml".text = (import ./prometheus-config.nix { inherit lib; }).prometheusYml;

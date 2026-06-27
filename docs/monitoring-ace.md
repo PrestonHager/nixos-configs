@@ -74,7 +74,7 @@ See also `docs/zitadel-ace.md` for console steps.
 
 External and LAN probe perspectives: `docs/monitoring-external-probes.md`.
 
-Security detection and incident response (planned): `docs/security-ids-plan.md` — extends this stack with Loki, host IDS, and Grafana **Security** alert rules in later phases.
+Security detection and incident response: `docs/security-ids-plan.md` — Loki log aggregation, host IDS (Suricata), audit/fail2ban, and Grafana **Security** alert rules. Test procedures: `docs/security-ids-test-cases.md`.
 
 ## Email alerting (Grafana Unified Alerting)
 

@@ -30,5 +30,6 @@
   imports = [
     ../../nixos/monitoring/crux-probes.nix
     ../../nixos/monitoring/crux-prometheus.nix
+    ../../nixos/monitoring/promtail.nix
   ];
 }

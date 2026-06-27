@@ -8,6 +8,7 @@ in
     ./link-letsencrypt.nix
     ./nfs.nix
     ../../nixos
+    ../../nixos/security
     # Ace headless imports podman/containers/monitoring — incompatible with Wings (Docker).
     ../../hardware/dell-optiplex-7050/hardware-configuration.nix
     ../../users/prestonh
@@ -169,5 +170,13 @@ in
     extraCommands = ''
       iptables -A nixos-fw -m conntrack --ctstate RELATED,ESTABLISHED -j nixos-fw-accept
     '';
+  };
+
+  homelab.security = {
+    enable = true;
+    hostName = config.networking.hostName;
+    role = "node";
+    phase2.enable = true;
+    promtail.enable = true;
   };
 }

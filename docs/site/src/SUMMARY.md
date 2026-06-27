@@ -32,6 +32,7 @@
 # Shared
 
 - [IDS & Security Monitoring Plan](shared/security-ids-plan.md)
+- [IDS Test Cases](shared/security-ids-test-cases.md)
 - [Network topology](shared/network-topology.md)
 - [Astracap router](shared/network-astracap.md)
 - [Astraquasar switch](shared/network-astraquasar.md)
