@@ -232,6 +232,26 @@ let
       done
     }
 
+    ensure_extension_backend_sync() {
+      sync_extension_backend() {
+        ext="$1"
+        src="$2"
+        dest="$panel/.blueprint/extensions/$ext"
+        [ -d "$src" ] && [ -d "$dest" ] || return 0
+        for sub in app database routes public; do
+          [ -d "$src/$sub" ] || continue
+          if ! ${pkgs.diffutils}/bin/diff -qr "$src/$sub" "$dest/$sub" >/dev/null 2>&1; then
+            echo "pterodactyl-blueprint-install: syncing $ext/$sub from plugin source..."
+            rm -rf "$dest/$sub"
+            cp -a "$src/$sub" "$dest/$sub"
+            chown -R pterodactyl:pterodactyl "$dest/$sub"
+          fi
+        done
+      }
+      sync_extension_backend dnsrecords "${dnsExtensionSrc}"
+      sync_extension_backend portforward "${portforwardExtensionSrc}"
+    }
+
     ensure_extension_migrations() {
       for src_dir in "${dnsExtensionSrc}/database/migrations" "${portforwardExtensionSrc}/database/migrations"; do
         [ -d "$src_dir" ] || continue
@@ -586,6 +606,7 @@ let
       ensure_extension_app_symlinks
       ensure_storage_extension_symlinks
       ensure_public_assets_extension_symlinks
+      ensure_extension_backend_sync
       ensure_extension_admin_files
       ensure_extension_migrations
       ensure_blueprint_admin_layout_patches
