@@ -9,6 +9,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IRequest;
 use OCP\ISession;
+use OCP\IURLGenerator;
 use OCP\Util;
 
 class PageController extends Controller {
@@ -16,6 +17,7 @@ class PageController extends Controller {
 		string $appName,
 		IRequest $request,
 		private ISession $session,
+		private IURLGenerator $urlGenerator,
 	) {
 		parent::__construct($appName, $request);
 	}
@@ -31,6 +33,7 @@ class PageController extends Controller {
 		$this->session->remove('cloudmigrate_flash');
 		return new TemplateResponse(Application::APP_ID, 'index', [
 			'flash' => $flash,
+			'onedriveConnectUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.oauth.onedrive'),
 		]);
 	}
 }

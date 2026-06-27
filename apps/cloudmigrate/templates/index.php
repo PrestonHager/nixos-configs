@@ -16,7 +16,7 @@ style('cloudmigrate', 'main');
 		<h3><?php p($l->t('Microsoft OneDrive')); ?></h3>
 		<p id="onedrive-admin-hint" class="hint"></p>
 		<div class="cloudmigrate-actions">
-			<a id="onedrive-connect" class="button primary" href="<?php p(\OC::$server->getURLGenerator()->linkToRoute('cloudmigrate.oauth.onedrive')); ?>">
+			<a id="onedrive-connect" class="button primary" href="<?php p($_['onedriveConnectUrl'] ?? ''); ?>">
 				<?php p($l->t('Connect OneDrive')); ?>
 			</a>
 			<button id="onedrive-disconnect" class="button" type="button" hidden><?php p($l->t('Disconnect')); ?></button>
