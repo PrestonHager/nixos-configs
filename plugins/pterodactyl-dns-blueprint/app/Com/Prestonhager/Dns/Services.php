@@ -6,7 +6,12 @@ use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Cl
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Cloudflare\DnsService;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Cloudflare\SrvProvisioner;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Cloudflare\SrvRecordMatcher;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Providers\CloudflareProvider;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Providers\ProviderManager;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Providers\TechnitiumProvider;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\AuditLog;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\Config;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Technitium\Client as TechnitiumClient;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\DnsLookupService;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\DnsPolicy;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\HostnameManager;
@@ -93,6 +98,39 @@ final class Services
         );
     }
 
+    public static function auditLog(PluginContext $context): AuditLog
+    {
+        return new AuditLog();
+    }
+
+    public static function technitiumClient(PluginContext $context): TechnitiumClient
+    {
+        return new TechnitiumClient($context, self::config($context));
+    }
+
+    public static function cloudflareProvider(PluginContext $context): CloudflareProvider
+    {
+        return new CloudflareProvider(self::client($context));
+    }
+
+    public static function technitiumProvider(PluginContext $context): TechnitiumProvider
+    {
+        return new TechnitiumProvider(self::technitiumClient($context), self::config($context));
+    }
+
+    public static function providerManager(PluginContext $context): ProviderManager
+    {
+        $config = self::config($context);
+
+        return new ProviderManager(
+            $context,
+            $config,
+            self::cloudflareProvider($context),
+            self::technitiumProvider($context),
+            self::auditLog($context),
+        );
+    }
+
     public static function srvProvisioner(PluginContext $context): SrvProvisioner
     {
         $config = self::config($context);
@@ -103,6 +141,7 @@ final class Services
             self::client($context),
             self::state($context),
             self::srvMatcher($context),
+            self::providerManager($context),
         );
     }
 }

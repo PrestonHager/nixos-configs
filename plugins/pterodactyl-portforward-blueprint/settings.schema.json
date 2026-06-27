@@ -1,0 +1,111 @@
+{
+  "fields": [
+    {
+      "key": "enabled",
+      "type": "boolean",
+      "label": "Enable extension",
+      "default": false,
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "router_host",
+      "type": "string",
+      "label": "Router host",
+      "default": "192.168.5.1",
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "router_ssh_user",
+      "type": "string",
+      "label": "SSH user",
+      "default": "prestonh",
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "router_ssh_private_key",
+      "type": "password",
+      "label": "SSH private key",
+      "description": "Prefer mounting via sops at PORTFORWARD_SSH_KEY_FILE instead of storing in settings.",
+      "sensitive": true,
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "wan_interface",
+      "type": "string",
+      "label": "WAN interface",
+      "default": "GigabitEthernet0/0",
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "dry_run",
+      "type": "boolean",
+      "label": "Dry-run mode",
+      "description": "Log IOS commands without applying them on the router.",
+      "default": true,
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "auto_forward_on_install",
+      "type": "boolean",
+      "label": "Auto-forward on install",
+      "default": false,
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "auto_remove_on_delete",
+      "type": "boolean",
+      "label": "Auto-remove on delete",
+      "default": true,
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "allowed_port_min",
+      "type": "integer",
+      "label": "Allowed port min",
+      "default": 1024,
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "allowed_port_max",
+      "type": "integer",
+      "label": "Allowed port max",
+      "default": 65535,
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "blocked_ports",
+      "type": "list",
+      "label": "Blocked ports",
+      "default": [22, 80, 443, 3380],
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "node_ip_map",
+      "type": "json",
+      "label": "Node IP map",
+      "description": "Pterodactyl node ID to LAN IP mapping.",
+      "default": {},
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "max_mappings_per_server",
+      "type": "integer",
+      "label": "Max mappings per server",
+      "default": 8,
+      "surfaces": ["admin"],
+      "storage": "config"
+    }
+  ]
+}

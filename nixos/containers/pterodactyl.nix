@@ -15,6 +15,7 @@ in
     ./pterodactyl-stock-reset.nix
     ./pterodactyl-blueprint.nix
     ./pterodactyl-sso.nix
+    ./pterodactyl-extensions.nix
   ];
   sops.secrets = {
     "pterodactyl-env" = {
@@ -155,6 +156,7 @@ in
         "/pterodactyl/html:/var/www/pterodactyl"
         "/pterodactyl/sockets/mysqld:/run/mysqld"
         "/pterodactyl/sockets/php:/run/php-fpm"
+        "/pterodactyl/secrets:/pterodactyl/secrets:ro"
         "${config.sops.secrets."pterodactyl-env".path}:/var/www/pterodactyl/.env.initial:U"
       ];
 
@@ -165,6 +167,7 @@ in
       extraOptions = [
         "--pod=pterodactyl"
         "--env-file=${config.sops.secrets."pterodactyl-env".path}"
+        "--env-file=/pterodactyl/secrets/blueprint-extensions.env"
       ];
 
       # Finally, the pterodactyl runtime image and version

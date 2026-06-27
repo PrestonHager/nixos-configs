@@ -5,8 +5,10 @@ namespace Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Listeners;
 use Illuminate\Support\Facades\Event;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Jobs\DeleteDnsRecordsJob;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Jobs\ProvisionSrvProfilesJob;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Jobs\UpdateSrvOnAllocationJob;
 use Pterodactyl\Events\Server\Deleting;
 use Pterodactyl\Events\Server\Installed;
+use Pterodactyl\Events\Server\Updated;
 
 class RegisterServerEventListeners
 {
@@ -24,6 +26,12 @@ class RegisterServerEventListeners
 
         Event::listen(Deleting::class, function (Deleting $event) {
             DeleteDnsRecordsJob::dispatch($event->server->id);
+        });
+
+        Event::listen(Updated::class, function (Updated $event) {
+            if ($event->server->wasChanged('allocation_id')) {
+                UpdateSrvOnAllocationJob::dispatch($event->server->id);
+            }
         });
     }
 }

@@ -7,6 +7,7 @@ let
   blueprintReleaseUrl = "https://github.com/BlueprintFramework/framework/releases/latest/download/release.zip";
   socialloginBlueprintUrl = "https://github.com/blueprint-community/extension-sociallogin/releases/download/1.2.0/sociallogin.blueprint";
   dnsExtensionSrc = "/etc/nixos/plugins/pterodactyl-dns-blueprint";
+  portforwardExtensionSrc = "/etc/nixos/plugins/pterodactyl-portforward-blueprint";
 
   toolPath = pkgs.lib.makeBinPath [
     pkgs.bash
@@ -235,6 +236,27 @@ let
       ensure_frontend_built
     }
 
+    install_portforward_extension() {
+      if [ ! -d "${portforwardExtensionSrc}" ]; then
+        echo "pterodactyl-blueprint-install: Port Forward extension source missing at ${portforwardExtensionSrc}" >&2
+        return 1
+      fi
+      if [ -d "$panel/.blueprint/extensions/portforward" ]; then
+        echo "pterodactyl-blueprint-install: Port Forward extension already present"
+        return 0
+      fi
+      echo "pterodactyl-blueprint-install: installing portforward extension from dev tree..."
+      install -d -m 0755 -o pterodactyl -g pterodactyl "$panel/.blueprint/dev"
+      rm -rf "$panel/.blueprint/dev/"*
+      cp -a "${portforwardExtensionSrc}/." "$panel/.blueprint/dev/"
+      chown -R pterodactyl:pterodactyl "$panel/.blueprint/dev"
+      if ! blueprint_cli -info 2>/dev/null | grep -qi portforward; then
+        rm -f "$panel/.blueprint/lock"
+        blueprint_cli -install '[developer-build]' \
+          || blueprint_cli -i '[developer-build]'
+      fi
+    }
+
     install_dnsrecords_extension() {
       if [ ! -d "${dnsExtensionSrc}" ]; then
         echo "pterodactyl-blueprint-install: DNS extension source missing at ${dnsExtensionSrc}" >&2
@@ -284,20 +306,22 @@ let
     }
 
     write_marker() {
-      echo "blueprint+sociallogin+dnsrecords" > "$marker"
+      echo "blueprint+sociallogin+dnsrecords+portforward" > "$marker"
       chown pterodactyl:pterodactyl "$marker"
     }
 
     if blueprint_integrated \
       && [ -d "$panel/.blueprint/extensions/sociallogin" ] \
-      && [ -d "$panel/.blueprint/extensions/dnsrecords" ]; then
+      && [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
+      && [ -d "$panel/.blueprint/extensions/portforward" ]; then
       write_marker
-      echo "pterodactyl-blueprint-install: Blueprint, Social Login, and DNS Records ready"
+      echo "pterodactyl-blueprint-install: Blueprint, Social Login, DNS Records, and Port Forward ready"
       exit 0
     fi
 
     if [ -d "$panel/.blueprint/extensions/sociallogin" ] \
       && [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
+      && [ -d "$panel/.blueprint/extensions/portforward" ] \
       && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
       if blueprint_backend_integrated && ! blueprint_frontend_integrated; then
         echo "pterodactyl-blueprint-install: backend ready but login UI missing Social Login, repairing frontend..."
@@ -328,9 +352,22 @@ let
         ensure_frontend_built
       fi
       install_dnsrecords_extension
+      install_portforward_extension
       post_install_hooks
       write_marker
       echo "pterodactyl-blueprint-install: DNS Records extension ready on production panel"
+      exit 0
+    fi
+
+    if [ -d "$panel/.blueprint/extensions/sociallogin" ] \
+      && [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
+      && [ ! -d "$panel/.blueprint/extensions/portforward" ] \
+      && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
+      echo "pterodactyl-blueprint-install: DNS present, installing Port Forward only..."
+      install_portforward_extension
+      post_install_hooks
+      write_marker
+      echo "pterodactyl-blueprint-install: Port Forward extension ready on production panel"
       exit 0
     fi
 
@@ -397,14 +434,15 @@ let
     fi
     rm -f "$panel/sociallogin.blueprint"
     install_dnsrecords_extension
+    install_portforward_extension
     post_install_hooks
     write_marker
-    echo "pterodactyl-blueprint-install: Blueprint, Social Login, and DNS Records ready"
+    echo "pterodactyl-blueprint-install: Blueprint, Social Login, DNS Records, and Port Forward ready"
   '';
 in
 {
   systemd.services.pterodactyl-blueprint-install = {
-    description = "Install Blueprint, Social Login, and DNS Records on production panel";
+    description = "Install Blueprint, Social Login, DNS Records, and Port Forward on production panel";
     after = [
       "podman-pterodactyl.service"
       "pterodactyl-stock-reset.service"

@@ -34,6 +34,12 @@ class dnsrecordsExtensionController extends Controller
     {
         $validated = $request->validate([
             'cloudflare_api_token' => 'nullable|string',
+            'technitium_api_token' => 'nullable|string',
+            'dns_provider_mode' => 'nullable|string|in:cloudflare,technitium,both',
+            'technitium_api_url' => 'nullable|string',
+            'technitium_default_zone' => 'nullable|string',
+            'dry_run' => 'nullable|boolean',
+            'update_on_allocation_change' => 'nullable|boolean',
             'zone_id' => 'required|string',
             'base_domain' => 'required|string',
             'auto_provision_enabled' => 'nullable|boolean',
@@ -67,10 +73,18 @@ class dnsrecordsExtensionController extends Controller
             'max_label_length' => (int) ($validated['max_label_length'] ?? 32),
             'allow_custom_domain' => $request->boolean('allow_custom_domain'),
             'custom_domain_mode' => $validated['custom_domain_mode'] ?? 'cname',
+            'dns_provider_mode' => $validated['dns_provider_mode'] ?? 'cloudflare',
+            'technitium_api_url' => $validated['technitium_api_url'] ?? 'http://host.containers.internal:5380',
+            'technitium_default_zone' => $validated['technitium_default_zone'] ?? 'prestonhager.com',
+            'dry_run' => $request->boolean('dry_run'),
+            'update_on_allocation_change' => $request->boolean('update_on_allocation_change'),
         ]);
 
         if (!empty($validated['cloudflare_api_token'])) {
             $settings['cloudflare_api_token'] = $validated['cloudflare_api_token'];
+        }
+        if (!empty($validated['technitium_api_token'])) {
+            $settings['technitium_api_token'] = $validated['technitium_api_token'];
         }
 
         foreach (['srv_profiles_json' => 'srv_profiles', 'primary_domains_json' => 'primary_domains', 'reserved_labels_json' => 'reserved_labels'] as $input => $key) {
@@ -111,6 +125,12 @@ class dnsrecordsExtensionController extends Controller
             'max_label_length' => 32,
             'allow_custom_domain' => false,
             'custom_domain_mode' => 'cname',
+            'dns_provider_mode' => 'cloudflare',
+            'technitium_api_url' => 'http://host.containers.internal:5380',
+            'technitium_api_token' => '',
+            'technitium_default_zone' => 'prestonhager.com',
+            'dry_run' => false,
+            'update_on_allocation_change' => true,
         ];
     }
 }

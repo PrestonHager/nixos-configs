@@ -8,6 +8,8 @@ use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Su
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\SrvProfile;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Dto\AllocationSummary;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Dto\ServerSummary;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Providers\ProviderManager;
+
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Compatibility\PluginContext;
 
 class SrvProvisioner
@@ -18,6 +20,7 @@ class SrvProvisioner
         private readonly Client $client,
         private readonly ServerDnsState $state,
         private readonly SrvRecordMatcher $matcher,
+        private readonly ProviderManager $providers,
     ) {
     }
 
@@ -150,7 +153,6 @@ class SrvProvisioner
 
     private function ensureARecord(int $serverId, string $fqdn, string $ip, string $zoneId): void
     {
-        $existingId = $this->state->aRecordId($serverId);
         $payload = [
             'type' => 'A',
             'name' => $fqdn,
@@ -159,27 +161,27 @@ class SrvProvisioner
             'proxied' => false,
         ];
 
+        $existingId = $this->state->aRecordId($serverId);
         if (!is_null($existingId)) {
-            $this->client->updateRecord($existingId, $payload, $zoneId);
-            $this->state->setARecord($serverId, $existingId, $fqdn);
+            $existing = $this->state->findRecord($serverId, $existingId);
+            if (!is_null($existing)) {
+                $updated = $this->providers->updateRecord($existingId, $payload, $zoneId, $existing, $serverId);
+                foreach ($updated as $record) {
+                    $this->state->upsertRecord($serverId, $record);
+                    $this->state->setARecord($serverId, (string) ($record['record_id'] ?? $record['cloudflare_id']), $fqdn);
+                }
 
-            return;
+                return;
+            }
         }
 
-        $result = $this->client->createRecord($payload, $zoneId);
-        $id = (string) ($result['result']['id'] ?? '');
-        if ($id !== '') {
-            $this->state->setARecord($serverId, $id, $fqdn);
-            $this->state->upsertRecord($serverId, [
-                'cloudflare_id' => $id,
-                'type' => 'A',
-                'name' => $fqdn,
-                'content' => $ip,
-                'profile_id' => null,
-                'zone_id' => $zoneId,
-                'created_at' => now()->toIso8601String(),
-                'updated_at' => now()->toIso8601String(),
-            ]);
+        $created = $this->providers->createRecord($payload, $zoneId, null, $serverId);
+        foreach ($created as $record) {
+            $id = (string) ($record['record_id'] ?? $record['cloudflare_id'] ?? '');
+            if ($id !== '') {
+                $this->state->setARecord($serverId, $id, $fqdn);
+                $this->state->upsertRecord($serverId, $record);
+            }
         }
     }
 
@@ -228,17 +230,32 @@ class SrvProvisioner
             $zoneId,
         );
 
+        $providerOverride = $profile->targetProvider ?? null;
+
         if (!is_null($existing) && !empty($existing['cloudflare_id'])) {
-            $result = $this->client->updateRecord((string) $existing['cloudflare_id'], $payload, $zoneId);
-            $mapped = $this->mapSrvResult($result['result'] ?? [], $profile, $port, $targetHost, $zoneId);
-            $this->state->upsertRecord($serverId, $mapped);
+            $updated = $this->providers->updateRecord(
+                (string) $existing['cloudflare_id'],
+                array_merge($payload, ['profile_id' => $profile->id, 'label' => $profile->label]),
+                $zoneId,
+                $existing,
+                $serverId,
+            );
+            foreach ($updated as $record) {
+                $this->state->upsertRecord($serverId, $record);
+            }
 
             return;
         }
 
-        $result = $this->client->createRecord($payload, $zoneId);
-        $mapped = $this->mapSrvResult($result['result'] ?? [], $profile, $port, $targetHost, $zoneId);
-        $this->state->upsertRecord($serverId, $mapped);
+        $created = $this->providers->createRecord(
+            array_merge($payload, ['profile_id' => $profile->id, 'label' => $profile->label]),
+            $zoneId,
+            $providerOverride,
+            $serverId,
+        );
+        foreach ($created as $record) {
+            $this->state->upsertRecord($serverId, $record);
+        }
 
         $this->context->activity()->log('srv-record-provisioned', [
             'server_id' => $serverId,

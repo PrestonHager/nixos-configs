@@ -12,19 +12,102 @@ class Config
     ) {
     }
 
+    public function dnsProviderMode(): string
+    {
+        $value = (string) $this->context->config()->get('dns_provider_mode', 'cloudflare');
+        $allowed = ['cloudflare', 'technitium', 'both'];
+
+        return in_array($value, $allowed, true) ? $value : 'cloudflare';
+    }
+
+    public function technitiumApiUrl(): string
+    {
+        $value = $this->context->config()->get('technitium_api_url', 'http://host.containers.internal:5380');
+
+        return is_string($value) && trim($value) !== ''
+            ? rtrim(trim($value), '/')
+            : 'http://host.containers.internal:5380';
+    }
+
+    public function technitiumApiToken(): string
+    {
+        $file = getenv('TECHNITIUM_API_TOKEN_FILE') ?: '';
+        if ($file !== '' && is_readable($file)) {
+            $contents = trim((string) file_get_contents($file));
+            if ($contents !== '') {
+                return $contents;
+            }
+        }
+
+        $env = getenv('TECHNITIUM_API_TOKEN') ?: '';
+        if ($env !== '') {
+            return $env;
+        }
+
+        return $this->optionalString('technitium_api_token');
+    }
+
+    public function technitiumDefaultZone(): string
+    {
+        $value = $this->context->config()->get('technitium_default_zone', 'prestonhager.com');
+
+        return is_string($value) && trim($value) !== '' ? trim($value) : 'prestonhager.com';
+    }
+
+    public function dryRunEnabled(): bool
+    {
+        $value = $this->context->config()->get('dry_run', false);
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? (bool) $value;
+    }
+
+    public function updateOnAllocationChange(): bool
+    {
+        $value = $this->context->config()->get('update_on_allocation_change', true);
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? (bool) $value;
+    }
+
+    public function hasCloudflare(): bool
+    {
+        try {
+            return $this->cloudflareApiToken() !== '' && $this->zoneId() !== '';
+        } catch (PluginException) {
+            return false;
+        }
+    }
+
+    public function hasTechnitium(): bool
+    {
+        return $this->technitiumApiToken() !== '';
+    }
+
+    /**
+     * @return string[]
+     */
+    public function infraReservedLabels(): array
+    {
+        return [
+            'ace', 'crux', 'nova', 'panel', 'dns', 'grafana', 'cloud', 'game', 'mc',
+            'factorio', 'jellyfin', 'vault', 'zitadel', 'git', 'matrix', 'vpn', 'wg',
+        ];
+    }
+
     public function cloudflareApiToken(): string
     {
-        return $this->requireString('cloudflare_api_token');
+        return $this->optionalString('cloudflare_api_token');
     }
 
     public function zoneId(): string
     {
-        return $this->requireString('zone_id');
+        return $this->optionalString('zone_id');
     }
 
     public function baseDomain(): string
     {
-        return rtrim($this->requireString('base_domain'), '.');
+        $value = $this->optionalString('base_domain');
+
+        return $value !== '' ? rtrim($value, '.') : 'prestonhager.com';
     }
 
     public function defaultTtl(): int
@@ -259,11 +342,18 @@ class Config
 
     private function requireString(string $key): string
     {
-        $value = $this->context->config()->get($key);
-        if (!is_string($value) || trim($value) === '') {
+        $value = $this->optionalString($key);
+        if ($value === '') {
             throw new PluginException(sprintf('DNS plugin config "%s" is not set.', $key));
         }
 
-        return trim($value);
+        return $value;
+    }
+
+    private function optionalString(string $key): string
+    {
+        $value = $this->context->config()->get($key);
+
+        return is_string($value) ? trim($value) : '';
     }
 }

@@ -104,21 +104,11 @@ class DnsService
 
     public function deleteAllForServer(int $serverId): void
     {
-        foreach ($this->state->dnsRecords($serverId) as $record) {
-            $id = $record['cloudflare_id'] ?? null;
-            if (is_string($id) && $id !== '') {
-                try {
-                    $zoneId = (string) ($record['zone_id'] ?? $this->config->zoneId());
-                    $this->client->deleteRecord($id, $zoneId);
-                } catch (PluginException) {
-                }
-            }
-        }
+        $providerManager = \Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Services::providerManager($this->context);
 
-        $aRecordId = $this->state->aRecordId($serverId);
-        if (!is_null($aRecordId)) {
+        foreach ($this->state->dnsRecords($serverId) as $record) {
             try {
-                $this->client->deleteRecord($aRecordId, $this->config->zoneId());
+                $providerManager->deleteRecord($record, $serverId);
             } catch (PluginException) {
             }
         }

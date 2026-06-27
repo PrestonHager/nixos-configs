@@ -1,13 +1,13 @@
 info:
-  name: 'DNS Records'
-  identifier: 'dnsrecords'
-  description: 'Manage Cloudflare and Technitium DNS records from the Pterodactyl admin panel (SRV profiles, auto-provision, vanity hostnames).'
+  name: 'Port Forward'
+  identifier: 'portforward'
+  description: 'Manage Astracap router NAT port forwards for game servers on crux and nova via SSH.'
   flags: ''
-  version: '1.4.0'
+  version: '1.0.0'
   target: 'beta-2025-09'
   author: 'Preston Hager'
   icon: ''
-  website: 'https://github.com/PrestonHager/Pterodactyl-DNS-Plugin'
+  website: 'https://github.com/PrestonHager/nixos-configs'
 
 admin:
   view: 'admin/view.blade.php'

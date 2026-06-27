@@ -18,12 +18,20 @@
     <div class="col-xs-12">
         <div class="box">
             <div class="box-header with-border">
-                <h3 class="box-title">Cloudflare configuration</h3>
+                <h3 class="box-title">DNS configuration</h3>
             </div>
             <form action="{{ $root }}" method="POST">
                 @csrf
                 @method('PATCH')
                 <div class="box-body">
+                    <div class="form-group">
+                        <label for="dns_provider_mode">Provider mode</label>
+                        <select class="form-control" id="dns_provider_mode" name="dns_provider_mode">
+                            @foreach (['cloudflare' => 'Cloudflare only', 'technitium' => 'Technitium only', 'both' => 'Both (Cloudflare + Technitium)'] as $value => $label)
+                                <option value="{{ $value }}" @selected(old('dns_provider_mode', $settings['dns_provider_mode'] ?? 'cloudflare') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                     <div class="form-group">
                         <label for="cloudflare_api_token">Cloudflare API token</label>
                         <input type="password" class="form-control" id="cloudflare_api_token" name="cloudflare_api_token" placeholder="Leave blank to keep existing token">
@@ -36,6 +44,30 @@
                     <div class="form-group">
                         <label for="base_domain">Base domain</label>
                         <input type="text" class="form-control" id="base_domain" name="base_domain" value="{{ old('base_domain', $settings['base_domain'] ?? '') }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="technitium_api_url">Technitium API URL</label>
+                        <input type="text" class="form-control" id="technitium_api_url" name="technitium_api_url" value="{{ old('technitium_api_url', $settings['technitium_api_url'] ?? 'http://host.containers.internal:5380') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="technitium_api_token">Technitium API token</label>
+                        <input type="password" class="form-control" id="technitium_api_token" name="technitium_api_token" placeholder="Leave blank to keep existing or use TECHNITIUM_API_TOKEN_FILE">
+                    </div>
+                    <div class="form-group">
+                        <label for="technitium_default_zone">Technitium default zone</label>
+                        <input type="text" class="form-control" id="technitium_default_zone" name="technitium_default_zone" value="{{ old('technitium_default_zone', $settings['technitium_default_zone'] ?? 'prestonhager.com') }}">
+                    </div>
+                    <div class="checkbox">
+                        <label>
+                            <input type="checkbox" name="dry_run" value="1" @checked(old('dry_run', $settings['dry_run'] ?? false))>
+                            Dry-run mode (log intended DNS changes without API calls)
+                        </label>
+                    </div>
+                    <div class="checkbox">
+                        <label>
+                            <input type="checkbox" name="update_on_allocation_change" value="1" @checked(old('update_on_allocation_change', $settings['update_on_allocation_change'] ?? true))>
+                            Update SRV records when primary allocation changes
+                        </label>
                     </div>
                     <div class="checkbox">
                         <label>
