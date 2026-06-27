@@ -13,12 +13,31 @@ in {
       for _acme-challenge (Caddy uses 1.1.1.1 for propagation checks).
     '';
 
+    accountId = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      example = "12f5428fd594b9e9c2eaadfdd0fdc857";
+      description = ''
+        Cloudflare account id (not secret). Not used by caddy-dns/cloudflare for
+        DNS-01; stored for scripts/docs. Set via homelab.caddy.cloudflareAcme.accountId.
+      '';
+    };
+
     package = lib.mkOption {
       type = lib.types.package;
-      default = pkgs.caddy.withPlugins {
-        plugins = [ "github.com/caddy-dns/cloudflare@v0.2.2" ];
-        hash = "sha256-7g8zDx5RhbptXFyEPtexxkHX8hw/gF001bZ7wX4Mjhs=";
-      };
+      default =
+        let
+          base = pkgs.caddy.withPlugins {
+            # v0.2.3 + postPatch: accept cfat_/cfut_ tokens (>50 chars); upstream #123.
+            plugins = [ "github.com/caddy-dns/cloudflare@v0.2.3" ];
+            hash = "sha256-bL1cpMvDogD/pdVxGA8CAMEXazWpFDBiGBxG83SmXLA=";
+          };
+        in
+        base.overrideAttrs (old: {
+          postPatch = (old.postPatch or "") + ''
+            sed -i 's/{35,50}/{35,256}/' vendor/github.com/caddy-dns/cloudflare/cloudflare.go
+          '';
+        });
       description = "Caddy binary with github.com/caddy-dns/cloudflare plugin.";
     };
   };

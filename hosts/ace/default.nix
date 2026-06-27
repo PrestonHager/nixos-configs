@@ -74,6 +74,9 @@
   };
 
   # Cloudflare DNS-01 for Caddy TLS (token in nix-secrets secrets/cloudflare.yaml).
-  homelab.caddy.cloudflareAcme.enable = true;
+  homelab.caddy.cloudflareAcme = {
+    enable = true;
+    accountId = "12f5428fd594b9e9c2eaadfdd0fdc857";
+  };
 }
 

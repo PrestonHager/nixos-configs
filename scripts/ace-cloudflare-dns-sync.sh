@@ -9,6 +9,8 @@ set -euo pipefail
 export SOPS_AGE_KEY_FILE=/var/lib/sops/age/keys.txt
 SECRETS=/home/prestonh/nixos-secrets
 ZONE_NAME="prestonhager.com"
+# Optional; zone lookup uses /zones?name= and does not require account id.
+ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-}"
 CNAME_TARGET="ip1.lc1.nm.us.prestonhager.com"
 DRY_RUN=false
 
@@ -33,6 +35,9 @@ done
 
 cd "$SECRETS"
 plain="$(nix shell nixpkgs#sops --command sops -d secrets/cloudflare.yaml)"
+if [[ -z "$ACCOUNT_ID" ]]; then
+  ACCOUNT_ID="$(printf '%s\n' "$plain" | awk '/^account-id:/{print $2; exit}')"
+fi
 TOKEN="$(printf '%s\n' "$plain" | awk -F= '/^  CLOUDFLARE_API_TOKEN=/{print $2; exit}')"
 if [[ -z "$TOKEN" ]]; then
   TOKEN="$(printf '%s\n' "$plain" | awk '/^dns-api-token:/{print $2; exit}')"

@@ -5,6 +5,8 @@ set -euo pipefail
 
 export SOPS_AGE_KEY_FILE=/var/lib/sops/age/keys.txt
 SECRETS=/home/prestonh/nixos-secrets
+# Not secret; matches homelab.caddy.cloudflareAcme.accountId on ace.
+ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-12f5428fd594b9e9c2eaadfdd0fdc857}"
 TOKEN="${1:-${CLOUDFLARE_API_TOKEN:-}}"
 
 if [[ -z "$TOKEN" ]]; then
@@ -17,6 +19,9 @@ cd "$SECRETS"
 git pull --ff-only origin main
 
 cat > secrets/cloudflare.yaml <<EOF
+# Plain (not encrypted): account id for scripts/docs; caddy-dns/cloudflare does not need it.
+account-id: ${ACCOUNT_ID}
+
 acme-env: |
   CLOUDFLARE_API_TOKEN=${TOKEN}
 

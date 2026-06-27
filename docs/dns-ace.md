@@ -205,10 +205,15 @@ One token covers both ACME and `scripts/ace-cloudflare-dns-sync.sh`.
 Path: `secrets/cloudflare.yaml` (encrypted with sops; keys: root + ace hosts per `.sops.yaml`).
 
 ```yaml
+# Plain (not encrypted); optional for scripts — caddy-dns/cloudflare does not use it.
+account-id: 12f5428fd594b9e9c2eaadfdd0fdc857
+
 acme-env: |
   CLOUDFLARE_API_TOKEN=your_token_here
 dns-api-token: your_token_here
 ```
+
+**Account id:** Not required for DNS-01 or zone lookup (`/zones?name=`). Stored for reference and future account-scoped API calls. New Cloudflare `cfat_`/`cfut_` tokens exceed the old plugin regex; ace uses `caddy-dns/cloudflare@v0.2.3` with a postPatch for token length.
 
 **On ace** (recommended — has `/var/lib/sops/age/keys.txt`):
 
@@ -237,7 +242,7 @@ nix flake update nix-secrets
 sudo nixos-rebuild switch --flake .#ace
 ```
 
-Caddy reads `CLOUDFLARE_API_TOKEN` from sops via `EnvironmentFile` (`cloudflare-acme-env` → `acme-env` key). Implementation uses `pkgs.caddy.withPlugins` with `github.com/caddy-dns/cloudflare@v0.2.2` and global `acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}`.
+Caddy reads `CLOUDFLARE_API_TOKEN` from sops via `EnvironmentFile` (`cloudflare-acme-env` → `acme-env` key). Implementation uses `pkgs.caddy.withPlugins` with `github.com/caddy-dns/cloudflare@v0.2.3` (postPatch for `cfat_`/`cfut_` token length) and global `acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}`.
 
 #### Optional: sync public CNAMEs to ip1.lc1
 
