@@ -18,7 +18,6 @@ in
 {
   systemd.tmpfiles.rules = [
     "d /pterodactyl/secrets 0750 pterodactyl pterodactyl -"
-    "L+ /pterodactyl/secrets/portforward-ssh-config - - - - ${routerSshConfig}"
   ];
 
   systemd.services.pterodactyl-blueprint-extensions-env = {
@@ -31,6 +30,7 @@ in
       RemainAfterExit = true;
       ExecStart = pkgs.writeShellScript "pterodactyl-blueprint-extensions-env" ''
         install -d -m 0750 -o pterodactyl -g pterodactyl /pterodactyl/secrets
+        install -m 0640 -o pterodactyl -g pterodactyl ${routerSshConfig} /pterodactyl/secrets/portforward-ssh-config
         cat > /pterodactyl/secrets/blueprint-extensions.env <<'EOF'
 PORTFORWARD_SSH_CONFIG_FILE=/pterodactyl/secrets/portforward-ssh-config
 TECHNITIUM_API_URL=http://host.containers.internal:5380
