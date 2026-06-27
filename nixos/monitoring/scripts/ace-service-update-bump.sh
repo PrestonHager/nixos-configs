@@ -84,7 +84,8 @@ if git diff --cached --quiet; then
   exit 1
 fi
 
-git commit -m "ace: bump ${SERVICE} to ${TARGET}
+git -c user.name="Preston Hager" -c user.email="preston@hagerfamily.com" \
+  commit -m "ace: bump ${SERVICE} to ${TARGET}
 
 Automated patch/minor update triggered by ace-service-auto-update."
 
