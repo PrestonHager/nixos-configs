@@ -30,7 +30,7 @@ in {
           base = pkgs.caddy.withPlugins {
             # v0.2.3 + postPatch: accept cfat_/cfut_ tokens (>50 chars); upstream #123.
             plugins = [ "github.com/caddy-dns/cloudflare@v0.2.3" ];
-            hash = "sha256-bL1cpMvDogD/pdVxGA8CAMEXazWpFDBiGBxG83SmXLA=";
+            hash = "sha256-peY/XG37RC0e7FafJ3qNk53srtXZagxN/Hfexcc2TMM=";
           };
         in
         base.overrideAttrs (old: {
