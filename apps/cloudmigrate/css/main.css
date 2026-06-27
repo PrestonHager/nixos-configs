@@ -1,0 +1,73 @@
+#cloudmigrate-app .cloudmigrate-lead {
+	max-width: 52rem;
+	margin-bottom: 1.5rem;
+}
+
+.cloudmigrate-card {
+	border: 1px solid var(--color-border);
+	border-radius: var(--border-radius-large);
+	padding: 1rem 1.25rem;
+	margin-bottom: 1.25rem;
+	max-width: 52rem;
+}
+
+.cloudmigrate-card-muted {
+	opacity: 0.95;
+}
+
+.cloudmigrate-card label {
+	display: block;
+	margin-top: 0.75rem;
+	font-weight: 600;
+}
+
+.cloudmigrate-card input[type="text"],
+.cloudmigrate-card input[type="email"],
+.cloudmigrate-card input[type="password"],
+.cloudmigrate-card select {
+	width: 100%;
+	max-width: 28rem;
+}
+
+.cloudmigrate-actions {
+	margin: 1rem 0;
+}
+
+.cloudmigrate-checkbox {
+	font-weight: normal;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.cloudmigrate-flash {
+	background: var(--color-primary-element-light);
+	padding: 0.75rem 1rem;
+	border-radius: var(--border-radius);
+	margin-bottom: 1rem;
+	max-width: 52rem;
+}
+
+.cloudmigrate-badge {
+	display: inline-block;
+	margin-top: 0.75rem;
+	padding: 0.25rem 0.5rem;
+	border-radius: var(--border-radius);
+	background: var(--color-background-dark);
+	font-size: 0.9em;
+}
+
+.hint {
+	color: var(--color-text-maxcontrast);
+	font-size: 0.9em;
+}
+
+.migration-row {
+	padding: 0.5rem 0;
+	border-bottom: 1px solid var(--color-border);
+}
+
+.status-completed { color: var(--color-success); }
+.status-failed { color: var(--color-error); }
+.status-running, .status-queued { color: var(--color-warning); }
+.error { color: var(--color-error); }

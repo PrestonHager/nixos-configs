@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	  xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+	<id>cloudmigrate</id>
+	<name>Cloud Migrate</name>
+	<summary>Migrate files from iCloud and OneDrive into Nextcloud</summary>
+	<description><![CDATA[One-time migration from Microsoft OneDrive and Apple iCloud into your Nextcloud files. Connect cloud accounts via OAuth (OneDrive) or app-specific password (iCloud), select folders, dry-run, then copy into `Migrated/`.]]></description>
+	<version>0.1.0</version>
+	<licence>agpl</licence>
+	<author mail="admin@prestonhager.com">Preston Hager</author>
+	<namespace>CloudMigrate</namespace>
+	<category>tools</category>
+	<bugs>https://github.com/prestonhager/nixos-configs/issues</bugs>
+	<dependencies>
+		<nextcloud min-version="33" max-version="35"/>
+	</dependencies>
+	<navigations>
+		<navigation>
+			<name>Cloud Migrate</name>
+			<route>cloudmigrate.page.index</route>
+			<icon>app.svg</icon>
+			<order>80</order>
+		</navigation>
+	</navigations>
+	<settings>
+		<admin>OCA\CloudMigrate\Settings\Admin</admin>
+		<admin-section>OCA\CloudMigrate\Settings\AdminSection</admin-section>
+	</settings>
+	<background-jobs>
+		<job>OCA\CloudMigrate\BackgroundJob\MigrationJob</job>
+	</background-jobs>
+	<commands>
+		<command>OCA\CloudMigrate\Command\MigrateCommand</command>
+	</commands>
+</info>

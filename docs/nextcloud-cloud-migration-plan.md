@@ -394,6 +394,7 @@ Exit codes: `0` success, `1` operational error, `2` partial transfer / verify mi
 |-------|-------|
 | **Secrets / Nix** | sops keys, `nextcloud-migrate-env.service`, tmpfiles, optional flake package |
 | **CLI / scripts** | `scripts/nextcloud-migrate/` Python CLI + rclone/icloudpd wrappers |
+| **Web app** | `apps/cloudmigrate/` — OneDrive OAuth UI, Graph copy job |
 | **Runbook** | Execute Phase 0–7 on ace; document actual durations and sizes |
 
 ### Selected stack summary (TL;DR)
@@ -406,8 +407,56 @@ Exit codes: `0` success, `1` operational error, `2` partial transfer / verify mi
 | Transfer semantics | **`copy` only** — never `sync` / `bisync` |
 | Nextcloud ingest | Direct `/stor/nextcloud/data/<user>/files/Migrated/` + **`occ files:scan`** |
 | Orchestration | Python CLI in `scripts/nextcloud-migrate/` |
-| Secrets | sops-nix + Bitwarden; OAuth/token in encrypted `rclone.conf` |
+| Web UI | **`cloudmigrate`** app — per-user OAuth in browser |
+| Secrets (CLI) | sops-nix + Bitwarden; OAuth/token in encrypted `rclone.conf` |
+| Secrets (web) | Per-user tokens in Nextcloud app DB (`ICrypto`) — not in sops |
 | Host | ace |
+
+---
+
+## 11. Web App (`cloudmigrate`)
+
+**Status:** Phase 1 implemented (OneDrive OAuth + copy job); iCloud scaffolded  
+**Guide:** [nextcloud-cloud-migrate-app.md](./nextcloud-cloud-migrate-app.md)  
+**App path:** `apps/cloudmigrate/` → deployed to `/stor/nextcloud/data/custom_apps/cloudmigrate`
+
+### Why a web app
+
+| Concern | CLI (`scripts/nextcloud-migrate/`) | Web app (`cloudmigrate`) |
+|---------|--------------------------------------|---------------------------|
+| Who runs it | Operator on ace with sops secrets | Each Nextcloud user in browser |
+| OneDrive auth | rclone OAuth → encrypted `rclone.conf` in sops | Microsoft Graph OAuth → per-user encrypted app config |
+| iCloud auth | App-specific password in sops env | App-specific password in NC DB (Phase 2 job) |
+| Destination | Direct data dir or WebDAV | Nextcloud storage API → `Migrated/…` |
+
+Both can coexist: CLI for TB-scale operator bulk; web app for self-service per-user migration.
+
+### Phase 1 (OneDrive)
+
+- Admin: Azure Client ID / secret / tenant in **Settings → Administration → Cloud Migrate**
+- User: **Connect OneDrive** → OAuth redirect URI  
+  `https://cloud.prestonhager.com/index.php/apps/cloudmigrate/oauth/onedrive`
+- Permissions: `Files.Read`, `User.Read`, `offline_access`
+- UI: folder picker, dry-run, start migration, progress
+- Background `MigrationJob` copies via Microsoft Graph into `Migrated/OneDrive/`
+
+### Phase 2 (iCloud — honest constraints)
+
+Apple provides **no** public web OAuth for iCloud Drive comparable to Microsoft Graph.
+
+| Option | Web app feasibility |
+|--------|---------------------|
+| CloudKit container | For app data, not user Drive bulk export |
+| Sign in with Apple | Auth only; no Drive read scope |
+| App-specific password | Stored encrypted per user; server job with rclone/icloudpd (planned) |
+| icloudpd for Photos | Background job on ace only — not runnable in browser |
+
+The app UI includes iCloud credential scaffold and “coming soon” messaging; copy jobs deferred to Phase 2.
+
+### Nix integration
+
+- `nixos/containers/nextcloud-cloud-migrate.nix` — symlink app into `custom_apps`
+- `nextcloud-occ-maintain` — `occ app:enable cloudmigrate`
 
 ---
 

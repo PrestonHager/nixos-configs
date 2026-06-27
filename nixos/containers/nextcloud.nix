@@ -3,7 +3,8 @@
 let
   sops-path = builtins.toString inputs.nix-secrets;
   ncRoot = "/stor/nextcloud";
-  nextcloudImage = "docker.io/library/nextcloud:34.0.1";
+  # 34.0.1 not published on Docker Hub yet (github.com/nextcloud/docker/issues/2584)
+  nextcloudImage = "docker.io/library/nextcloud:34.0.0";
   clamavImage = "docker.io/clamav/clamav:stable";
   nextcloudPublicUrl = "https://cloud.prestonhager.com";
   nextcloudPushUrl = "${nextcloudPublicUrl}/push";
@@ -241,6 +242,11 @@ EOF
       occ app:install notify_push
     fi
     occ app:enable notify_push
+
+    if ! occ app:list 2>/dev/null | grep -qE '(^| )- cloudmigrate:'; then
+      occ app:install cloudmigrate
+    fi
+    occ app:enable cloudmigrate
 
     for _ in $(seq 1 120); do
       if $podman exec nextcloud bash -c 'exec 3<>/dev/tcp/127.0.0.1/3310' 2>/dev/null; then
