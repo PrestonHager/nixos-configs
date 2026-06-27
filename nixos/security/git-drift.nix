@@ -11,6 +11,8 @@ let
     OUT="${textfileDir}/homelab_git_drift.prom"
     NIXOS="/etc/nixos"
 
+    mkdir -p "${textfileDir}"
+
     drift=0
     unpushed=0
     dirty=0
