@@ -2,7 +2,6 @@
 
 let
   cfg = config.homelab.security;
-  nodeExporterAlreadyEnabled = config.services.prometheus.exporters.node.enable or false;
 in {
   config = lib.mkMerge [
     (lib.mkIf cfg.enable {
@@ -10,7 +9,7 @@ in {
         "d /var/lib/node-exporter-textfile 0755 node_exporter node_exporter -"
       ];
     })
-    (lib.mkIf (cfg.enable && cfg.role == "node" && !nodeExporterAlreadyEnabled) {
+    (lib.mkIf (cfg.enable && cfg.role == "node" && cfg.nodeExporter.enable) {
       services.prometheus.exporters.node = {
         enable = true;
         port = 9100;

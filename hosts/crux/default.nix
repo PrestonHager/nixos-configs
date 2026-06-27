@@ -32,4 +32,6 @@
     ../../nixos/monitoring/crux-prometheus.nix
     ../../nixos/monitoring/promtail.nix
   ];
+
+  homelab.security.nodeExporter.enable = false;
 }

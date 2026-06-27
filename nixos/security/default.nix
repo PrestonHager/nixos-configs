@@ -44,6 +44,14 @@ in {
       remote = lib.mkOption { type = lib.types.str; default = "origin"; };
       branch = lib.mkOption { type = lib.types.str; default = "dell-poweredge-r730xd"; };
     };
+
+    nodeExporter = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Run node_exporter with textfile collector for drift metrics. Set false when the host already exports metrics (e.g. crux).";
+      };
+    };
   };
 
   imports = [
