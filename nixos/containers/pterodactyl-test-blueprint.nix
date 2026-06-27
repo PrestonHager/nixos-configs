@@ -144,38 +144,99 @@ let
       done
     }
 
-    ensure_sociallogin_admin_files() {
-      ctrl="$panel/app/Http/Controllers/Admin/Extensions/sociallogin/socialloginExtensionController.php"
-      view="$panel/resources/views/admin/extensions/sociallogin/index.blade.php"
-      prod_ctrl="$prod_panel/app/Http/Controllers/Admin/Extensions/sociallogin/socialloginExtensionController.php"
-      prod_view="$prod_panel/resources/views/admin/extensions/sociallogin/index.blade.php"
-
-      if [ ! -f "$ctrl" ]; then
-        if [ -f "$prod_ctrl" ]; then
-          echo "pterodactyl-test-blueprint-install: copying Social Login admin controller from production..."
-          install -d -m 0755 -o prestonh -g users "$(dirname "$ctrl")"
-          cp -a "$prod_ctrl" "$ctrl"
-          chown prestonh:users "$ctrl"
-        else
-          echo "pterodactyl-test-blueprint-install: reinstalling Social Login to restore admin controller..."
-          rm -f "$panel/.blueprint/lock"
-          blueprint_cli -install sociallogin
+    ensure_public_assets_extension_symlinks() {
+      assets_ext="$panel/public/assets/extensions"
+      install -d -m 2775 -o prestonh -g users "$assets_ext"
+      for ext in blueprint sociallogin dnsrecords portforward; do
+        if [ ! -d "$panel/.blueprint/extensions/$ext/assets" ]; then
+          continue
         fi
-      fi
+        if [ -L "$assets_ext/$ext" ] || [ -d "$assets_ext/$ext" ]; then
+          continue
+        fi
+        echo "pterodactyl-test-blueprint-install: linking $ext extension assets into public..."
+        ln -sfn "../../../.blueprint/extensions/$ext/assets" "$assets_ext/$ext"
+        chown -h prestonh:users "$assets_ext/$ext"
+      done
+    }
 
-      if [ ! -f "$view" ] && [ -f "$prod_view" ]; then
-        echo "pterodactyl-test-blueprint-install: copying Social Login admin view from production..."
-        install -d -m 0755 -o prestonh -g users "$(dirname "$view")"
-        cp -a "$prod_view" "$view"
-        chown prestonh:users "$view"
-      fi
+  minAdminViewBytes=100
+
+    ensure_extension_admin_files() {
+      for ext in sociallogin dnsrecords portforward; do
+        ctrl="$panel/app/Http/Controllers/Admin/Extensions/$ext/''${ext}ExtensionController.php"
+        view="$panel/resources/views/admin/extensions/$ext/index.blade.php"
+        prod_ctrl="$prod_panel/app/Http/Controllers/Admin/Extensions/$ext/''${ext}ExtensionController.php"
+        prod_view="$prod_panel/resources/views/admin/extensions/$ext/index.blade.php"
+
+        if [ ! -f "$ctrl" ]; then
+          if [ -f "$prod_ctrl" ]; then
+            echo "pterodactyl-test-blueprint-install: copying $ext admin controller from production..."
+            install -d -m 0755 -o prestonh -g users "$(dirname "$ctrl")"
+            cp -a "$prod_ctrl" "$ctrl"
+            chown prestonh:users "$ctrl"
+          elif [ "$ext" = "sociallogin" ]; then
+            echo "pterodactyl-test-blueprint-install: reinstalling Social Login to restore admin controller..."
+            rm -f "$panel/.blueprint/lock"
+            blueprint_cli -install sociallogin
+          fi
+        fi
+
+        view_bytes=0
+        if [ -f "$view" ]; then
+          view_bytes=$(${pkgs.coreutils}/bin/wc -c < "$view" | tr -d ' ')
+        fi
+        if [ -f "$prod_view" ] && { [ ! -f "$view" ] || [ "$view_bytes" -lt "$minAdminViewBytes" ]; }; then
+          echo "pterodactyl-test-blueprint-install: copying $ext admin view from production..."
+          install -d -m 0755 -o prestonh -g users "$(dirname "$view")"
+          cp -a "$prod_view" "$view"
+          chown prestonh:users "$view"
+        fi
+      done
+    }
+
+    ensure_extension_migrations() {
+      for migration in "$prod_panel"/database/migrations/2026_*.php; do
+        [ -f "$migration" ] || continue
+        base=$(${pkgs.coreutils}/bin/basename "$migration")
+        if [ ! -f "$panel/database/migrations/$base" ]; then
+          echo "pterodactyl-test-blueprint-install: copying missing migration $base from production..."
+          cp -a "$migration" "$panel/database/migrations/$base"
+          chown prestonh:users "$panel/database/migrations/$base"
+        fi
+      done
+    }
+
+    extension_admin_view_ok() {
+      ext="$1"
+      view="$panel/resources/views/admin/extensions/$ext/index.blade.php"
+      [ -f "$view" ] || return 1
+      view_bytes=$(${pkgs.coreutils}/bin/wc -c < "$view" | tr -d ' ')
+      [ "$view_bytes" -ge "$minAdminViewBytes" ]
+    }
+
+    extension_migrations_integrated() {
+      for migration in \
+        2026_06_07_000001_create_dnsrecords_extension_tables.php \
+        2026_06_26_000001_add_dnsrecords_audit_log.php \
+        2026_06_26_000001_create_portforward_extension_tables.php; do
+        [ -f "$panel/database/migrations/$migration" ] || return 1
+      done
+    }
+
+    extension_public_assets_integrated() {
+      for ext in blueprint sociallogin dnsrecords portforward; do
+        [ -e "$panel/public/assets/extensions/$ext" ] || return 1
+      done
     }
 
     extension_backend_integrated() {
       for ext in sociallogin dnsrecords portforward; do
         [ -e "$panel/app/BlueprintFramework/Extensions/$ext" ] || return 1
         [ -f "$panel/app/Http/Controllers/Admin/Extensions/$ext/''${ext}ExtensionController.php" ] || return 1
+        extension_admin_view_ok "$ext" || return 1
       done
+      extension_migrations_integrated && extension_public_assets_integrated
     }
 
     blueprint_core_backend_integrated() {
@@ -481,7 +542,9 @@ let
       ensure_sociallogin_models
       ensure_extension_app_symlinks
       ensure_storage_extension_symlinks
-      ensure_sociallogin_admin_files
+      ensure_public_assets_extension_symlinks
+      ensure_extension_admin_files
+      ensure_extension_migrations
       ensure_blueprint_frontend_patches
       ensure_frontend_built
 
@@ -605,7 +668,8 @@ let
         ensure_blueprint_assets
         ensure_extension_app_symlinks
         ensure_storage_extension_symlinks
-        ensure_sociallogin_admin_files
+        ensure_public_assets_extension_symlinks
+        ensure_extension_admin_files
         post_install_hooks
         write_marker
         echo "pterodactyl-test-blueprint-install: extension backend repaired on test panel"
@@ -616,7 +680,8 @@ let
         ensure_blueprint_assets
         ensure_extension_app_symlinks
         ensure_storage_extension_symlinks
-        ensure_sociallogin_admin_files
+        ensure_public_assets_extension_symlinks
+        ensure_extension_admin_files
         rerun_blueprint_framework
         post_install_hooks
         write_marker
