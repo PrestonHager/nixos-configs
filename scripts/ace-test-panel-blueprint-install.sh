@@ -18,9 +18,13 @@ runuser -u prestonh -- rm -rf \
 echo "=== Installing Blueprint framework ==="
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-UNZIP="${UNZIP:-/run/current-system/sw/bin/unzip}"
+UNZIP="${UNZIP:-$(nix shell nixpkgs#unzip --command which unzip 2>/dev/null || true)}"
 curl -fsSL "$bp_url" -o "$tmp/release.zip"
-"$UNZIP" -o "$tmp/release.zip" -d "$panel"
+if [ -z "$UNZIP" ] || [ ! -x "$UNZIP" ]; then
+  nix shell nixpkgs#unzip -c unzip -o "$tmp/release.zip" -d "$panel"
+else
+  "$UNZIP" -o "$tmp/release.zip" -d "$panel"
+fi
 chown -R prestonh:users "$panel"
 cat > "$panel/.blueprintrc" <<'EOF'
 WEBUSER="prestonh"
