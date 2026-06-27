@@ -84,6 +84,16 @@ if 'services.zitadel.base_url' not in text:
             )
             text = text.replace(n, insert + n, 1)
             break
+open(path, 'w').write(text)
+PY
+      chown prestonh:users "$providers_file"
+    fi
+
+    if [ -n "$providers_file" ]; then
+      ${pkgs.python3}/bin/python3 - "$providers_file" "${testAdminGroup}" <<'PY'
+import sys
+path, admin_group = sys.argv[1], sys.argv[2]
+text = open(path).read()
 if 'syncZitadelAdminRole' not in text and 'auth()->login($user, true);' in text:
     text = text.replace(
         'auth()->login($user, true);',
@@ -99,7 +109,7 @@ if 'syncZitadelAdminRole' not in text and 'auth()->login($user, true);' in text:
         "            $groups = $raw['groups'];\n"
         "        }\n"
         "        session()->put('zitadel_sso_groups', $groups);\n"
-        "        $isAdmin = in_array('${testAdminGroup}', $groups, true);\n"
+        f"        $isAdmin = in_array('{admin_group}', $groups, true);\n"
         "        if ($user->root_admin !== $isAdmin) {\n"
         "            $user->root_admin = $isAdmin;\n"
         "            $user->save();\n"
@@ -107,13 +117,15 @@ if 'syncZitadelAdminRole' not in text and 'auth()->login($user, true);' in text:
         "    }\n\n"
     )
     text = text.replace("\n    /**\n     * Link a social account", method + "\n    /**\n     * Link a social account", 1)
+elif 'syncZitadelAdminRole' in text:
+    import re
+    text = re.sub(
+        r"in_array\('pterodactyl_admin'",
+        f"in_array('{admin_group}'",
+        text,
+    )
 open(path, 'w').write(text)
 PY
-      chown prestonh:users "$providers_file"
-    fi
-
-    if [ -n "$providers_file" ] && grep -q syncZitadelAdminRole "$providers_file"; then
-      ${pkgs.gnused}/bin/sed -i "s/in_array('pterodactyl_admin'/in_array('${testAdminGroup}'/g" "$providers_file"
       chown prestonh:users "$providers_file"
     fi
 
@@ -121,26 +133,22 @@ PY
     if [ -f "$app_provider" ]; then
       if grep -q ZitadelAdminSync "$app_provider"; then
         ${pkgs.gnused}/bin/sed -i 's/ZitadelAdminSync/ZitadelTestAdminSync/g' "$app_provider"
-        chown prestonh:users "$app_provider"
       fi
-    fi
-
-    app_provider="$panel/app/Providers/AppServiceProvider.php"
-    if [ -f "$app_provider" ] && ! grep -q ZitadelTestAdminSync "$app_provider"; then
-      if ! grep -q 'use Illuminate\\Support\\Facades\\Event;' "$app_provider"; then
-        ${pkgs.gnused}/bin/sed -i '/^namespace Pterodactyl\\Providers;/a use Illuminate\\Support\\Facades\\Event;' "$app_provider"
-      fi
-      if ! grep -q 'use Illuminate\\Auth\\Events\\Login;' "$app_provider"; then
-        ${pkgs.gnused}/bin/sed -i '/^namespace Pterodactyl\\Providers;/a use Illuminate\\Auth\\Events\\Login;' "$app_provider"
-      fi
-      if ! grep -q 'use Pterodactyl\\Listeners\\ZitadelTestAdminSync;' "$app_provider"; then
-        ${pkgs.gnused}/bin/sed -i '/^namespace Pterodactyl\\Providers;/a use Pterodactyl\\Listeners\\ZitadelTestAdminSync;' "$app_provider"
-      fi
-      ${pkgs.python3}/bin/python3 - "$app_provider" <<'PY'
+      if ! grep -q 'Event::listen(Login::class, ZitadelTestAdminSync::class)' "$app_provider"; then
+        if ! grep -q 'use Illuminate\\Support\\Facades\\Event;' "$app_provider"; then
+          ${pkgs.gnused}/bin/sed -i '/^namespace Pterodactyl\\Providers;/a use Illuminate\\Support\\Facades\\Event;' "$app_provider"
+        fi
+        if ! grep -q 'use Illuminate\\Auth\\Events\\Login;' "$app_provider"; then
+          ${pkgs.gnused}/bin/sed -i '/^namespace Pterodactyl\\Providers;/a use Illuminate\\Auth\\Events\\Login;' "$app_provider"
+        fi
+        if ! grep -q 'use Pterodactyl\\Listeners\\ZitadelTestAdminSync;' "$app_provider"; then
+          ${pkgs.gnused}/bin/sed -i '/^namespace Pterodactyl\\Providers;/a use Pterodactyl\\Listeners\\ZitadelTestAdminSync;' "$app_provider"
+        fi
+        ${pkgs.python3}/bin/python3 - "$app_provider" <<'PY'
 import sys
 path = sys.argv[1]
 text = open(path).read()
-if 'ZitadelTestAdminSync' not in text:
+if 'Event::listen(Login::class, ZitadelTestAdminSync::class)' not in text:
     text = text.replace(
         'public function boot(): void\n    {',
         'public function boot(): void\n    {\n        Event::listen(Login::class, ZitadelTestAdminSync::class);',
@@ -148,7 +156,8 @@ if 'ZitadelTestAdminSync' not in text:
     )
     open(path, 'w').write(text)
 PY
-      chown prestonh:users "$app_provider"
+        chown prestonh:users "$app_provider"
+      fi
     fi
 
     services_file="$panel/config/services.php"
