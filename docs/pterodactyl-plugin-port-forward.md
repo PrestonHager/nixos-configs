@@ -40,6 +40,8 @@ Blueprint does **not** add a top-level “Blueprint” sidebar item for custom e
 
 Requires **root admin** (`root_admin=1`). SSO users need Zitadel role `pterodactyl_admin`.
 
+See **[Usage guide](./pterodactyl-extensions-user-guide.md)** for step-by-step instructions (prerequisites, dry-run vs live NAT, server workflow, troubleshooting).
+
 ### Event hooks
 
 - `Server\Installed` → `ApplyNatJob` (when `auto_forward_on_install` enabled)

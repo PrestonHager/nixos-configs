@@ -14,6 +14,7 @@
 - [Nextcloud](ace/nextcloud.md)
 - [Nextcloud Action Plan](ace/nextcloud-action-plan.md)
 - [Pterodactyl Panel](ace/pterodactyl.md)
+- [Pterodactyl Extensions User Guide](ace/pterodactyl-extensions-user-guide.md)
 - [Pterodactyl Test Blueprint](ace/pterodactyl-test-blueprint.md)
 - [Pterodactyl DNS Plugin Plan](ace/pterodactyl-plugin-dns-records-plan.md)
 - [Pterodactyl Port Forward Plan](ace/pterodactyl-plugin-port-forward-plan.md)

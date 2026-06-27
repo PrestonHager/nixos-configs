@@ -31,6 +31,8 @@
 - **Admin → Extensions → DNS Records** — provider mode, Cloudflare + Technitium credentials, dry-run, SRV profiles
 - **Admin → Servers → View → DNS tab** — per-server records and SRV provisioning
 
+See **[Usage guide](./pterodactyl-extensions-user-guide.md)** for step-by-step instructions (prerequisites, server workflow, troubleshooting).
+
 ---
 
 ## Deploy

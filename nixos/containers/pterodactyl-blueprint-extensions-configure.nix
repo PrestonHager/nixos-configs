@@ -19,7 +19,11 @@ let
       live_nat=1
     fi
 
-    ${pkgs.podman}/bin/podman exec pterodactyl php /var/www/pterodactyl/artisan tinker --execute="
+    ${pkgs.podman}/bin/podman exec \
+      -e HOME=/var/www/pterodactyl \
+      -e COMPOSER_HOME=/tmp/composer \
+      pterodactyl \
+      php /var/www/pterodactyl/artisan tinker --execute="
 use Pterodactyl\\BlueprintFramework\\Extensions\\portforward\\Models\\PortForwardSetting;
 use Pterodactyl\\BlueprintFramework\\Extensions\\dnsrecords\\Models\\DnsExtensionSetting;
 
@@ -52,9 +56,9 @@ foreach (\$dns as \$key => \$value) {
   DnsExtensionSetting::query()->updateOrCreate(['key' => \$key], ['value' => \$value]);
 }
 echo 'extensions configured';
-" 2>/dev/null || true
+"
 
-    echo "pterodactyl-blueprint-extensions-configure: portforward enabled (dry_run=\$live_nat)"
+    echo "pterodactyl-blueprint-extensions-configure: portforward enabled (dry_run=\$((1 - live_nat)))"
   '';
 in
 {
