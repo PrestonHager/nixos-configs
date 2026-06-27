@@ -28,7 +28,7 @@ use Pterodactyl\\BlueprintFramework\\Extensions\\dnsrecords\\Models\\DnsExtensio
   'router_host' => '192.168.5.1',
   'router_ssh_user' => 'pterofwd',
   'wan_interface' => 'GigabitEthernet0/0',
-  'dry_run' => ${live_nat} ? false : true,
+  'dry_run' => ''${live_nat} ? false : true,
   'auto_forward_on_install' => false,
   'auto_remove_on_delete' => true,
   'allowed_port_min' => 1024,
