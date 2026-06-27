@@ -346,6 +346,29 @@ let
       rm -rf "$patch_tmp"
     }
 
+    ensure_blueprint_placeholder_version() {
+      if blueprint_placeholder_integrated; then
+        return 0
+      fi
+      version=$(blueprint_framework_version || echo "unknown")
+      if [ "$version" = "unknown" ]; then
+        echo "pterodactyl-blueprint-install: could not determine Blueprint version from blueprint.sh" >&2
+        return 1
+      fi
+      echo "pterodactyl-blueprint-install: fixing Blueprint version placeholder ($version)..."
+      rm -f "$panel/.blueprint/extensions/blueprint/private/db/version"
+      ${pkgs.gnused}/bin/sed -E -i "s*::v*$version*g" \
+        "$panel/app/BlueprintFramework/Services/PlaceholderService/BlueprintPlaceholderService.php"
+      if [ -f "$panel/.blueprint/extensions/blueprint/public/index.html" ]; then
+        ${pkgs.gnused}/bin/sed -E -i "s*::v*$version*g" \
+          "$panel/.blueprint/extensions/blueprint/public/index.html"
+      fi
+      touch "$panel/.blueprint/extensions/blueprint/private/db/version"
+      chown pterodactyl:pterodactyl \
+        "$panel/app/BlueprintFramework/Services/PlaceholderService/BlueprintPlaceholderService.php" \
+        "$panel/.blueprint/extensions/blueprint/private/db/version"
+    }
+
     blueprint_frontend_integrated() {
       grep -q '@blueprint/components/Authentication/Container/AfterContent' \
         "$panel/resources/scripts/components/auth/LoginFormContainer.tsx" 2>/dev/null \
@@ -495,6 +518,7 @@ let
         blueprint_cli -install sociallogin
       fi
       ensure_blueprint_admin_layout_patches
+      ensure_blueprint_placeholder_version
       ensure_blueprint_frontend_patches
       ensure_frontend_built
     }
@@ -551,6 +575,7 @@ let
       ensure_extension_admin_files
       ensure_extension_migrations
       ensure_blueprint_admin_layout_patches
+      ensure_blueprint_placeholder_version
       ensure_blueprint_frontend_patches
       ensure_frontend_built
 
@@ -654,7 +679,9 @@ let
       fi
       if ! blueprint_admin_layout_integrated || ! blueprint_placeholder_integrated; then
         echo "pterodactyl-blueprint-install: admin layout or Blueprint version incomplete, repairing..."
-        rerun_blueprint_framework
+        refresh_blueprint_framework_release
+        ensure_blueprint_admin_layout_patches
+        ensure_blueprint_placeholder_version
         post_install_hooks
         write_marker
         echo "pterodactyl-blueprint-install: Blueprint admin layout and version repaired on production panel"
