@@ -30,6 +30,12 @@ path="${ACE_NIXOS_DIR}/${NIX_FILE}"
 cd "$ACE_NIXOS_DIR"
 branch="$(git rev-parse --abbrev-ref HEAD)"
 
+# nixos-rebuild sometimes leaves flake.lock dirty; do not block the next bump.
+if git diff --name-only -- flake.lock | grep -qx flake.lock \
+  && [[ "$(git diff --name-only | wc -l)" -eq 1 ]]; then
+  git checkout -- flake.lock
+fi
+
 if ! git pull --rebase --autostash origin "$branch"; then
   echo "git pull --rebase failed; resolve ${ACE_NIXOS_DIR} manually" >&2
   git status -sb >&2 || true

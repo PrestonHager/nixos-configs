@@ -109,6 +109,7 @@ in {
       diffutils
       jq
       git
+      openssh
       nix
       config.system.build.nixos-rebuild
       podman
