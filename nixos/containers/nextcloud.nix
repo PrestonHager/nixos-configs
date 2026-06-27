@@ -5,7 +5,7 @@ let
   ncRoot = "/stor/nextcloud";
   cloudMigrate = import ./nextcloud-cloud-migrate.nix { inherit pkgs; };
   # 34.0.1 not published on Docker Hub (see nextcloud/docker#2584); use latest 34.0.x patch
-  nextcloudImage = "docker.io/library/nextcloud:34.0.0";
+  nextcloudImage = "docker.io/library/nextcloud:34.0.1";
   clamavImage = "docker.io/clamav/clamav:stable";
   nextcloudPublicUrl = "https://cloud.prestonhager.com";
   nextcloudPushUrl = "${nextcloudPublicUrl}/push";
