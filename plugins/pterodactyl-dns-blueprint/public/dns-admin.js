@@ -154,13 +154,18 @@ window.PterodactylPlugin_com_prestonhager_dns = function () {
 
     function render() {
         root.innerHTML =
-            '<div class="' +
+            '<div class="box box-primary ' +
             pluginClass() +
             '">' +
-            '<h2>DNS Administration</h2>' +
-            (state.error ? '<div class="ptero-alert ptero-alert--danger" role="alert">' + escapeHtml(state.error) + '</div>' : '') +
-            (state.loading ? '<p class="ptero-muted">Loading…</p>' : renderContent()) +
-            '</div>';
+            '<div class="box-header with-border">' +
+            '<h3 class="box-title"><i class="fa fa-globe"></i> DNS Administration</h3>' +
+            '</div>' +
+            '<div class="box-body">' +
+            (state.error ? '<div class="alert alert-danger" role="alert">' + escapeHtml(state.error) + '</div>' : '') +
+            (state.loading
+                ? '<p class="text-muted"><i class="fa fa-spinner fa-spin"></i> Loading DNS data…</p>'
+                : renderContent()) +
+            '</div></div>';
     }
 
     function renderContent() {
@@ -664,4 +669,10 @@ window.PterodactylPlugin_com_prestonhager_dns = function () {
     bindRootEvents();
     load();
 };
+
+(function () {
+    if (window.__PterodactylPluginContext) {
+        window.PterodactylPlugin_com_prestonhager_dns();
+    }
+})();
 
