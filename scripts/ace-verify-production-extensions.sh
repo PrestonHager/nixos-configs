@@ -16,18 +16,26 @@ podman exec pterodactyl sh -c 'cat > /tmp/verify-prod-ext.php <<'"'"'PHP'"'"'
 require "/var/www/pterodactyl/vendor/autoload.php";
 $app = require "/var/www/pterodactyl/bootstrap/app.php";
 $app->make("Illuminate\Contracts\Console\Kernel")->bootstrap();
+$user = \Pterodactyl\Models\User::query()->where("root_admin", 1)->first();
+if ($user) {
+  \Illuminate\Support\Facades\Auth::login($user);
+}
 foreach ([
   "dnsrecords" => "Pterodactyl\\Http\\Controllers\\Admin\\Extensions\\dnsrecords\\dnsrecordsExtensionController",
   "portforward" => "Pterodactyl\\Http\\Controllers\\Admin\\Extensions\\portforward\\portforwardExtensionController",
   "sociallogin" => "Pterodactyl\\Http\\Controllers\\Admin\\Extensions\\sociallogin\\socialloginExtensionController",
 ] as $name => $class) {
-  $controller = $app->make($class);
-  $response = $app->call([$controller, "index"]);
-  $html = $response->render();
-  echo "$name: " . strlen($html) . " bytes, box-title=" . substr_count($html, "box-title") . "\n";
+  try {
+    $controller = $app->make($class);
+    $response = $app->call([$controller, "index"]);
+    $html = $response->render();
+    echo "$name: " . strlen($html) . " bytes, box-title=" . substr_count($html, "box-title") . "\n";
+  } catch (Throwable $e) {
+    echo "$name: ERROR " . $e->getMessage() . "\n";
+  }
 }
 PHP
-php /tmp/verify-prod-ext.php'
+php /tmp/verify-prod-ext.php' || true
 
 echo "=== DB settings ==="
 podman exec pterodactyl php -r '
