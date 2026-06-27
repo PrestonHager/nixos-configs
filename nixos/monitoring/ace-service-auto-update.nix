@@ -106,6 +106,7 @@ in {
     path = with pkgs; [
       bash
       coreutils
+      diffutils
       jq
       git
       nix

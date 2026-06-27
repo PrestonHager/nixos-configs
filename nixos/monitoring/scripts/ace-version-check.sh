@@ -198,18 +198,6 @@ current_grafana() {
   normalize_version "$v"
 }
 
-current_prometheus() {
-  local tag v
-  tag="$(container_tag prometheus)"
-  if [[ "$tag" != "latest" && -n "$(normalize_version "$tag")" ]]; then
-    normalize_version "$tag"
-    return 0
-  fi
-  v="$(curl -fsSL --connect-timeout 3 --max-time 10 http://127.0.0.1:9090/api/v1/status/buildinfo 2>/dev/null \
-    | jq -r '.data.version // empty' || true)"
-  normalize_version "$v"
-}
-
 current_nextcloud() {
   local tag v
   tag="$(container_tag nextcloud)"
@@ -254,7 +242,38 @@ current_vaultwarden() {
   version_from_container_tag vaultwarden
 }
 
-current_mariadb() {
+current_pterodactyl_mariadb() {
+  local tag v
+  tag="$(container_tag pterodactyl-db)"
+  if [[ "$tag" != "latest" && -n "$(normalize_version "$tag")" ]]; then
+    normalize_version "$tag"
+    return 0
+  fi
+  if container_running pterodactyl-db; then
+    v="$(podman exec pterodactyl-db mariadb --version 2>/dev/null | awk '{print $5}' | tr -d ',')"
+    normalize_version "$v"
+    return 0
+  fi
+  normalize_version "$tag"
+}
+
+current_pterodactyl_redis() {
+  local tag v
+  tag="$(container_tag pterodactyl-redis)"
+  if [[ "$tag" != "latest" && -n "$(normalize_version "$tag")" ]]; then
+    normalize_version "$tag"
+    return 0
+  fi
+  if container_running pterodactyl-redis; then
+    v="$(podman exec pterodactyl-redis redis-server --version 2>/dev/null \
+      | awk '{print $3}' | tr -d 'v=' || true)"
+    normalize_version "$v"
+    return 0
+  fi
+  normalize_version "$tag"
+}
+
+current_nextcloud_mariadb() {
   local tag v
   tag="$(container_tag nextcloud-db)"
   if [[ "$tag" != "latest" && -n "$(normalize_version "$tag")" ]]; then
@@ -292,7 +311,7 @@ current_pterodactyl() {
   printf '%s\n' "1.11.11"
 }
 
-current_redis() {
+current_nextcloud_redis() {
   local tag v
   tag="$(container_tag nextcloud-redis)"
   if [[ "$tag" != "latest" && -n "$(normalize_version "$tag")" ]]; then
@@ -308,7 +327,7 @@ current_redis() {
   normalize_version "$tag"
 }
 
-current_clamav() {
+current_nextcloud_clamav() {
   local tag v
   tag="$(container_tag nextcloud-clamav)"
   if [[ "$tag" != "stable" && "$tag" != "latest" && -n "$(normalize_version "$tag")" ]]; then
@@ -347,18 +366,19 @@ current_notify_push() {
   printf '%s\n' '# TYPE ace_service_version_behind gauge'
 
   emit_service grafana "$(current_grafana)" "$(github_latest grafana/grafana)"
-  emit_service prometheus "$(current_prometheus)" "$(github_latest prometheus/prometheus)"
   emit_service nextcloud "$(current_nextcloud)" "$(github_latest nextcloud/server)"
   emit_service zitadel "$(current_zitadel)" "$(github_latest zitadel/zitadel)"
   emit_service matrix-synapse "$(current_synapse)" "$(github_latest matrix-org/synapse)"
   emit_service technitium "$(current_technitium)" "$(github_latest TechnitiumSoftware/DnsServer)"
   emit_service jellyfin "$(current_jellyfin)" "$(github_latest jellyfin/jellyfin)"
   emit_service vaultwarden "$(current_vaultwarden)" "$(github_latest dani-garcia/vaultwarden)"
-  emit_service mariadb "$(current_mariadb)" "$(github_latest MariaDB/server)"
+  emit_service nextcloud-mariadb "$(current_nextcloud_mariadb)" "$(github_latest MariaDB/server)"
   emit_service caddy "$(current_caddy)" "$(github_latest caddyserver/caddy)"
   emit_service pterodactyl-panel "$(current_pterodactyl)" "$(github_latest pterodactyl/panel)"
-  emit_service redis "$(current_redis)" "$(github_latest redis/redis)"
-  emit_service clamav "$(current_clamav)" "$(github_latest Cisco-Talos/clamav)"
+  emit_service pterodactyl-mariadb "$(current_pterodactyl_mariadb)" "$(github_latest MariaDB/server)"
+  emit_service nextcloud-redis "$(current_nextcloud_redis)" "$(github_latest redis/redis)"
+  emit_service pterodactyl-redis "$(current_pterodactyl_redis)" "$(github_latest redis/redis)"
+  emit_service nextcloud-clamav "$(current_nextcloud_clamav)" "$(github_latest Cisco-Talos/clamav)"
   emit_service notify_push "$(current_notify_push)" "$(github_latest nextcloud/notify_push)"
 } > "$TMP"
 

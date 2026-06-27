@@ -56,10 +56,57 @@ send_update_email() {
   "${ACE_UPDATE_MAIL:?}" --subject "$subject" --body-file "$body_file"
 }
 
+sanitize_log_snippet() {
+  sed -E \
+    -e 's/((password|token|secret|api[_-]?key|smtp)[[:space:]]*[=:][[:space:]]*)[^[:space:]]+/\1***REDACTED***/gi' \
+    -e 's/(Bearer[[:space:]]+)[^[:space:]]+/\1***REDACTED***/gi'
+}
+
+append_failure_context() {
+  local service="$1" detail="$2"
+  local unit="ace-service-auto-update@${service}.service"
+  local log_file="$ACE_UPDATE_STATE/log/${service}.log"
+  local journal saved
+
+  journal="$(
+    journalctl -u "$unit" -n 30 --no-pager 2>/dev/null \
+      | sanitize_log_snippet \
+      | tail -n 20 \
+      || true
+  )"
+  saved=""
+  if [[ -f "$log_file" ]]; then
+    saved="$(
+      tail -n 20 "$log_file" \
+        | sanitize_log_snippet \
+        || true
+    )"
+  fi
+
+  printf '%s' "$detail"
+  if [[ -n "$saved" ]]; then
+    printf '\n\n--- Saved update log (last 20 lines) ---\n%s' "$saved"
+  fi
+  if [[ -n "$journal" ]]; then
+    printf '\n\n--- systemd journal (%s, last 20 lines) ---\n%s' "$unit" "$journal"
+  fi
+}
+
+write_failure_log() {
+  local service="$1" detail="$2"
+  ensure_state_dirs
+  printf '%s\n---\n' "$(date -Is) ${detail}" >> "$ACE_UPDATE_STATE/log/${service}.log"
+}
+
 write_result_email() {
   local service="$1" outcome="$2" current="$3" latest="$4" detail="$5"
-  local tmp
+  local body tmp
   tmp="$(mktemp)"
+  body="$detail"
+  if [[ "$outcome" == "FAILED" ]]; then
+    write_failure_log "$service" "$detail"
+    body="$(append_failure_context "$service" "$detail")"
+  fi
   cat > "$tmp" <<EOF
 Ace service auto-update report
 
@@ -68,7 +115,7 @@ Outcome: ${outcome}
 Current version: ${current}
 Target version: ${latest}
 
-${detail}
+${body}
 EOF
   send_update_email "Ace update ${outcome}: ${service}" "$tmp"
   rm -f "$tmp"

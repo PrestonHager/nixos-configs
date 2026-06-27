@@ -113,7 +113,7 @@ This zone overrides public Cloudflare answers for LAN clients using ace as DNS. 
 | grafana | CNAME | grafana.internal.prestonhager.com |
 | cloud | CNAME | cloud.internal.prestonhager.com |
 | dns | CNAME | dns.internal.prestonhager.com |
-| ai, panel, test.panel, prometheus, jellyfin, vault, wg, metrics.wg, zitadel, git, matrix, spacetime, test.sui, faucet.test.sui, indexer.test.sui, factorio, game, lancache, mc, vpn, serverdocs | CNAME | ace.internal.prestonhager.com |
+| ai, panel, test.panel, prometheus, jellyfin, vault, wg, metrics.wg, zitadel, git, matrix, spacetime, test.sui, faucet.test.sui, indexer.test.sui, factorio, game, lancache, mc, vpn, serverdocs, update | CNAME | ace.internal.prestonhager.com |
 | crux.lc1.nm.us | CNAME | crux.internal.prestonhager.com |
 | nova.lc1.nm.us | CNAME | nova.internal.prestonhager.com |
 
@@ -126,7 +126,7 @@ Public Cloudflare CNAMEs that target `ip1.lc1.nm.us.prestonhager.com` (73.26.67.
 | Public name | LAN target |
 |-------------|------------|
 | cloud, dns, grafana | matching `*.internal.prestonhager.com` A → 192.168.5.5 |
-| ace, ai, factorio, faucet.test.sui, game, indexer.test.sui, jellyfin, lancache, matrix, mc, metrics.wg, panel, prometheus, spacetime, test.panel, test.sui, vault, vpn, wg, zitadel, serverdocs | ace.internal.prestonhager.com → 192.168.5.5 |
+| ace, ai, factorio, faucet.test.sui, game, indexer.test.sui, jellyfin, lancache, matrix, mc, metrics.wg, panel, prometheus, spacetime, test.panel, test.sui, update, vault, vpn, wg, zitadel, serverdocs | ace.internal.prestonhager.com → 192.168.5.5 |
 | crux.lc1.nm.us | crux.internal.prestonhager.com → 192.168.5.6 |
 | nova.lc1.nm.us | nova.internal.prestonhager.com → 192.168.5.7 |
 
@@ -164,6 +164,7 @@ Working pattern (same as grafana):
 | Type | Name | Content | Proxy |
 |------|------|---------|-------|
 | CNAME | `vault` (and other ace apps) | `ip1.lc1.nm.us.prestonhager.com` | DNS only (grey) |
+| CNAME | `update` | `ip1.lc1.nm.us.prestonhager.com` | DNS only (grey) — major upgrade approve/deny links |
 
 `ip1.lc1.nm.us.prestonhager.com` A → `73.26.67.25` (Cisco WAN / NAT → ace `:443`).
 

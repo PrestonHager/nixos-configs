@@ -27,6 +27,15 @@ TARGET="${TARGET#v}"
 path="${ACE_NIXOS_DIR}/${NIX_FILE}"
 [[ -f "$path" ]] || { echo "missing nix file: $path" >&2; exit 1; }
 
+cd "$ACE_NIXOS_DIR"
+branch="$(git rev-parse --abbrev-ref HEAD)"
+
+if ! git pull --rebase --autostash origin "$branch"; then
+  echo "git pull --rebase failed; resolve ${ACE_NIXOS_DIR} manually" >&2
+  git status -sb >&2 || true
+  exit 1
+fi
+
 tmp="$(mktemp)"
 cp "$path" "$tmp"
 
@@ -47,19 +56,13 @@ while IFS= read -r rule; do
   mv "${tmp}.new" "$tmp"
 done < <(jq -c --arg s "$SERVICE" '.[$s].bumpRules[]?' "$ACE_REGISTRY")
 
-if cmp -s "$path" "$tmp"; then
+if [[ "$(cat "$path")" == "$(cat "$tmp")" ]]; then
   rm -f "$tmp"
   echo "No version lines changed in ${NIX_FILE} for target ${TARGET}" >&2
   exit 1
 fi
 
 mv "$tmp" "$path"
-
-cd "$ACE_NIXOS_DIR"
-if ! git pull --rebase origin "$(git rev-parse --abbrev-ref HEAD)"; then
-  echo "git pull --rebase failed; resolve /etc/nixos manually" >&2
-  exit 1
-fi
 
 git add "$NIX_FILE"
 if git diff --cached --quiet; then
