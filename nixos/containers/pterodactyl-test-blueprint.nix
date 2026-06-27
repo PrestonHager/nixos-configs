@@ -365,6 +365,10 @@ let
     }
 
     install_dnsrecords_extension() {
+      if ! blueprint_cli -info 2>/dev/null | grep -qi sociallogin; then
+        echo "pterodactyl-test-blueprint-install: Social Login required before custom extensions" >&2
+        return 1
+      fi
       if [ ! -d "${dnsExtensionSrc}" ]; then
         echo "pterodactyl-test-blueprint-install: DNS extension source missing at ${dnsExtensionSrc}" >&2
         return 1
@@ -538,6 +542,10 @@ let
       chmod +x "$panel/blueprint.sh"
       chown prestonh:users "$panel/.blueprintrc" "$panel/blueprint.sh"
       install -d -m 0755 -o prestonh -g users "$panel/.blueprint"
+      install -d -m 0755 -o prestonh -g users \
+        "$panel/.blueprint/extensions/blueprint/private/debug"
+      install -m 0644 /dev/null "$panel/.blueprint/extensions/blueprint/private/debug/logs.txt"
+      chown prestonh:users "$panel/.blueprint/extensions/blueprint/private/debug/logs.txt"
     fi
 
     if [ -d "$panel/blueprint" ] && [ -d "$panel/.blueprint/blueprint" ]; then
@@ -561,8 +569,6 @@ let
       blueprint_cli_install
     fi
 
-    install_dnsrecords_extension
-    install_portforward_extension
     ${pkgs.curl}/bin/curl -fsSL "${socialloginBlueprintUrl}" -o "$tmp/sociallogin.blueprint"
     cp "$tmp/sociallogin.blueprint" "$panel/sociallogin.blueprint"
     chown prestonh:users "$panel/sociallogin.blueprint"
@@ -578,6 +584,8 @@ let
       echo "pterodactyl-test-blueprint-install: Social Login extension already installed"
     fi
     rm -f "$panel/sociallogin.blueprint"
+    install_dnsrecords_extension
+    install_portforward_extension
     post_install_hooks
     write_marker
     echo "pterodactyl-test-blueprint-install: Blueprint, Social Login, DNS Records, and Port Forward ready"
