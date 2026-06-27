@@ -73,7 +73,7 @@
     suricata.enable = true;
   };
 
-  # Optional: enable after adding secrets/cloudflare.yaml to nix-secrets (docs/dns-ace.md).
-  # homelab.caddy.cloudflareAcme.enable = true;
+  # Cloudflare DNS-01 for Caddy TLS (token in nix-secrets secrets/cloudflare.yaml).
+  homelab.caddy.cloudflareAcme.enable = true;
 }
 

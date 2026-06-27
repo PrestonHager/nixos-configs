@@ -185,31 +185,70 @@ DoT on port 853 does not traverse Cloudflare's HTTP proxy; use WAN NAT or LAN/VP
 
 ### Cloudflare DNS-01 for Caddy (automatic TLS)
 
-**Status:** Wired in `nixos/caddy/acme-dns.nix`; **disabled** until `homelab.caddy.cloudflareAcme.enable = true` on ace and the sops secret exists.
+**Status:** Enabled on ace via `homelab.caddy.cloudflareAcme.enable = true` (`nixos/caddy/acme-dns.nix`). Requires encrypted `secrets/cloudflare.yaml` in **nix-secrets**.
 
-With DNS-01, Caddy creates temporary `_acme-challenge` TXT records in Cloudflare via API. You no longer need to add each new hostname to Cloudflare manually for certificate issuance — only for **client routing** (grey-cloud CNAME to `ip1.lc1` when the service must be reachable from the public Internet).
+With DNS-01, Caddy creates temporary `_acme-challenge` TXT records in Cloudflare via API. You no longer need to add each new hostname to Cloudflare manually for **certificate issuance** — only for **client routing** (grey-cloud CNAME to `ip1.lc1` when the service must be reachable from the public Internet).
 
-#### Token setup (nix-secrets, not this repo)
+#### Token scopes (Cloudflare dashboard)
 
-1. In [Cloudflare](https://dash.cloudflare.com/profile/api-tokens) create a **scoped token**:
-   - **Permissions:** Zone → DNS → Edit; Zone → Zone → Read
-   - **Zone resources:** Include → `prestonhager.com`
-2. In the **nix-secrets** repo, create `secrets/cloudflare.yaml`:
+Create a **scoped API token** at [Cloudflare API tokens](https://dash.cloudflare.com/profile/api-tokens):
 
-   ```yaml
-   acme-env: |
-     CLOUDFLARE_API_TOKEN=your_token_here
-   ```
+| Permission | Access | Purpose |
+|------------|--------|---------|
+| Zone → DNS → Edit | `prestonhager.com` | DNS-01 TXT + optional CNAME upsert |
+| Zone → Zone → Read | `prestonhager.com` | Resolve zone id for API scripts |
 
-3. Encrypt with sops (`sops secrets/cloudflare.yaml`), push nix-secrets, then on ace:
+One token covers both ACME and `scripts/ace-cloudflare-dns-sync.sh`.
 
-   ```bash
-   nix flake update nix-secrets
-   ```
+#### Sops secret (nix-secrets repo)
 
-4. In `hosts/ace/default.nix`, set `homelab.caddy.cloudflareAcme.enable = true;` and rebuild ace.
+Path: `secrets/cloudflare.yaml` (encrypted with sops; keys: root + ace hosts per `.sops.yaml`).
 
-Implementation uses `pkgs.caddy.withPlugins` with `github.com/caddy-dns/cloudflare@v0.2.2` and global `acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}`.
+```yaml
+acme-env: |
+  CLOUDFLARE_API_TOKEN=your_token_here
+dns-api-token: your_token_here
+```
+
+**On ace** (recommended — has `/var/lib/sops/age/keys.txt`):
+
+```bash
+cd /etc/nixos
+sudo scripts/ace-cloudflare-secrets-setup.sh '<your-cloudflare-token>'
+# or: CLOUDFLARE_API_TOKEN='...' sudo scripts/ace-cloudflare-secrets-setup.sh
+```
+
+Manual edit:
+
+```bash
+export SOPS_AGE_KEY_FILE=/var/lib/sops/age/keys.txt
+cd /home/prestonh/nixos-secrets
+cp secrets/cloudflare.yaml.template secrets/cloudflare.yaml
+# edit secrets/cloudflare.yaml (replace REPLACE_ME)
+nix shell nixpkgs#sops --command sops --encrypt --encrypted-regex '^(acme-env|dns-api-token)$' --in-place secrets/cloudflare.yaml
+git add secrets/cloudflare.yaml && git commit -m "Add Cloudflare API token" && git push origin main
+```
+
+Then on ace:
+
+```bash
+cd /etc/nixos
+nix flake update nix-secrets
+sudo nixos-rebuild switch --flake .#ace
+```
+
+Caddy reads `CLOUDFLARE_API_TOKEN` from sops via `EnvironmentFile` (`cloudflare-acme-env` → `acme-env` key). Implementation uses `pkgs.caddy.withPlugins` with `github.com/caddy-dns/cloudflare@v0.2.2` and global `acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}`.
+
+#### Optional: sync public CNAMEs to ip1.lc1
+
+DNS-01 does **not** create routing records. For WAN clients, ace-hosted names still need grey-cloud CNAME → `ip1.lc1.nm.us.prestonhager.com`:
+
+```bash
+sudo /etc/nixos/scripts/ace-cloudflare-dns-sync.sh --dry-run   # preview
+sudo /etc/nixos/scripts/ace-cloudflare-dns-sync.sh             # apply
+```
+
+Host list matches `aceHosted` in `nixos/containers/technitium-zones.nix` plus `grafana`, `cloud`, `dns`, `vault`. Does not change `crux`/`nova.lc1` A records or external/github CNAMEs.
 
 #### Split-horizon and `_acme-challenge`
 
