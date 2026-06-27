@@ -57,7 +57,7 @@ let
     install -d -m 0755 -o prestonh -g users /home/prestonh/.cache/yarn-blueprint-test
 
     blueprint_cli() {
-      env \
+      runuser -u prestonh -- env \
         HOME=/home/prestonh \
         TERM=dumb \
         LC_ALL=C.UTF-8 \
@@ -68,7 +68,7 @@ let
     }
 
     blueprint_cli_install() {
-      env \
+      runuser -u prestonh -- env \
         HOME=/home/prestonh \
         TERM=dumb \
         LC_ALL=C.UTF-8 \
@@ -283,12 +283,9 @@ let
       done
       echo "pterodactyl-test-blueprint-install: building panel frontend with Blueprint extensions..."
       cd "$panel"
+      runuser -u prestonh -- rm -rf "$panel/node_modules"
       runuser -u prestonh -- env HOME=/home/prestonh YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test TERM=dumb PATH="$PATH" yarn install --frozen-lockfile 2>/dev/null \
         || runuser -u prestonh -- env HOME=/home/prestonh YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test TERM=dumb PATH="$PATH" yarn install
-      if [ ! -d "$panel/node_modules" ]; then
-        runuser -u prestonh -- env HOME=/home/prestonh YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test TERM=dumb PATH="$PATH" yarn install --frozen-lockfile 2>/dev/null \
-          || runuser -u prestonh -- env HOME=/home/prestonh YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test TERM=dumb PATH="$PATH" yarn install
-      fi
       runuser -u prestonh -- env \
         HOME=/home/prestonh \
         YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test \
@@ -334,7 +331,7 @@ let
       rm -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed"
       rm -f "$panel/.blueprint/lock" 2>/dev/null || true
       cd "$panel"
-      env BLUEPRINT_ENVIRONMENT=ci HOME=/home/prestonh TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 \
+      runuser -u prestonh -- env BLUEPRINT_ENVIRONMENT=ci HOME=/home/prestonh TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 \
         YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test PATH="$PATH" \
         ${pkgs.bash}/bin/bash "$panel/blueprint.sh"
       if blueprint_cli -info 2>/dev/null | grep -qi sociallogin; then
