@@ -204,6 +204,15 @@ let
       esac
     }
 
+    extension_admin_controller_source() {
+      ext="$1"
+      case "$ext" in
+        dnsrecords) echo "${dnsExtensionSrc}/admin/controller.php" ;;
+        portforward) echo "${portforwardExtensionSrc}/admin/controller.php" ;;
+        *) return 1 ;;
+      esac
+    }
+
     extension_admin_view_corrupted() {
       ext="$1"
       view="$panel/resources/views/admin/extensions/$ext/index.blade.php"
@@ -217,12 +226,29 @@ let
         ctrl="$panel/app/Http/Controllers/Admin/Extensions/$ext/''${ext}ExtensionController.php"
         view="$panel/resources/views/admin/extensions/$ext/index.blade.php"
         prod_ctrl="$prod_panel/app/Http/Controllers/Admin/Extensions/$ext/''${ext}ExtensionController.php"
+        src_ctrl=""
         src_view=""
+        if src_path=$(extension_admin_controller_source "$ext" 2>/dev/null) && [ -f "$src_path" ]; then
+          src_ctrl="$src_path"
+        fi
         if src_path=$(extension_admin_view_source "$ext" 2>/dev/null) && [ -f "$src_path" ]; then
           src_view="$src_path"
         fi
 
-        if [ ! -f "$ctrl" ]; then
+        if [ -n "$src_ctrl" ]; then
+          ctrl_needs_sync=0
+          if [ ! -f "$ctrl" ]; then
+            ctrl_needs_sync=1
+          elif ! cmp -s "$src_ctrl" "$ctrl"; then
+            ctrl_needs_sync=1
+          fi
+          if [ "$ctrl_needs_sync" -eq 1 ]; then
+            echo "pterodactyl-test-blueprint-install: syncing $ext admin controller from plugin source..."
+            install -d -m 0755 -o prestonh -g users "$(dirname "$ctrl")"
+            cp -a "$src_ctrl" "$ctrl"
+            chown prestonh:users "$ctrl"
+          fi
+        elif [ ! -f "$ctrl" ]; then
           if [ -f "$prod_ctrl" ]; then
             echo "pterodactyl-test-blueprint-install: copying $ext admin controller from production..."
             install -d -m 0755 -o prestonh -g users "$(dirname "$ctrl")"
@@ -236,8 +262,14 @@ let
         fi
 
         if [ -n "$src_view" ]; then
+          view_needs_sync=0
           if [ ! -f "$view" ] || extension_admin_view_corrupted "$ext"; then
-            echo "pterodactyl-test-blueprint-install: installing $ext admin view from plugin source..."
+            view_needs_sync=1
+          elif ! cmp -s "$src_view" "$view"; then
+            view_needs_sync=1
+          fi
+          if [ "$view_needs_sync" -eq 1 ]; then
+            echo "pterodactyl-test-blueprint-install: syncing $ext admin view from plugin source..."
             install -d -m 0755 -o prestonh -g users "$(dirname "$view")"
             cp -a "$src_view" "$view"
             chown prestonh:users "$view"

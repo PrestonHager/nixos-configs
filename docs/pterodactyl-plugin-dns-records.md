@@ -53,7 +53,7 @@ Configure credentials in the extension admin UI or via sops-mounted env files (s
 
 | Secret | Source | Env var |
 |--------|--------|---------|
-| Cloudflare API token | Extension admin UI (encrypted settings) | — |
+| Cloudflare API token | sops `cloudflare.yaml` → `acme-env` (same as Caddy DNS-01) or admin UI | `CLOUDFLARE_API_TOKEN_FILE` |
 | Technitium API token | sops `pterodactyl-technitium-api-token` or admin UI | `TECHNITIUM_API_TOKEN_FILE` |
 
 Create Technitium API token in https://dns.prestonhager.com (dedicated API user recommended).

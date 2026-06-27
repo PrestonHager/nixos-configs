@@ -95,6 +95,19 @@ class Config
 
     public function cloudflareApiToken(): string
     {
+        $file = getenv('CLOUDFLARE_API_TOKEN_FILE') ?: '';
+        if ($file !== '' && is_readable($file)) {
+            $contents = trim((string) file_get_contents($file));
+            if ($contents !== '') {
+                return $contents;
+            }
+        }
+
+        $env = getenv('CLOUDFLARE_API_TOKEN') ?: '';
+        if ($env !== '') {
+            return $env;
+        }
+
         return $this->optionalString('cloudflare_api_token');
     }
 

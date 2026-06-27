@@ -50,6 +50,17 @@ EOF
         else
           rm -f /pterodactyl/secrets/pterodactyl-technitium-api-token
         fi
+        # Same Cloudflare token Caddy uses for DNS-01 (sops cloudflare.yaml → acme-env).
+        if [ -f /run/secrets/cloudflare-acme-env ]; then
+          ${pkgs.gnugrep}/bin/grep -E '^CLOUDFLARE_API_TOKEN=' /run/secrets/cloudflare-acme-env \
+            | ${pkgs.coreutils}/bin/cut -d= -f2- \
+            > /pterodactyl/secrets/pterodactyl-cloudflare-api-token
+          chown pterodactyl:pterodactyl /pterodactyl/secrets/pterodactyl-cloudflare-api-token
+          chmod 0600 /pterodactyl/secrets/pterodactyl-cloudflare-api-token
+          echo "CLOUDFLARE_API_TOKEN_FILE=/pterodactyl/secrets/pterodactyl-cloudflare-api-token" >> /pterodactyl/secrets/blueprint-extensions.env
+        else
+          rm -f /pterodactyl/secrets/pterodactyl-cloudflare-api-token
+        fi
         chown pterodactyl:pterodactyl /pterodactyl/secrets/blueprint-extensions.env
         chmod 0640 /pterodactyl/secrets/blueprint-extensions.env
       '';

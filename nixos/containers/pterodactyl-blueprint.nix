@@ -196,11 +196,19 @@ let
           src_view="$src_path"
         fi
 
-        if [ -n "$src_ctrl" ] && [ ! -f "$ctrl" ]; then
-          echo "pterodactyl-blueprint-install: installing $ext admin controller from plugin source..."
-          install -d -m 0755 -o pterodactyl -g pterodactyl "$(dirname "$ctrl")"
-          cp -a "$src_ctrl" "$ctrl"
-          chown pterodactyl:pterodactyl "$ctrl"
+        if [ -n "$src_ctrl" ]; then
+          ctrl_needs_sync=0
+          if [ ! -f "$ctrl" ]; then
+            ctrl_needs_sync=1
+          elif ! cmp -s "$src_ctrl" "$ctrl"; then
+            ctrl_needs_sync=1
+          fi
+          if [ "$ctrl_needs_sync" -eq 1 ]; then
+            echo "pterodactyl-blueprint-install: syncing $ext admin controller from plugin source..."
+            install -d -m 0755 -o pterodactyl -g pterodactyl "$(dirname "$ctrl")"
+            cp -a "$src_ctrl" "$ctrl"
+            chown pterodactyl:pterodactyl "$ctrl"
+          fi
         elif [ ! -f "$ctrl" ] && [ "$ext" = "sociallogin" ]; then
           echo "pterodactyl-blueprint-install: reinstalling Social Login to restore admin controller..."
           rm -f "$panel/.blueprint/lock"

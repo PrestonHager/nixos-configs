@@ -12,6 +12,36 @@ let
     use Pterodactyl\BlueprintFramework\Extensions\portforward\Models\PortForwardSetting;
     use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Models\DnsExtensionSetting;
 
+    function dnsDefault(string $key, mixed $value): void {
+      DnsExtensionSetting::query()->firstOrCreate(["key" => $key], ["value" => $value]);
+    }
+
+    function resolveCloudflareZoneId(): string {
+      $token = getenv("CLOUDFLARE_API_TOKEN") ?: "";
+      $tokenFile = getenv("CLOUDFLARE_API_TOKEN_FILE") ?: "";
+      if ($tokenFile !== "" && is_readable($tokenFile)) {
+        $token = trim((string) file_get_contents($tokenFile));
+      }
+      if ($token === "") {
+        return "";
+      }
+      $ctx = stream_context_create([
+        "http" => [
+          "header" => "Authorization: Bearer {$token}\r\nAccept: application/json\r\n",
+          "timeout" => 15,
+        ],
+      ]);
+      $body = @file_get_contents("https://api.cloudflare.com/client/v4/zones?name=prestonhager.com", false, $ctx);
+      if ($body === false) {
+        return "";
+      }
+      $json = json_decode($body, true);
+      if (!is_array($json) || !isset($json["result"][0]["id"])) {
+        return "";
+      }
+      return (string) $json["result"][0]["id"];
+    }
+
     $dryRun = getenv("PORTFORWARD_DRY_RUN") !== "0";
 
     $portforward = [
@@ -33,7 +63,8 @@ let
     }
 
     $dns = [
-      "dns_provider_mode" => "technitium",
+      "dns_provider_mode" => "both",
+      "base_domain" => "prestonhager.com",
       "technitium_api_url" => "http://host.containers.internal:5380",
       "technitium_default_zone" => "prestonhager.com",
       "dry_run" => false,
@@ -41,7 +72,11 @@ let
       "update_on_allocation_change" => true,
     ];
     foreach ($dns as $key => $value) {
-      DnsExtensionSetting::query()->updateOrCreate(["key" => $key], ["value" => $value]);
+      dnsDefault($key, $value);
+    }
+    $zoneId = resolveCloudflareZoneId();
+    if ($zoneId !== "") {
+      dnsDefault("zone_id", $zoneId);
     }
     echo "extensions configured\n";
   '';

@@ -34,8 +34,8 @@
                     </div>
                     <div class="form-group">
                         <label for="cloudflare_api_token">Cloudflare API token</label>
-                        <input type="password" class="form-control" id="cloudflare_api_token" name="cloudflare_api_token" placeholder="Leave blank to keep existing token">
-                        <p class="help-block">Requires Zone.DNS Edit and Zone.Zone Read scopes.</p>
+                        <input type="password" class="form-control" id="cloudflare_api_token" name="cloudflare_api_token" placeholder="Leave blank to keep existing token or use CLOUDFLARE_API_TOKEN_FILE">
+                        <p class="help-block">Requires Zone.DNS Edit and Zone.Zone Read scopes. On ace, the same token as Caddy DNS-01 is mounted via sops (<code>CLOUDFLARE_API_TOKEN_FILE</code>).</p>
                     </div>
                     <div class="form-group">
                         <label for="zone_id">Default zone ID</label>
