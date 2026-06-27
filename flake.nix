@@ -52,7 +52,10 @@
     };
 
     devShells.${system}.docs-dev = nixpkgs.legacyPackages.${system}.mkShell {
-      packages = [ nixpkgs.legacyPackages.${system}.mdbook ];
+      packages = [
+        nixpkgs.legacyPackages.${system}.mdbook
+        nixpkgs.legacyPackages.${system}.mdbook-mermaid
+      ];
     };
 
     nixosConfigurations = let

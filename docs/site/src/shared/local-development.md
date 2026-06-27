@@ -26,7 +26,7 @@ The flake output is a static HTML tree suitable for Caddy `file_server` on ace.
 
 ## Live reload (development)
 
-Requires Nix with `mdbook` available:
+Requires Nix with `mdbook` and `mdbook-mermaid` available:
 
 ```bash
 nix develop .#docs-dev
@@ -39,8 +39,10 @@ Default URL: http://127.0.0.1:3000
 Alternatively without the dev shell:
 
 ```bash
-nix shell nixpkgs#mdbook -c mdbook serve docs/site
+nix shell nixpkgs#mdbook nixpkgs#mdbook-mermaid -c mdbook serve docs/site
 ```
+
+Mermaid diagrams in fenced ` ```mermaid ` blocks are rendered in the browser via the `mdbook-mermaid` preprocessor and bundled `mermaid.min.js`.
 
 ## Deploy on ace
 

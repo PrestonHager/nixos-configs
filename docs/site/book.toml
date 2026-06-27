@@ -5,10 +5,14 @@ language = "en"
 description = "Homelab documentation for ace, Pterodactyl nodes, and shared services"
 src = "src"
 
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
 [output.html]
 default-theme = "ayu"
 git-repository-url = "https://github.com/PrestonHager/nixos-configs"
 edit-url-template = "https://github.com/PrestonHager/nixos-configs/edit/dell-poweredge-r730xd/docs/{path}"
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
 
 [output.html.search]
 enable = true

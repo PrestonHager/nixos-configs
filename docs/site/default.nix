@@ -2,7 +2,7 @@
 
 pkgs.runCommand "nixos-configs-serverdocs"
   {
-    nativeBuildInputs = [ pkgs.mdbook ];
+    nativeBuildInputs = [ pkgs.mdbook pkgs.mdbook-mermaid ];
   }
   ''
     mkdir -p work/src/_includes
