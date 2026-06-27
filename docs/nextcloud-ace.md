@@ -1,6 +1,6 @@
 # Nextcloud on ace
 
-Implementation: `nixos/containers/nextcloud.nix`, Caddy `nixos/caddy/nextcloud.nix`, secrets `nixos-secrets/secrets/containers/nextcloud.yaml` (`nextcloud-environment`, `nextcloud-db-environment`, `nextcloud-oidc-env`).
+Implementation: `nixos/containers/nextcloud.nix`, Caddy `nixos/caddy/nextcloud.nix`, secrets `nixos-secrets/secrets/containers/nextcloud.yaml` (`nextcloud-environment`, `nextcloud-db-environment`, `nextcloud-oidc-env`, `nextcloud-whiteboard-env`).
 
 ## Service
 
@@ -10,6 +10,7 @@ Implementation: `nixos/containers/nextcloud.nix`, Caddy `nixos/caddy/nextcloud.n
 | Version | Nextcloud 34 (official container image, pinned in `nextcloud.nix`) |
 | Auth | Zitadel OIDC via `user_oidc` app; local login remains available (`?direct=1`) |
 | Break-glass local admin | `nextcloud-admin` (password in sops `nextcloud-environment`) |
+| Whiteboard WebSocket | `ghcr.io/nextcloud-releases/whiteboard:stable` sidecar in the Nextcloud pod; public URL `https://cloud.prestonhager.com/whiteboard` (Caddy proxies to `127.0.0.1:3002`) |
 
 ## Major version upgrade (31 → 34)
 
@@ -145,9 +146,13 @@ nextcloud-oidc-env: |
   NEXTCLOUD_OIDC_CLIENT_ID=<from Zitadel Nextcloud app>
   NEXTCLOUD_OIDC_CLIENT_SECRET=<from Zitadel Nextcloud app>
   ZITADEL_PROJECT_ID=376196450586990901
+
+nextcloud-whiteboard-env: |
+  JWT_SECRET_KEY=<random 48-char secret; must match whiteboard app jwt_secret_key>
+  NEXTCLOUD_URL=https://cloud.prestonhager.com
 ```
 
-After sops changes:
+The whiteboard JWT secret is auto-generated on first ace bootstrap if missing (`scripts/ace-bootstrap-secrets.sh`). After sops changes:
 
 ```bash
 cd /etc/nixos
@@ -165,7 +170,33 @@ On deploy, `nextcloud-oidc-config.service`:
 - Sets login button label **Sign in with Zitadel**
 - Keeps local login enabled (`allow_multiple_user_backends`)
 
+`nextcloud-occ-maintain.service` also installs/enables the **whiteboard** app and sets `collabBackendUrl` + `jwt_secret_key` from `nextcloud-whiteboard-env`.
+
 The Nextcloud pod resolves `zitadel.prestonhager.com` → `192.168.5.5` (Caddy on ace) for OIDC discovery from inside the container.
+
+## Whiteboard real-time collaboration
+
+The **whiteboard** app (Excalidraw-based) needs a separate WebSocket server for live multi-user editing. Basic whiteboard use works without it; the admin overview warning clears once configured.
+
+| Setting | Value |
+|---------|-------|
+| Container | `nextcloud-whiteboard` in the `nextcloud` pod |
+| Image | `ghcr.io/nextcloud-releases/whiteboard:stable` |
+| Internal port | `3002` (localhost only; Caddy terminates TLS) |
+| Public URL | `https://cloud.prestonhager.com/whiteboard` |
+| Nextcloud `collabBackendUrl` | `https://cloud.prestonhager.com/whiteboard` |
+| Shared secret | `JWT_SECRET_KEY` in sops `nextcloud-whiteboard-env` → app `jwt_secret_key` |
+
+Verification:
+
+```bash
+systemctl is-active podman-nextcloud-whiteboard
+curl -sS -o /dev/null -w '%{http_code}\n' https://cloud.prestonhager.com/whiteboard/
+podman exec -u www-data nextcloud php occ config:app:get whiteboard collabBackendUrl
+podman exec -u www-data nextcloud php occ config:app:get whiteboard jwt_secret_key
+```
+
+Admin **Settings → Administration → Overview** should no longer show the whiteboard WebSocket warning.
 
 ## Verification on ace
 

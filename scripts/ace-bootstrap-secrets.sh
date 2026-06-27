@@ -105,6 +105,18 @@ EOF
   nix shell nixpkgs#sops --command sops -e -i secrets/containers/nextcloud.yaml
 fi
 
+if [ -f secrets/containers/nextcloud.yaml ] \
+  && ! nix shell nixpkgs#sops --command sops -d secrets/containers/nextcloud.yaml 2>/dev/null | grep -q '^JWT_SECRET_KEY='; then
+  WHITEBOARDJWT=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 48)
+  cat >>secrets/containers/nextcloud.yaml <<EOF
+
+nextcloud-whiteboard-env: |
+  JWT_SECRET_KEY=${WHITEBOARDJWT}
+  NEXTCLOUD_URL=https://cloud.prestonhager.com
+EOF
+  nix shell nixpkgs#sops --command sops -e -i secrets/containers/nextcloud.yaml
+fi
+
 if [ ! -f secrets/containers/jellyfin.yaml ]; then
   cat > secrets/containers/jellyfin.yaml <<'EOF'
 jellyfin-oauth-env: |

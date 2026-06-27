@@ -16,8 +16,12 @@ let
   # 34.0.1 not published on Docker Hub (see nextcloud/docker#2584); use latest 34.0.x patch
   nextcloudImage = "docker.io/library/nextcloud:34.0.0";
   clamavImage = "docker.io/clamav/clamav:stable";
+  whiteboardImage = "ghcr.io/nextcloud-releases/whiteboard:stable";
+  whiteboardPort = 3002;
   nextcloudPublicUrl = "https://cloud.prestonhager.com";
   nextcloudPushUrl = "${nextcloudPublicUrl}/push";
+  nextcloudWhiteboardUrl = "${nextcloudPublicUrl}/whiteboard";
+  whiteboardEnvPath = config.sops.secrets."nextcloud-whiteboard-env".path;
   zitadelDomain = "zitadel.prestonhager.com";
   zitadelDiscoveryUri = "https://${zitadelDomain}/.well-known/openid-configuration";
   zitadelProjectId = "376196450586990901";
@@ -295,6 +299,27 @@ EOF
       echo "nextcloud-occ-maintain: notify_push setup failed; retry after notify_push container is healthy" >&2
       exit 1
     fi
+
+    if ! occ app:list 2>/dev/null | grep -qE '(^| )- whiteboard:'; then
+      occ app:install whiteboard || echo "nextcloud-occ-maintain: whiteboard install failed" >&2
+    fi
+    occ app:enable whiteboard 2>/dev/null || true
+
+    jwtSecret="$(grep '^JWT_SECRET_KEY=' "${whiteboardEnvPath}" | cut -d= -f2- || true)"
+    if [ -z "$jwtSecret" ]; then
+      echo "nextcloud-occ-maintain: JWT_SECRET_KEY missing from nextcloud-whiteboard-env, skipping whiteboard config" >&2
+    else
+      for _ in $(seq 1 60); do
+        if $podman exec nextcloud bash -c 'exec 3<>/dev/tcp/127.0.0.1/${toString whiteboardPort}' 2>/dev/null; then
+          $podman exec nextcloud bash -c 'exec 3<&- 3>&-' 2>/dev/null || true
+          break
+        fi
+        sleep 2
+      done
+
+      occ config:app:set whiteboard collabBackendUrl --value="${nextcloudWhiteboardUrl}"
+      occ config:app:set whiteboard jwt_secret_key --value="$jwtSecret"
+    fi
   '';
 
   nextcloudCronScript = pkgs.writeShellScript "nextcloud-cron" ''
@@ -405,6 +430,10 @@ in
       sopsFile = "${sops-path}/secrets/containers/nextcloud.yaml";
       key = "nextcloud-oidc-env";
     };
+    "nextcloud-whiteboard-env" = {
+      sopsFile = "${sops-path}/secrets/containers/nextcloud.yaml";
+      key = "nextcloud-whiteboard-env";
+    };
   };
 
   users.users = {
@@ -498,6 +527,7 @@ in
       "podman-nextcloud.service"
       "podman-nextcloud-clamav.service"
       "podman-nextcloud-notify-push.service"
+      "podman-nextcloud-whiteboard.service"
     ];
     requires = [
       "podman-nextcloud.service"
@@ -577,6 +607,7 @@ in
       "podman-nextcloud-redis.service"
       "podman-nextcloud-clamav.service"
       "podman-nextcloud-notify-push.service"
+      "podman-nextcloud-whiteboard.service"
     ];
     unitConfig = {
       RequiresMountsFor = "/run/containers /stor";
@@ -596,6 +627,7 @@ in
           hosts="$($podman pod inspect nextcloud --format '{{json .InfraConfig.HostAdd}}' 2>/dev/null || echo '[]')"
           dns="$($podman pod inspect nextcloud --format '{{json .InfraConfig.DNSServer}}' 2>/dev/null || echo 'null')"
           if ! echo "$ports" | grep -q 7867 \
+            || ! echo "$ports" | grep -q ${toString whiteboardPort} \
             || ! echo "$hosts" | grep -q 'cloud.prestonhager.com:192.168.5.5' \
             || ! echo "$hosts" | grep -q "${zitadelDomain}:''${hostGw}" \
             || ! echo "$dns" | grep -q '192.168.5.5'; then
@@ -608,6 +640,7 @@ in
         $podman pod create \
           -p 127.0.0.1:8083:80 \
           -p 127.0.0.1:7867:7867 \
+          -p 127.0.0.1:${toString whiteboardPort}:${toString whiteboardPort} \
           --hostname nextcloud \
           --dns=192.168.5.5 \
           --add-host=cloud.prestonhager.com:192.168.5.5 \
@@ -688,6 +721,16 @@ in
       ];
       dependsOn = [ "nextcloud" "nextcloud-clamav" ];
       extraOptions = [ "--pod=nextcloud" ];
+    };
+    nextcloud-whiteboard = {
+      autoStart = true;
+      user = "root:root";
+      image = whiteboardImage;
+      dependsOn = [ "nextcloud" ];
+      extraOptions = [
+        "--pod=nextcloud"
+        "--env-file=${whiteboardEnvPath}"
+      ];
     };
     nextcloud-clamav = {
       autoStart = true;

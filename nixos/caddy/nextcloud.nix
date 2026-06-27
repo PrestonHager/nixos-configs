@@ -21,6 +21,15 @@
         }
       }
 
+      handle_path /whiteboard/* {
+        reverse_proxy http://127.0.0.1:3002 {
+          header_up Host {host}
+          header_up X-Real-IP {remote_host}
+          header_up X-Forwarded-For {remote_host}
+          header_up X-Forwarded-Proto {scheme}
+        }
+      }
+
       reverse_proxy http://127.0.0.1:8083 {
         header_up Host {host}
         header_up X-Real-IP {remote_host}
