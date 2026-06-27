@@ -321,6 +321,7 @@ EOF
 
       occ config:app:set whiteboard collabBackendUrl --value="${nextcloudWhiteboardUrl}"
       occ config:app:set whiteboard jwt_secret_key --value="$jwtSecret"
+      occ config:app:set whiteboard max_file_size --value=100 --type=integer
     fi
   '';
 
@@ -729,6 +730,10 @@ in
       autoStart = true;
       user = "root:root";
       image = whiteboardImage;
+      environment = {
+        # Megabytes; raises WebSocket payload cap (default 2 MB).
+        MAX_UPLOAD_FILE_SIZE = "100";
+      };
       dependsOn = [ "nextcloud" ];
       extraOptions = [
         "--pod=nextcloud"

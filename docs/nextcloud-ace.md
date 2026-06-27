@@ -152,6 +152,8 @@ nextcloud-whiteboard-env: |
   NEXTCLOUD_URL=https://cloud.prestonhager.com
 ```
 
+`MAX_UPLOAD_FILE_SIZE` (collaboration server WebSocket payload cap, in **megabytes**) is set in Nix (`100`), not sops. The whiteboard app admin limit is `occ config:app:set whiteboard max_file_size --value=100` (applied by `nextcloud-occ-maintain.service`).
+
 The whiteboard JWT secret is auto-generated on first ace bootstrap if missing (`scripts/ace-bootstrap-secrets.sh`). After sops changes:
 
 ```bash
@@ -186,6 +188,9 @@ The **whiteboard** app (Excalidraw-based) needs a separate WebSocket server for 
 | Public URL | `https://cloud.prestonhager.com/whiteboard` |
 | Nextcloud `collabBackendUrl` | `https://cloud.prestonhager.com/whiteboard` |
 | Shared secret | `JWT_SECRET_KEY` in sops `nextcloud-whiteboard-env` → app `jwt_secret_key` |
+| Max image size (app) | `max_file_size` = `100` (MB); must be ≤ collaboration server `MAX_UPLOAD_FILE_SIZE` |
+| WebSocket payload cap | `MAX_UPLOAD_FILE_SIZE` = `100` (MB) on `nextcloud-whiteboard` container |
+| Caddy body limit | `request_body max_size 100MB` on `/whiteboard/*` (main vhost stays unlimited for large file sync) |
 
 Verification:
 
@@ -194,9 +199,11 @@ systemctl is-active podman-nextcloud-whiteboard
 curl -sS -o /dev/null -w '%{http_code}\n' https://cloud.prestonhager.com/whiteboard/
 podman exec -u www-data nextcloud php occ config:app:get whiteboard collabBackendUrl
 podman exec -u www-data nextcloud php occ config:app:get whiteboard jwt_secret_key
+podman exec -u www-data nextcloud php occ config:app:get whiteboard max_file_size
+podman exec nextcloud-whiteboard printenv MAX_UPLOAD_FILE_SIZE
 ```
 
-Admin **Settings → Administration → Overview** should no longer show the whiteboard WebSocket warning.
+Admin **Settings → Administration → Whiteboard → Advanced** should show no warning that max image size exceeds the WebSocket payload limit. Overview should no longer show the whiteboard WebSocket URL warning.
 
 ## Administration overview warnings
 

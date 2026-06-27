@@ -22,6 +22,10 @@
       }
 
       handle_path /whiteboard/* {
+        request_body {
+          max_size 100MB
+        }
+
         reverse_proxy http://127.0.0.1:3002 {
           header_up Host {host}
           header_up X-Real-IP {remote_host}
