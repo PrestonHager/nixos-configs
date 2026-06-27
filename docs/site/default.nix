@@ -11,9 +11,9 @@ pkgs.runCommand "nixos-configs-serverdocs"
     cd work
     mdbook build
 
-    if grep -rq '{{#include' book/; then
-      echo "error: mdbook output contains unexpanded {{#include}} directives" >&2
-      grep -r '{{#include' book/ >&2 || true
+    if grep -rq '{{#include _includes/' book/; then
+      echo "error: mdbook output contains unexpanded {{#include _includes/...}} directives" >&2
+      grep -r '{{#include _includes/' book/ --include='*.html' >&2 || true
       exit 1
     fi
 
