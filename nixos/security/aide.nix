@@ -63,10 +63,10 @@ in {
       };
     };
 
-    # Refresh baseline after nixos-rebuild.
-    systemd.services.nixos-rebuild = {
-      postStart = lib.mkAfter "${aideInit}";
-    };
+    # Refresh baseline after each nixos-rebuild switch.
+    system.activationScripts.homelabAideInit = lib.stringAfter [ "users" ] ''
+      ${aideInit}
+    '';
 
     systemd.tmpfiles.rules = [
       "d /var/lib/aide 0700 root root -"
