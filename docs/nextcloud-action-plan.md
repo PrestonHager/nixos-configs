@@ -3,7 +3,7 @@
 **Updated:** 2026-06-07 (MDT)  
 **Host:** ace (`192.168.5.5`)  
 **URL:** https://cloud.prestonhager.com  
-**Version:** 34.0.1 (upgraded from 31.0.14.1 via stepped major-version migration)  
+**Version:** 34.0.0.12 deployed (2026-06-27); nix pin targets `34.0.1` when Docker Hub publishes the tag  
 **Config:** `nixos/containers/nextcloud.nix`, `nixos/caddy/nextcloud.nix`
 
 ---

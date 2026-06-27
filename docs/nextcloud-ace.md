@@ -25,7 +25,14 @@ chmod +x scripts/ace-nextcloud-major-upgrade.sh
 ACE_NC_UPGRADE_CONFIRM=yes scripts/ace-nextcloud-major-upgrade.sh
 ```
 
-If Docker Hub has not published `34.0.1` yet, the script falls back to `34.0.0` and restores the committed nix pin when the tag appears. After upgrade, verify:
+If Docker Hub has not published `34.0.1` yet, the script falls back to `34.0.0` (Docker tags use major versions like `32`, `33`, not patch tags like `32.0.12`). After the `34.0.1` image is published, pull and rebuild:
+
+```bash
+cd /etc/nixos
+git pull
+nixos-rebuild switch --flake .#ace
+podman exec -u www-data nextcloud php /var/www/html/occ upgrade --no-interaction
+```
 
 ```bash
 podman exec -u www-data nextcloud php /var/www/html/occ status

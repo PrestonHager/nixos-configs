@@ -38,7 +38,7 @@
 | **Zitadel** | https://zitadel.prestonhager.com | ✅ Healthy | HTTP 302; OIDC discovery returns `issuer: https://zitadel.prestonhager.com` |
 | **Zitadel DB** | — | ✅ Healthy | Container running |
 | **Zitadel Login** | — | ✅ Healthy | Container running (v4.15.0) |
-| **Nextcloud** | https://cloud.prestonhager.com | ⚠️ Degraded | HTTP 302; v31.0.14.1 installed; **containers restarted ~2h ago**; 14 log errors since rebuild; whiteboard WebSocket not configured |
+| **Nextcloud** | https://cloud.prestonhager.com | ✅ Healthy | HTTP 200; v34.0.0.12 installed (2026-06-27 upgrade from 31.0.14.1) |
 | **Nextcloud DB** | — | ✅ Healthy | Running |
 | **Nextcloud Redis** | — | ✅ Healthy | Running |
 | **Nextcloud ClamAV** | — | ✅ Healthy | ClamAV 1.5.2/28023; `podman-nextcloud-clamav` active |
