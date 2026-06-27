@@ -18,7 +18,14 @@ let
     set -euo pipefail
     mkdir -p /var/lib/aide /var/log/aide
     ${pkgs.aide}/bin/aide --config=${configFile} --init
-    mv -f ${dbNewPath} ${dbPath}
+    if [ -f ${dbNewPath} ]; then
+      mv -f ${dbNewPath} ${dbPath}
+    elif [ -f /etc/aide.db.new ]; then
+      mv -f /etc/aide.db.new ${dbPath}
+    else
+      echo "AIDE init did not produce expected database output" >&2
+      exit 1
+    fi
     logger -t homelab-aide "AIDE database initialized on ${cfg.hostName}"
   '';
   aideCheck = pkgs.writeShellScript "aide-check" ''
