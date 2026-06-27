@@ -148,6 +148,7 @@ in
   imports = [
     ./pterodactyl-test-stock-reset.nix
     ./pterodactyl-test-blueprint.nix
+    ./pterodactyl-test-blueprint-extensions-configure.nix
     ./pterodactyl-test-sso.nix
   ];
 
@@ -247,7 +248,7 @@ HASHIDS_LENGTH=8
 MAIL_MAILER=log
 
 PTERODACTYL_UPDATE_REPOSITORY=pterodactyl/panel
-PTERODACTYL_UPDATE_BRANCH=release/v1.11.11
+PTERODACTYL_UPDATE_BRANCH=release/v1.14.0
 PTERODACTYL_UPDATE_MODE=git
 PTERODACTYL_UPDATE_GIT_REMOTE=origin
 PTERODACTYL_UPDATE_GIT_STRATEGY=auto
@@ -267,7 +268,7 @@ EOF
 
       ${ensureEnvVar "APP_ENVIRONMENT_ONLY" "false"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_REPOSITORY" "pterodactyl/panel"}
-      ${ensureEnvVar "PTERODACTYL_UPDATE_BRANCH" "release/v1.11.11"}
+      ${ensureEnvVar "PTERODACTYL_UPDATE_BRANCH" "release/v1.14.0"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_MODE" "git"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_GIT_REMOTE" "origin"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_GIT_STRATEGY" "auto"}
@@ -489,14 +490,16 @@ EOF
         "${testPanelDir}:/var/www/pterodactyl"
         "/pterodactyl-test/sockets/mysqld:/run/mysqld"
         "/pterodactyl-test/sockets/php:/run/php-fpm"
+        "/pterodactyl/secrets:/pterodactyl/secrets:ro"
         "${testEnvFile}:/var/www/pterodactyl/.env:U"
       ];
       environment = panelUpdateEnvStock;
       extraOptions = [
         "--pod=pterodactyl-test"
         "--env-file=${testEnvFile}"
+        "--env-file=/pterodactyl/secrets/blueprint-extensions.env"
       ];
-      image = "pterodactyl-runtime:v1.11.11";
+      image = "pterodactyl-runtime:v1.14.0";
       imageFile = pterodactylImages.runtimeImage;
     };
 

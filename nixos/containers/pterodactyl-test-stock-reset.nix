@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 
 let
-  version = "1.11.11";
+  version = "1.14.0";
   testPanelDir = "/home/prestonh/Projects/panel";
   officialSrc = "https://github.com/pterodactyl/panel.git";
   officialBranch = "release/v${version}";

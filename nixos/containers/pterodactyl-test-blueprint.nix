@@ -2,12 +2,13 @@
 
 let
   testPanelDir = "/home/prestonh/Projects/panel";
-  testPanelBranch = "release/v1.11.11";
+  testPanelBranch = "release/v1.14.0";
   stateDir = "/var/lib/pterodactyl-test";
   blueprintMarker = "${stateDir}/blueprint-installed";
   blueprintReleaseUrl = "https://github.com/BlueprintFramework/framework/releases/latest/download/release.zip";
   socialloginBlueprintUrl = "https://github.com/blueprint-community/extension-sociallogin/releases/download/1.2.0/sociallogin.blueprint";
   dnsExtensionSrc = "/etc/nixos/plugins/pterodactyl-dns-blueprint";
+  portforwardExtensionSrc = "/etc/nixos/plugins/pterodactyl-portforward-blueprint";
 
   toolPath = pkgs.lib.makeBinPath [
     pkgs.bash
@@ -242,14 +243,24 @@ let
         return 0
       fi
 
-      echo "pterodactyl-test-blueprint-install: restoring Blueprint LoginFormContainer patch from release..."
+      echo "pterodactyl-test-blueprint-install: restoring Blueprint frontend patches from release..."
       patch_tmp=$(mktemp -d)
       ${pkgs.curl}/bin/curl -fsSL "${blueprintReleaseUrl}" -o "$patch_tmp/release.zip"
       ${pkgs.unzip}/bin/unzip -o "$patch_tmp/release.zip" \
-        resources/scripts/components/auth/LoginFormContainer.tsx \
+        "resources/scripts/components/*" \
+        "resources/scripts/routers/*" \
+        "resources/scripts/index.tsx" \
+        "resources/scripts/blueprint/extends/*" \
         -d "$patch_tmp/extract"
-      cp "$patch_tmp/extract/resources/scripts/components/auth/LoginFormContainer.tsx" "$login_form"
-      chown prestonh:users "$login_form"
+      cp -a "$patch_tmp/extract/resources/scripts/components/." "$panel/resources/scripts/components/"
+      cp -a "$patch_tmp/extract/resources/scripts/routers/." "$panel/resources/scripts/routers/"
+      cp "$patch_tmp/extract/resources/scripts/index.tsx" "$panel/resources/scripts/index.tsx"
+      cp -a "$patch_tmp/extract/resources/scripts/blueprint/extends/." "$panel/resources/scripts/blueprint/extends/"
+      chown -R prestonh:users \
+        "$panel/resources/scripts/components" \
+        "$panel/resources/scripts/routers" \
+        "$panel/resources/scripts/index.tsx" \
+        "$panel/resources/scripts/blueprint/extends"
       rm -rf "$patch_tmp"
       ensure_blueprint_index_css
       ensure_blueprint_webpack_alias
@@ -335,6 +346,27 @@ let
       ensure_frontend_built
     }
 
+    install_portforward_extension() {
+      if [ ! -d "${portforwardExtensionSrc}" ]; then
+        echo "pterodactyl-test-blueprint-install: Port Forward extension source missing at ${portforwardExtensionSrc}" >&2
+        return 1
+      fi
+      if [ -d "$panel/.blueprint/extensions/portforward" ]; then
+        echo "pterodactyl-test-blueprint-install: Port Forward extension already present"
+        return 0
+      fi
+      echo "pterodactyl-test-blueprint-install: installing portforward extension from dev tree..."
+      install -d -m 0755 -o prestonh -g users "$panel/.blueprint/dev"
+      rm -rf "$panel/.blueprint/dev/"*
+      cp -a "${portforwardExtensionSrc}/." "$panel/.blueprint/dev/"
+      chown -R prestonh:users "$panel/.blueprint/dev"
+      if ! blueprint_cli -info 2>/dev/null | grep -qi portforward; then
+        rm -f "$panel/.blueprint/lock"
+        blueprint_cli -install '[developer-build]' \
+          || blueprint_cli -i '[developer-build]'
+      fi
+    }
+
     install_dnsrecords_extension() {
       if [ ! -d "${dnsExtensionSrc}" ]; then
         echo "pterodactyl-test-blueprint-install: DNS extension source missing at ${dnsExtensionSrc}" >&2
@@ -385,16 +417,47 @@ let
     }
 
     write_marker() {
-      echo "blueprint+sociallogin+dnsrecords" > "$marker"
+      echo "blueprint+sociallogin+dnsrecords+portforward" > "$marker"
       chown pterodactyl:pterodactyl "$marker"
     }
 
     if blueprint_integrated \
       && [ -d "$panel/.blueprint/extensions/sociallogin" ] \
       && [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
+      && [ -d "$panel/.blueprint/extensions/portforward" ] \
       && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
       write_marker
-      echo "pterodactyl-test-blueprint-install: upstream Blueprint + Social Login + DNS Records ready"
+      echo "pterodactyl-test-blueprint-install: Blueprint, Social Login, DNS Records, and Port Forward ready"
+      exit 0
+    fi
+
+    if [ -d "$panel/.blueprint/extensions/sociallogin" ] \
+      && [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
+      && [ ! -d "$panel/.blueprint/extensions/portforward" ] \
+      && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
+      echo "pterodactyl-test-blueprint-install: DNS present, installing Port Forward only..."
+      install_portforward_extension
+      post_install_hooks
+      write_marker
+      echo "pterodactyl-test-blueprint-install: Port Forward extension ready on test panel"
+      exit 0
+    fi
+
+    if [ -d "$panel/.blueprint/extensions/sociallogin" ] \
+      && [ ! -d "$panel/.blueprint/extensions/dnsrecords" ] \
+      && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
+      echo "pterodactyl-test-blueprint-install: Social Login present, installing DNS Records and Port Forward..."
+      if ! blueprint_backend_integrated; then
+        rerun_blueprint_framework
+      elif ! blueprint_frontend_integrated; then
+        ensure_blueprint_frontend_patches
+        ensure_frontend_built
+      fi
+      install_dnsrecords_extension
+      install_portforward_extension
+      post_install_hooks
+      write_marker
+      echo "pterodactyl-test-blueprint-install: DNS Records and Port Forward ready on test panel"
       exit 0
     fi
 
@@ -419,6 +482,14 @@ let
     if [ -d "$panel/.blueprint/extensions/sociallogin" ] \
       && [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
       && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
+      if [ ! -d "$panel/.blueprint/extensions/portforward" ]; then
+        echo "pterodactyl-test-blueprint-install: installing missing Port Forward extension..."
+        install_portforward_extension
+        post_install_hooks
+        write_marker
+        echo "pterodactyl-test-blueprint-install: Port Forward extension ready on test panel"
+        exit 0
+      fi
       if blueprint_backend_integrated && ! blueprint_frontend_integrated; then
         echo "pterodactyl-test-blueprint-install: backend ready but frontend missing Blueprint patches, repairing..."
         ensure_blueprint_frontend_patches
@@ -494,6 +565,7 @@ let
     fi
 
     install_dnsrecords_extension
+    install_portforward_extension
     ${pkgs.curl}/bin/curl -fsSL "${socialloginBlueprintUrl}" -o "$tmp/sociallogin.blueprint"
     cp "$tmp/sociallogin.blueprint" "$panel/sociallogin.blueprint"
     chown prestonh:users "$panel/sociallogin.blueprint"
@@ -511,12 +583,12 @@ let
     rm -f "$panel/sociallogin.blueprint"
     post_install_hooks
     write_marker
-    echo "pterodactyl-test-blueprint-install: upstream Blueprint + Social Login + DNS Records ready"
+    echo "pterodactyl-test-blueprint-install: Blueprint, Social Login, DNS Records, and Port Forward ready"
   '';
 in
 {
   systemd.services.pterodactyl-test-blueprint-install = {
-    description = "Install upstream Blueprint, Social Login, and DNS extension on test panel";
+    description = "Install Blueprint, Social Login, DNS Records, and Port Forward on test panel";
     after = [
       "podman-pterodactyl-test.service"
       "pterodactyl-test-stock-reset.service"
