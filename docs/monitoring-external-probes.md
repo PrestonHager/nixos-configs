@@ -49,7 +49,7 @@ DNS split-horizon health on ace: `ace_dns_probe_success` from `lan-dns-prober` (
 - `https://cloud.prestonhager.com/`
 - `https://zitadel.prestonhager.com/`
 - `https://dns.prestonhager.com/`
-- `https://matrix.prestonhager.com/`
+- `https://matrix.prestonhager.com/_matrix/client/versions`
 - `http://192.168.5.5/` (loopback health, `http_local` module)
 
 ### DNS target
@@ -160,7 +160,7 @@ For redundancy, run the same script from a VPS or use [UptimeRobot](https://upti
 
 ### Optional: extra LAN HTTP targets on crux
 
-Add hostnames to `lanHttpHosts` in `nixos/monitoring/crux-blackbox-config.nix` and mirror in `lanHttpStaticConfigs` via prometheus-config (auto from same list).
+Add probe URLs to `lanHttpTargets` in `nixos/monitoring/crux-blackbox-config.nix` (used automatically by prometheus-config and crux-prometheus-config).
 
 ---
 

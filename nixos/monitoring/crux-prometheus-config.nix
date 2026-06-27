@@ -3,7 +3,7 @@ let
   aceIp = "192.168.5.5";
   cruxBlackboxCfg = import ./crux-blackbox-config.nix { inherit lib; };
 
-  lanHttpsTargets = map (host: "https://${host}/") cruxBlackboxCfg.lanHttpHosts;
+  lanHttpsTargets = cruxBlackboxCfg.lanHttpTargets;
 
   mkBlackboxRelabel = extra: [
     {

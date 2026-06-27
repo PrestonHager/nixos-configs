@@ -15,7 +15,7 @@ let
     "https://prometheus.prestonhager.com/"
     "https://loftiawiki.org/"
     "https://upgrade.loftiawiki.org/"
-    "https://matrix.prestonhager.com/"
+    "https://matrix.prestonhager.com/_matrix/client/versions"
     "https://zitadel.prestonhager.com/"
     "https://cloud.prestonhager.com/"
     "https://dns.prestonhager.com/"
@@ -29,7 +29,7 @@ let
     "127.0.0.1:443"
   ];
 
-  lanHttpsTargets = map (host: "https://${host}/") cruxBlackboxCfg.lanHttpHosts;
+  lanHttpsTargets = cruxBlackboxCfg.lanHttpTargets;
 
   mkBlackboxRelabel = extra: [
     {

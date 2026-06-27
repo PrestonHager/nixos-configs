@@ -24,7 +24,7 @@ DEFAULT_TARGETS=(
   "https://dns.prestonhager.com/"
   "https://cloud.prestonhager.com/"
   "https://panel.prestonhager.com/"
-  "https://matrix.prestonhager.com/"
+  "https://matrix.prestonhager.com/_matrix/client/versions"
   "https://zitadel.prestonhager.com/"
   "https://jellyfin.prestonhager.com/"
   "https://vault.prestonhager.com/"

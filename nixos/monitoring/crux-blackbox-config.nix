@@ -1,11 +1,11 @@
 { lib, ... }:
 {
-  lanHttpHosts = [
-    "grafana.prestonhager.com"
-    "cloud.prestonhager.com"
-    "zitadel.prestonhager.com"
-    "dns.prestonhager.com"
-    "matrix.prestonhager.com"
+  lanHttpTargets = [
+    "https://grafana.prestonhager.com/"
+    "https://cloud.prestonhager.com/"
+    "https://zitadel.prestonhager.com/"
+    "https://dns.prestonhager.com/"
+    "https://matrix.prestonhager.com/_matrix/client/versions"
   ];
 
   lanDnsChecks = [
