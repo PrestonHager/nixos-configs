@@ -125,7 +125,99 @@ class Config
     public function sshConfigPath(): string
     {
         $file = getenv('PORTFORWARD_SSH_CONFIG_FILE') ?: '';
+        if ($file !== '' && is_readable($file)) {
+            return $file;
+        }
 
-        return is_string($file) && $file !== '' && is_readable($file) ? $file : '';
+        $configured = $this->context->config()->get('ssh_config_file', '');
+        if (is_string($configured) && $configured !== '' && is_readable($configured)) {
+            return $configured;
+        }
+
+        $inline = $this->context->config()->get('ssh_config_content', '');
+        if (is_string($inline) && trim($inline) !== '') {
+            $tmp = sys_get_temp_dir() . '/pterodactyl-portforward-ssh-config';
+            if (!is_file($tmp) || file_get_contents($tmp) !== $inline) {
+                file_put_contents($tmp, $inline);
+                chmod($tmp, 0600);
+            }
+
+            return $tmp;
+        }
+
+        return '';
+    }
+
+    public function sshKexAlgorithms(): string
+    {
+        return (string) $this->context->config()->get(
+            'ssh_kex_algorithms',
+            '+diffie-hellman-group14-sha1,+diffie-hellman-group-exchange-sha1',
+        );
+    }
+
+    public function sshHostKeyAlgorithms(): string
+    {
+        return (string) $this->context->config()->get('ssh_host_key_algorithms', '+ssh-rsa');
+    }
+
+    public function sshPubkeyAcceptedAlgorithms(): string
+    {
+        return (string) $this->context->config()->get('ssh_pubkey_accepted_algorithms', '+ssh-rsa');
+    }
+
+    public function sshCiphers(): string
+    {
+        return (string) $this->context->config()->get('ssh_ciphers', '');
+    }
+
+    /**
+     * Hostname or alias passed to ssh(1). When a drop-in config defines Host astracap,
+     * use that alias so legacy KEX/HostKey options apply.
+     *
+     * @return string[]
+     */
+    public function sshOptions(): array
+    {
+        $options = [];
+
+        if ($kex = trim($this->sshKexAlgorithms())) {
+            $options[] = 'KexAlgorithms=' . $kex;
+        }
+        if ($hostKey = trim($this->sshHostKeyAlgorithms())) {
+            $options[] = 'HostKeyAlgorithms=' . $hostKey;
+        }
+        if ($pubkey = trim($this->sshPubkeyAcceptedAlgorithms())) {
+            $options[] = 'PubkeyAcceptedAlgorithms=' . $pubkey;
+        }
+        if ($ciphers = trim($this->sshCiphers())) {
+            $options[] = 'Ciphers=' . $ciphers;
+        }
+
+        $extra = $this->context->config()->get('ssh_extra_options', '');
+        if (is_string($extra) && trim($extra) !== '') {
+            foreach (preg_split('/\R/', trim($extra)) as $line) {
+                $line = trim($line);
+                if ($line === '' || str_starts_with($line, '#')) {
+                    continue;
+                }
+                if (str_starts_with($line, '-o ')) {
+                    $line = substr($line, 3);
+                }
+                $options[] = $line;
+            }
+        }
+
+        return $options;
+    }
+
+    public function sshConnectHost(): string
+    {
+        $configured = $this->context->config()->get('ssh_connect_host', '');
+        if (is_string($configured) && trim($configured) !== '') {
+            return trim($configured);
+        }
+
+        return $this->routerHost();
     }
 }

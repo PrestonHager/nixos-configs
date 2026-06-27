@@ -25,6 +25,76 @@
       "storage": "config"
     },
     {
+      "key": "ssh_connect_host",
+      "type": "string",
+      "label": "SSH connect host",
+      "description": "Use astracap when a drop-in ssh_config defines that Host alias.",
+      "default": "astracap",
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "ssh_kex_algorithms",
+      "type": "string",
+      "label": "SSH KEX algorithms",
+      "description": "Cisco IOS 15.x needs +diffie-hellman-group14-sha1,+diffie-hellman-group-exchange-sha1.",
+      "default": "+diffie-hellman-group14-sha1,+diffie-hellman-group-exchange-sha1",
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "ssh_host_key_algorithms",
+      "type": "string",
+      "label": "SSH host key algorithms",
+      "default": "+ssh-rsa",
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "ssh_pubkey_accepted_algorithms",
+      "type": "string",
+      "label": "SSH pubkey accepted algorithms",
+      "default": "+ssh-rsa",
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "ssh_ciphers",
+      "type": "string",
+      "label": "SSH ciphers",
+      "description": "Optional. Leave blank unless required for older Cisco devices.",
+      "default": "",
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "ssh_config_file",
+      "type": "string",
+      "label": "SSH config file path",
+      "description": "Overridden by PORTFORWARD_SSH_CONFIG_FILE when set.",
+      "default": "",
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "ssh_config_content",
+      "type": "string",
+      "label": "Inline SSH config",
+      "description": "Used when no config file path is available.",
+      "default": "",
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
+      "key": "ssh_extra_options",
+      "type": "string",
+      "label": "Extra SSH -o options",
+      "description": "One OpenSSH option per line (without -o prefix).",
+      "default": "",
+      "surfaces": ["admin"],
+      "storage": "config"
+    },
+    {
       "key": "router_ssh_private_key",
       "type": "password",
       "label": "SSH private key",

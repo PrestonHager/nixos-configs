@@ -34,22 +34,28 @@ class SshClient
 
         $remoteScript = implode("\n", $commands);
         $sshConfig = $this->config->sshConfigPath();
+        $connectHost = $this->config->sshConnectHost();
+        $connectUser = $this->config->routerSshUser();
+        $useAlias = $connectHost !== $this->config->routerHost();
+
         $base = ['ssh', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=accept-new'];
+
         if ($sshConfig !== '') {
             $base[] = '-F';
             $base[] = $sshConfig;
-        } else {
-            $base[] = '-i';
-            $base[] = $keyPath;
-            $base[] = '-o';
-            $base[] = 'KexAlgorithms=+diffie-hellman-group14-sha1';
-            $base[] = '-o';
-            $base[] = 'HostKeyAlgorithms=+ssh-rsa';
-            $base[] = '-o';
-            $base[] = 'PubkeyAcceptedAlgorithms=+ssh-rsa';
         }
 
-        $base[] = sprintf('%s@%s', $this->config->routerSshUser(), $this->config->routerHost());
+        if (!$useAlias || $sshConfig === '') {
+            $base[] = '-i';
+            $base[] = $keyPath;
+        }
+
+        foreach ($this->config->sshOptions() as $option) {
+            $base[] = '-o';
+            $base[] = $option;
+        }
+
+        $base[] = $useAlias ? $connectHost : sprintf('%s@%s', $connectUser, $connectHost);
         $base[] = $remoteScript;
 
         $process = new Process($base, timeout: 60);
