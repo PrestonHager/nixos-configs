@@ -16,7 +16,11 @@ const PROJECT_ID = '376196450586990901';
 const ADMIN_USER_ID = '376181820519684386';
 const APP_NAME = 'Pterodactyl';
 const ROLE_KEY = 'pterodactyl_admin';
-const REDIRECT_URI = 'https://panel.prestonhager.com/extensions/sociallogin/callback';
+const REDIRECT_URIS = [
+  'https://panel.prestonhager.com/extensions/sociallogin/callback',
+  'https://panel.prestonhager.com/oauth2/callback',
+  'https://test.panel.prestonhager.com/extensions/sociallogin/callback',
+];
 
 function loadEnv(prefix) {
   const env = fs.readFileSync(SECRETS, 'utf8');
@@ -164,12 +168,28 @@ async function ensureGrant(token) {
   console.log(`Granted ${ROLE_KEY} to admin user`);
 }
 
+async function updateOidcConfig(token, appId, oidc) {
+  const redirectUris = [...new Set([...(oidc.redirectUris || []), ...REDIRECT_URIS])];
+  await mgmt('PUT', `/management/v1/projects/${PROJECT_ID}/apps/${appId}/oidc_config`, {
+    redirectUris,
+    responseTypes: oidc.responseTypes || ['OIDC_RESPONSE_TYPE_CODE'],
+    grantTypes: oidc.grantTypes || ['OIDC_GRANT_TYPE_AUTHORIZATION_CODE', 'OIDC_GRANT_TYPE_REFRESH_TOKEN'],
+    appType: 'OIDC_APP_TYPE_WEB',
+    authMethodType: 'OIDC_AUTH_METHOD_TYPE_BASIC',
+    accessTokenType: 'OIDC_TOKEN_TYPE_BEARER',
+    accessTokenRoleAssertion: true,
+    idTokenRoleAssertion: true,
+    clockSkew: oidc.clockSkew || '0s',
+    additionalOrigins: oidc.allowedOrigins || ['https://panel.prestonhager.com'],
+  }, token);
+}
+
 async function createOrUpdateApp(token) {
   let app = await findApp(token);
   if (!app) {
     const resp = await mgmt('POST', `/management/v1/projects/${PROJECT_ID}/apps/oidc`, {
       name: APP_NAME,
-      redirectUris: [REDIRECT_URI],
+      redirectUris: REDIRECT_URIS,
       responseTypes: ['OIDC_RESPONSE_TYPE_CODE'],
       grantTypes: ['OIDC_GRANT_TYPE_AUTHORIZATION_CODE', 'OIDC_GRANT_TYPE_REFRESH_TOKEN'],
       appType: 'OIDC_APP_TYPE_WEB',
@@ -184,16 +204,8 @@ async function createOrUpdateApp(token) {
 
   const detail = await mgmt('GET', `/management/v1/projects/${PROJECT_ID}/apps/${app.id}`, null, token);
   const oidc = detail.app?.oidcConfig || detail.oidcConfig || {};
-  await mgmt('PUT', `/management/v1/projects/${PROJECT_ID}/apps/${app.id}`, {
-    name: APP_NAME,
-    oidcConfig: {
-      ...oidc,
-      redirectUris: [...new Set([...(oidc.redirectUris || []), REDIRECT_URI])],
-      accessTokenRoleAssertion: true,
-      idTokenRoleAssertion: true,
-      roleAssertion: true,
-    },
-  }, token);
+  await updateOidcConfig(token, app.id, oidc);
+  console.log(`Updated Pterodactyl OIDC redirect URIs: ${REDIRECT_URIS.join(', ')}`);
   const refreshed = await mgmt('GET', `/management/v1/projects/${PROJECT_ID}/apps/${app.id}`, null, token);
   const cfg = refreshed.app?.oidcConfig || refreshed.oidcConfig || {};
   return { clientId: cfg.clientId || app.clientId, clientSecret: cfg.clientSecret || null };
@@ -225,7 +237,7 @@ const GROUPS_ACTION = `function pterodactylGroups(ctx, api) {
   if (creds.clientSecret) console.log(`PTERODACTYL_OIDC_CLIENT_SECRET=${creds.clientSecret}`);
   console.log(`ZITADEL_PROJECT_ID=${PROJECT_ID}`);
   console.log(`ADMIN_ROLE=${ROLE_KEY}`);
-  console.log(`REDIRECT_URI=${REDIRECT_URI}`);
+  console.log(`REDIRECT_URIS=${REDIRECT_URIS.join(' ')}`);
   console.log('\n=== MANUAL: Zitadel Complement Token action (required for admin group mapping) ===');
   console.log('Console → Actions → Complement Token → name: pterodactylGroups\n');
   console.log(GROUPS_ACTION);

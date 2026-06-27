@@ -38,12 +38,12 @@ Create or update the **Pterodactyl** OIDC app in the **Home Lab** project (`3761
 | Setting | Value |
 |---------|--------|
 | App type | Web |
-| Redirect URI | `https://panel.prestonhager.com/extensions/sociallogin/callback` |
+| Redirect URIs | `https://panel.prestonhager.com/extensions/sociallogin/callback` (primary), `https://panel.prestonhager.com/oauth2/callback` (legacy oauth2-proxy), `https://test.panel.prestonhager.com/extensions/sociallogin/callback` (test panel) |
 | Grant types | Authorization Code, Refresh Token |
 | Auth method | Basic (client secret) |
 | Role assertions | Enabled (ID token + access token) |
 
-Automated setup on ace (admin session API):
+Automated setup on ace (admin session API). Updates redirect URIs via the dedicated `oidc_config` endpoint (the generic app PUT no longer persists OIDC redirect changes on Zitadel v4):
 
 ```bash
 cd /etc/nixos

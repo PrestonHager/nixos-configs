@@ -1,5 +1,8 @@
 # Copy to secrets/containers/pterodactyl-oauth.yaml and encrypt with sops on ace.
-# Create Zitadel OIDC app first (Web app, redirect https://panel.prestonhager.com/extensions/sociallogin/callback).
+# Create Zitadel OIDC app first (Web app). Redirect URIs:
+#   https://panel.prestonhager.com/extensions/sociallogin/callback
+#   https://panel.prestonhager.com/oauth2/callback
+#   https://test.panel.prestonhager.com/extensions/sociallogin/callback
 
 pterodactyl-oauth-env: |
   PTERODACTYL_OIDC_CLIENT_ID=REPLACE_ZITADEL_CLIENT_ID
