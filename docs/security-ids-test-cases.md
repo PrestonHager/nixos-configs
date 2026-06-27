@@ -185,18 +185,18 @@ sudo rm /etc/nixos/.drift-test
 
 **Setup**
 
-- ace: Loki on `:3100`, Promtail enabled (`nixos/monitoring/loki.nix`, `promtail.nix`).
-- crux/nova: Promtail → `http://192.168.5.5:3100`.
+- ace: Loki on `:3100`, Grafana Alloy log shipper enabled (`nixos/monitoring/loki.nix`, `promtail.nix` — Alloy replaces deprecated Promtail).
+- crux/nova: Alloy → `http://192.168.5.5:3100`.
 - Grafana Loki datasource provisioned (`nixos/monitoring/grafana-security-alerting.nix`).
 
 **Execution**
 
 ```bash
 # ace
-systemctl is-active loki promtail
+systemctl is-active loki alloy
 curl -sf http://127.0.0.1:3100/ready
 # crux or nova
-systemctl is-active promtail
+systemctl is-active alloy
 curl -sf http://192.168.5.5:3100/ready
 # Grafana → Explore → Loki
 # {host="crux"} |= "systemd"
@@ -207,8 +207,7 @@ curl -sf http://192.168.5.5:3100/ready
 
 | Symptom | Fix |
 |---------|-----|
-| Promtail cannot push | ace firewall allows 3100 from .6/.7; check `curl` from node |
-| Empty Loki | `journalctl -u promtail`; verify `clients.url` in promtail config |
+| Promtail cannot push | Alloy cannot push — ace firewall allows 3100 from .6/.7; `journalctl -u alloy` |
 | Grafana no Loki DS | Phase 2 must be enabled on ace for datasource provisioning |
 
 **Deliverables**

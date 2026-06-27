@@ -2,90 +2,109 @@
 
 let
   cfg = config.homelab.security;
-  centralScrapes = lib.optionalString (cfg.role == "central") ''
-      - job_name: suricata
-        static_configs:
-          - targets: [localhost]
-            labels:
-              job: suricata
-              host: ${cfg.hostName}
-              __path__: /var/log/suricata/eve.json
-      - job_name: cisco-syslog
-        static_configs:
-          - targets: [localhost]
-            labels:
-              job: cisco-syslog
-              host: ace
-              __path__: /var/log/cisco-syslog/cisco.log
-      - job_name: technitium-dns
-        static_configs:
-          - targets: [localhost]
-            labels:
-              job: technitium-dns
-              host: ace
-              __path__: /stor/technitium/logs/*.log
+  centralFileSources = lib.optionalString (cfg.role == "central") ''
+    local.file_match "suricata" {
+      path_targets = [{
+        __address__ = "localhost",
+        __path__    = "/var/log/suricata/eve.json",
+        job         = "suricata",
+        host        = "${cfg.hostName}",
+      }]
+    }
+
+    loki.source.file "suricata" {
+      targets    = local.file_match.suricata.targets
+      forward_to = [loki.write.central.receiver]
+    }
+
+    local.file_match "cisco_syslog" {
+      path_targets = [{
+        __address__ = "localhost",
+        __path__    = "/var/log/cisco-syslog/cisco.log",
+        job         = "cisco-syslog",
+        host        = "ace",
+      }]
+    }
+
+    loki.source.file "cisco_syslog" {
+      targets    = local.file_match.cisco_syslog.targets
+      forward_to = [loki.write.central.receiver]
+    }
+
+    local.file_match "technitium_dns" {
+      path_targets = [{
+        __address__ = "localhost",
+        __path__    = "/stor/technitium/logs/*.log",
+        job         = "technitium-dns",
+        host        = "ace",
+      }]
+    }
+
+    loki.source.file "technitium_dns" {
+      targets    = local.file_match.technitium_dns.targets
+      forward_to = [loki.write.central.receiver]
+    }
   '';
-  promtailYaml = pkgs.writeText "promtail-config.yaml" ''
-    server:
-      http_listen_port: 9080
-      grpc_listen_port: 0
-    positions:
-      filename: /var/lib/promtail/positions.yaml
-    clients:
-      - url: ${cfg.lokiUrl}/loki/api/v1/push
-    scrape_configs:
-      - job_name: journal
-        journal:
-          max_age: 12h
-          labels:
-            job: systemd-journal
-            host: ${cfg.hostName}
-        relabel_configs:
-          - source_labels: ['__journal__systemd_unit']
-            target_label: unit
-          - source_labels: ['__journal__systemd_unit']
-            target_label: systemd_unit
-          - source_labels: ['__journal_priority_keyword']
-            target_label: level
-      - job_name: audit
-        static_configs:
-          - targets: [localhost]
-            labels:
-              job: audit
-              host: ${cfg.hostName}
-              __path__: /var/log/audit/audit.log
-${centralScrapes}
+  alloyConfig = ''
+    loki.write "central" {
+      endpoint {
+        url = "${cfg.lokiUrl}/loki/api/v1/push"
+      }
+    }
+
+    loki.source.journal "systemd" {
+      forward_to = [loki.write.central.receiver]
+      labels = {
+        job  = "systemd-journal",
+        host = "${cfg.hostName}",
+      }
+    }
+
+    local.file_match "audit" {
+      path_targets = [{
+        __address__ = "localhost",
+        __path__    = "/var/log/audit/audit.log",
+        job         = "audit",
+        host        = "${cfg.hostName}",
+      }]
+    }
+
+    loki.source.file "audit" {
+      targets    = local.file_match.audit.targets
+      forward_to = [loki.write.central.receiver]
+    }
+
+    ${centralFileSources}
   '';
 in {
   options.homelab.security.promtail = {
-    enable = lib.mkEnableOption "Promtail log shipper to central Loki";
+    enable = lib.mkEnableOption "Grafana Alloy log shipper to central Loki (replaces Promtail)";
   };
 
   config = lib.mkIf (cfg.enable && cfg.promtail.enable) {
-    systemd.services.promtail = {
-      description = "Promtail log shipper for Loki";
-      after = [ "network-online.target" "systemd-journald.service" ];
-      wantedBy = [ "multi-user.target" ];
-      serviceConfig = {
-        Type = "simple";
-        User = "promtail";
-        Group = "promtail";
-        SupplementaryGroups = [ "systemd-journal" "audit" ] ++ lib.optionals (cfg.role == "central") [ "suricata" ];
-        ExecStart = "${pkgs.promtail}/bin/promtail -config.file=${promtailYaml}";
-        Restart = "on-failure";
-        ReadWritePaths = [ "/var/lib/promtail" ];
-      };
+    services.alloy = {
+      enable = true;
+      extraFlags = [ "--disable-reporting" ];
     };
 
-    users.users.promtail = {
+    environment.etc."alloy/config.alloy".text = alloyConfig;
+
+    systemd.services.alloy.serviceConfig = {
+      DynamicUser = lib.mkForce false;
+      User = "alloy";
+      Group = "alloy";
+      SupplementaryGroups = [
+        "systemd-journal"
+        "audit"
+      ] ++ lib.optionals (cfg.role == "central") [ "suricata" ];
+    };
+
+    users.users.alloy = {
       isSystemUser = true;
-      group = "promtail";
-      extraGroups = [ "systemd-journal" ];
+      group = "alloy";
+      extraGroups = [ "systemd-journal" "audit" ]
+        ++ lib.optionals (cfg.role == "central") [ "suricata" ];
     };
-    users.groups.promtail = { };
-
-    systemd.tmpfiles.rules = [
-      "d /var/lib/promtail 0750 promtail promtail -"
-    ];
+    users.groups.alloy = { };
   };
 }

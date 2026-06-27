@@ -64,7 +64,7 @@ in {
       group = "suricata";
     };
     users.groups.suricata = {
-      members = lib.optionals cfg.promtail.enable [ "promtail" ];
+      members = lib.optionals cfg.promtail.enable [ "alloy" ];
     };
 
     systemd.tmpfiles.rules = [
