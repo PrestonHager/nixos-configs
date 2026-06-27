@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Pterodactyl\Http\Controllers\Controller;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Compatibility\PluginContext;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\ExtensionDefaults;
 use Pterodactyl\BlueprintFramework\Libraries\ExtensionLibrary\Admin\BlueprintAdminLibrary as BlueprintExtensionLibrary;
 
 class dnsrecordsExtensionController extends Controller
@@ -25,8 +26,10 @@ class dnsrecordsExtensionController extends Controller
         return $this->view->make('admin.extensions.dnsrecords.index', [
             'root' => '/admin/extensions/dnsrecords',
             'blueprint' => $this->blueprint,
-            'settings' => $context->config()->all(),
+            'settings' => $this->settingsWithDefaults($context->config()->all()),
             'defaults' => $this->defaultSettings(),
+            'defaultSrvProfiles' => ExtensionDefaults::srvProfiles(),
+            'defaultPrimaryDomains' => ExtensionDefaults::primaryDomains(),
         ]);
     }
 
@@ -104,6 +107,26 @@ class dnsrecordsExtensionController extends Controller
     }
 
     /**
+     * @param array<string, mixed> $settings
+     *
+     * @return array<string, mixed>
+     */
+    private function settingsWithDefaults(array $settings): array
+    {
+        $merged = array_merge($this->defaultSettings(), $settings);
+
+        if (empty($merged['srv_profiles'])) {
+            $merged['srv_profiles'] = ExtensionDefaults::srvProfiles();
+        }
+
+        if (!array_key_exists('primary_domains', $merged) || !is_array($merged['primary_domains'])) {
+            $merged['primary_domains'] = ExtensionDefaults::primaryDomains();
+        }
+
+        return $merged;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function defaultSettings(): array
@@ -114,8 +137,8 @@ class dnsrecordsExtensionController extends Controller
             'base_domain' => '',
             'auto_provision_enabled' => true,
             'default_ttl' => 1,
-            'srv_profiles' => [],
-            'primary_domains' => [],
+            'srv_profiles' => ExtensionDefaults::srvProfiles(),
+            'primary_domains' => ExtensionDefaults::primaryDomains(),
             'subdomain_generation' => 'server_slug',
             'client_subdomain_policy' => 'never',
             'client_change_limit' => 1,

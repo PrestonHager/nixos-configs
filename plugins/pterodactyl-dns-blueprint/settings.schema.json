@@ -58,7 +58,62 @@
       "description": "Profile definitions for game/service SRV records. Choose a preset or leave preset empty and set custom service/proto.",
       "surfaces": ["admin"],
       "storage": "config",
-      "default": [],
+      "default": [
+        {
+          "id": "minecraft-java",
+          "preset": "minecraft-java",
+          "label": "Minecraft Java",
+          "auto_provision": true
+        },
+        {
+          "id": "minecraft-bedrock",
+          "preset": "minecraft-bedrock",
+          "label": "Minecraft Bedrock",
+          "auto_provision": false
+        },
+        {
+          "id": "factorio",
+          "preset": "factorio",
+          "label": "Factorio",
+          "auto_provision": true
+        },
+        {
+          "id": "terraria",
+          "preset": "terraria",
+          "label": "Terraria",
+          "auto_provision": false
+        },
+        {
+          "id": "valheim",
+          "preset": "valheim",
+          "label": "Valheim",
+          "auto_provision": false
+        },
+        {
+          "id": "rust",
+          "preset": "rust",
+          "label": "Rust",
+          "auto_provision": false
+        },
+        {
+          "id": "generic-tcp",
+          "label": "Generic TCP",
+          "service": "_game",
+          "proto": "_tcp",
+          "priority": 0,
+          "weight": 5,
+          "auto_provision": false
+        },
+        {
+          "id": "generic-udp",
+          "label": "Generic UDP",
+          "service": "_game",
+          "proto": "_udp",
+          "priority": 0,
+          "weight": 5,
+          "auto_provision": false
+        }
+      ],
       "itemFields": [
         {
           "key": "id",
@@ -128,6 +183,18 @@
           "type": "boolean",
           "label": "Auto-provision on install",
           "default": false
+        },
+        {
+          "key": "target_provider",
+          "type": "select",
+          "label": "Target provider",
+          "description": "Override global DNS provider for this profile. Leave empty to inherit.",
+          "options": [
+            { "value": "", "label": "Inherit global mode" },
+            { "value": "cloudflare", "label": "Cloudflare only" },
+            { "value": "technitium", "label": "Technitium only" },
+            { "value": "both", "label": "Both" }
+          ]
         }
       ]
     },

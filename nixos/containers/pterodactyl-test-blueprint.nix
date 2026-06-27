@@ -274,6 +274,20 @@ let
             cp -a "$src_view" "$view"
             chown prestonh:users "$view"
           fi
+          src_partials=""
+          case "$ext" in
+            dnsrecords) src_partials="${dnsExtensionSrc}/admin/partials" ;;
+            portforward) src_partials="${portforwardExtensionSrc}/admin/partials" ;;
+          esac
+          if [ -n "$src_partials" ] && [ -d "$src_partials" ]; then
+            partials_dest="$test_panel/resources/views/admin/extensions/$ext/partials"
+            if [ ! -d "$partials_dest" ] || ! ${pkgs.diffutils}/bin/diff -qr "$src_partials" "$partials_dest" >/dev/null 2>&1; then
+              echo "pterodactyl-test-blueprint-install: syncing $ext admin view partials from plugin source..."
+              install -d -m 0755 -o prestonh -g users "$partials_dest"
+              cp -a "$src_partials/." "$partials_dest/"
+              chown -R prestonh:users "$partials_dest"
+            fi
+          fi
           continue
         fi
 

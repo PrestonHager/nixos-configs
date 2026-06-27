@@ -74,12 +74,20 @@
                         <input type="number" class="form-control" id="default_ttl" name="default_ttl" min="1" value="{{ old('default_ttl', $settings['default_ttl'] ?? 1) }}">
                     </div>
                     <div class="form-group">
-                        <label for="srv_profiles_json">SRV profiles (JSON)</label>
-                        <textarea class="form-control" id="srv_profiles_json" name="srv_profiles_json" rows="8">{{ old('srv_profiles_json', json_encode($settings['srv_profiles'] ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) }}</textarea>
+                        <div class="dns-help-label-row">
+                            <label for="srv_profiles_json">SRV profiles (JSON)</label>
+                            <button type="button" class="dns-help-btn" data-dns-help-open="srv-profiles" aria-label="Help: SRV profiles JSON">?</button>
+                        </div>
+                        <textarea class="form-control" id="srv_profiles_json" name="srv_profiles_json" rows="12" aria-describedby="srv_profiles_json_help">{{ old('srv_profiles_json', json_encode($settings['srv_profiles'] ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) }}</textarea>
+                        <p class="help-block" id="srv_profiles_json_help">Game/service SRV templates. Click <strong>?</strong> for full field reference and homelab defaults.</p>
                     </div>
                     <div class="form-group">
-                        <label for="primary_domains_json">Primary domains (JSON)</label>
-                        <textarea class="form-control" id="primary_domains_json" name="primary_domains_json" rows="4">{{ old('primary_domains_json', json_encode($settings['primary_domains'] ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) }}</textarea>
+                        <div class="dns-help-label-row">
+                            <label for="primary_domains_json">Primary domains (JSON)</label>
+                            <button type="button" class="dns-help-btn" data-dns-help-open="primary-domains" aria-label="Help: Primary domains JSON">?</button>
+                        </div>
+                        <textarea class="form-control" id="primary_domains_json" name="primary_domains_json" rows="4" aria-describedby="primary_domains_json_help">{{ old('primary_domains_json', json_encode($settings['primary_domains'] ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) }}</textarea>
+                        <p class="help-block" id="primary_domains_json_help">Additional vanity hostname zones beyond the implicit default (<code>base_domain</code>). Click <strong>?</strong> for documentation.</p>
                     </div>
                     <div class="form-group">
                         <label for="client_subdomain_policy">Client subdomain policy</label>
@@ -111,4 +119,20 @@
         </div>
     </div>
 </div>
+
+<link rel="stylesheet" href="/extensions/dnsrecords/admin-settings.css">
+@include('admin.extensions.dnsrecords.partials.settings-help')
+
+<div id="dns-settings-help-modal" class="dns-help-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="dns-settings-help-title">
+    <div class="dns-help-modal__backdrop" tabindex="-1"></div>
+    <div class="dns-help-modal__dialog">
+        <div class="dns-help-modal__header">
+            <h4 id="dns-settings-help-title">Settings help</h4>
+            <button type="button" class="dns-help-modal__close" aria-label="Close help dialog">&times;</button>
+        </div>
+        <div class="dns-help-modal__body" id="dns-settings-help-body"></div>
+    </div>
+</div>
+
+<script src="/extensions/dnsrecords/admin-settings.js"></script>
 @endsection

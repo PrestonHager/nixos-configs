@@ -82,6 +82,20 @@ let
     foreach ($dns as $key => $value) {
       dnsDefault($key, $value);
     }
+
+    $srvProfiles = [
+      ["id" => "minecraft-java", "preset" => "minecraft-java", "label" => "Minecraft Java", "auto_provision" => true],
+      ["id" => "minecraft-bedrock", "preset" => "minecraft-bedrock", "label" => "Minecraft Bedrock", "auto_provision" => false],
+      ["id" => "factorio", "preset" => "factorio", "label" => "Factorio", "auto_provision" => true],
+      ["id" => "terraria", "preset" => "terraria", "label" => "Terraria", "auto_provision" => false],
+      ["id" => "valheim", "preset" => "valheim", "label" => "Valheim", "auto_provision" => false],
+      ["id" => "rust", "preset" => "rust", "label" => "Rust", "auto_provision" => false],
+      ["id" => "generic-tcp", "label" => "Generic TCP", "service" => "_game", "proto" => "_tcp", "priority" => 0, "weight" => 5, "auto_provision" => false],
+      ["id" => "generic-udp", "label" => "Generic UDP", "service" => "_game", "proto" => "_udp", "priority" => 0, "weight" => 5, "auto_provision" => false],
+    ];
+    dnsDefault("srv_profiles", $srvProfiles);
+    dnsDefault("primary_domains", []);
+
     $zoneId = resolveCloudflareZoneId();
     if ($zoneId !== "") {
       $existingZone = DnsExtensionSetting::query()->where("key", "zone_id")->value("value");
