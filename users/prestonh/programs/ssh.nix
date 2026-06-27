@@ -5,7 +5,6 @@
   # Bitwarden CLI (`bw ssh-agent`); see docs/network-ssh-ace.md.
   programs.ssh = {
     enable = true;
-    enableAgent = true;
     matchBlocks = {
       astracap = {
         hostname = "192.168.5.1";

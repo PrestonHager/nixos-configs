@@ -8,6 +8,8 @@ in
     pkgs.bitwarden-cli
   ];
 
+  services.ssh-agent.enable = true;
+
   # Idempotent: point bw at self-hosted Vaultwarden (no login required).
   home.activation.bitwardenServer = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     if [ -x "${pkgs.bitwarden-cli}/bin/bw" ]; then
