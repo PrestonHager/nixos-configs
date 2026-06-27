@@ -41,6 +41,9 @@ let
 
     echo "pterodactyl-test-sso-configure: configuring Zitadel OIDC via Blueprint Social Login..."
 
+    ${pkgs.podman}/bin/podman exec pterodactyl-test \
+      php /var/www/pterodactyl/artisan migrate --force
+
     ${pkgs.podman}/bin/podman exec \
       -e HOME=/var/www/pterodactyl \
       -e COMPOSER_HOME=/tmp/composer \

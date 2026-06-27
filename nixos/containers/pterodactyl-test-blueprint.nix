@@ -207,6 +207,8 @@ let
       done
       echo "pterodactyl-test-blueprint-install: building panel frontend with Blueprint extensions..."
       cd "$panel"
+      runuser -u prestonh -- env HOME=/home/prestonh YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test TERM=dumb PATH="$PATH" yarn install --frozen-lockfile 2>/dev/null \
+        || runuser -u prestonh -- env HOME=/home/prestonh YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test TERM=dumb PATH="$PATH" yarn install
       if [ ! -d "$panel/node_modules" ]; then
         runuser -u prestonh -- env HOME=/home/prestonh YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test TERM=dumb PATH="$PATH" yarn install --frozen-lockfile 2>/dev/null \
           || runuser -u prestonh -- env HOME=/home/prestonh YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test TERM=dumb PATH="$PATH" yarn install
