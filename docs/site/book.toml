@@ -1,0 +1,14 @@
+[book]
+title = "Server Docs"
+authors = ["Preston Hager"]
+language = "en"
+description = "Homelab documentation for ace, Pterodactyl nodes, and shared services"
+src = "src"
+
+[output.html]
+default-theme = "ayu"
+git-repository-url = "https://github.com/PrestonHager/nixos-configs"
+edit-url-template = "https://github.com/PrestonHager/nixos-configs/edit/dell-poweredge-r730xd/docs/{path}"
+
+[output.html.search]
+enable = true

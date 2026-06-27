@@ -29,7 +29,8 @@
     "zitadel.prestonhager.com"
     "git.prestonhager.com"
 
-    # Matrix / wiki / other Caddy vhosts on ace
+    # Matrix / wiki / docs / other Caddy vhosts on ace
+    "serverdocs.prestonhager.com"
     "matrix.prestonhager.com"
     "spacetime.prestonhager.com"
     "test.sui.prestonhager.com"

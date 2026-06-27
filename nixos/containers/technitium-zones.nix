@@ -9,7 +9,7 @@ let
   publicZone = "prestonhager.com";
 
   internalSerial = "2026060687";
-  publicSerial = "2026060971";
+  publicSerial = "2026062610";
 
   # Authoritative LAN names under internal.prestonhager.com (edit here, then nixos-rebuild switch on ace).
   internalHosts = {
@@ -53,6 +53,7 @@ let
         "lancache"
         "mc"
         "vpn"
+        "serverdocs"
       ];
     in
     {

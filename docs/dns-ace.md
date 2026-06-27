@@ -65,9 +65,11 @@ Recursion remains **AllowOnlyForPrivateNetworks** — LAN and RFC1918 clients ge
 
 | Type | Name | Content | Proxy | Purpose |
 |------|------|---------|-------|---------|
-| A | `dns` | `192.168.5.5` | Proxied (orange) | DoH + web UI via Caddy :443 |
+| CNAME | `dns` | `ip1.lc1.nm.us.prestonhager.com` | **DNS only (grey)** | DoH + web UI via Caddy :443 on ace WAN |
 
-**DoT on port 853 does not traverse Cloudflare's HTTP proxy.** For encrypted DNS from the public Internet over DoT, add a **DNS-only** (grey cloud) record (e.g. `dot` → WAN IP) or connect over LAN/VPN to `192.168.5.5:853`. LAN clients resolving `dns.prestonhager.com` via Technitium split-horizon hit ace directly.
+Do **not** orange-cloud names to `192.168.5.5` — Cloudflare cannot reach private LAN IPs and may return empty responses. LAN clients resolve via Technitium split-horizon to ace directly.
+
+**DoT on port 853 does not traverse Cloudflare's HTTP proxy.** For encrypted DNS from the public Internet over DoT, use WAN IP / NAT to ace `:853`, or connect over LAN/VPN.
 
 ### Deploy encrypted DNS
 
@@ -113,7 +115,7 @@ This zone overrides public Cloudflare answers for LAN clients using ace as DNS. 
 | grafana | CNAME | grafana.internal.prestonhager.com |
 | cloud | CNAME | cloud.internal.prestonhager.com |
 | dns | CNAME | dns.internal.prestonhager.com |
-| ai, panel, test.panel, prometheus, jellyfin, vault, wg, metrics.wg, zitadel, git, matrix, spacetime, test.sui, faucet.test.sui, indexer.test.sui, factorio, game, lancache, mc, vpn | CNAME | ace.internal.prestonhager.com |
+| ai, panel, test.panel, prometheus, jellyfin, vault, wg, metrics.wg, zitadel, git, matrix, spacetime, test.sui, faucet.test.sui, indexer.test.sui, factorio, game, lancache, mc, vpn, serverdocs | CNAME | ace.internal.prestonhager.com |
 | crux.lc1.nm.us | CNAME | crux.internal.prestonhager.com |
 | nova.lc1.nm.us | CNAME | nova.internal.prestonhager.com |
 
@@ -126,7 +128,7 @@ Public Cloudflare CNAMEs that target `ip1.lc1.nm.us.prestonhager.com` (73.26.67.
 | Public name | LAN target |
 |-------------|------------|
 | cloud, dns, grafana | matching `*.internal.prestonhager.com` A → 192.168.5.5 |
-| ace, ai, factorio, faucet.test.sui, game, indexer.test.sui, jellyfin, lancache, matrix, mc, metrics.wg, panel, prometheus, spacetime, test.panel, test.sui, vault, vpn, wg, zitadel | ace.internal.prestonhager.com → 192.168.5.5 |
+| ace, ai, factorio, faucet.test.sui, game, indexer.test.sui, jellyfin, lancache, matrix, mc, metrics.wg, panel, prometheus, spacetime, test.panel, test.sui, vault, vpn, wg, zitadel, serverdocs | ace.internal.prestonhager.com → 192.168.5.5 |
 | crux.lc1.nm.us | crux.internal.prestonhager.com → 192.168.5.6 |
 | nova.lc1.nm.us | nova.internal.prestonhager.com → 192.168.5.7 |
 
@@ -181,9 +183,9 @@ curl -sS -D - -o /dev/null -w 'bytes=%{size_download}\n' https://vault.prestonha
 
 | Type | Name | Content | Proxy |
 |------|------|---------|-------|
-| A | `dns` | `192.168.5.5` | Proxied (orange) — DoH + web UI via Caddy :443 |
+| CNAME | `dns` | `ip1.lc1.nm.us.prestonhager.com` | DNS only (grey) |
 
-DoT on port 853 does not traverse Cloudflare's HTTP proxy; use DNS-only or LAN/VPN for public DoT (see above).
+DoT on port 853 does not traverse Cloudflare's HTTP proxy; use WAN NAT or LAN/VPN (see above).
 
 ## Local hosts (ace)
 

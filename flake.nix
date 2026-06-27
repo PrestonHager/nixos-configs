@@ -36,7 +36,25 @@
     };
   };
 
-  outputs = { self, nixpkgs, tree-sitter-parsers, ... }@inputs: {
+  outputs = { self, nixpkgs, tree-sitter-parsers, ... }@inputs:
+    let
+      system = "x86_64-linux";
+      docsSite = import ./docs/site/default.nix {
+        lib = nixpkgs.lib;
+        pkgs = nixpkgs.legacyPackages.${system};
+        siteSrc = ./docs/site;
+        includesSrc = ./docs;
+      };
+    in {
+    packages.${system} = {
+      docs = docsSite;
+      default = docsSite;
+    };
+
+    devShells.${system}.docs-dev = nixpkgs.legacyPackages.${system}.mkShell {
+      packages = [ nixpkgs.legacyPackages.${system}.mdbook ];
+    };
+
     nixosConfigurations = let
         defaultModules = [
           inputs.home-manager.nixosModules.default
@@ -58,7 +76,7 @@
         ];
       };
       ace = nixpkgs.lib.nixosSystem {
-        specialArgs = {inherit inputs;};
+        specialArgs = { inherit inputs docsSite; };
         modules = defaultModules ++ [
           ./hosts/ace
         ];

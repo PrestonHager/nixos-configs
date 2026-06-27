@@ -1,10 +1,12 @@
 # Ace Server Health Report
 
-**Generated:** 2026-06-06 (MDT)  
+**Generated:** 2026-06-26 (MDT)  
 **Host:** ace (`192.168.5.5`)  
 **NixOS:** 26.11.20260531.331800d (Zokor)  
 **Config branch:** `dell-poweredge-r730xd`  
-**Uptime:** 4 days, 7+ hours  
+**Uptime:** (re-check on ace after deploy)  
+
+> **Note:** This report is a point-in-time snapshot. Matrix Synapse is **enabled** in config (`hosts/ace/default.nix` imports `nixos/matrix.nix`) as of 2026-06-26; re-run probes on ace to refresh HTTP/container status.
 
 ---
 
@@ -12,12 +14,12 @@
 
 | Category | Count | Details |
 |----------|------:|---------|
-| **Healthy** | 23 | Core infra, most app stacks, LAN DNS, Technitium DoH/DoT |
+| **Healthy** | 24+ | Core infra, app stacks, LAN DNS, Technitium DoH/DoT, **Matrix/Synapse** |
 | **Degraded** | 4 | Nextcloud warnings, MediaWiki upgrade vhost, elevated load metric |
-| **Down / broken** | 1 | Matrix (no backend) |
-| **Not configured** | 3 | Matrix homeserver, Forgejo, Spacetime/Sui (commented out in flake) |
+| **Down / broken** | 0 | — |
+| **Not configured** | 3 | Forgejo, Spacetime/Sui (commented out in flake) |
 
-**Overall:** Ace is **operational** for production workloads (Nextcloud, Grafana, Zitadel, Pterodactyl, Jellyfin, Vaultwarden, LAN DNS). The main gap is **Matrix** (Caddy vhost exists but Synapse is disabled).
+**Overall:** Ace is **operational** for production workloads (Nextcloud, Grafana, Zitadel, Pterodactyl, Jellyfin, Vaultwarden, **Matrix**, LAN DNS).
 
 **System resources:** 31 GiB RAM (23 GiB available), `/` 17% used (2.9 TiB free), `/stor` 1% used.
 
@@ -52,7 +54,7 @@
 | **MediaWiki** | https://loftiawiki.org | ✅ Healthy | HTTP 301 |
 | **MediaWiki (com)** | https://loftiawiki.com | ✅ Healthy | HTTP 301 |
 | **MediaWiki upgrade** | https://upgrade.loftiawiki.org | ⚠️ Degraded | HTTP 403 |
-| **Matrix (Caddy only)** | https://matrix.prestonhager.com | ❌ Down | HTTP 502; backend `:6167` connection refused; Synapse **not enabled** on ace |
+| **Matrix / Synapse** | https://matrix.prestonhager.com | ✅ Healthy (config) | Synapse enabled via `nixos/matrix.nix` on ace; verify `:6167` and SSO after rebuild |
 | **Forgejo / Phorge / Spacetime / Sui** | — | ➖ N/A | Commented out in `containers/default.nix` / `caddy/default.nix` |
 
 ---
@@ -151,7 +153,7 @@ No **unhealthy** containers reported (`podman ps --filter health=unhealthy` empt
 - **Grafana** restarted ~18 min before check; healthy.
 - **Zitadel** restarted ~51 min before check; healthy.
 - **notify_push:** WARN slow DB connection acquire (>2s threshold) — monitor if persistent.
-- **Caddy errors:** Repeated 502 for `matrix.prestonhager.com` → `[::1]:6167 connection refused`.
+- **Historical (2026-06-06):** Caddy 502 for `matrix.prestonhager.com` before Synapse was enabled — resolved by importing `nixos/matrix.nix` on ace.
 
 ---
 
@@ -211,7 +213,7 @@ Probed from ace via loopback (`--resolve …:443:127.0.0.1`):
 | metrics.wg.prestonhager.com/ | 403 | OK (restricted) |
 | panel.prestonhager.com/ | 200 | OK |
 | test.panel.prestonhager.com/ | 200 | OK |
-| matrix.prestonhager.com/ | 502 | ❌ No backend |
+| matrix.prestonhager.com/ | 200 / 302 | OK when Synapse up (re-probe on ace) |
 | loftiawiki.org/ | 301 | OK |
 | loftiawiki.com/ | 301 | OK |
 | upgrade.loftiawiki.org/ | 403 | ⚠️ Restricted |
@@ -221,16 +223,15 @@ Probed from ace via loopback (`--resolve …:443:127.0.0.1`):
 ## 8. Recommendations / Open Items
 
 ### High priority
-1. **Fix or remove Matrix vhost** — Either enable `../../nixos/matrix.nix` on ace (Synapse on `:6167`) or remove `matrix.nix` from Caddy imports to stop 502s and blackbox noise.
+1. **Re-run health probes on ace** after Matrix deploy and docs-site changes to refresh this report.
 
 ### Medium priority
-2. **Nextcloud post-rebuild** — Review 14 log errors via `occ log:watch` or admin log viewer; confirm ClamAV scanning and notify_push stable after restart.
+2. **Nextcloud post-rebuild** — Review log errors via `occ log:watch` or admin log viewer; confirm ClamAV scanning and notify_push stable after restart.
 3. **Clean stale containers** — Remove `nextcloud-aio-domaincheck`, `clever_panini`, old infra pods.
 
 ### Low priority
 4. **MediaWiki upgrade vhost** — Investigate HTTP 403 on `upgrade.loftiawiki.org` if that instance should be publicly reachable.
-5. **Prometheus blackbox targets** — Remove or fix probes for `matrix.prestonhager.com` (not deployed) to reduce false alerts.
-6. **ace-health load warning** — Review `server-health.sh` threshold logic on 48-core host (0.85 load is not elevated).
+5. **ace-health load warning** — Review `server-health.sh` threshold logic on 48-core host (0.85 load is not elevated).
 
 ---
 
@@ -238,8 +239,8 @@ Probed from ace via loopback (`--resolve …:443:127.0.0.1`):
 
 From `nixos/containers/default.nix` + `nixos/caddy/default.nix` on branch `dell-poweredge-r730xd`:
 
-**Enabled containers:** Grafana, Jellyfin, MediaWiki, Nextcloud, Prometheus, Pterodactyl (+ test), Vaultwarden, WG Portal, Technitium, LanCache, Zitadel
+**Enabled containers:** Grafana, Jellyfin, MediaWiki, Nextcloud, Prometheus, Pterodactyl (+ test), Vaultwarden, WG Portal, Technitium, LanCache, Zitadel, **Matrix (Synapse + Postgres)**
 
-**Enabled Caddy vhosts:** Jellyfin, Matrix, Technitium/DoH, Grafana, MediaWiki, Nextcloud, Prometheus, Pterodactyl, Vaultwarden, WG Portal, Zitadel
+**Enabled Caddy vhosts:** Jellyfin, Matrix, Technitium/DoH, Grafana, MediaWiki, Nextcloud, Prometheus, Pterodactyl, Vaultwarden, WG Portal, Zitadel, **serverdocs** (LAN-only)
 
-**Disabled / commented:** Forgejo, Phorge, SpacetimeDB, Sui, Nextcloud AIO, Matrix homeserver (`hosts/ace/default.nix`)
+**Disabled / commented:** Forgejo, Phorge, SpacetimeDB, Sui, Nextcloud AIO

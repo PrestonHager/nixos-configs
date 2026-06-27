@@ -24,7 +24,13 @@ Point house or gaming clients at **192.168.5.5** as DNS. Ace host resolver stays
 
 ## Cloudflare
 
-Proxied **A** for **`dns.prestonhager.com`** → `192.168.5.5` (Technitium UI via Caddy). Other app hostnames unchanged.
+Use **DNS only** (grey cloud) for ace app hostnames — same pattern as grafana/vault (CNAME → `ip1.lc1.nm.us.prestonhager.com` → WAN NAT). Do **not** orange-cloud private LAN IPs.
+
+| Type | Name | Content | Proxy |
+|------|------|---------|-------|
+| CNAME | `dns` (and other ace apps) | `ip1.lc1.nm.us.prestonhager.com` | DNS only (grey) |
+
+See **`docs/dns-ace.md`** (also in the docs site under Shared → DNS).
 
 ## Local hosts (Caddy apps on ace)
 

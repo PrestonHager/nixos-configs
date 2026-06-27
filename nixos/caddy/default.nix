@@ -22,6 +22,7 @@
     ./vaultwarden.nix
     ./wg-portal.nix
     ./zitadel.nix
+    ./serverdocs.nix
   ];
 
   # Enable the HTTP/HTTPS ports on the firewall
