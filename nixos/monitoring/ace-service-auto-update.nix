@@ -107,6 +107,7 @@ in {
       bash
       coreutils
       diffutils
+      gnused
       jq
       git
       openssh

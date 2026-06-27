@@ -57,17 +57,17 @@ while IFS= read -r rule; do
   prefix="$(jq -r '.prefix // ""' <<<"$rule")"
   version="${prefix}${TARGET}"
 
-  awk -v m="$match" -v s="$suffix" -v v="$version" '
-    {
-      p = index($0, m)
-      if (p > 0) {
-        print substr($0, 1, p - 1) m v s
-        next
-      }
-      print
-    }
-  ' "$tmp" > "${tmp}.new"
-  mv "${tmp}.new" "$tmp"
+  esc_match="${match//\\/\\\\}"
+  esc_match="${esc_match//|/\\|}"
+  esc_match="${esc_match//&/\\&}"
+  esc_suffix="${suffix//\\/\\\\}"
+  esc_suffix="${esc_suffix//|/\\|}"
+  esc_suffix="${esc_suffix//&/\\&}"
+  esc_version="${version//\\/\\\\}"
+  esc_version="${esc_version//|/\\|}"
+  esc_version="${esc_version//&/\\&}"
+
+  sed -i "s|\(${esc_match}\)[^\"]*\(${esc_suffix}\)|\1${esc_version}\2|g" "$tmp"
 done < <(jq -c --arg s "$SERVICE" '.[$s].bumpRules[]?' "$ACE_REGISTRY")
 
 if [[ "$(cat "$path")" == "$(cat "$tmp")" ]]; then
