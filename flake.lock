@@ -3,16 +3,15 @@
     "blueprint-framework": {
       "flake": false,
       "locked": {
-        "lastModified": 1780808768,
-        "narHash": "sha256-gM7v7bIR+URzHTc7kf+DEBbmn+/V6R1vwnaKvlWPkX0=",
-        "owner": "PrestonHager",
+        "lastModified": 1782152393,
+        "narHash": "sha256-DHvHTXDfklJS/YOWEVdfh8C6j7iLoB6IhqSeBnTlMrI=",
+        "owner": "BlueprintFramework",
         "repo": "framework",
-        "rev": "fe9a400f9451377ec35ce4d80b0461ee376af1ab",
+        "rev": "ad68f03ca4220f394e4c33b17b8957ae2fbe1372",
         "type": "github"
       },
       "original": {
-        "owner": "PrestonHager",
-        "ref": "feat/prestonhager-plugin-manager",
+        "owner": "BlueprintFramework",
         "repo": "framework",
         "type": "github"
       }
@@ -100,11 +99,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1780807293,
-        "narHash": "sha256-/u1+EVm5CHuAr5HNGvTUaCOBqkpR9TLgBR8hbw9dz3w=",
+        "lastModified": 1782570624,
+        "narHash": "sha256-ap36PCuz//HhIEOh2kNpMTYV63c6jjkObDVqoSaGyKI=",
         "ref": "refs/heads/main",
-        "rev": "c1e997fe7227c6fdef3020b720ad4a82b32f4fec",
-        "revCount": 84,
+        "rev": "2fbc17328f02935146bf7a33d8ff209c70aeb8ad",
+        "revCount": 86,
         "type": "git",
         "url": "ssh://git@github.com/PrestonHager/nixos-secrets.git"
       },
