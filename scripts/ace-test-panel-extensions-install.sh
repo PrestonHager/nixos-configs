@@ -17,7 +17,7 @@ install_dev_ext() {
   rm -rf "$panel/.blueprint/dev/"*
   cp -a "$1/." "$panel/.blueprint/dev/"
   chown -R prestonh:users "$panel/.blueprint/dev"
-  nix_panel bash -c "cd '$panel' && rm -f .blueprint/lock && yes n | bash ./blueprint.sh -install '[developer-build]'"
+  nix_panel bash -c "cd '$panel' && rm -f .blueprint/lock && yes n | bash ./blueprint.sh -bash -install '[developer-build]'"
 }
 
 if [ ! -f "$panel/.blueprint/extensions/blueprint/private/extensionfs.php" ]; then
