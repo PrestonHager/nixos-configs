@@ -4,15 +4,17 @@ use Illuminate\Support\Facades\Route;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Http\Controllers\DnsApiController;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Http\Controllers\DnsServerAdminController;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Listeners\RegisterServerEventListeners;
+use Pterodactyl\Http\Middleware\AdminAuthenticate;
+use Pterodactyl\Http\Middleware\RequireTwoFactorAuthentication;
 
 RegisterServerEventListeners::boot();
 
 /*
 | Web routes used by the admin server DNS tab (session-authenticated admin UI).
-| Prefix: /extensions/dnsrecords
+| Prefix: /extensions/dnsrecords (Blueprint "blueprint" middleware group)
 */
 
-Route::middleware(['web', 'auth', 'admin'])->group(function () {
+Route::middleware(['auth.session', RequireTwoFactorAuthentication::class, AdminAuthenticate::class])->group(function () {
     Route::get('/admin/servers/view/{server}', [DnsServerAdminController::class, 'show'])
         ->where('server', '[0-9]+')
         ->name('extensions.dnsrecords.admin.servers.view');

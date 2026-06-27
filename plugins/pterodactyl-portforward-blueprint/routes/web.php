@@ -4,10 +4,12 @@ use Illuminate\Support\Facades\Route;
 use Pterodactyl\BlueprintFramework\Extensions\portforward\Http\Controllers\PortForwardApiController;
 use Pterodactyl\BlueprintFramework\Extensions\portforward\Http\Controllers\PortForwardServerAdminController;
 use Pterodactyl\BlueprintFramework\Extensions\portforward\Listeners\RegisterServerEventListeners;
+use Pterodactyl\Http\Middleware\AdminAuthenticate;
+use Pterodactyl\Http\Middleware\RequireTwoFactorAuthentication;
 
 RegisterServerEventListeners::boot();
 
-Route::middleware(['web', 'auth', 'admin'])->group(function () {
+Route::middleware(['auth.session', RequireTwoFactorAuthentication::class, AdminAuthenticate::class])->group(function () {
     Route::get('/admin/servers/view/{server}', [PortForwardServerAdminController::class, 'show'])
         ->where('server', '[0-9]+')
         ->name('extensions.portforward.admin.servers.view');
