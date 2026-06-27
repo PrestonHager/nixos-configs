@@ -2,6 +2,7 @@
 
 let
   testPanelDir = "/home/prestonh/Projects/panel";
+  testPanelBranch = "release/v1.11.11";
   stateDir = "/var/lib/pterodactyl-test";
   blueprintMarker = "${stateDir}/blueprint-installed";
   blueprintReleaseUrl = "https://github.com/BlueprintFramework/framework/releases/latest/download/release.zip";
@@ -111,6 +112,7 @@ let
       grep -q '@blueprint/components/Authentication/Container/AfterContent' \
         "$panel/resources/scripts/components/auth/LoginFormContainer.tsx" 2>/dev/null \
         && grep -q "'@blueprint'" "$panel/webpack.config.js" 2>/dev/null \
+        && grep -q '"@blueprint/\*"' "$panel/tsconfig.json" 2>/dev/null \
         && blueprint_site_config_integrated \
         && ${pkgs.gnugrep}/bin/grep -rq sociallogin "$panel/public/assets/"*.js 2>/dev/null
     }
@@ -128,6 +130,72 @@ let
         "/'@feature': path.join/a\\            '@blueprint': path.join(__dirname, '/resources/scripts/blueprint')," \
         "$panel/webpack.config.js"
       chown prestonh:users "$panel/webpack.config.js"
+    }
+
+    ensure_blueprint_tsconfig_paths() {
+      if ${pkgs.jq}/bin/jq -e '.compilerOptions.paths["@blueprint/*"]' "$panel/tsconfig.json" >/dev/null 2>&1; then
+        if ${pkgs.jq}/bin/jq -e '.compilerOptions["@blueprint/*"]' "$panel/tsconfig.json" >/dev/null 2>&1; then
+          echo "pterodactyl-test-blueprint-install: fixing malformed @blueprint tsconfig entry..."
+          ${pkgs.jq}/bin/jq 'del(.compilerOptions["@blueprint/*"])' \
+            "$panel/tsconfig.json" > "$panel/tsconfig.json.tmp"
+          mv "$panel/tsconfig.json.tmp" "$panel/tsconfig.json"
+        fi
+        return 0
+      fi
+      echo "pterodactyl-test-blueprint-install: adding @blueprint tsconfig paths..."
+      ${pkgs.jq}/bin/jq '.compilerOptions.paths["@blueprint/*"] = ["./resources/scripts/blueprint/*"] | del(.compilerOptions["@blueprint/*"])' \
+        "$panel/tsconfig.json" > "$panel/tsconfig.json.tmp"
+      mv "$panel/tsconfig.json.tmp" "$panel/tsconfig.json"
+      chown prestonh:users "$panel/tsconfig.json"
+    }
+
+    ensure_blueprint_index_css() {
+      if grep -q "blueprint/css/extensions.css" "$panel/resources/scripts/index.tsx" 2>/dev/null; then
+        return 0
+      fi
+      echo "pterodactyl-test-blueprint-install: adding Blueprint css import to index.tsx..."
+      ${pkgs.gnused}/bin/sed -i \
+        "/import '.\/i18n';/i // Import Blueprint extensions css\nimport './blueprint/css/extensions.css';\n" \
+        "$panel/resources/scripts/index.tsx"
+      chown prestonh:users "$panel/resources/scripts/index.tsx"
+    }
+
+    restore_stock_panel_frontend() {
+      needs_restore=0
+      if grep -rq "from 'pathe'" "$panel/resources/scripts/components" 2>/dev/null; then
+        needs_restore=1
+      fi
+      if grep -q '@blueprint/components' "$panel/resources/scripts/routers/ServerRouter.tsx" 2>/dev/null; then
+        needs_restore=1
+      fi
+      if [ "$needs_restore" -eq 0 ]; then
+        return 0
+      fi
+      echo "pterodactyl-test-blueprint-install: restoring stock ${testPanelBranch} frontend sources..."
+      ${pkgs.git}/bin/git -c safe.directory="$panel" -C "$panel" checkout "${testPanelBranch}" -- \
+        resources/scripts/components \
+        resources/scripts/routers
+      chown -R prestonh:users \
+        "$panel/resources/scripts/components" \
+        "$panel/resources/scripts/routers"
+    }
+
+    ensure_blueprint_extends_compat() {
+      extends_router="$panel/resources/scripts/blueprint/extends/routers/ServerRouter.tsx"
+      if [ ! -f "$extends_router" ]; then
+        return 0
+      fi
+      if ! grep -q 'BlueprintFramework.eggId' "$extends_router" 2>/dev/null; then
+        return 0
+      fi
+      if grep -q 'Record<string, { eggId' "$extends_router" 2>/dev/null; then
+        return 0
+      fi
+      echo "pterodactyl-test-blueprint-install: patching Blueprint extends for Pterodactyl 1.11..."
+      ${pkgs.gnused}/bin/sed -i \
+        's/state\.server\.data?\.BlueprintFramework\.eggId/(state.server.data as Record<string, { eggId?: number }> | undefined)?.BlueprintFramework?.eggId/g' \
+        "$extends_router"
+      chown prestonh:users "$extends_router"
     }
 
     ensure_blueprint_site_config_patches() {
@@ -164,32 +232,29 @@ let
       fi
 
       ensure_blueprint_site_config_patches
+      restore_stock_panel_frontend
 
       if [ "$needs_login_patch" -eq 0 ]; then
+        ensure_blueprint_index_css
         ensure_blueprint_webpack_alias
+        ensure_blueprint_tsconfig_paths
+        ensure_blueprint_extends_compat
         return 0
       fi
 
-      echo "pterodactyl-test-blueprint-install: restoring Blueprint frontend patches from release..."
+      echo "pterodactyl-test-blueprint-install: restoring Blueprint LoginFormContainer patch from release..."
       patch_tmp=$(mktemp -d)
       ${pkgs.curl}/bin/curl -fsSL "${blueprintReleaseUrl}" -o "$patch_tmp/release.zip"
       ${pkgs.unzip}/bin/unzip -o "$patch_tmp/release.zip" \
-        "resources/scripts/components/*" \
-        "resources/scripts/routers/*" \
-        "resources/scripts/index.tsx" \
-        "resources/scripts/blueprint/extends/*" \
+        resources/scripts/components/auth/LoginFormContainer.tsx \
         -d "$patch_tmp/extract"
-      cp -a "$patch_tmp/extract/resources/scripts/components/." "$panel/resources/scripts/components/"
-      cp -a "$patch_tmp/extract/resources/scripts/routers/." "$panel/resources/scripts/routers/"
-      cp "$patch_tmp/extract/resources/scripts/index.tsx" "$panel/resources/scripts/index.tsx"
-      cp -a "$patch_tmp/extract/resources/scripts/blueprint/extends/." "$panel/resources/scripts/blueprint/extends/"
-      chown -R prestonh:users \
-        "$panel/resources/scripts/components" \
-        "$panel/resources/scripts/routers" \
-        "$panel/resources/scripts/index.tsx" \
-        "$panel/resources/scripts/blueprint/extends"
+      cp "$patch_tmp/extract/resources/scripts/components/auth/LoginFormContainer.tsx" "$login_form"
+      chown prestonh:users "$login_form"
       rm -rf "$patch_tmp"
+      ensure_blueprint_index_css
       ensure_blueprint_webpack_alias
+      ensure_blueprint_tsconfig_paths
+      ensure_blueprint_extends_compat
     }
 
     ensure_frontend_built() {
@@ -472,6 +537,7 @@ in
       curl
       unzip
       git
+      jq
       util-linux
       podman
       nodejs_22
