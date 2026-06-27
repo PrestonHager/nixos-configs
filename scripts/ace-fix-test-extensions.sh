@@ -5,7 +5,6 @@ panel=/home/prestonh/Projects/panel
 prod=/pterodactyl/html
 ext_root="$panel/app/BlueprintFramework/Extensions"
 storage_ext="$panel/storage/extensions"
-min_view_bytes=100
 
 install -d -m 0755 -o prestonh -g users "$ext_root"
 for ext in sociallogin dnsrecords portforward; do
@@ -39,7 +38,6 @@ for ext in sociallogin dnsrecords portforward; do
   ctrl="$panel/app/Http/Controllers/Admin/Extensions/$ext/${ext}ExtensionController.php"
   view="$panel/resources/views/admin/extensions/$ext/index.blade.php"
   prod_ctrl="$prod/app/Http/Controllers/Admin/Extensions/$ext/${ext}ExtensionController.php"
-  prod_view="$prod/resources/views/admin/extensions/$ext/index.blade.php"
 
   if [ ! -f "$ctrl" ] && [ -f "$prod_ctrl" ]; then
     install -d -m 0755 -o prestonh -g users "$(dirname "$ctrl")"
@@ -48,15 +46,28 @@ for ext in sociallogin dnsrecords portforward; do
     echo "copied $ext controller"
   fi
 
-  view_bytes=0
-  if [ -f "$view" ]; then
-    view_bytes=$(wc -c < "$view" | tr -d ' ')
+  src=""
+  case "$ext" in
+    dnsrecords) src=/etc/nixos/plugins/pterodactyl-dns-blueprint/admin/view.blade.php ;;
+    portforward) src=/etc/nixos/plugins/pterodactyl-portforward-blueprint/admin/view.blade.php ;;
+  esac
+  if [ -n "$src" ] && [ -f "$src" ]; then
+    extends=$(grep -c "@extends('layouts.admin')" "$view" 2>/dev/null || echo 0)
+    if [ ! -f "$view" ] || [ "$extends" -ne 1 ]; then
+      install -d -m 0755 -o prestonh -g users "$(dirname "$view")"
+      cp -a "$src" "$view"
+      chown prestonh:users "$view"
+      echo "installed $ext view from plugin source"
+    fi
+    continue
   fi
-  if [ -f "$prod_view" ] && { [ ! -f "$view" ] || [ "$view_bytes" -lt "$min_view_bytes" ]; }; then
+
+  prod_view="$prod/resources/views/admin/extensions/$ext/index.blade.php"
+  if [ ! -f "$view" ] && [ -f "$prod_view" ]; then
     install -d -m 0755 -o prestonh -g users "$(dirname "$view")"
     cp -a "$prod_view" "$view"
     chown prestonh:users "$view"
-    echo "copied $ext view (${view_bytes} -> $(wc -c < "$view" | tr -d ' ') bytes)"
+    echo "copied $ext view from production"
   fi
 done
 

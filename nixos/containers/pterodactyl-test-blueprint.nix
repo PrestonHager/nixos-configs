@@ -162,12 +162,32 @@ let
 
   minAdminViewBytes=100
 
+    extension_admin_view_source() {
+      ext="$1"
+      case "$ext" in
+        dnsrecords) echo "${dnsExtensionSrc}/admin/view.blade.php" ;;
+        portforward) echo "${portforwardExtensionSrc}/admin/view.blade.php" ;;
+        *) return 1 ;;
+      esac
+    }
+
+    extension_admin_view_corrupted() {
+      ext="$1"
+      view="$panel/resources/views/admin/extensions/$ext/index.blade.php"
+      [ -f "$view" ] || return 0
+      count=$(${pkgs.gnugrep}/bin/grep -c "@extends('layouts.admin')" "$view" 2>/dev/null || echo 0)
+      [ "$count" -ne 1 ]
+    }
+
     ensure_extension_admin_files() {
       for ext in sociallogin dnsrecords portforward; do
         ctrl="$panel/app/Http/Controllers/Admin/Extensions/$ext/''${ext}ExtensionController.php"
         view="$panel/resources/views/admin/extensions/$ext/index.blade.php"
         prod_ctrl="$prod_panel/app/Http/Controllers/Admin/Extensions/$ext/''${ext}ExtensionController.php"
-        prod_view="$prod_panel/resources/views/admin/extensions/$ext/index.blade.php"
+        src_view=""
+        if src_path=$(extension_admin_view_source "$ext" 2>/dev/null) && [ -f "$src_path" ]; then
+          src_view="$src_path"
+        fi
 
         if [ ! -f "$ctrl" ]; then
           if [ -f "$prod_ctrl" ]; then
@@ -182,6 +202,17 @@ let
           fi
         fi
 
+        if [ -n "$src_view" ]; then
+          if [ ! -f "$view" ] || extension_admin_view_corrupted "$ext"; then
+            echo "pterodactyl-test-blueprint-install: installing $ext admin view from plugin source..."
+            install -d -m 0755 -o prestonh -g users "$(dirname "$view")"
+            cp -a "$src_view" "$view"
+            chown prestonh:users "$view"
+          fi
+          continue
+        fi
+
+        prod_view="$prod_panel/resources/views/admin/extensions/$ext/index.blade.php"
         view_bytes=0
         if [ -f "$view" ]; then
           view_bytes=$(${pkgs.coreutils}/bin/wc -c < "$view" | tr -d ' ')
@@ -211,8 +242,8 @@ let
       ext="$1"
       view="$panel/resources/views/admin/extensions/$ext/index.blade.php"
       [ -f "$view" ] || return 1
-      view_bytes=$(${pkgs.coreutils}/bin/wc -c < "$view" | tr -d ' ')
-      [ "$view_bytes" -ge "$minAdminViewBytes" ]
+      count=$(${pkgs.gnugrep}/bin/grep -c "@extends('layouts.admin')" "$view" 2>/dev/null || echo 0)
+      [ "$count" -eq 1 ]
     }
 
     extension_migrations_integrated() {
