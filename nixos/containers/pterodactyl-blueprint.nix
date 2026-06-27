@@ -262,10 +262,27 @@ let
           chown pterodactyl:pterodactyl "$dest_wrapper"
         fi
       }
+      sync_extension_panel_routes() {
+        ext="$1"
+        src="$2"
+        for router in web application client; do
+          src_route="$src/routes/$router.php"
+          dest_route="$panel/routes/blueprint/$router/$ext.php"
+          [ -f "$src_route" ] || continue
+          install -d -m 0755 -o pterodactyl -g pterodactyl "$(dirname "$dest_route")"
+          if [ ! -f "$dest_route" ] || ! cmp -s "$src_route" "$dest_route"; then
+            echo "pterodactyl-blueprint-install: syncing $ext $router routes into panel..."
+            cp -a "$src_route" "$dest_route"
+            chown pterodactyl:pterodactyl "$dest_route"
+          fi
+        done
+      }
       sync_extension_backend dnsrecords "${dnsExtensionSrc}"
       sync_extension_backend portforward "${portforwardExtensionSrc}"
       sync_extension_wrapper dnsrecords "${dnsExtensionSrc}"
       sync_extension_wrapper portforward "${portforwardExtensionSrc}"
+      sync_extension_panel_routes dnsrecords "${dnsExtensionSrc}"
+      sync_extension_panel_routes portforward "${portforwardExtensionSrc}"
     }
 
     ensure_extension_migrations() {
