@@ -10,6 +10,7 @@ let
   testEnvFile = "/var/lib/pterodactyl-test/pterodactyl.env";
   testPanelDir = "/home/prestonh/Projects/panel";
   testPanelMountDir = "/pterodactyl-test/html";
+  testLegacyPublicDir = "/pterodactyl-test/public";
   setupMarker = "/var/lib/pterodactyl-test/setup-complete";
   adminCredentialsFile = "/var/lib/pterodactyl-test/admin-credentials";
   zitadelDomain = "zitadel.prestonhager.com";
@@ -176,7 +177,7 @@ in
     path = [ pkgs.util-linux pkgs.coreutils ];
     script = ''
       set -euo pipefail
-      legacy_public="${testPanelMountDir%/html}/public"
+      legacy_public=${testLegacyPublicDir}
       install -d -m 0755 ${testPanelMountDir}
       if ${pkgs.util-linux}/bin/mountpoint -q "$legacy_public"; then
         ${pkgs.util-linux}/bin/umount "$legacy_public"
