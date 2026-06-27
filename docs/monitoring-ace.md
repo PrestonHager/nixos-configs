@@ -74,6 +74,8 @@ See also `docs/zitadel-ace.md` for console steps.
 
 External and LAN probe perspectives: `docs/monitoring-external-probes.md`.
 
+Security detection and incident response (planned): `docs/security-ids-plan.md` — extends this stack with Loki, host IDS, and Grafana **Security** alert rules in later phases.
+
 ## Email alerting (Grafana Unified Alerting)
 
 Ace sends operational emails through Grafana’s built-in SMTP relay (same iCloud credentials as Nextcloud/Zitadel). Alert rules and notification routing are **file-provisioned** under `nixos/monitoring/grafana/provisioning/alerting/`; recipients come from sops.

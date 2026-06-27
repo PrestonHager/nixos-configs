@@ -228,6 +228,7 @@ Probed from ace via loopback (`--resolve …:443:127.0.0.1`):
 ### Low priority
 4. **MediaWiki upgrade vhost** — Investigate HTTP 403 on `upgrade.loftiawiki.org` if that instance should be publicly reachable.
 5. **ace-health load warning** — Review `server-health.sh` threshold logic on 48-core host (0.85 load is not elevated).
+6. **IDS / security monitoring** — Follow phased plan in `docs/security-ids-plan.md` (Phase 1: audit logging + Loki; complements Grafana blackbox alerts above).
 
 ---
 

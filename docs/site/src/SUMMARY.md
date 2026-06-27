@@ -29,6 +29,7 @@
 
 # Shared
 
+- [IDS & Security Monitoring Plan](shared/security-ids-plan.md)
 - [Network & SSH / Bitwarden](shared/network-ssh.md)
 - [DNS on ace](shared/dns.md)
 - [Monitoring (Grafana + Prometheus)](shared/monitoring.md)

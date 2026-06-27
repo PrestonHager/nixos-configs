@@ -19,6 +19,8 @@ Homelab documentation for the [nixos-configs](https://github.com/PrestonHager/ni
 | Technitium DNS | 192.168.5.5 | — |
 | Astraquasar (Cisco switch) | 192.168.5.3 | `ssh astraquasar` |
 
+Planned intrusion detection and response across these hosts and devices: [IDS & Security Monitoring Plan](shared/security-ids-plan.md).
+
 ## Accessing this site
 
 | Where | URL / command |

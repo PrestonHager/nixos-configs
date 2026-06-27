@@ -29,4 +29,4 @@ Config entry points:
 | `ace.prestonhager.com` | 192.168.5.5 (via Technitium CNAME) |
 | `ace.internal.prestonhager.com` | 192.168.5.5 |
 
-See child pages for per-service runbooks. Shared DNS, SSH, and monitoring docs are under **Shared**.
+See child pages for per-service runbooks. Shared DNS, SSH, monitoring, and the [IDS deployment plan](../shared/security-ids-plan.md) are under **Shared**.

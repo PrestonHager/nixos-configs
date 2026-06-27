@@ -193,3 +193,7 @@ Remove-Item Env:CISCO_ENABLE_PASSWORD
 | ace | 192.168.5.5 | root |
 | crux | 192.168.5.6 | root |
 | nova | 192.168.5.7 | root |
+
+## Security monitoring (planned)
+
+Cisco syslog, config backup/diff, and incident response playbooks for Astracap and Astraquasar are outlined in `docs/security-ids-plan.md` (detection tiers, SPAN/IDS placement, rollback steps).
