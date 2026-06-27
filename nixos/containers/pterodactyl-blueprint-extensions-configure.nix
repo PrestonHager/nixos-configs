@@ -1,6 +1,51 @@
 { config, pkgs, ... }:
 
 let
+  panelRoot = "/pterodactyl/html";
+
+  configurePhp = pkgs.writeText "configure-production-extensions.php" ''
+    <?php
+    require "/var/www/pterodactyl/vendor/autoload.php";
+    $app = require "/var/www/pterodactyl/bootstrap/app.php";
+    $app->make("Illuminate\Contracts\Console\Kernel")->bootstrap();
+
+    use Pterodactyl\BlueprintFramework\Extensions\portforward\Models\PortForwardSetting;
+    use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Models\DnsExtensionSetting;
+
+    $dryRun = getenv("PORTFORWARD_DRY_RUN") !== "0";
+
+    $portforward = [
+      "enabled" => true,
+      "router_host" => "192.168.5.1",
+      "router_ssh_user" => "pterofwd",
+      "wan_interface" => "GigabitEthernet0/0",
+      "dry_run" => $dryRun,
+      "auto_forward_on_install" => false,
+      "auto_remove_on_delete" => true,
+      "allowed_port_min" => 1024,
+      "allowed_port_max" => 65535,
+      "blocked_ports" => [22, 80, 443, 3380],
+      "node_ip_map" => ["1" => "192.168.5.6", "2" => "192.168.5.7"],
+      "max_mappings_per_server" => 8,
+    ];
+    foreach ($portforward as $key => $value) {
+      PortForwardSetting::query()->updateOrCreate(["key" => $key], ["value" => $value]);
+    }
+
+    $dns = [
+      "dns_provider_mode" => "technitium",
+      "technitium_api_url" => "http://host.containers.internal:5380",
+      "technitium_default_zone" => "prestonhager.com",
+      "dry_run" => false,
+      "auto_provision_enabled" => true,
+      "update_on_allocation_change" => true,
+    ];
+    foreach ($dns as $key => $value) {
+      DnsExtensionSetting::query()->updateOrCreate(["key" => $key], ["value" => $value]);
+    }
+    echo "extensions configured\n";
+  '';
+
   configureScript = pkgs.writeShellScript "pterodactyl-blueprint-extensions-configure" ''
     set -euo pipefail
 
@@ -9,56 +54,25 @@ let
       exit 0
     fi
 
-    if [ ! -d /pterodactyl/html/.blueprint/extensions/portforward ]; then
+    if [ ! -d ${panelRoot}/.blueprint/extensions/portforward ]; then
       echo "pterodactyl-blueprint-extensions-configure: portforward extension missing, skipping"
       exit 0
     fi
 
-    live_nat=0
+    portforward_dry_run=1
     if [ -f /pterodactyl/secrets/pterodactyl-router-ssh-key ]; then
-      live_nat=1
+      portforward_dry_run=0
     fi
 
+    ${pkgs.coreutils}/bin/cp ${configurePhp} ${panelRoot}/configure-production-extensions.php
+    ${pkgs.coreutils}/bin/chown pterodactyl:pterodactyl ${panelRoot}/configure-production-extensions.php
     ${pkgs.podman}/bin/podman exec \
-      -e HOME=/var/www/pterodactyl \
-      -e COMPOSER_HOME=/tmp/composer \
+      -e PORTFORWARD_DRY_RUN="$portforward_dry_run" \
       pterodactyl \
-      php /var/www/pterodactyl/artisan tinker --execute="
-use Pterodactyl\\BlueprintFramework\\Extensions\\portforward\\Models\\PortForwardSetting;
-use Pterodactyl\\BlueprintFramework\\Extensions\\dnsrecords\\Models\\DnsExtensionSetting;
+      php /var/www/pterodactyl/configure-production-extensions.php
+    ${pkgs.coreutils}/bin/rm -f ${panelRoot}/configure-production-extensions.php
 
-\$portforward = [
-  'enabled' => true,
-  'router_host' => '192.168.5.1',
-  'router_ssh_user' => 'pterofwd',
-  'wan_interface' => 'GigabitEthernet0/0',
-  'dry_run' => ''${live_nat} ? false : true,
-  'auto_forward_on_install' => false,
-  'auto_remove_on_delete' => true,
-  'allowed_port_min' => 1024,
-  'allowed_port_max' => 65535,
-  'blocked_ports' => [22, 80, 443, 3380],
-  'node_ip_map' => ['1' => '192.168.5.6', '2' => '192.168.5.7'],
-  'max_mappings_per_server' => 8,
-];
-foreach (\$portforward as \$key => \$value) {
-  PortForwardSetting::query()->updateOrCreate(['key' => \$key], ['value' => \$value]);
-}
-
-\$dns = [
-  'dns_provider_mode' => 'technitium',
-  'technitium_api_url' => 'http://host.containers.internal:5380',
-  'technitium_default_zone' => 'prestonhager.com',
-  'dry_run' => false,
-  'auto_provision_enabled' => true,
-];
-foreach (\$dns as \$key => \$value) {
-  DnsExtensionSetting::query()->updateOrCreate(['key' => \$key], ['value' => \$value]);
-}
-echo 'extensions configured';
-"
-
-    echo "pterodactyl-blueprint-extensions-configure: portforward enabled (dry_run=\$((1 - live_nat)))"
+    echo "pterodactyl-blueprint-extensions-configure: homelab defaults applied (portforward dry_run=$portforward_dry_run)"
   '';
 in
 {
@@ -80,6 +94,6 @@ in
       RemainAfterExit = true;
       TimeoutStartSec = "10min";
     };
-    path = [ pkgs.podman pkgs.php83 ];
+    path = [ pkgs.podman pkgs.php83 pkgs.coreutils ];
   };
 }

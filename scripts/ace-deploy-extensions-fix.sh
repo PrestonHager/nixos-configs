@@ -8,6 +8,7 @@ git pull --ff-only origin dell-poweredge-r730xd
 
 nixos-rebuild switch --flake .#ace
 
+systemctl restart pterodactyl-blueprint-install.service || systemctl start pterodactyl-blueprint-install.service
 systemctl restart pterodactyl-blueprint-extensions-configure.service
 systemctl restart pterodactyl-test-blueprint-install.service || systemctl start pterodactyl-test-blueprint-install.service
 systemctl restart pterodactyl-test-pod-network-check.service || systemctl start pterodactyl-test-pod-network-check.service

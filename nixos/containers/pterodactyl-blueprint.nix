@@ -70,7 +70,196 @@ let
       fi
     }
 
-    blueprint_backend_integrated() {
+    ensure_blueprint_assets() {
+      if [ -d "$panel/.blueprint/assets/Extensions" ]; then
+        return 0
+      fi
+      if [ -d "$panel/.blueprint/blueprint/assets" ]; then
+        echo "pterodactyl-blueprint-install: copying Blueprint assets from framework tree..."
+        cp -a "$panel/.blueprint/blueprint/assets" "$panel/.blueprint/assets"
+        chown -R pterodactyl:pterodactyl "$panel/.blueprint/assets"
+      fi
+    }
+
+    ensure_extension_app_symlinks() {
+      ext_root="$panel/app/BlueprintFramework/Extensions"
+      install -d -m 0755 -o pterodactyl -g pterodactyl "$ext_root"
+      for ext in sociallogin dnsrecords portforward; do
+        if [ ! -d "$panel/.blueprint/extensions/$ext/app" ]; then
+          continue
+        fi
+        if [ -L "$ext_root/$ext" ] || [ -d "$ext_root/$ext" ]; then
+          continue
+        fi
+        echo "pterodactyl-blueprint-install: linking $ext extension app into BlueprintFramework..."
+        ln -sfn "../../../.blueprint/extensions/$ext/app" "$ext_root/$ext"
+        chown -h pterodactyl:pterodactyl "$ext_root/$ext"
+      done
+    }
+
+    ensure_storage_extension_symlinks() {
+      storage_ext="$panel/storage/extensions"
+      install -d -m 2775 -o pterodactyl -g pterodactyl "$storage_ext"
+      for ext in sociallogin dnsrecords portforward; do
+        if [ ! -d "$panel/.blueprint/extensions/$ext/fs" ]; then
+          continue
+        fi
+        if [ -L "$storage_ext/$ext" ] || [ -d "$storage_ext/$ext" ]; then
+          continue
+        fi
+        echo "pterodactyl-blueprint-install: linking $ext extension public files into storage..."
+        ln -sfn "../../.blueprint/extensions/$ext/fs" "$storage_ext/$ext"
+        chown -h pterodactyl:pterodactyl "$storage_ext/$ext"
+      done
+    }
+
+    ensure_public_assets_extension_symlinks() {
+      assets_ext="$panel/public/assets/extensions"
+      install -d -m 2775 -o pterodactyl -g pterodactyl "$assets_ext"
+      for ext in blueprint sociallogin dnsrecords portforward; do
+        target="$panel/.blueprint/extensions/$ext/assets"
+        if [ ! -d "$target" ]; then
+          continue
+        fi
+        link="$assets_ext/$ext"
+        resolved=""
+        if [ -L "$link" ]; then
+          resolved=$(${pkgs.coreutils}/bin/readlink -f "$link" 2>/dev/null || true)
+        fi
+        if [ "$resolved" = "$target" ]; then
+          continue
+        fi
+        if [ -e "$link" ] && [ ! -L "$link" ]; then
+          continue
+        fi
+        rm -f "$link"
+        echo "pterodactyl-blueprint-install: linking $ext extension assets into public..."
+        ln -sfn "../../../.blueprint/extensions/$ext/assets" "$link"
+        chown -h pterodactyl:pterodactyl "$link"
+      done
+    }
+
+    extension_public_asset_file() {
+      ext="$1"
+      if [ "$ext" = "blueprint" ]; then
+        echo "$panel/public/assets/extensions/blueprint/logo.jpg"
+      else
+        echo "$panel/public/assets/extensions/$ext/icon.jpg"
+      fi
+    }
+
+    extension_public_assets_integrated() {
+      for ext in blueprint sociallogin dnsrecords portforward; do
+        asset=$(extension_public_asset_file "$ext")
+        [ -f "$asset" ] || return 1
+      done
+    }
+
+    minAdminViewBytes=100
+
+    extension_admin_view_source() {
+      ext="$1"
+      case "$ext" in
+        dnsrecords) echo "${dnsExtensionSrc}/admin/view.blade.php" ;;
+        portforward) echo "${portforwardExtensionSrc}/admin/view.blade.php" ;;
+        *) return 1 ;;
+      esac
+    }
+
+    extension_admin_controller_source() {
+      ext="$1"
+      case "$ext" in
+        dnsrecords) echo "${dnsExtensionSrc}/admin/controller.php" ;;
+        portforward) echo "${portforwardExtensionSrc}/admin/controller.php" ;;
+        *) return 1 ;;
+      esac
+    }
+
+    extension_admin_view_corrupted() {
+      ext="$1"
+      view="$panel/resources/views/admin/extensions/$ext/index.blade.php"
+      [ -f "$view" ] || return 0
+      count=$(${pkgs.gnugrep}/bin/grep -c "@extends('layouts.admin')" "$view" 2>/dev/null || echo 0)
+      [ "$count" -ne 1 ]
+    }
+
+    ensure_extension_admin_files() {
+      for ext in sociallogin dnsrecords portforward; do
+        ctrl="$panel/app/Http/Controllers/Admin/Extensions/$ext/''${ext}ExtensionController.php"
+        view="$panel/resources/views/admin/extensions/$ext/index.blade.php"
+        src_ctrl=""
+        src_view=""
+        if src_path=$(extension_admin_controller_source "$ext" 2>/dev/null) && [ -f "$src_path" ]; then
+          src_ctrl="$src_path"
+        fi
+        if src_path=$(extension_admin_view_source "$ext" 2>/dev/null) && [ -f "$src_path" ]; then
+          src_view="$src_path"
+        fi
+
+        if [ -n "$src_ctrl" ] && [ ! -f "$ctrl" ]; then
+          echo "pterodactyl-blueprint-install: installing $ext admin controller from plugin source..."
+          install -d -m 0755 -o pterodactyl -g pterodactyl "$(dirname "$ctrl")"
+          cp -a "$src_ctrl" "$ctrl"
+          chown pterodactyl:pterodactyl "$ctrl"
+        elif [ ! -f "$ctrl" ] && [ "$ext" = "sociallogin" ]; then
+          echo "pterodactyl-blueprint-install: reinstalling Social Login to restore admin controller..."
+          rm -f "$panel/.blueprint/lock"
+          blueprint_cli -install sociallogin
+        fi
+
+        if [ -n "$src_view" ]; then
+          if [ ! -f "$view" ] || extension_admin_view_corrupted "$ext"; then
+            echo "pterodactyl-blueprint-install: installing $ext admin view from plugin source..."
+            install -d -m 0755 -o pterodactyl -g pterodactyl "$(dirname "$view")"
+            cp -a "$src_view" "$view"
+            chown pterodactyl:pterodactyl "$view"
+          fi
+        fi
+      done
+    }
+
+    ensure_extension_migrations() {
+      for src_dir in "${dnsExtensionSrc}/database/migrations" "${portforwardExtensionSrc}/database/migrations"; do
+        [ -d "$src_dir" ] || continue
+        for migration in "$src_dir"/*.php; do
+          [ -f "$migration" ] || continue
+          base=$(${pkgs.coreutils}/bin/basename "$migration")
+          if [ ! -f "$panel/database/migrations/$base" ]; then
+            echo "pterodactyl-blueprint-install: copying missing migration $base from plugin source..."
+            cp -a "$migration" "$panel/database/migrations/$base"
+            chown pterodactyl:pterodactyl "$panel/database/migrations/$base"
+          fi
+        done
+      done
+    }
+
+    extension_admin_view_ok() {
+      ext="$1"
+      view="$panel/resources/views/admin/extensions/$ext/index.blade.php"
+      [ -f "$view" ] || return 1
+      count=$(${pkgs.gnugrep}/bin/grep -c "@extends('layouts.admin')" "$view" 2>/dev/null || echo 0)
+      [ "$count" -eq 1 ]
+    }
+
+    extension_migrations_integrated() {
+      for migration in \
+        2026_06_07_000001_create_dnsrecords_extension_tables.php \
+        2026_06_26_000001_add_dnsrecords_audit_log.php \
+        2026_06_26_000001_create_portforward_extension_tables.php; do
+        [ -f "$panel/database/migrations/$migration" ] || return 1
+      done
+    }
+
+    extension_backend_integrated() {
+      for ext in sociallogin dnsrecords portforward; do
+        [ -e "$panel/app/BlueprintFramework/Extensions/$ext" ] || return 1
+        [ -f "$panel/app/Http/Controllers/Admin/Extensions/$ext/''${ext}ExtensionController.php" ] || return 1
+        extension_admin_view_ok "$ext" || return 1
+      done
+      extension_migrations_integrated && extension_public_assets_integrated
+    }
+
+    blueprint_core_backend_integrated() {
       [ -f "$panel/app/Models/SocialProvider.php" ] \
         && grep -q 'Providers\\Blueprint\\RouteServiceProvider' "$panel/app/Providers/AppServiceProvider.php" \
         && grep -q "'blueprint'" "$panel/app/Http/Kernel.php" \
@@ -78,6 +267,10 @@ let
         && ${pkgs.podman}/bin/podman exec pterodactyl \
           php /var/www/pterodactyl/artisan route:list 2>/dev/null \
           | ${pkgs.gnugrep}/bin/grep -q 'extensions/sociallogin'
+    }
+
+    blueprint_backend_integrated() {
+      blueprint_core_backend_integrated && extension_backend_integrated
     }
 
     blueprint_site_config_integrated() {
@@ -279,16 +472,30 @@ let
     }
 
     post_install_hooks() {
+      ensure_blueprint_assets
       ensure_blueprint_core_patches
       ensure_sociallogin_models
+      ensure_extension_app_symlinks
+      ensure_storage_extension_symlinks
+      ensure_public_assets_extension_symlinks
+      ensure_extension_admin_files
+      ensure_extension_migrations
       ensure_blueprint_frontend_patches
       ensure_frontend_built
 
-      ${pkgs.podman}/bin/podman exec \
-        -e HOME=/var/www/pterodactyl \
-        -e COMPOSER_HOME=/tmp/composer \
-        pterodactyl \
-        sh -c 'cd /var/www/pterodactyl && composer install --no-dev --optimize-autoloader'
+      if [ ! -f "$panel/vendor/autoload.php" ]; then
+        ${pkgs.podman}/bin/podman exec \
+          -e HOME=/var/www/pterodactyl \
+          -e COMPOSER_HOME=/tmp/composer \
+          pterodactyl \
+          sh -c 'cd /var/www/pterodactyl && composer install --no-dev --optimize-autoloader'
+      else
+        ${pkgs.podman}/bin/podman exec \
+          -e HOME=/var/www/pterodactyl \
+          -e COMPOSER_HOME=/tmp/composer \
+          pterodactyl \
+          sh -c 'cd /var/www/pterodactyl && composer dump-autoload -o'
+      fi
 
       ${pkgs.podman}/bin/podman exec pterodactyl \
         php /var/www/pterodactyl/artisan migrate --force
@@ -303,6 +510,7 @@ let
         php /var/www/pterodactyl/artisan view:clear
 
       chown -R pterodactyl:pterodactyl "$panel"
+      find "$panel/storage" "$panel/bootstrap/cache" -type d -exec chmod 2775 {} + 2>/dev/null || true
     }
 
     write_marker() {
@@ -311,9 +519,12 @@ let
     }
 
     if blueprint_integrated \
+      && extension_backend_integrated \
+      && [ -d "$panel/.blueprint/assets/Extensions" ] \
       && [ -d "$panel/.blueprint/extensions/sociallogin" ] \
       && [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
-      && [ -d "$panel/.blueprint/extensions/portforward" ]; then
+      && [ -d "$panel/.blueprint/extensions/portforward" ] \
+      && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
       write_marker
       echo "pterodactyl-blueprint-install: Blueprint, Social Login, DNS Records, and Port Forward ready"
       exit 0
@@ -323,7 +534,20 @@ let
       && [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
       && [ -d "$panel/.blueprint/extensions/portforward" ] \
       && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
-      if blueprint_backend_integrated && ! blueprint_frontend_integrated; then
+      if ! extension_backend_integrated; then
+        echo "pterodactyl-blueprint-install: extension symlinks, views, or migrations incomplete, repairing..."
+        ensure_blueprint_assets
+        ensure_extension_app_symlinks
+        ensure_storage_extension_symlinks
+        ensure_public_assets_extension_symlinks
+        ensure_extension_admin_files
+        ensure_extension_migrations
+        post_install_hooks
+        write_marker
+        echo "pterodactyl-blueprint-install: extension backend repaired on production panel"
+        exit 0
+      fi
+      if blueprint_core_backend_integrated && ! blueprint_frontend_integrated; then
         echo "pterodactyl-blueprint-install: backend ready but login UI missing Social Login, repairing frontend..."
         ensure_blueprint_frontend_patches
         ensure_frontend_built
@@ -332,12 +556,27 @@ let
         echo "pterodactyl-blueprint-install: Blueprint Social Login frontend repaired on production panel"
         exit 0
       fi
-      if ! blueprint_backend_integrated; then
+      if ! blueprint_core_backend_integrated; then
         echo "pterodactyl-blueprint-install: extensions present but Laravel integration missing, repairing..."
+        ensure_blueprint_assets
+        ensure_extension_app_symlinks
+        ensure_storage_extension_symlinks
+        ensure_public_assets_extension_symlinks
+        ensure_extension_admin_files
+        ensure_extension_migrations
         rerun_blueprint_framework
         post_install_hooks
         write_marker
         echo "pterodactyl-blueprint-install: Blueprint integration repaired on production panel"
+        exit 0
+      fi
+      if ! blueprint_site_config_integrated || ! blueprint_frontend_integrated; then
+        echo "pterodactyl-blueprint-install: site config or frontend incomplete, repairing..."
+        ensure_blueprint_frontend_patches
+        ensure_frontend_built
+        post_install_hooks
+        write_marker
+        echo "pterodactyl-blueprint-install: Blueprint site config and frontend repaired on production panel"
         exit 0
       fi
     fi
@@ -453,18 +692,22 @@ in
       Type = "oneshot";
       ExecStart = installScript;
       RemainAfterExit = true;
-      TimeoutStartSec = "60min";
+      TimeoutStartSec = "90min";
     };
     path = with pkgs; [
       bash
       curl
       unzip
       git
+      jq
       util-linux
       podman
       nodejs_22
       yarn
       coreutils
+      gnused
+      gnugrep
+      procps
     ];
   };
 }
