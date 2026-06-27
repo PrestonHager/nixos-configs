@@ -30,6 +30,6 @@ while IFS= read -r line; do
   fi
 
   log "dispatching ace-service-auto-update@${service}.service (behind=${behind})"
-  systemctl start "ace-service-auto-update@${service}.service" || \
+  systemctl start --no-block "ace-service-auto-update@${service}.service" || \
     log "failed to start ace-service-auto-update@${service}.service"
 done < <(grep -E '^ace_service_version_behind{' "$ACE_VERSIONS_PROM" || true)
