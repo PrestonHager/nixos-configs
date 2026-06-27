@@ -13,6 +13,7 @@
 - [Monitoring](ace/monitoring.md)
 - [Nextcloud](ace/nextcloud.md)
 - [Nextcloud Action Plan](ace/nextcloud-action-plan.md)
+- [Nextcloud Cloud Migration Plan](ace/nextcloud-cloud-migration-plan.md)
 - [Pterodactyl Panel](ace/pterodactyl.md)
 - [Pterodactyl Extensions User Guide](ace/pterodactyl-extensions-user-guide.md)
 - [Pterodactyl Test Blueprint](ace/pterodactyl-test-blueprint.md)
