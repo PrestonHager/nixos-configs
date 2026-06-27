@@ -83,6 +83,11 @@ let
         cp -f "$datadir/SocialProvider.php" "$panel/app/Models/SocialProvider.php"
         cp -f "$datadir/SocialConnection.php" "$panel/app/Models/SocialConnection.php"
         chown prestonh:users "$panel/app/Models/SocialProvider.php" "$panel/app/Models/SocialConnection.php"
+      elif [ ! -f "$panel/app/Models/SocialProvider.php" ] && [ -f "/pterodactyl/html/.blueprint/extensions/sociallogin/private/SocialProvider.php" ]; then
+        echo "pterodactyl-test-blueprint-install: copying Social Login models from production panel..."
+        cp -f "/pterodactyl/html/.blueprint/extensions/sociallogin/private/SocialProvider.php" "$panel/app/Models/SocialProvider.php"
+        cp -f "/pterodactyl/html/.blueprint/extensions/sociallogin/private/SocialConnection.php" "$panel/app/Models/SocialConnection.php"
+        chown prestonh:users "$panel/app/Models/SocialProvider.php" "$panel/app/Models/SocialConnection.php"
       fi
     }
 
@@ -191,6 +196,15 @@ let
       if ${pkgs.gnugrep}/bin/grep -rq sociallogin "$panel/public/assets/"*.js 2>/dev/null; then
         return 0
       fi
+      if [ -f "$panel/node_modules/cross-env/src/bin/cross-env.js" ]; then
+        chmod u+rx "$panel/node_modules/cross-env/src/bin/cross-env.js" 2>/dev/null || true
+      fi
+      for bin in "$panel/node_modules/.bin"/*; do
+        if [ -L "$bin" ]; then
+          target="$panel/node_modules/.bin/$(readlink "$bin")"
+          [ -f "$target" ] && chmod u+rx "$target" 2>/dev/null || true
+        fi
+      done
       echo "pterodactyl-test-blueprint-install: building panel frontend with Blueprint extensions..."
       cd "$panel"
       if [ ! -d "$panel/node_modules" ]; then
