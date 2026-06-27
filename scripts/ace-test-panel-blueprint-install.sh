@@ -49,14 +49,12 @@ EOF
 chown prestonh:users "$panel/.blueprintrc"
 chmod +x "$panel/blueprint.sh"
 chown prestonh:users "$panel/blueprint.sh"
-install -d -m 0755 -o prestonh -g users "$panel/.blueprint/extensions/blueprint/private/debug"
-install -m 0644 /dev/null "$panel/.blueprint/extensions/blueprint/private/debug/logs.txt"
-chown prestonh:users "$panel/.blueprint/extensions/blueprint/private/debug/logs.txt"
-
 if [ -d "$panel/blueprint" ]; then
   install -d -m 0755 -o prestonh -g users "$panel/.blueprint"
   mv "$panel/blueprint" "$panel/.blueprint/blueprint"
   chown -R prestonh:users "$panel/.blueprint/blueprint"
+  cp -a "$panel/.blueprint/blueprint/assets" "$panel/.blueprint/assets"
+  cp -a "$panel/.blueprint/blueprint/dist" "$panel/.blueprint/dist" 2>/dev/null || true
 fi
 
 echo "=== yarn install ==="
@@ -92,8 +90,10 @@ nix_panel env NODE_ENV=production NODE_OPTIONS=--openssl-legacy-provider \
 chown -R prestonh:users "$panel"
 
 echo "=== composer + artisan ==="
+chown -R prestonh:users "$panel/vendor" 2>/dev/null || true
+rm -rf "$panel/vendor"
 podman exec -e COMPOSER_HOME=/tmp/composer pterodactyl-test \
-  sh -c 'cd /var/www/pterodactyl && rm -rf vendor && composer install --no-dev --optimize-autoloader'
+  sh -c 'cd /var/www/pterodactyl && composer install --no-dev --optimize-autoloader'
 podman exec pterodactyl-test php /var/www/pterodactyl/artisan migrate --force
 podman exec pterodactyl-test php /var/www/pterodactyl/artisan db:seed --class=BlueprintSeeder --force
 podman exec pterodactyl-test php /var/www/pterodactyl/artisan config:clear
