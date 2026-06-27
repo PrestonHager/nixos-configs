@@ -198,6 +198,18 @@ current_grafana() {
   normalize_version "$v"
 }
 
+current_prometheus() {
+  local tag v
+  tag="$(container_tag prometheus)"
+  if [[ "$tag" != "latest" && -n "$(normalize_version "$tag")" ]]; then
+    normalize_version "$tag"
+    return 0
+  fi
+  v="$(curl -fsSL --connect-timeout 3 --max-time 10 http://127.0.0.1:9090/api/v1/status/buildinfo 2>/dev/null \
+    | jq -r '.data.version // empty' || true)"
+  normalize_version "$v"
+}
+
 current_nextcloud() {
   local tag v
   tag="$(container_tag nextcloud)"
@@ -366,6 +378,7 @@ current_notify_push() {
   printf '%s\n' '# TYPE ace_service_version_behind gauge'
 
   emit_service grafana "$(current_grafana)" "$(github_latest grafana/grafana)"
+  emit_service prometheus "$(current_prometheus)" "$(github_latest prometheus/prometheus)"
   emit_service nextcloud "$(current_nextcloud)" "$(github_latest nextcloud/server)"
   emit_service zitadel "$(current_zitadel)" "$(github_latest zitadel/zitadel)"
   emit_service matrix-synapse "$(current_synapse)" "$(github_latest matrix-org/synapse)"
