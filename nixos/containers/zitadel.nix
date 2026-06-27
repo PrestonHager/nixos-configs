@@ -178,7 +178,7 @@ in {
   virtualisation.oci-containers.containers.zitadel = {
     autoStart = true;
     dependsOn = [ "zitadel-db" ];
-    image = "ghcr.io/zitadel/zitadel:vv4.15.3"
+    image = "ghcr.io/zitadel/zitadel:v4.15.0"
     cmd = [
       "start-from-init"
       "--masterkeyFromEnv"
@@ -209,7 +209,7 @@ in {
   virtualisation.oci-containers.containers.zitadel-login = {
     autoStart = true;
     dependsOn = [ "zitadel" ];
-    image = "ghcr.io/zitadel/zitadel-login:vv4.15.3"
+    image = "ghcr.io/zitadel/zitadel-login:v4.15.0"
     extraOptions = [ "--pod=zitadel-pod" ];
     environment = {
       ZITADEL_API_URL = "http://127.0.0.1:8080";
