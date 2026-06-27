@@ -85,6 +85,7 @@ if git diff --cached --quiet; then
 fi
 
 git -c user.name="Preston Hager" -c user.email="preston@hagerfamily.com" \
+  -c commit.gpgsign=false \
   commit -m "ace: bump ${SERVICE} to ${TARGET}
 
 Automated patch/minor update triggered by ace-service-auto-update."

@@ -43,8 +43,8 @@
     "strategy": "nix-bump",
     "nixFile": "nixos/containers/zitadel.nix",
     "bumpRules": [
-      { "match": "image = \"ghcr.io/zitadel/zitadel:v", "suffix": "\"", "prefix": "v" },
-      { "match": "image = \"ghcr.io/zitadel/zitadel-login:v", "suffix": "\"", "prefix": "v" }
+      { "match": "image = \"ghcr.io/zitadel/zitadel:v", "suffix": "\"", "prefix": "" },
+      { "match": "image = \"ghcr.io/zitadel/zitadel-login:v", "suffix": "\"", "prefix": "" }
     ],
     "postUpgradeUnits": ["podman-zitadel.service", "podman-zitadel-login.service"],
     "majorWarnings": [
