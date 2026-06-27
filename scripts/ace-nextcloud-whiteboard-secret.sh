@@ -7,15 +7,22 @@ if nix shell nixpkgs#sops --command sops -d secrets/containers/nextcloud.yaml 2>
   echo "nextcloud-whiteboard-env already present"
   exit 0
 fi
-WHITEBOARDJWT="$(tr -dc A-Za-z0-9 </dev/urandom | head -c 48)"
-cat >>secrets/containers/nextcloud.yaml <<EOF
+WHITEBOARDJWT="$(dd if=/dev/urandom bs=24 count=1 2>/dev/null | base64 | tr -dc 'A-Za-z0-9' | fold -w 48 | head -n 1)"
+if [ -z "$WHITEBOARDJWT" ]; then
+  echo "failed to generate whiteboard JWT secret" >&2
+  exit 1
+fi
+plain="$(mktemp)"
+nix shell nixpkgs#sops --command sops -d secrets/containers/nextcloud.yaml >"$plain"
+cat >>"$plain" <<EOF
 
 nextcloud-whiteboard-env: |
   JWT_SECRET_KEY=${WHITEBOARDJWT}
   NEXTCLOUD_URL=https://cloud.prestonhager.com
 EOF
-nix shell nixpkgs#sops --command sops -e -i secrets/containers/nextcloud.yaml
+mv "$plain" secrets/containers/nextcloud.yaml
+nix shell nixpkgs#sops --command sops --encrypt --encrypted-regex '^(data|stringData|nextcloud-.*)$' --in-place secrets/containers/nextcloud.yaml
 git add secrets/containers/nextcloud.yaml
-git commit -m "Add nextcloud-whiteboard-env JWT secret for ace"
+git commit --no-gpg-sign -m "Add nextcloud-whiteboard-env JWT secret for ace"
 git push origin main
 echo "nextcloud-whiteboard-env added"

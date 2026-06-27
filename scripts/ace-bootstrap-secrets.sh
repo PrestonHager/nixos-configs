@@ -107,7 +107,11 @@ fi
 
 if [ -f secrets/containers/nextcloud.yaml ] \
   && ! nix shell nixpkgs#sops --command sops -d secrets/containers/nextcloud.yaml 2>/dev/null | grep -q '^JWT_SECRET_KEY='; then
-  WHITEBOARDJWT=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 48)
+  WHITEBOARDJWT=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 48 || true)
+  if [ -z "$WHITEBOARDJWT" ]; then
+    echo "failed to generate whiteboard JWT secret" >&2
+    exit 1
+  fi
   cat >>secrets/containers/nextcloud.yaml <<EOF
 
 nextcloud-whiteboard-env: |
