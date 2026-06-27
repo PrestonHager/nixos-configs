@@ -76,7 +76,13 @@ let
     }
     $zoneId = resolveCloudflareZoneId();
     if ($zoneId !== "") {
-      dnsDefault("zone_id", $zoneId);
+      $existingZone = DnsExtensionSetting::query()->where("key", "zone_id")->value("value");
+      $existingZoneStr = is_string($existingZone) ? trim($existingZone) : "";
+      if ($existingZoneStr === "" || str_contains($existingZoneStr, ".")) {
+        DnsExtensionSetting::query()->updateOrCreate(["key" => "zone_id"], ["value" => $zoneId]);
+      } else {
+        dnsDefault("zone_id", $zoneId);
+      }
     }
     echo "extensions configured\n";
   '';
