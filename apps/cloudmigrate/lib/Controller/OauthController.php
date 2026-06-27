@@ -15,7 +15,7 @@ use OCP\IURLGenerator;
 use OCP\IUserSession;
 use OCP\Security\ISecureRandom;
 
-class OAuthController extends Controller {
+class OauthController extends Controller {
 	public function __construct(
 		string $appName,
 		IRequest $request,
