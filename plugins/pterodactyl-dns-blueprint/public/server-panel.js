@@ -159,8 +159,8 @@ window.PterodactylPlugin_com_prestonhager_dns = function () {
         return 'ptero-plugin';
     }
 
-    function defaultRecordForm(defaults) {
-        var d = defaults || state.defaults || {};
+    function defaultRecordForm(overrides, srvDefaults) {
+        var d = overrides || srvDefaults || {};
         return {
             type: d.record_type || 'SRV',
             name: d.name || '',
@@ -182,7 +182,7 @@ window.PterodactylPlugin_com_prestonhager_dns = function () {
         loading: true,
         error: '',
         showRecordForm: false,
-        recordForm: defaultRecordForm(null),
+        recordForm: defaultRecordForm(null, null),
         submitting: false,
         adminLabelDraft: '',
         adminDomainDraft: 'default',
@@ -478,7 +478,7 @@ window.PterodactylPlugin_com_prestonhager_dns = function () {
         if (action === 'toggle-record-form') {
             state.showRecordForm = !state.showRecordForm;
             if (state.showRecordForm) {
-                state.recordForm = defaultRecordForm();
+                state.recordForm = defaultRecordForm(null, state.defaults);
             }
             state.error = '';
             render();
@@ -688,7 +688,7 @@ window.PterodactylPlugin_com_prestonhager_dns = function () {
         api(serverPath('/records'), { method: 'POST', body: body })
             .then(function () {
                 state.showRecordForm = false;
-                state.recordForm = defaultRecordForm();
+                state.recordForm = defaultRecordForm(null, state.defaults);
                 state.submitting = false;
                 return load();
             })
