@@ -83,9 +83,9 @@ in {
     description = "Ace service update approval HTTP handler";
     after = [ "network.target" "sops-nix.service" ];
     wantedBy = [ "multi-user.target" ];
-    environmentFiles = [ runtimeEnvFile ];
     serviceConfig = {
       Type = "simple";
+      EnvironmentFile = runtimeEnvFile;
       ExecStart = "${httpScript}/bin/ace-service-update-http";
       Restart = "on-failure";
       RestartSec = "5s";
@@ -100,7 +100,6 @@ in {
       "sops-nix.service"
     ];
     wants = [ "network-online.target" ];
-    environmentFiles = [ runtimeEnvFile ];
     path = with pkgs; [
       bash
       coreutils

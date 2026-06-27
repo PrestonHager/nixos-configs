@@ -1,5 +1,22 @@
 {
   "nodes": {
+    "blueprint-framework": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1780808768,
+        "narHash": "sha256-gM7v7bIR+URzHTc7kf+DEBbmn+/V6R1vwnaKvlWPkX0=",
+        "owner": "PrestonHager",
+        "repo": "framework",
+        "rev": "fe9a400f9451377ec35ce4d80b0461ee376af1ab",
+        "type": "github"
+      },
+      "original": {
+        "owner": "PrestonHager",
+        "ref": "feat/prestonhager-plugin-manager",
+        "repo": "framework",
+        "type": "github"
+      }
+    },
     "conflake": {
       "inputs": {
         "nixpkgs": [
@@ -64,11 +81,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1780679734,
-        "narHash": "sha256-KmRNvpNOb7QEORa06bVgjW9kITcx0VhsI7w0vhmZyD8=",
+        "lastModified": 1782522538,
+        "narHash": "sha256-CvOaUvJ+mXlxU3m2cPWKcOAhtKETsPUYhq+Xa5ewBp4=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "b2b7db486e06e098711dc291bb25db82850e1d16",
+        "rev": "8d8a6cc50ddc60748791a14ee1163c865ec57635",
         "type": "github"
       },
       "original": {
@@ -114,11 +131,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1780243769,
-        "narHash": "sha256-x5UQuRsH3MqI0U9afaXSNqzTPSeZlRLvFAav2Ux1pNw=",
+        "lastModified": 1782467914,
+        "narHash": "sha256-pGvFkM8N0xEkIIXDe5YYfbEAvHrk4IxBrjB/x8OomhE=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "331800de5053fcebacf6813adb5db9c9dca22a0c",
+        "rev": "e73de5be04e0eff4190a1432b946d469c794e7b4",
         "type": "github"
       },
       "original": {
@@ -167,6 +184,7 @@
     },
     "root": {
       "inputs": {
+        "blueprint-framework": "blueprint-framework",
         "home-manager": "home-manager",
         "nix-secrets": "nix-secrets",
         "nixpkgs": "nixpkgs_2",
@@ -182,11 +200,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1780547341,
-        "narHash": "sha256-Gq8KNx5A7hBB3uGJaj6eQfLDIz5YdLu92gqBcvHvoUo=",
+        "lastModified": 1782165805,
+        "narHash": "sha256-478kKQBvK6SYTOdN2h9jhKJv94nbXRbFMfuL1WshErg=",
         "owner": "Mic92",
         "repo": "sops-nix",
-        "rev": "9ed65852b6257fbeae4355bc24ecfea307ca759a",
+        "rev": "56b24064fdcaedca53553b1a6d607fd23b613a24",
         "type": "github"
       },
       "original": {
