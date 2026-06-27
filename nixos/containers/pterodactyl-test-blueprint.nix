@@ -5,6 +5,7 @@ let
   stateDir = "/var/lib/pterodactyl-test";
   blueprintMarker = "${stateDir}/blueprint-installed";
   blueprintReleaseUrl = "https://github.com/BlueprintFramework/framework/releases/latest/download/release.zip";
+  socialloginBlueprintUrl = "https://github.com/blueprint-community/extension-sociallogin/releases/download/1.2.0/sociallogin.blueprint";
   dnsExtensionSrc = "/etc/nixos/plugins/pterodactyl-dns-blueprint";
 
   toolPath = pkgs.lib.makeBinPath [
@@ -75,9 +76,24 @@ let
         ${pkgs.bash}/bin/bash "$panel/blueprint.sh" "$@"
     }
 
+    ensure_sociallogin_models() {
+      datadir="$panel/.blueprint/extensions/sociallogin/private"
+      if [ ! -f "$panel/app/Models/SocialProvider.php" ] && [ -f "$datadir/SocialProvider.php" ]; then
+        echo "pterodactyl-test-blueprint-install: installing Social Login model files..."
+        cp -f "$datadir/SocialProvider.php" "$panel/app/Models/SocialProvider.php"
+        cp -f "$datadir/SocialConnection.php" "$panel/app/Models/SocialConnection.php"
+        chown prestonh:users "$panel/app/Models/SocialProvider.php" "$panel/app/Models/SocialConnection.php"
+      fi
+    }
+
     blueprint_backend_integrated() {
-      grep -q 'Providers\\Blueprint\\RouteServiceProvider' "$panel/app/Providers/AppServiceProvider.php" \
-        && grep -q "'blueprint'" "$panel/app/Http/Kernel.php"
+      [ -f "$panel/app/Models/SocialProvider.php" ] \
+        && grep -q 'Providers\\Blueprint\\RouteServiceProvider' "$panel/app/Providers/AppServiceProvider.php" \
+        && grep -q "'blueprint'" "$panel/app/Http/Kernel.php" \
+        && [ -f "$panel/routes/blueprint/web/sociallogin.php" ] \
+        && ${pkgs.podman}/bin/podman exec pterodactyl-test \
+          php /var/www/pterodactyl/artisan route:list 2>/dev/null \
+          | ${pkgs.gnugrep}/bin/grep -q 'extensions/sociallogin'
     }
 
     blueprint_site_config_integrated() {
@@ -91,7 +107,7 @@ let
         "$panel/resources/scripts/components/auth/LoginFormContainer.tsx" 2>/dev/null \
         && grep -q "'@blueprint'" "$panel/webpack.config.js" 2>/dev/null \
         && blueprint_site_config_integrated \
-        && ${pkgs.gnugrep}/bin/grep -rq disable_attribution "$panel/public/assets/" 2>/dev/null
+        && ${pkgs.gnugrep}/bin/grep -rq sociallogin "$panel/public/assets/"*.js 2>/dev/null
     }
 
     blueprint_integrated() {
@@ -172,7 +188,7 @@ let
     }
 
     ensure_frontend_built() {
-      if ${pkgs.gnugrep}/bin/grep -rq disable_attribution "$panel/public/assets/" 2>/dev/null; then
+      if ${pkgs.gnugrep}/bin/grep -rq sociallogin "$panel/public/assets/"*.js 2>/dev/null; then
         return 0
       fi
       echo "pterodactyl-test-blueprint-install: building panel frontend with Blueprint extensions..."
@@ -229,6 +245,11 @@ let
       env BLUEPRINT_ENVIRONMENT=ci HOME=/home/prestonh TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 \
         YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test PATH="$PATH" \
         ${pkgs.bash}/bin/bash "$panel/blueprint.sh"
+      if blueprint_cli -info 2>/dev/null | grep -qi sociallogin; then
+        echo "pterodactyl-test-blueprint-install: re-registering Social Login extension routes..."
+        rm -f "$panel/.blueprint/lock"
+        blueprint_cli -install sociallogin
+      fi
       ensure_blueprint_frontend_patches
       ensure_frontend_built
     }
@@ -256,6 +277,7 @@ let
 
     post_install_hooks() {
       ensure_blueprint_core_patches
+      ensure_sociallogin_models
       ensure_blueprint_frontend_patches
       ensure_frontend_built
 
@@ -282,19 +304,39 @@ let
     }
 
     write_marker() {
-      echo "blueprint+dnsrecords" > "$marker"
+      echo "blueprint+sociallogin+dnsrecords" > "$marker"
       chown pterodactyl:pterodactyl "$marker"
     }
 
     if blueprint_integrated \
+      && [ -d "$panel/.blueprint/extensions/sociallogin" ] \
       && [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
       && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
       write_marker
-      echo "pterodactyl-test-blueprint-install: upstream Blueprint + DNS Records ready"
+      echo "pterodactyl-test-blueprint-install: upstream Blueprint + Social Login + DNS Records ready"
       exit 0
     fi
 
     if [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
+      && [ ! -d "$panel/.blueprint/extensions/sociallogin" ] \
+      && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
+      echo "pterodactyl-test-blueprint-install: DNS present, installing Social Login..."
+      tmp=$(mktemp -d)
+      trap 'rm -rf "$tmp"' EXIT
+      ${pkgs.curl}/bin/curl -fsSL "${socialloginBlueprintUrl}" -o "$tmp/sociallogin.blueprint"
+      cp "$tmp/sociallogin.blueprint" "$panel/sociallogin.blueprint"
+      chown prestonh:users "$panel/sociallogin.blueprint"
+      rm -f "$panel/.blueprint/lock"
+      blueprint_cli -install sociallogin
+      rm -f "$panel/sociallogin.blueprint"
+      post_install_hooks
+      write_marker
+      echo "pterodactyl-test-blueprint-install: Social Login extension ready on test panel"
+      exit 0
+    fi
+
+    if [ -d "$panel/.blueprint/extensions/sociallogin" ] \
+      && [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
       && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
       if blueprint_backend_integrated && ! blueprint_frontend_integrated; then
         echo "pterodactyl-test-blueprint-install: backend ready but frontend missing Blueprint patches, repairing..."
@@ -371,14 +413,29 @@ let
     fi
 
     install_dnsrecords_extension
+    ${pkgs.curl}/bin/curl -fsSL "${socialloginBlueprintUrl}" -o "$tmp/sociallogin.blueprint"
+    cp "$tmp/sociallogin.blueprint" "$panel/sociallogin.blueprint"
+    chown prestonh:users "$panel/sociallogin.blueprint"
+    sociallogin_installed=0
+    if blueprint_cli -info 2>/dev/null | grep -qi sociallogin; then
+      sociallogin_installed=1
+    fi
+    if [ "$sociallogin_installed" -eq 0 ]; then
+      echo "pterodactyl-test-blueprint-install: installing Social Login extension..."
+      rm -f "$panel/.blueprint/lock"
+      blueprint_cli -install sociallogin
+    else
+      echo "pterodactyl-test-blueprint-install: Social Login extension already installed"
+    fi
+    rm -f "$panel/sociallogin.blueprint"
     post_install_hooks
     write_marker
-    echo "pterodactyl-test-blueprint-install: upstream Blueprint + DNS Records ready"
+    echo "pterodactyl-test-blueprint-install: upstream Blueprint + Social Login + DNS Records ready"
   '';
 in
 {
   systemd.services.pterodactyl-test-blueprint-install = {
-    description = "Install upstream Blueprint and DNS extension on test panel";
+    description = "Install upstream Blueprint, Social Login, and DNS extension on test panel";
     after = [
       "podman-pterodactyl-test.service"
       "pterodactyl-test-stock-reset.service"

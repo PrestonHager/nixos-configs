@@ -5,7 +5,7 @@ How to use the **DNS Records** and **Port Forward** Blueprint extensions on the 
 | Panel | URL | Extensions |
 |-------|-----|------------|
 | **Production** | https://panel.prestonhager.com | DNS Records + Port Forward + Social Login |
-| **Test** | https://test.panel.prestonhager.com | DNS Records only (no Port Forward, no SSO) |
+| **Test** | https://test.panel.prestonhager.com | DNS Records + Social Login (no Port Forward) |
 
 ---
 
@@ -16,7 +16,7 @@ How to use the **DNS Records** and **Port Forward** Blueprint extensions on the 
 All extension settings and per-server tabs require a **root administrator** account (`root_admin=1` in the panel database).
 
 - **Production:** Sign in with Zitadel SSO. Your Zitadel user must have the `pterodactyl_admin` role, which maps to root admin in the panel.
-- **Test:** Use the local admin account created by `pterodactyl-test-setup.service` on ace (credentials in `/var/lib/pterodactyl-test/admin-credentials`).
+- **Test:** Sign in with Zitadel SSO (same Home Lab OIDC app and `pterodactyl_admin` role), or use the local admin account from `/var/lib/pterodactyl-test/admin-credentials` on ace.
 
 If you are logged in but do not see **Admin** in the sidebar, or **Extensions** under Admin, you are not a root admin.
 

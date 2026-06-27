@@ -12,6 +12,7 @@ let
   testPublicDir = "/pterodactyl-test/public";
   setupMarker = "/var/lib/pterodactyl-test/setup-complete";
   adminCredentialsFile = "/var/lib/pterodactyl-test/admin-credentials";
+  zitadelDomain = "zitadel.prestonhager.com";
 
   panelUpdateEnvLines = pkgs.lib.mapAttrsToList (n: v: "${n}=${v}") panelUpdateEnvStock;
 
@@ -147,6 +148,7 @@ in
   imports = [
     ./pterodactyl-test-stock-reset.nix
     ./pterodactyl-test-blueprint.nix
+    ./pterodactyl-test-sso.nix
   ];
 
   users.users.pterodactyl.extraGroups = [ "users" ];
@@ -233,6 +235,11 @@ REDIS_PORT=6379
 CACHE_DRIVER=redis
 QUEUE_CONNECTION=redis
 SESSION_DRIVER=redis
+SESSION_DOMAIN=.prestonhager.com
+SESSION_SECURE_COOKIE=true
+SESSION_SAME_SITE=lax
+
+TRUSTED_PROXIES=*
 
 HASHIDS_SALT=$HASHIDS
 HASHIDS_LENGTH=8
@@ -249,12 +256,27 @@ EOF
         chmod 0640 "$ENV"
       fi
 
+      set_kv() {
+        local key="$1" val="$2"
+        if grep -q "^''${key}=" "$ENV"; then
+          ${pkgs.gnused}/bin/sed -i "s|^''${key}=.*|''${key}=$(printf '%s' "$val" | ${pkgs.gnused}/bin/sed 's/[&/\\|]/\\&/g')|" "$ENV"
+        else
+          printf '%s=%s\n' "$key" "$val" >> "$ENV"
+        fi
+      }
+
       ${ensureEnvVar "APP_ENVIRONMENT_ONLY" "false"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_REPOSITORY" "pterodactyl/panel"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_BRANCH" "release/v1.11.11"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_MODE" "git"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_GIT_REMOTE" "origin"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_GIT_STRATEGY" "auto"}
+
+      set_kv APP_URL "https://test.panel.prestonhager.com"
+      set_kv TRUSTED_PROXIES "*"
+      set_kv SESSION_DOMAIN ".prestonhager.com"
+      set_kv SESSION_SECURE_COOKIE "true"
+      set_kv SESSION_SAME_SITE "lax"
     '';
   };
 
@@ -361,6 +383,10 @@ EOF
       ExecStart = pkgs.writeShellScript "pod-pterodactyl-test" ''
         set -euo pipefail
         podman=${pkgs.podman}/bin/podman
+        hostGw="$(${pkgs.iproute2}/bin/ip -4 -o addr show podman0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)"
+        if [ -z "''${hostGw}" ]; then
+          hostGw="10.88.0.1"
+        fi
 
         pod_network_ok() {
           $podman container exists pterodactyl-test 2>/dev/null || return 0
@@ -368,15 +394,50 @@ EOF
           $podman exec pterodactyl-test redis-cli -h 127.0.0.1 ping 2>/dev/null | grep -q PONG
         }
 
-        if $podman pod exists pterodactyl-test && ! pod_network_ok; then
-          echo "pod-pterodactyl-test: panel cannot reach redis in pod; recreating pod"
+        pod_hosts_ok() {
+          $podman pod inspect pterodactyl-test --format '{{range .InfraConfig.HostAdd}}{{.}} {{end}}' 2>/dev/null \
+            | grep -q "${zitadelDomain}:''${hostGw}"
+        }
+
+        if $podman pod exists pterodactyl-test && { ! pod_network_ok || ! pod_hosts_ok; }; then
+          if ! pod_network_ok; then
+            echo "pod-pterodactyl-test: panel cannot reach redis in pod; recreating pod"
+          else
+            echo "pod-pterodactyl-test: missing Zitadel host-gateway mapping; recreating pod"
+          fi
           $podman pod stop -t 30 pterodactyl-test || true
           $podman pod rm -f pterodactyl-test
         fi
 
         $podman pod exists pterodactyl-test || \
         $podman pod create -p 9002:9000 \
+          --add-host=${zitadelDomain}:''${hostGw} \
+          --add-host=host.containers.internal:host-gateway \
           --memory 4G --cpus 0 pterodactyl-test
+      '';
+    };
+    path = [ pkgs.podman pkgs.coreutils pkgs.gnugrep pkgs.iproute2 pkgs.gawk ];
+  };
+
+  systemd.services.pterodactyl-test-laravel-env-refresh = {
+    description = "Clear Laravel config cache after test panel proxy/session env updates";
+    after = [
+      "pterodactyl-test-env.service"
+      "podman-pterodactyl-test.service"
+    ];
+    wants = [ "podman-pterodactyl-test.service" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = pkgs.writeShellScript "pterodactyl-test-laravel-env-refresh" ''
+        set -euo pipefail
+        podman=${pkgs.podman}/bin/podman
+        if ! $podman container inspect pterodactyl-test --format '{{.State.Running}}' 2>/dev/null | grep -q true; then
+          exit 0
+        fi
+        $podman exec pterodactyl-test php /var/www/pterodactyl/artisan config:clear
+        $podman exec pterodactyl-test php /var/www/pterodactyl/artisan cache:clear
       '';
     };
     path = [ pkgs.podman pkgs.coreutils pkgs.gnugrep ];
