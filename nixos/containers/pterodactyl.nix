@@ -6,6 +6,9 @@ let
     inherit pkgs sops-path;
   };
   inherit (pterodactylImages) panelUpdateEnvStock version;
+  # Host /etc/hosts maps *.prestonhager.com → 127.0.0.1; inside the pod that is
+  # loopback, not Caddy on the host. Override so server-side OAuth token calls work.
+  zitadelDomain = "zitadel.prestonhager.com";
 in
 {
   imports = [
@@ -65,6 +68,10 @@ in
       ExecStart = pkgs.writeShellScript "pod-pterodactyl" ''
         set -euo pipefail
         podman=${pkgs.podman}/bin/podman
+        hostGw="$(${pkgs.iproute2}/bin/ip -4 -o addr show podman0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)"
+        if [ -z "''${hostGw}" ]; then
+          hostGw="10.88.0.1"
+        fi
 
         pod_network_ok() {
           $podman container exists pterodactyl 2>/dev/null || return 0
@@ -72,18 +79,29 @@ in
           $podman exec pterodactyl redis-cli -h 127.0.0.1 ping 2>/dev/null | grep -q PONG
         }
 
-        if $podman pod exists pterodactyl && ! pod_network_ok; then
-          echo "pod-pterodactyl: panel cannot reach redis in pod; recreating pod"
+        pod_hosts_ok() {
+          $podman pod inspect pterodactyl --format '{{range .InfraConfig.HostAdd}}{{.}} {{end}}' 2>/dev/null \
+            | grep -q "${zitadelDomain}:''${hostGw}"
+        }
+
+        if $podman pod exists pterodactyl && { ! pod_network_ok || ! pod_hosts_ok; }; then
+          if ! pod_network_ok; then
+            echo "pod-pterodactyl: panel cannot reach redis in pod; recreating pod"
+          else
+            echo "pod-pterodactyl: missing Zitadel host-gateway mapping; recreating pod"
+          fi
           $podman pod stop -t 30 pterodactyl || true
           $podman pod rm -f pterodactyl
         fi
 
         $podman pod exists pterodactyl || \
         $podman pod create -p 9001:9000 \
+          --add-host=${zitadelDomain}:''${hostGw} \
+          --add-host=host.containers.internal:host-gateway \
           --memory 8G --cpus 0 pterodactyl
       '';
     };
-    path = [ pkgs.podman pkgs.coreutils pkgs.gnugrep ];
+    path = [ pkgs.podman pkgs.coreutils pkgs.gnugrep pkgs.iproute2 pkgs.gawk ];
   };
 
   systemd.services.pterodactyl-pod-network-check = {

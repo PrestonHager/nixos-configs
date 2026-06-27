@@ -138,6 +138,8 @@ test -f /pterodactyl/html/.blueprint && echo blueprint-ok
 test -f /pterodactyl/html/blueprint.sh && echo blueprint-sh-ok
 grep ZITADEL_CLIENT_ID /pterodactyl/html/.env
 curl -sS -o /dev/null -w '%{http_code}\n' https://panel.prestonhager.com/auth/login
+# Server-side OAuth token exchange must reach Zitadel via host-gateway (not 127.0.0.1):
+podman exec pterodactyl curl -sf --max-time 10 https://zitadel.prestonhager.com/.well-known/openid-configuration | head -c 80
 ```
 
 After SSO login as `admin@prestonhager.com`:
