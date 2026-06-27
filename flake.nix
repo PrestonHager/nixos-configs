@@ -28,6 +28,12 @@
       url = "github:PrestonHager/pterodactyl-wings-nix-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # PrestonHager Blueprint fork (test.panel only; tracked for rev pinning)
+    blueprint-framework = {
+      url = "github:PrestonHager/framework/feat/prestonhager-plugin-manager";
+      flake = false;
+    };
   };
 
   outputs = { self, nixpkgs, tree-sitter-parsers, ... }@inputs: {
