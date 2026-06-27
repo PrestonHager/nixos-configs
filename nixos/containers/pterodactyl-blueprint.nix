@@ -8,6 +8,7 @@ let
   socialloginBlueprintUrl = "https://github.com/blueprint-community/extension-sociallogin/releases/download/1.2.0/sociallogin.blueprint";
   dnsExtensionSrc = "/etc/nixos/plugins/pterodactyl-dns-blueprint";
   portforwardExtensionSrc = "/etc/nixos/plugins/pterodactyl-portforward-blueprint";
+  blueprintExtensionsThemeSrc = "/etc/nixos/plugins/pterodactyl-blueprint-extensions/public/admin-extension-theme.css";
 
   toolPath = pkgs.lib.makeBinPath [
     pkgs.bash
@@ -111,6 +112,24 @@ let
         ln -sfn "../../.blueprint/extensions/$ext/fs" "$storage_ext/$ext"
         chown -h pterodactyl:pterodactyl "$storage_ext/$ext"
       done
+    }
+
+    ensure_blueprint_admin_extension_theme() {
+      src="${blueprintExtensionsThemeSrc}"
+      if [ ! -f "$src" ]; then
+        echo "pterodactyl-blueprint-install: extension theme CSS missing at $src, skipping" >&2
+        return 0
+      fi
+      dest="$panel/.blueprint/extensions/blueprint/assets/admin.extensions.css"
+      install -d -m 0755 -o pterodactyl -g pterodactyl "$(dirname "$dest")"
+      {
+        printf '%s\n' '/*'
+        printf '%s\n' '  Admin stylesheets for Blueprint extensions.'
+        printf '%s\n' '  Synced from nixos-configs admin-extension-theme.css'
+        printf '%s\n' '*/'
+        cat "$src"
+      } > "$dest"
+      chown pterodactyl:pterodactyl "$dest"
     }
 
     ensure_public_assets_extension_symlinks() {
@@ -653,6 +672,7 @@ let
       ensure_extension_app_symlinks
       ensure_storage_extension_symlinks
       ensure_public_assets_extension_symlinks
+      ensure_blueprint_admin_extension_theme
       ensure_extension_backend_sync
       ensure_extension_admin_files
       ensure_extension_migrations

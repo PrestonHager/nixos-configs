@@ -1,0 +1,230 @@
+/*
+  Shared admin styles for Blueprint custom extensions.
+  Light defaults match stock AdminLTE; .content-wrapper overrides match
+  Pterodactyl admin dark theme (public/themes/pterodactyl/css/pterodactyl.css).
+*/
+
+:root {
+    --ptero-ext-text: #333;
+    --ptero-ext-text-muted: #737373;
+    --ptero-ext-bg: #fff;
+    --ptero-ext-surface: #f4f4f4;
+    --ptero-ext-surface-raised: #f7f7f7;
+    --ptero-ext-border: #d2d6de;
+    --ptero-ext-border-subtle: #e3e3e3;
+    --ptero-ext-input-bg: #fff;
+    --ptero-ext-input-border: #d2d6de;
+    --ptero-ext-input-text: #555;
+    --ptero-ext-code-bg: #f7f7f7;
+    --ptero-ext-code-text: #333;
+    --ptero-ext-code-border: #e3e3e3;
+    --ptero-ext-btn-secondary-bg: #f4f4f4;
+    --ptero-ext-btn-secondary-text: #444;
+    --ptero-ext-btn-secondary-border: #ddd;
+    --ptero-ext-btn-secondary-hover-bg: #e8e8e8;
+    --ptero-ext-btn-secondary-hover-text: #222;
+    --ptero-ext-btn-secondary-hover-border: #aaa;
+    --ptero-ext-focus-ring: #3c8dbc;
+    --ptero-ext-modal-backdrop: rgba(0, 0, 0, 0.45);
+    --ptero-ext-modal-shadow: rgba(0, 0, 0, 0.25);
+    --ptero-ext-alert-danger-bg: #f2dede;
+    --ptero-ext-alert-danger-border: #ebccd1;
+    --ptero-ext-alert-danger-text: #a94442;
+    --ptero-ext-table-border: #f4f4f4;
+    --ptero-ext-table-header-bg: #f7f7f7;
+    --ptero-ext-link: #3c8dbc;
+}
+
+.content-wrapper {
+    --ptero-ext-text: #cad1d8;
+    --ptero-ext-text-muted: #9aa5b1;
+    --ptero-ext-bg: #3f4d5a;
+    --ptero-ext-surface: #33404d;
+    --ptero-ext-surface-raised: #1f2933;
+    --ptero-ext-border: #4d5b69;
+    --ptero-ext-border-subtle: #606d7b;
+    --ptero-ext-input-bg: rgba(81, 95, 108, 0.73);
+    --ptero-ext-input-border: #606d7b;
+    --ptero-ext-input-text: #cad1d8;
+    --ptero-ext-code-bg: rgba(81, 95, 108, 0.73);
+    --ptero-ext-code-text: #c3c3c3;
+    --ptero-ext-code-border: rgba(0, 0, 0, 0.25);
+    --ptero-ext-btn-secondary-bg: #33404d;
+    --ptero-ext-btn-secondary-text: #cad1d8;
+    --ptero-ext-btn-secondary-border: #606d7b;
+    --ptero-ext-btn-secondary-hover-bg: #29343e;
+    --ptero-ext-btn-secondary-hover-text: #cad1d8;
+    --ptero-ext-btn-secondary-hover-border: #606d7b;
+    --ptero-ext-focus-ring: #099aa5;
+    --ptero-ext-modal-backdrop: rgba(0, 0, 0, 0.6);
+    --ptero-ext-modal-shadow: rgba(0, 0, 0, 0.45);
+    --ptero-ext-alert-danger-bg: rgba(221, 75, 57, 0.2);
+    --ptero-ext-alert-danger-border: #dd4b39;
+    --ptero-ext-alert-danger-text: #ff8a7a;
+    --ptero-ext-table-border: #4d5b69;
+    --ptero-ext-table-header-bg: #33404d;
+    --ptero-ext-link: #288afb;
+}
+
+.ptero-plugin,
+.ptero-plugin-box,
+.ptero-plugin-panel {
+    color: var(--ptero-ext-text);
+}
+
+.ptero-plugin-box,
+.ptero-plugin-panel {
+    background: var(--ptero-ext-bg);
+    border: 1px solid var(--ptero-ext-border);
+    border-radius: 3px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.ptero-plugin h2,
+.ptero-plugin h3,
+.ptero-plugin h4 {
+    margin-top: 0;
+    color: var(--ptero-ext-text);
+}
+
+.ptero-field {
+    margin-bottom: 12px;
+}
+
+.ptero-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--ptero-ext-text);
+}
+
+.ptero-input,
+.ptero-select {
+    display: block;
+    width: 100%;
+    max-width: 480px;
+    padding: 6px 12px;
+    border: 1px solid var(--ptero-ext-input-border);
+    border-radius: 3px;
+    background: var(--ptero-ext-input-bg);
+    color: var(--ptero-ext-input-text);
+}
+
+.ptero-btn {
+    display: inline-block;
+    padding: 6px 12px;
+    margin: 2px 4px 2px 0;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    background: var(--ptero-ext-btn-secondary-bg);
+    color: var(--ptero-ext-btn-secondary-text);
+}
+
+.ptero-btn:hover,
+.ptero-btn:focus {
+    background: var(--ptero-ext-btn-secondary-hover-bg);
+    color: var(--ptero-ext-btn-secondary-hover-text);
+    border-color: var(--ptero-ext-btn-secondary-hover-border);
+}
+
+.ptero-btn--primary {
+    background: #3c8dbc;
+    border-color: #367fa9;
+    color: #fff;
+}
+
+.ptero-btn--primary:hover,
+.ptero-btn--primary:focus {
+    background: #367fa9;
+    color: #fff;
+}
+
+.content-wrapper .ptero-btn--primary {
+    background: #0967d3;
+    border-color: #0550b3;
+}
+
+.content-wrapper .ptero-btn--primary:hover,
+.content-wrapper .ptero-btn--primary:focus {
+    background: #0550b3;
+    color: #fff;
+}
+
+.ptero-btn--secondary {
+    background: var(--ptero-ext-btn-secondary-bg);
+    border-color: var(--ptero-ext-btn-secondary-border);
+    color: var(--ptero-ext-btn-secondary-text);
+}
+
+.ptero-btn--danger {
+    background: #dd4b39;
+    border-color: #d73925;
+    color: #fff;
+}
+
+.ptero-btn--danger:hover,
+.ptero-btn--danger:focus {
+    background: #d73925;
+    color: #fff;
+}
+
+.ptero-btn--sm {
+    padding: 3px 8px;
+    font-size: 12px;
+}
+
+.ptero-alert--danger {
+    background: var(--ptero-ext-alert-danger-bg);
+    border: 1px solid var(--ptero-ext-alert-danger-border);
+    color: var(--ptero-ext-alert-danger-text);
+    padding: 10px 15px;
+    border-radius: 3px;
+    margin-bottom: 12px;
+}
+
+.ptero-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    color: var(--ptero-ext-text);
+}
+
+.ptero-table th,
+.ptero-table td {
+    border: 1px solid var(--ptero-ext-table-border);
+    padding: 8px;
+    text-align: left;
+}
+
+.ptero-table th {
+    background: var(--ptero-ext-table-header-bg);
+    font-weight: 600;
+}
+
+.ptero-muted,
+.ptero-hint {
+    color: var(--ptero-ext-text-muted);
+}
+
+.ptero-plugin-actions {
+    margin-top: 12px;
+}
+
+.ptero-profile-row {
+    margin: 6px 0;
+    color: var(--ptero-ext-text);
+}
+
+.ptero-plugin code {
+    background: var(--ptero-ext-code-bg);
+    color: var(--ptero-ext-code-text);
+    border: 1px solid var(--ptero-ext-code-border);
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+.ptero-plugin a {
+    color: var(--ptero-ext-link);
+}

@@ -16,6 +16,7 @@
 
 @section('content')
 @include('admin.servers.partials.navigation')
+<link rel="stylesheet" href="/extensions/dnsrecords/admin-extension-theme.css">
 <link rel="stylesheet" href="/extensions/dnsrecords/admin-server.css">
 <div class="row">
     <div class="col-xs-12">

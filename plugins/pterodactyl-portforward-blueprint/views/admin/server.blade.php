@@ -16,6 +16,7 @@
 
 @section('content')
 @include('admin.servers.partials.navigation')
+<link rel="stylesheet" href="/extensions/portforward/admin-extension-theme.css">
 
 @if (!($settings['enabled'] ?? false))
     <div class="alert alert-warning">

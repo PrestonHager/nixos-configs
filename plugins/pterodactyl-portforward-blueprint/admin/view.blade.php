@@ -14,6 +14,7 @@
 @endsection
 
 @section('content')
+<link rel="stylesheet" href="/extensions/portforward/admin-extension-theme.css">
 <div class="row">
     <div class="col-xs-12">
         @if ($settings['dry_run'] ?? true)

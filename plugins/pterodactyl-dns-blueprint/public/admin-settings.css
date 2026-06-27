@@ -16,10 +16,10 @@
     min-width: 1.75rem;
     height: 1.75rem;
     padding: 0 0.45rem;
-    border: 1px solid #d2d6de;
+    border: 1px solid var(--ptero-ext-btn-secondary-border);
     border-radius: 3px;
-    background: #f4f4f4;
-    color: #444;
+    background: var(--ptero-ext-btn-secondary-bg);
+    color: var(--ptero-ext-btn-secondary-text);
     font-size: 12px;
     font-weight: 600;
     line-height: 1;
@@ -28,14 +28,14 @@
 
 .dns-help-btn:hover,
 .dns-help-btn:focus {
-    background: #e8e8e8;
-    border-color: #aaa;
-    color: #222;
+    background: var(--ptero-ext-btn-secondary-hover-bg);
+    border-color: var(--ptero-ext-btn-secondary-hover-border);
+    color: var(--ptero-ext-btn-secondary-hover-text);
     outline: none;
 }
 
 .dns-help-btn:focus-visible {
-    box-shadow: 0 0 0 2px #3c8dbc;
+    box-shadow: 0 0 0 2px var(--ptero-ext-focus-ring);
 }
 
 .dns-help-modal {
@@ -55,7 +55,7 @@
 .dns-help-modal__backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.45);
+    background: var(--ptero-ext-modal-backdrop);
 }
 
 .dns-help-modal__dialog {
@@ -63,9 +63,11 @@
     width: min(760px, 100%);
     max-height: calc(100vh - 2rem);
     overflow: auto;
-    background: #fff;
+    background: var(--ptero-ext-bg);
+    color: var(--ptero-ext-text);
+    border: 1px solid var(--ptero-ext-border);
     border-radius: 4px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 8px 32px var(--ptero-ext-modal-shadow);
 }
 
 .dns-help-modal__header {
@@ -74,13 +76,15 @@
     justify-content: space-between;
     gap: 1rem;
     padding: 1rem 1.25rem;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--ptero-ext-border);
+    background: var(--ptero-ext-surface-raised);
 }
 
 .dns-help-modal__header h4 {
     margin: 0;
     font-size: 18px;
     font-weight: 600;
+    color: var(--ptero-ext-text);
 }
 
 .dns-help-modal__close {
@@ -88,19 +92,19 @@
     background: transparent;
     font-size: 24px;
     line-height: 1;
-    color: #777;
+    color: var(--ptero-ext-text-muted);
     cursor: pointer;
     padding: 0.15rem 0.35rem;
 }
 
 .dns-help-modal__close:hover,
 .dns-help-modal__close:focus {
-    color: #333;
+    color: var(--ptero-ext-text);
     outline: none;
 }
 
 .dns-help-modal__close:focus-visible {
-    box-shadow: 0 0 0 2px #3c8dbc;
+    box-shadow: 0 0 0 2px var(--ptero-ext-focus-ring);
     border-radius: 3px;
 }
 
@@ -108,12 +112,14 @@
     padding: 1rem 1.25rem 1.25rem;
     font-size: 14px;
     line-height: 1.55;
+    color: var(--ptero-ext-text);
 }
 
 .dns-help-modal__body h5 {
     margin: 1.25rem 0 0.5rem;
     font-size: 15px;
     font-weight: 600;
+    color: var(--ptero-ext-text);
 }
 
 .dns-help-modal__body h5:first-child {
@@ -133,17 +139,30 @@
     margin-bottom: 0.35rem;
 }
 
+.dns-help-modal__body a {
+    color: var(--ptero-ext-link);
+}
+
 .dns-help-modal__body code,
 .dns-help-modal__body pre {
     font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
     font-size: 12px;
 }
 
+.dns-help-modal__body code {
+    background: var(--ptero-ext-code-bg);
+    color: var(--ptero-ext-code-text);
+    border: 1px solid var(--ptero-ext-code-border);
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
 .dns-help-modal__body pre {
     margin: 0.5rem 0 0.75rem;
     padding: 0.75rem;
-    background: #f7f7f7;
-    border: 1px solid #e3e3e3;
+    background: var(--ptero-ext-code-bg);
+    color: var(--ptero-ext-code-text);
+    border: 1px solid var(--ptero-ext-code-border);
     border-radius: 3px;
     overflow: auto;
     white-space: pre-wrap;
@@ -155,17 +174,22 @@
     margin: 0.5rem 0 0.75rem;
     border-collapse: collapse;
     font-size: 13px;
+    color: var(--ptero-ext-text);
 }
 
 .dns-help-modal__body th,
 .dns-help-modal__body td {
-    border: 1px solid #e3e3e3;
+    border: 1px solid var(--ptero-ext-table-border);
     padding: 0.4rem 0.55rem;
     text-align: left;
     vertical-align: top;
 }
 
 .dns-help-modal__body th {
-    background: #f7f7f7;
+    background: var(--ptero-ext-table-header-bg);
     font-weight: 600;
+}
+
+.dns-help-modal__body strong {
+    color: var(--ptero-ext-text);
 }

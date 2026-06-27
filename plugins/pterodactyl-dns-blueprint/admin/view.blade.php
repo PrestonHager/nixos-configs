@@ -120,6 +120,7 @@
     </div>
 </div>
 
+<link rel="stylesheet" href="/extensions/dnsrecords/admin-extension-theme.css">
 <link rel="stylesheet" href="/extensions/dnsrecords/admin-settings.css">
 @include('admin.extensions.dnsrecords.partials.settings-help')
 
