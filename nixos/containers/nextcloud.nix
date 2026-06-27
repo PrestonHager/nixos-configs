@@ -13,6 +13,13 @@ let
     cp -a "$src" "$dst"
     chown -R www-data:www-data "$dst"
   '';
+  # pkgs.rclone and pkgsStatic.rclone/bin/rclone are Nix wrapper scripts; the Debian
+  # Nextcloud container lacks the Nix store paths those wrappers require at exec time.
+  nextcloudRclone = pkgs.runCommand "nextcloud-rclone" {} ''
+    mkdir -p $out/bin
+    cp ${pkgs.pkgsStatic.rclone}/bin/.rclone-wrapped $out/bin/rclone
+    chmod +x $out/bin/rclone
+  '';
   # 34.0.1 not published on Docker Hub (see nextcloud/docker#2584); use latest 34.0.x patch
   nextcloudImage = "docker.io/library/nextcloud:34.0.0";
   clamavImage = "docker.io/clamav/clamav:stable";
@@ -672,7 +679,7 @@ in
         "/etc/passwd:/etc/passwd:ro"
         "/etc/group:/etc/group:ro"
         "${ncRoot}/data/:/var/www/html/"
-        "${pkgs.rclone}/bin/rclone:/usr/local/bin/rclone:ro"
+        "${nextcloudRclone}/bin/rclone:/usr/local/bin/rclone:ro"
         "${nextcloudApacheHsts}:/etc/apache2/conf-enabled/z-nextcloud-hsts.conf:ro"
         "${nextcloudApacheTimeouts}:/etc/apache2/conf-enabled/z-nextcloud-timeouts.conf:ro"
       ];

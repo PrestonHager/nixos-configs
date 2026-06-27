@@ -50,5 +50,5 @@
 	</p>
 	<label for="rclone_path"><?php p($l->t('rclone binary path (optional)')); ?></label>
 	<input id="rclone_path" name="rclone_path" type="text" value="<?php p($_['rclonePath']); ?>" placeholder="/usr/local/bin/rclone" />
-	<p class="hint"><?php p($l->t('Leave empty to auto-detect. On ace, rclone is bind-mounted at /usr/local/bin/rclone.')); ?></p>
+	<p class="hint"><?php p($l->t('Leave empty to auto-detect. On ace, a static rclone binary is bind-mounted at /usr/local/bin/rclone.')); ?></p>
 </form>
