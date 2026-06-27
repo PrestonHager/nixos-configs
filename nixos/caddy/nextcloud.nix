@@ -1,5 +1,11 @@
-{ config, ... }:
+{ config, pkgs, ... }:
 
+let
+  nextcloudWellKnown = pkgs.runCommand "nextcloud-well-known" { } ''
+    mkdir -p $out/.well-known
+    cp ${../../static/nextcloud/.well-known/microsoft-identity-association.json} $out/.well-known/
+  '';
+in
 {
   services.caddy = {
     virtualHosts."cloud.prestonhager.com".extraConfig = ''
@@ -9,6 +15,12 @@
 
       redir /.well-known/carddav /remote.php/dav 301
       redir /.well-known/caldav /remote.php/dav 301
+
+      handle /.well-known/microsoft-identity-association.json {
+        root * ${nextcloudWellKnown}
+        header Content-Type application/json
+        file_server
+      }
 
       header Strict-Transport-Security "max-age=15552000; includeSubDomains"
 

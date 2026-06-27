@@ -40,6 +40,61 @@ Tokens and passwords are stored **per user** in the Nextcloud app database (encr
    - `offline_access` (refresh token)
 7. Click **Grant admin consent** if your tenant requires it (personal accounts usually do not).
 
+### Redirect URI (exact — register in Azure)
+
+The OAuth callback uses the **same URL** for authorization start and Microsoft redirect. Register this **Web** redirect URI on the app (e.g. **Hager Cloud**):
+
+```
+https://cloud.prestonhager.com/index.php/apps/cloudmigrate/oauth/onedrive
+```
+
+If pretty URLs are enabled (no `index.php` in the browser), also add:
+
+```
+https://cloud.prestonhager.com/apps/cloudmigrate/oauth/onedrive
+```
+
+Confirm the live value in Nextcloud: **Settings → Administration → Cloud Migrate** (read-only **Redirect URI** field), or on ace:
+
+```bash
+podman exec -u www-data nextcloud php /var/www/html/occ config:app:get cloudmigrate client_id
+podman exec nextcloud php /path/to/cloudmigrate-redirect-uri.php   # optional diagnostic
+```
+
+**Redirect URI mismatch** (`invalid_request` … `redirect_uri`) means Azure does not list the exact URL the app sends — add the URI above with no trailing slash.
+
+### Publisher domain verification
+
+Azure may require verifying ownership of `prestonhager.com` before branding or certain app settings.
+
+1. In the app registration → **Branding & properties** → **Publisher domain** → **Verify and save domain**.
+2. Microsoft expects this file at the site root (served by Caddy, not Nextcloud):
+
+   ```
+   https://cloud.prestonhager.com/.well-known/microsoft-identity-association.json
+   ```
+
+3. File content (application ID must match your registration):
+
+   ```json
+   {
+     "associatedApplications": [
+       {
+         "applicationId": "2431460d-9e91-44f4-be4d-2fddc0f00f55"
+       }
+     ]
+   }
+   ```
+
+4. Source in this repo: `static/nextcloud/.well-known/microsoft-identity-association.json`, deployed via `nixos/caddy/nextcloud.nix`.
+5. After deploy, verify:
+
+   ```bash
+   curl -s https://cloud.prestonhager.com/.well-known/microsoft-identity-association.json
+   ```
+
+6. Return to Azure and complete domain verification.
+
 ### Apple developer (iCloud — Phase 2 reference)
 
 Apple does **not** expose iCloud Drive through a standard OAuth flow like Microsoft Graph.
@@ -120,7 +175,7 @@ occ app:enable cloudmigrate
 | Symptom | Check |
 |---------|--------|
 | Connect button missing | Admin has not set Azure Client ID |
-| Redirect URI mismatch | Azure redirect must match exactly (see §2) |
+| Redirect URI mismatch | Azure redirect must match exactly (see **Redirect URI** under §2) |
 | Token errors after months | Disconnect and reconnect OneDrive |
 | Job stuck queued | `occ background:cron` or wait for systemd timer |
 | Files not in Files app | Migration writes via Nextcloud storage API (indexed automatically) |

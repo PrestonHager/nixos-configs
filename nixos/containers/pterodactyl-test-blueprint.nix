@@ -78,6 +78,8 @@ let
         ${pkgs.bash}/bin/bash "$panel/blueprint.sh" "$@"
     }
 
+    prod_panel="/pterodactyl/html"
+
     ensure_sociallogin_models() {
       datadir="$panel/.blueprint/extensions/sociallogin/private"
       if [ ! -f "$panel/app/Models/SocialProvider.php" ] && [ -f "$datadir/SocialProvider.php" ]; then
@@ -85,22 +87,106 @@ let
         cp -f "$datadir/SocialProvider.php" "$panel/app/Models/SocialProvider.php"
         cp -f "$datadir/SocialConnection.php" "$panel/app/Models/SocialConnection.php"
         chown prestonh:users "$panel/app/Models/SocialProvider.php" "$panel/app/Models/SocialConnection.php"
-      elif [ ! -f "$panel/app/Models/SocialProvider.php" ] && [ -f "/pterodactyl/html/.blueprint/extensions/sociallogin/private/SocialProvider.php" ]; then
+      elif [ ! -f "$panel/app/Models/SocialProvider.php" ] && [ -f "$prod_panel/.blueprint/extensions/sociallogin/private/SocialProvider.php" ]; then
         echo "pterodactyl-test-blueprint-install: copying Social Login models from production panel..."
-        cp -f "/pterodactyl/html/.blueprint/extensions/sociallogin/private/SocialProvider.php" "$panel/app/Models/SocialProvider.php"
-        cp -f "/pterodactyl/html/.blueprint/extensions/sociallogin/private/SocialConnection.php" "$panel/app/Models/SocialConnection.php"
+        cp -f "$prod_panel/.blueprint/extensions/sociallogin/private/SocialProvider.php" "$panel/app/Models/SocialProvider.php"
+        cp -f "$prod_panel/.blueprint/extensions/sociallogin/private/SocialConnection.php" "$panel/app/Models/SocialConnection.php"
         chown prestonh:users "$panel/app/Models/SocialProvider.php" "$panel/app/Models/SocialConnection.php"
       fi
     }
 
-    blueprint_backend_integrated() {
+    ensure_blueprint_assets() {
+      if [ -d "$panel/.blueprint/assets/Extensions" ]; then
+        return 0
+      fi
+      if [ -d "$panel/.blueprint/blueprint/assets" ]; then
+        echo "pterodactyl-test-blueprint-install: copying Blueprint assets from framework tree..."
+        cp -a "$panel/.blueprint/blueprint/assets" "$panel/.blueprint/assets"
+        chown -R prestonh:users "$panel/.blueprint/assets"
+        return 0
+      fi
+      if [ -d "$prod_panel/.blueprint/assets" ]; then
+        echo "pterodactyl-test-blueprint-install: copying Blueprint assets from production panel..."
+        cp -a "$prod_panel/.blueprint/assets" "$panel/.blueprint/assets"
+        chown -R prestonh:users "$panel/.blueprint/assets"
+      fi
+    }
+
+    ensure_extension_app_symlinks() {
+      ext_root="$panel/app/BlueprintFramework/Extensions"
+      install -d -m 0755 -o prestonh -g users "$ext_root"
+      for ext in sociallogin dnsrecords portforward; do
+        if [ ! -d "$panel/.blueprint/extensions/$ext/app" ]; then
+          continue
+        fi
+        if [ -L "$ext_root/$ext" ] || [ -d "$ext_root/$ext" ]; then
+          continue
+        fi
+        echo "pterodactyl-test-blueprint-install: linking $ext extension app into BlueprintFramework..."
+        ln -sfn "../../../.blueprint/extensions/$ext/app" "$ext_root/$ext"
+        chown -h prestonh:users "$ext_root/$ext"
+      done
+    }
+
+    ensure_storage_extension_symlinks() {
+      storage_ext="$panel/storage/extensions"
+      install -d -m 2775 -o prestonh -g users "$storage_ext"
+      for ext in sociallogin dnsrecords portforward; do
+        if [ ! -d "$panel/.blueprint/extensions/$ext/fs" ]; then
+          continue
+        fi
+        if [ -L "$storage_ext/$ext" ] || [ -d "$storage_ext/$ext" ]; then
+          continue
+        fi
+        echo "pterodactyl-test-blueprint-install: linking $ext extension public files into storage..."
+        ln -sfn "../../.blueprint/extensions/$ext/fs" "$storage_ext/$ext"
+        chown -h prestonh:users "$storage_ext/$ext"
+      done
+    }
+
+    ensure_sociallogin_admin_files() {
+      ctrl="$panel/app/Http/Controllers/Admin/Extensions/sociallogin/socialloginExtensionController.php"
+      view="$panel/resources/views/admin/extensions/sociallogin/index.blade.php"
+      prod_ctrl="$prod_panel/app/Http/Controllers/Admin/Extensions/sociallogin/socialloginExtensionController.php"
+      prod_view="$prod_panel/resources/views/admin/extensions/sociallogin/index.blade.php"
+
+      if [ ! -f "$ctrl" ]; then
+        if [ -f "$prod_ctrl" ]; then
+          echo "pterodactyl-test-blueprint-install: copying Social Login admin controller from production..."
+          install -d -m 0755 -o prestonh -g users "$(dirname "$ctrl")"
+          cp -a "$prod_ctrl" "$ctrl"
+          chown prestonh:users "$ctrl"
+        else
+          echo "pterodactyl-test-blueprint-install: reinstalling Social Login to restore admin controller..."
+          rm -f "$panel/.blueprint/lock"
+          blueprint_cli -install sociallogin
+        fi
+      fi
+
+      if [ ! -f "$view" ] && [ -f "$prod_view" ]; then
+        echo "pterodactyl-test-blueprint-install: copying Social Login admin view from production..."
+        install -d -m 0755 -o prestonh -g users "$(dirname "$view")"
+        cp -a "$prod_view" "$view"
+        chown prestonh:users "$view"
+      fi
+    }
+
+    extension_backend_integrated() {
+      for ext in sociallogin dnsrecords portforward; do
+        [ -e "$panel/app/BlueprintFramework/Extensions/$ext" ] || return 1
+        [ -f "$panel/app/Http/Controllers/Admin/Extensions/$ext/${ext}ExtensionController.php" ] || return 1
+      done
+    }
+
+    blueprint_core_backend_integrated() {
       [ -f "$panel/app/Models/SocialProvider.php" ] \
         && grep -q 'Providers\\Blueprint\\RouteServiceProvider' "$panel/app/Providers/AppServiceProvider.php" \
         && grep -q "'blueprint'" "$panel/app/Http/Kernel.php" \
-        && [ -f "$panel/routes/blueprint/web/sociallogin.php" ] \
-        && ${pkgs.podman}/bin/podman exec pterodactyl-test \
-          php /var/www/pterodactyl/artisan route:list 2>/dev/null \
-          | ${pkgs.gnugrep}/bin/grep -q 'extensions/sociallogin'
+        && [ -f "$panel/routes/blueprint/web/sociallogin.php" ]
+    }
+
+    blueprint_backend_integrated() {
+      blueprint_core_backend_integrated && extension_backend_integrated
     }
 
     blueprint_site_config_integrated() {
@@ -390,16 +476,28 @@ let
     }
 
     post_install_hooks() {
+      ensure_blueprint_assets
       ensure_blueprint_core_patches
       ensure_sociallogin_models
+      ensure_extension_app_symlinks
+      ensure_storage_extension_symlinks
+      ensure_sociallogin_admin_files
       ensure_blueprint_frontend_patches
       ensure_frontend_built
 
-      ${pkgs.podman}/bin/podman exec \
-        -e HOME=/var/www/pterodactyl \
-        -e COMPOSER_HOME=/tmp/composer \
-        pterodactyl-test \
-        sh -c 'cd /var/www/pterodactyl && rm -rf vendor && composer install --no-dev --optimize-autoloader'
+      if [ ! -f "$panel/vendor/autoload.php" ]; then
+        ${pkgs.podman}/bin/podman exec \
+          -e HOME=/var/www/pterodactyl \
+          -e COMPOSER_HOME=/tmp/composer \
+          pterodactyl-test \
+          sh -c 'cd /var/www/pterodactyl && composer install --no-dev --optimize-autoloader'
+      else
+        ${pkgs.podman}/bin/podman exec \
+          -e HOME=/var/www/pterodactyl \
+          -e COMPOSER_HOME=/tmp/composer \
+          pterodactyl-test \
+          sh -c 'cd /var/www/pterodactyl && composer dump-autoload -o'
+      fi
 
       ${pkgs.podman}/bin/podman exec pterodactyl-test \
         php /var/www/pterodactyl/artisan migrate --force
@@ -423,6 +521,8 @@ let
     }
 
     if blueprint_integrated \
+      && extension_backend_integrated \
+      && [ -d "$panel/.blueprint/assets/Extensions" ] \
       && [ -d "$panel/.blueprint/extensions/sociallogin" ] \
       && [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
       && [ -d "$panel/.blueprint/extensions/portforward" ] \
@@ -491,7 +591,7 @@ let
         echo "pterodactyl-test-blueprint-install: Port Forward extension ready on test panel"
         exit 0
       fi
-      if blueprint_backend_integrated && ! blueprint_frontend_integrated; then
+      if blueprint_core_backend_integrated && ! blueprint_frontend_integrated; then
         echo "pterodactyl-test-blueprint-install: backend ready but frontend missing Blueprint patches, repairing..."
         ensure_blueprint_frontend_patches
         ensure_frontend_built
@@ -500,8 +600,23 @@ let
         echo "pterodactyl-test-blueprint-install: Blueprint frontend repaired on test panel"
         exit 0
       fi
-      if ! blueprint_backend_integrated; then
+      if ! extension_backend_integrated; then
+        echo "pterodactyl-test-blueprint-install: extension symlinks or admin controllers missing, repairing..."
+        ensure_blueprint_assets
+        ensure_extension_app_symlinks
+        ensure_storage_extension_symlinks
+        ensure_sociallogin_admin_files
+        post_install_hooks
+        write_marker
+        echo "pterodactyl-test-blueprint-install: extension backend repaired on test panel"
+        exit 0
+      fi
+      if ! blueprint_core_backend_integrated; then
         echo "pterodactyl-test-blueprint-install: extensions present but Laravel integration missing, repairing..."
+        ensure_blueprint_assets
+        ensure_extension_app_symlinks
+        ensure_storage_extension_symlinks
+        ensure_sociallogin_admin_files
         rerun_blueprint_framework
         post_install_hooks
         write_marker
@@ -556,6 +671,8 @@ let
       runuser -u prestonh -- mv "$panel/blueprint" "$panel/.blueprint/blueprint"
       chown -R prestonh:users "$panel/.blueprint/blueprint"
     fi
+
+    ensure_blueprint_assets
 
     if [ ! -d "$panel/node_modules" ]; then
       echo "pterodactyl-test-blueprint-install: installing panel node dependencies..."
