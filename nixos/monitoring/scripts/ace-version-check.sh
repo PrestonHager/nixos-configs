@@ -251,6 +251,38 @@ current_nextcloud() {
   normalize_version "$tag"
 }
 
+nextcloud_docker_latest() {
+  local release="$1" major minor patch candidate
+
+  release="$(normalize_version "$release")"
+  [[ -n "$release" ]] || return 1
+
+  if podman manifest inspect "docker.io/library/nextcloud:${release}" >/dev/null 2>&1; then
+    printf '%s\n' "$release"
+    return 0
+  fi
+
+  if ! parse_semver "$release"; then
+    return 1
+  fi
+  major="$MAJOR" minor="$MINOR" patch="$PATCH"
+
+  for (( candidate_patch = patch; candidate_patch >= 0; candidate_patch-- )); do
+    candidate="${major}.${minor}.${candidate_patch}"
+    if podman manifest inspect "docker.io/library/nextcloud:${candidate}" >/dev/null 2>&1; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  if podman manifest inspect "docker.io/library/nextcloud:${major}" >/dev/null 2>&1; then
+    printf '%s\n' "${major}"
+    return 0
+  fi
+
+  return 1
+}
+
 current_zitadel() {
   version_from_container_tag zitadel
 }
@@ -404,7 +436,7 @@ current_notify_push() {
 
   emit_service grafana "$(current_grafana)" "$(github_latest grafana/grafana)"
   emit_service prometheus "$(current_prometheus)" "$(github_latest prometheus/prometheus)"
-  emit_service nextcloud "$(current_nextcloud)" "$(github_latest nextcloud/server)"
+  emit_service nextcloud "$(current_nextcloud)" "$(nextcloud_docker_latest "$(github_latest nextcloud/server)" || true)"
   emit_service zitadel "$(current_zitadel)" "$(github_latest zitadel/zitadel)"
   emit_service matrix-synapse "$(current_synapse)" "$(github_latest matrix-org/synapse)"
   emit_service technitium "$(current_technitium)" "$(github_latest TechnitiumSoftware/DnsServer)"

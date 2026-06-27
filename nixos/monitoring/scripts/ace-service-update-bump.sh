@@ -27,6 +27,13 @@ TARGET="${TARGET#v}"
 path="${ACE_NIXOS_DIR}/${NIX_FILE}"
 [[ -f "$path" ]] || { echo "missing nix file: $path" >&2; exit 1; }
 
+if [[ "$SERVICE" == "nextcloud" ]]; then
+  if ! podman manifest inspect "docker.io/library/nextcloud:${TARGET}" >/dev/null 2>&1; then
+    echo "docker.io/library/nextcloud:${TARGET} is not published on Docker Hub; refusing bump" >&2
+    exit 1
+  fi
+fi
+
 cd "$ACE_NIXOS_DIR"
 branch="$(git rev-parse --abbrev-ref HEAD)"
 
