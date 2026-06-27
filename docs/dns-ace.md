@@ -154,15 +154,36 @@ LAN mapping (use these instead of `*.lc1.nm.us.prestonhager.com` when DHCP DNS i
 
 Wings and public TLS may still reference `*.lc1.nm.us.prestonhager.com` in Cloudflare and `/etc/hosts` on nodes until migrated.
 
-## Cloudflare DNS
+## Cloudflare DNS (public Internet)
 
-Add a **proxied** record (same pattern as other ace Caddy apps):
+Public `prestonhager.com` records stay in Cloudflare; the Technitium zone is for split-horizon LAN resolution only.
+
+### Ace Caddy apps (grafana, vault, cloud, panel, …)
+
+Use **DNS only** (grey cloud). Do **not** orange-cloud these names to a private LAN IP — Cloudflare cannot reach `192.168.5.5` and may return **HTTP 200 with an empty body** (`Content-Length: 0`, `Server: cloudflare`) while LAN clients work fine.
+
+Working pattern (same as grafana):
 
 | Type | Name | Content | Proxy |
 |------|------|---------|-------|
-| A | `dns` | `192.168.5.5` | Proxied (orange cloud) |
+| CNAME | `vault` (and other ace apps) | `ip1.lc1.nm.us.prestonhager.com` | DNS only (grey) |
 
-Public `prestonhager.com` records stay in Cloudflare; the Technitium zone is for split-horizon LAN resolution only.
+`ip1.lc1.nm.us.prestonhager.com` A → `73.26.67.25` (Cisco WAN / NAT → ace `:443`).
+
+After changing proxy status, purge Cloudflare cache for the hostname. Verify from outside LAN:
+
+```bash
+curl -sS -D - -o /dev/null -w 'bytes=%{size_download}\n' https://vault.prestonhager.com/
+# expect bytes in the tens of thousands, not 0
+```
+
+### Technitium DoH (`dns.prestonhager.com`)
+
+| Type | Name | Content | Proxy |
+|------|------|---------|-------|
+| A | `dns` | `192.168.5.5` | Proxied (orange) — DoH + web UI via Caddy :443 |
+
+DoT on port 853 does not traverse Cloudflare's HTTP proxy; use DNS-only or LAN/VPN for public DoT (see above).
 
 ## Local hosts (ace)
 
