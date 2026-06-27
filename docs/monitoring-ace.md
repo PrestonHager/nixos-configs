@@ -88,7 +88,9 @@ Ace sends operational emails through Grafana’s built-in SMTP relay (same iClou
 | **Major update** | `ace_service_version_behind == 3` | immediate | critical |
 | **Patch/minor update** | `ace_service_version_behind == 1 or == 2` | 1h | warning |
 
-Local and LAN blackbox probes are included; external probes are excluded (often flaky). Version metrics come from the `ace-version-check` timer (node_exporter textfile collector).
+Local and LAN blackbox probes are included; external probes are excluded (often flaky). Version metrics come from the `ace-version-check` timer (node_exporter textfile collector) and appear on the **Ace Service Versions** Grafana dashboard (`ace-versions`).
+
+Tracked services (metric label `service=…`): Grafana, **Prometheus**, Nextcloud, Zitadel, Matrix Synapse, Technitium, Jellyfin, Vaultwarden, Caddy, Pterodactyl panel, notify_push, and prefixed sidecars (`nextcloud-mariadb`, `nextcloud-redis`, `nextcloud-clamav`, `pterodactyl-mariadb`, `pterodactyl-redis`). Standalone stack services use their short name (for example `prometheus`, not a sidecar prefix).
 
 ### SMTP
 
@@ -148,6 +150,8 @@ Provisioned rules appear under **Alerting → Alert rules** in folder **Ace Aler
 | **Result email** | Success or failure notification after each attempted update |
 | **Registry** | `/etc/ace-service-update/registry.json` — enable/disable services and bump rules |
 
+Enabled auto-update services include Grafana, Technitium, Nextcloud, Zitadel, Vaultwarden, Matrix Synapse, Jellyfin, **Prometheus** (`podman-pull` on `docker.io/prom/prometheus:latest`), Pterodactyl panel, and notify_push. Sidecar databases and Redis instances are version-tracked in Grafana but updated with their parent stack.
+
 Manual run for one service:
 
 ```bash
@@ -197,6 +201,9 @@ nix shell nixpkgs#sqlite -c sqlite3 /grafana/data/grafana.db \
 | Direct (on ace) | http://127.0.0.1:9090 |
 | Auth | **Network restriction only** — no OAuth or basic auth |
 | UI | Enabled (default Prometheus web UI) |
+| Version source | Podman image tag (`docker.io/prom/prometheus:latest`); falls back to `GET /api/v1/status/buildinfo` when tag is `latest` |
+| Version metrics | `ace_service_version_*{service="prometheus"}` from `ace-version-check` |
+| Auto-update | Enabled via `ace-service-auto-update@prometheus.service` (`podman-pull`) |
 
 ### Access requirements
 

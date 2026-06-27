@@ -181,6 +181,12 @@ Setup checks: mostly passing; **14 errors in logs** since rebuild; **whiteboard 
 ### ClamAV (Nextcloud antivirus)
 - Version 1.5.2, signatures current (Jun 6 2026)
 
+### ace-version-check (service versions)
+
+Six-hourly timer exports installed vs upstream semver to `/var/lib/node-exporter-textfile/ace_versions.prom`. Grafana dashboard **Ace Service Versions** (`ace-versions`) and update alerts consume `ace_service_version_*` metrics.
+
+Monitored services include Grafana, **Prometheus**, Nextcloud (+ `nextcloud-mariadb`, `nextcloud-redis`, `nextcloud-clamav`), Zitadel, Matrix Synapse, Technitium, Jellyfin, Vaultwarden, Caddy, Pterodactyl panel (+ `pterodactyl-mariadb`, `pterodactyl-redis`), and notify_push. Prometheus version is read from the Podman image tag or the local `:9090/api/v1/status/buildinfo` API.
+
 ### ace-health-exporter (Prometheus textfile)
 ```
 ace_health_exporter_up 1
