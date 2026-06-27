@@ -7,6 +7,7 @@ in {
     ./exporters.nix
     ./ace-health-exporter.nix
     ./ace-version-check.nix
+    ./ace-service-auto-update.nix
     ./lan-dns-prober.nix
     ./grafana-alerting.nix
   ];

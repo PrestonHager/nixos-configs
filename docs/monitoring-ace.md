@@ -134,6 +134,38 @@ curl -sf http://127.0.0.1:8082/api/health
 
 Provisioned rules appear under **Alerting → Alert rules** in folder **Ace Alerts**. File-provisioned resources cannot be edited in the UI (changes must be made in git).
 
+## Automated service updates
+
+`ace-service-auto-update@.service` upgrades individual Ace services when `ace-version-check` reports they are behind upstream.
+
+| Behavior | Detail |
+|----------|--------|
+| **Trigger** | After each `ace-version-check` run, `ace-service-update-dispatch` starts `ace-service-auto-update@SERVICE` for each enabled, out-of-date service |
+| **Patch / minor** | Bumps pinned versions in `/etc/nixos`, commits, pushes, runs `nixos-rebuild switch --flake /etc/nixos#ace`, or pulls `:latest` images where configured |
+| **Major** | Sends an approval email (same SMTP + recipients as Grafana alerts) with breaking-change notes and **Approve** / **Deny** links at https://update.prestonhager.com |
+| **Result email** | Success or failure notification after each attempted update |
+| **Registry** | `/etc/ace-service-update/registry.json` — enable/disable services and bump rules |
+
+Manual run for one service:
+
+```bash
+systemctl start ace-service-auto-update@grafana.service
+```
+
+Requirements on ace:
+
+- `/etc/nixos` is a git checkout with push access (for `nix-bump` services)
+- Public DNS for `update.prestonhager.com` → ace (Caddy terminates TLS and proxies to the local approval handler)
+- `GRAFANA_ALERT_EMAILS` and `SMTP_PASSWORD` already configured (shared with Grafana alerting)
+
+Verify:
+
+```bash
+systemctl status ace-service-update-http
+curl -sf http://127.0.0.1:8765/health
+cat /var/lib/node-exporter-textfile/ace_versions.prom | grep ace_service_version_behind
+```
+
 ### One-time grant for an existing OAuth user
 
 If a user logged in before admin mapping was configured, update the Grafana SQLite DB on ace:

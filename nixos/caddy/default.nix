@@ -8,6 +8,7 @@
     #./forgejo.nix
     ./jellyfin.nix
     ./loopback-health.nix
+    ./ace-service-update.nix
     ./matrix.nix
     ./technitium.nix
     ./grafana.nix

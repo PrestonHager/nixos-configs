@@ -15,6 +15,7 @@
     "test.panel.prestonhager.com"
 
     # Monitoring & media
+    "update.prestonhager.com"
     "grafana.prestonhager.com"
     "prometheus.prestonhager.com"
     "jellyfin.prestonhager.com"
