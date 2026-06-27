@@ -31,9 +31,9 @@ class PageController extends Controller {
 		Util::addStyle(Application::APP_ID, 'main');
 		$flash = (string)$this->session->get('cloudmigrate_flash');
 		$this->session->remove('cloudmigrate_flash');
-		return new TemplateResponse(Application::APP_ID, 'index', [
+		return (new TemplateResponse(Application::APP_ID, 'index', [
 			'flash' => $flash,
 			'onedriveConnectUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.oauth.onedrive'),
-		]);
+		]))->renderAs('blank');
 	}
 }

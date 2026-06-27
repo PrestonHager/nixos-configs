@@ -1,3 +1,18 @@
+/* Nextcloud 34 app shell — #app-content is the scroll container */
+#content.app-cloudmigrate {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+#content.app-cloudmigrate #app-content {
+	flex: 1 1 auto;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding: 20px;
+	-webkit-overflow-scrolling: touch;
+}
+
 #cloudmigrate-app .cloudmigrate-lead {
 	max-width: 52rem;
 	margin-bottom: 1.5rem;
@@ -41,11 +56,39 @@
 }
 
 .cloudmigrate-flash {
-	background: var(--color-primary-element-light);
 	padding: 0.75rem 1rem;
 	border-radius: var(--border-radius);
 	margin-bottom: 1rem;
 	max-width: 52rem;
+	background: var(--color-primary-element-light);
+}
+
+.cloudmigrate-flash-success {
+	background: var(--color-success-element);
+	color: var(--color-success-text);
+}
+
+.cloudmigrate-flash-error {
+	background: var(--color-error-element);
+	color: var(--color-error-text);
+}
+
+.cloudmigrate-inline-feedback {
+	margin: 0.5rem 0 0;
+	max-width: 52rem;
+	font-size: 0.95em;
+}
+
+.cloudmigrate-inline-feedback.is-success {
+	color: var(--color-success);
+}
+
+.cloudmigrate-inline-feedback.is-error {
+	color: var(--color-error);
+}
+
+.cloudmigrate-inline-feedback.is-loading {
+	color: var(--color-text-maxcontrast);
 }
 
 .cloudmigrate-badge {
