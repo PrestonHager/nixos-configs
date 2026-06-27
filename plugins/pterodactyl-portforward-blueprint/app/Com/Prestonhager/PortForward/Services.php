@@ -8,6 +8,7 @@ use Pterodactyl\BlueprintFramework\Extensions\portforward\Com\Prestonhager\PortF
 use Pterodactyl\BlueprintFramework\Extensions\portforward\Com\Prestonhager\PortForward\Support\MappingState;
 use Pterodactyl\BlueprintFramework\Extensions\portforward\Com\Prestonhager\PortForward\Support\NodeIpResolver;
 use Pterodactyl\BlueprintFramework\Extensions\portforward\Com\Prestonhager\PortForward\Support\PortValidator;
+use Pterodactyl\BlueprintFramework\Extensions\portforward\Com\Prestonhager\PortForward\Support\ServerForwardOverview;
 use Pterodactyl\BlueprintFramework\Extensions\portforward\Compatibility\PluginContext;
 
 final class Services
@@ -44,6 +45,18 @@ final class Services
             self::state($context),
             self::ssh($context),
             self::audit($context),
+        );
+    }
+
+    public static function overview(PluginContext $context): ServerForwardOverview
+    {
+        $config = self::config($context);
+
+        return new ServerForwardOverview(
+            $context,
+            $config,
+            self::state($context),
+            new NodeIpResolver($context, $config),
         );
     }
 }

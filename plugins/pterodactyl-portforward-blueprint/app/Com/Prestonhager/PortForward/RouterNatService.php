@@ -167,4 +167,15 @@ class RouterNatService
 
         return $this->createMapping($serverId, 'tcp', $allocation->port, $allocation->port);
     }
+
+    public function forwardAllocation(int $serverId, int $allocationId): array
+    {
+        $server = $this->context->findServer($serverId);
+        $allocation = $server->allocations->firstWhere('id', $allocationId);
+        if (is_null($allocation)) {
+            throw new PluginException('Allocation not found for this server.');
+        }
+
+        return $this->createMapping($serverId, 'tcp', $allocation->port, $allocation->port);
+    }
 }

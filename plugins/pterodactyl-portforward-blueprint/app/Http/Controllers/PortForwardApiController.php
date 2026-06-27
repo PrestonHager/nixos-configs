@@ -14,10 +14,9 @@ class PortForwardApiController extends Controller
     public function mappingsIndex(int $server): JsonResponse
     {
         $context = PluginContext::make();
+        $overview = Services::overview($context)->build($server);
 
-        return response()->json([
-            'mappings' => Services::state($context)->all($server),
-        ]);
+        return response()->json($overview);
     }
 
     public function mappingsStore(Request $request, int $server): JsonResponse
@@ -60,6 +59,17 @@ class PortForwardApiController extends Controller
             if (is_null($mapping)) {
                 return response()->json(['error' => 'No primary allocation found.'], 422);
             }
+
+            return response()->json(['mapping' => $mapping], 201);
+        } catch (PluginException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    public function forwardAllocation(int $server, int $allocationId): JsonResponse
+    {
+        try {
+            $mapping = Services::routerNat(PluginContext::make())->forwardAllocation($server, $allocationId);
 
             return response()->json(['mapping' => $mapping], 201);
         } catch (PluginException $e) {

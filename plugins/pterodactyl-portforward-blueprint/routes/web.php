@@ -18,6 +18,8 @@ Route::middleware(['auth.session', RequireTwoFactorAuthentication::class, AdminA
     Route::post('/admin/servers/{server}/mappings', [PortForwardApiController::class, 'mappingsStore']);
     Route::delete('/admin/servers/{server}/mappings/{mappingId}', [PortForwardApiController::class, 'mappingsDestroy']);
     Route::post('/admin/servers/{server}/mappings/forward-primary', [PortForwardApiController::class, 'forwardPrimary']);
+    Route::post('/admin/servers/{server}/mappings/forward-allocation/{allocationId}', [PortForwardApiController::class, 'forwardAllocation'])
+        ->where('allocationId', '[0-9]+');
     Route::get('/admin/audit', [PortForwardApiController::class, 'auditIndex']);
     Route::post('/admin/settings/test-connection', [PortForwardApiController::class, 'testConnection']);
 });
