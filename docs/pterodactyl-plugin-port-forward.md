@@ -1,6 +1,6 @@
 # Pterodactyl Blueprint — Port Forward / NAT (Implementation)
 
-**Status:** Implemented (v1.0.0, dry-run default)  
+**Status:** Implemented (v1.0.0, live NAT when router key deployed)  
 **Branch:** `dell-poweredge-r730xd`  
 **Panel:** https://panel.prestonhager.com  
 **Plan:** [pterodactyl-plugin-port-forward-plan.md](./pterodactyl-plugin-port-forward-plan.md)
@@ -22,10 +22,23 @@
 
 ### Default safety
 
-- **Extension disabled** until admin enables it
-- **Dry-run ON** by default — logs IOS commands without SSH apply
+- **Extension disabled** in schema until `pterodactyl-blueprint-extensions-configure.service` enables it (or admin enables manually)
+- **Dry-run ON** until sops key `pterodactyl-router-ssh-key` is mounted — then configure service sets **dry-run OFF**
 - Blocked ports: 22, 80, 443, 3380
 - Allowed range: 1024–65535
+
+### Finding extensions in the panel
+
+Blueprint does **not** add a top-level “Blueprint” sidebar item for custom extensions. After install, open:
+
+| Location | What you see |
+|----------|----------------|
+| **Admin → Extensions** | Blueprint framework settings |
+| **Admin → Extensions → DNS Records** | Technitium/Cloudflare DNS extension |
+| **Admin → Extensions → Port Forward** | NAT automation settings |
+| **Admin → Servers → View server** | **DNS** and **Network / NAT** tabs (when extensions enabled) |
+
+Requires **root admin** (`root_admin=1`). SSO users need Zitadel role `pterodactyl_admin`.
 
 ### Event hooks
 
@@ -46,9 +59,31 @@ Override via **Node IP map** JSON in extension settings (`{"1": "192.168.5.6", .
 ## Deploy
 
 ```bash
-sudo nixos-rebuild switch --flake /etc/nixos#ace
+cd /etc/nixos
+git fetch origin dell-poweredge-r730xd
+git reset --hard origin/dell-poweredge-r730xd
+sudo nixos-rebuild switch --flake .#ace
 sudo systemctl restart pterodactyl-blueprint-install.service
+sudo systemctl restart pterodactyl-blueprint-extensions-configure.service
 sudo podman exec pterodactyl php /var/www/pterodactyl/artisan migrate --force
+```
+
+### Router SSH key (one-time on ace)
+
+Generate a **2048-bit RSA** key, encrypt in nix-secrets, rebuild:
+
+```bash
+# Copy private key to ace (from secure workstation), then:
+sudo bash /etc/nixos/scripts/ace-pterodactyl-router-ssh-deploy.sh /path/to/pterodactyl-router-ssh-key
+```
+
+Authorize the printed public key on Astracap for user **`pterofwd`** (serial console):
+
+```powershell
+$env:CISCO_ENABLE_PASSWORD = (& scripts/get-cisco-enable.ps1)
+$env:PTEROFWD_PUBKEY = "$env:TEMP\pterofwd_astracap.pub"
+python scripts/astracap-setup-pterofwd.py
+Remove-Item Env:CISCO_ENABLE_PASSWORD
 ```
 
 Mount router SSH key via sops (see Secrets). Extension appears under **Admin → Extensions → Port Forward**.
@@ -57,22 +92,32 @@ Mount router SSH key via sops (see Secrets). Extension appears under **Admin →
 
 ## Secrets (not in git)
 
-| Secret | Recommended source | Env var |
-|--------|-------------------|---------|
-| Router SSH private key | sops → `/run/secrets/pterodactyl-router-ssh-key` | `PORTFORWARD_SSH_KEY_FILE` |
-| SSH config | Nix-generated `/pterodactyl/secrets/portforward-ssh-config` | `PORTFORWARD_SSH_CONFIG_FILE` |
+| Secret | sops key in `pterodactyl.yaml` | Host path | Container path |
+|--------|----------------------------------|-----------|----------------|
+| Router SSH private key | `pterodactyl-router-ssh-key` | `/run/secrets/pterodactyl-router-ssh-key` | `/pterodactyl/secrets/pterodactyl-router-ssh-key` |
+| SSH config | Nix-generated | `/pterodactyl/secrets/portforward-ssh-config` | same (bind mount) |
+| Technitium API token (optional) | `pterodactyl-technitium-api-token` | `/run/secrets/...` | `/pterodactyl/secrets/pterodactyl-technitium-api-token` |
 
-Add to nix-secrets (example structure, **do not commit keys**):
+Env vars written to `/pterodactyl/secrets/blueprint-extensions.env`:
+
+| Env var | When set |
+|---------|----------|
+| `PORTFORWARD_SSH_KEY_FILE` | Router key present |
+| `PORTFORWARD_SSH_CONFIG_FILE` | Always |
+| `TECHNITIUM_API_TOKEN_FILE` | Technitium token present |
+
+Add to nix-secrets (`secrets/containers/pterodactyl.yaml`, **do not commit plaintext keys to nixos-configs**):
 
 ```yaml
-# secrets/containers/pterodactyl-router-ssh.yaml
-router-ssh-private-key: |
+pterodactyl-router-ssh-key: |
   -----BEGIN OPENSSH PRIVATE KEY-----
   ...
   -----END OPENSSH PRIVATE KEY-----
 ```
 
-Wire into ace `sops.secrets` when the file exists (see implementation notes in `pterodactyl-extensions.nix`).
+Or run `scripts/ace-pterodactyl-router-ssh-deploy.sh` on ace (encrypts via sops automatically).
+
+Router SSH user: **`pterofwd`** (dedicated automation account; pubkey in `ip ssh pubkey-chain`).
 
 ---
 

@@ -53,7 +53,7 @@ class portforwardExtensionController extends Controller
             'auto_forward_on_install' => $request->boolean('auto_forward_on_install'),
             'auto_remove_on_delete' => $request->boolean('auto_remove_on_delete'),
             'router_host' => $validated['router_host'] ?? '192.168.5.1',
-            'router_ssh_user' => $validated['router_ssh_user'] ?? 'prestonh',
+            'router_ssh_user' => $validated['router_ssh_user'] ?? 'pterofwd',
             'wan_interface' => $validated['wan_interface'] ?? 'GigabitEthernet0/0',
             'allowed_port_min' => (int) ($validated['allowed_port_min'] ?? 1024),
             'allowed_port_max' => (int) ($validated['allowed_port_max'] ?? 65535),
@@ -87,7 +87,7 @@ class portforwardExtensionController extends Controller
         return [
             'enabled' => false,
             'router_host' => '192.168.5.1',
-            'router_ssh_user' => 'prestonh',
+            'router_ssh_user' => 'pterofwd',
             'router_ssh_private_key' => '',
             'wan_interface' => 'GigabitEthernet0/0',
             'dry_run' => true,

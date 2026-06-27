@@ -74,6 +74,9 @@ def authorize_pubkey(
     pubkey_path: str,
     username: str,
     enable_pw: str,
+    *,
+    create_user: bool = False,
+    privilege: int = 15,
 ) -> int:
     with open(pubkey_path, encoding="utf-8") as f:
         pubkey_line = f.read().strip()
@@ -91,6 +94,8 @@ def authorize_pubkey(
 
         send_line(s, "terminal length 0", 0.5)
         send_line(s, "configure terminal", 0.8)
+        if create_user:
+            send_line(s, f"username {username} privilege {privilege}", 0.8)
         send_line(s, "ip ssh pubkey-chain", 0.8)
         send_line(s, f"username {username}", 0.8)
         send_line(s, "key-string", 0.8)
@@ -124,13 +129,29 @@ def main() -> int:
         "--username",
         default=os.environ.get("CISCO_SSH_USER", "prestonh"),
     )
+    parser.add_argument(
+        "--create-user",
+        action="store_true",
+        help="Create IOS local username before installing pubkey",
+    )
+    parser.add_argument(
+        "--privilege",
+        type=int,
+        default=int(os.environ.get("CISCO_SSH_PRIVILEGE", "15")),
+    )
     args = parser.parse_args()
 
     enable_pw = (os.environ.get("CISCO_ENABLE_PASSWORD") or os.environ.get(
         "ASTRACAP_ENABLE_PASSWORD", ""
     )).strip()
     return authorize_pubkey(
-        args.port, args.baud, args.pubkey, args.username, enable_pw
+        args.port,
+        args.baud,
+        args.pubkey,
+        args.username,
+        enable_pw,
+        create_user=args.create_user,
+        privilege=args.privilege,
     )
 
 

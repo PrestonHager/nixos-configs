@@ -23,7 +23,7 @@ class Config
 
     public function routerSshUser(): string
     {
-        return (string) $this->context->config()->get('router_ssh_user', 'prestonh');
+        return (string) $this->context->config()->get('router_ssh_user', 'pterofwd');
     }
 
     public function wanInterface(): string

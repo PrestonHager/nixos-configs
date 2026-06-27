@@ -14,6 +14,7 @@ in
   imports = [
     ./pterodactyl-stock-reset.nix
     ./pterodactyl-blueprint.nix
+    ./pterodactyl-blueprint-extensions-configure.nix
     ./pterodactyl-sso.nix
     ./pterodactyl-extensions.nix
   ];
@@ -27,6 +28,12 @@ in
     "pterodactyl-password" = {
       sopsFile = "${sops-path}/secrets/containers/pterodactyl.yaml";
       mode = "0640";
+    };
+    "pterodactyl-router-ssh-key" = {
+      sopsFile = "${sops-path}/secrets/containers/pterodactyl.yaml";
+      mode = "0600";
+      owner = "pterodactyl";
+      group = "pterodactyl";
     };
   };
 

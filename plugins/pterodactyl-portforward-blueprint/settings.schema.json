@@ -20,7 +20,7 @@
       "key": "router_ssh_user",
       "type": "string",
       "label": "SSH user",
-      "default": "prestonh",
+      "default": "pterofwd",
       "surfaces": ["admin"],
       "storage": "config"
     },
