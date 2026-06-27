@@ -7,8 +7,6 @@ let
   configFile = pkgs.writeText "aide.conf" ''
     database_in=file:${dbPath}
     database_out=file:${dbNewPath}
-    database_new=file:${dbNewPath}
-    logfile=/var/log/aide/aide.log
     /etc p+i+u+g+sha256
     /root p+i+u+g+sha256
     !/etc/nixos/.git
