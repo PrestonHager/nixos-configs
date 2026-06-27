@@ -57,7 +57,7 @@ let
     install -d -m 0755 -o prestonh -g users /home/prestonh/.cache/yarn-blueprint-test
 
     blueprint_cli() {
-      runuser -u prestonh -- env \
+      env \
         HOME=/home/prestonh \
         TERM=dumb \
         LC_ALL=C.UTF-8 \
@@ -68,7 +68,7 @@ let
     }
 
     blueprint_cli_install() {
-      runuser -u prestonh -- env \
+      env \
         HOME=/home/prestonh \
         TERM=dumb \
         LC_ALL=C.UTF-8 \
@@ -331,7 +331,7 @@ let
       rm -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed"
       rm -f "$panel/.blueprint/lock" 2>/dev/null || true
       cd "$panel"
-      runuser -u prestonh -- env BLUEPRINT_ENVIRONMENT=ci HOME=/home/prestonh TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 \
+      env BLUEPRINT_ENVIRONMENT=ci HOME=/home/prestonh TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 \
         YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test PATH="$PATH" \
         ${pkgs.bash}/bin/bash "$panel/blueprint.sh"
       if blueprint_cli -info 2>/dev/null | grep -qi sociallogin; then
