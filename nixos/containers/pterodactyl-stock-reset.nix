@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 
 let
-  version = "1.11.11";
+  inherit (import ./pterodactyl-docker.nix { inherit pkgs; }) version;
   panelRoot = "/pterodactyl/html";
   officialSrc = "https://github.com/pterodactyl/panel.git";
   officialBranch = "release/v${version}";
@@ -107,7 +107,16 @@ PY
       sh -c 'cd /var/www/pterodactyl && composer install --no-dev --optimize-autoloader'
 
     ${pkgs.podman}/bin/podman exec pterodactyl \
+      php /var/www/pterodactyl/artisan migrate --force
+
+    ${pkgs.podman}/bin/podman exec pterodactyl \
       php /var/www/pterodactyl/artisan config:clear
+
+    ${pkgs.podman}/bin/podman exec pterodactyl \
+      php /var/www/pterodactyl/artisan cache:clear
+
+    rm -f "${stateDir}/blueprint-installed"
+    rm -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed"
 
     install -d -m 0750 -o pterodactyl -g pterodactyl "${stateDir}"
     echo "stock-${officialBranch}" > "$marker"

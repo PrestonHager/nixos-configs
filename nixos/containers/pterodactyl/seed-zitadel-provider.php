@@ -13,7 +13,7 @@ if ($clientId === '' || $clientSecret === '') {
     exit(1);
 }
 
-$bp = app(\Pterodactyl\BlueprintFramework\Libraries\ExtensionLibrary\BlueprintExtensionLibrary::class);
+$bp = app(\Pterodactyl\BlueprintFramework\Libraries\ExtensionLibrary\Admin\BlueprintAdminLibrary::class);
 $bp->dbSet('sociallogin', 'allow_register', '1');
 $bp->dbSet('sociallogin', 'allow_connecting', '1');
 

@@ -55,6 +55,25 @@ let
       env HOME=/var/lib/pterodactyl TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" -bash "$@"
     }
 
+    blueprint_cli_install() {
+      env HOME=/var/lib/pterodactyl TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" "$@"
+    }
+
+    blueprint_integrated() {
+      [ -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed" ] \
+        && ${pkgs.podman}/bin/podman exec pterodactyl \
+          php /var/www/pterodactyl/artisan route:list 2>/dev/null \
+          | ${pkgs.gnugrep}/bin/grep -q 'extensions/sociallogin'
+    }
+
+    rerun_blueprint_framework() {
+      echo "pterodactyl-blueprint-install: re-running Blueprint framework install..."
+      rm -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed"
+      rm -f "$panel/.blueprint/lock" 2>/dev/null || true
+      cd "$panel"
+      blueprint_cli_install
+    }
+
     install_dnsrecords_extension() {
       if [ ! -d "${dnsExtensionSrc}" ]; then
         echo "pterodactyl-blueprint-install: DNS extension source missing at ${dnsExtensionSrc}" >&2
@@ -89,6 +108,9 @@ let
       ${pkgs.podman}/bin/podman exec pterodactyl \
         php /var/www/pterodactyl/artisan config:clear
 
+      ${pkgs.podman}/bin/podman exec pterodactyl \
+        php /var/www/pterodactyl/artisan view:clear
+
       chown -R pterodactyl:pterodactyl "$panel"
     }
 
@@ -97,7 +119,8 @@ let
       chown pterodactyl:pterodactyl "$marker"
     }
 
-    if [ -d "$panel/.blueprint/extensions/sociallogin" ] \
+    if blueprint_integrated \
+      && [ -d "$panel/.blueprint/extensions/sociallogin" ] \
       && [ -d "$panel/.blueprint/extensions/dnsrecords" ]; then
       write_marker
       echo "pterodactyl-blueprint-install: Blueprint, Social Login, and DNS Records ready"
@@ -105,8 +128,22 @@ let
     fi
 
     if [ -d "$panel/.blueprint/extensions/sociallogin" ] \
+      && [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
+      && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
+      echo "pterodactyl-blueprint-install: extensions present but Laravel integration missing, repairing..."
+      rerun_blueprint_framework
+      post_install_hooks
+      write_marker
+      echo "pterodactyl-blueprint-install: Blueprint integration repaired on production panel"
+      exit 0
+    fi
+
+    if [ -d "$panel/.blueprint/extensions/sociallogin" ] \
       && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
       echo "pterodactyl-blueprint-install: Social Login present, installing DNS Records only..."
+      if ! blueprint_integrated; then
+        rerun_blueprint_framework
+      fi
       install_dnsrecords_extension
       post_install_hooks
       write_marker
@@ -147,10 +184,6 @@ let
       mv "$panel/blueprint" "$panel/.blueprint/blueprint"
     fi
 
-    blueprint_cli_install() {
-      env HOME=/var/lib/pterodactyl TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 PATH="$PATH" ${pkgs.bash}/bin/bash "$panel/blueprint.sh" "$@"
-    }
-
     if [ ! -d "$panel/node_modules" ]; then
       echo "pterodactyl-blueprint-install: installing panel node dependencies..."
       cd "$panel"
@@ -159,7 +192,7 @@ let
     fi
 
     cd "$panel"
-    if [ "$framework_ready" -eq 0 ]; then
+    if [ "$framework_ready" -eq 0 ] || ! blueprint_integrated; then
       blueprint_cli_install
     fi
 
