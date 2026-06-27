@@ -12,11 +12,12 @@ token = {"access_token":"REPLACE","token_type":"Bearer","refresh_token":"REPLACE
 drive_id = REPLACE_DRIVE_ID
 drive_type = personal
 
-# iCloud Drive (Linux: app-specific password; see README)
+# iCloud Drive (rclone iclouddrive backend; password must be obscured — see rclone obscure)
 [icloud]
-type = icloud
+type = iclouddrive
+service = drive
 apple_id = prestonhager@icloud.com
-password = REPLACE_APP_SPECIFIC_PASSWORD
+password = REPLACE_OBFUSCATED_PASSWORD
 
 [nextcloud]
 type = webdav

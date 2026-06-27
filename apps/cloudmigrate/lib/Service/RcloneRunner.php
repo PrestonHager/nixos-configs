@@ -13,6 +13,7 @@ use Symfony\Component\Process\Process;
  */
 class RcloneRunner {
 	private const REMOTE = 'icloud';
+	private const BACKEND = 'iclouddrive';
 
 	public function __construct(
 		private TokenStore $tokenStore,
@@ -23,7 +24,14 @@ class RcloneRunner {
 
 	public function isAvailable(): bool {
 		$binary = $this->getBinaryPath();
-		return is_executable($binary);
+		if (!is_executable($binary)) {
+			return false;
+		}
+		$process = new Process([$binary, 'help', 'backends']);
+		$process->setTimeout(30);
+		$process->run();
+		return $process->isSuccessful()
+			&& str_contains($process->getOutput(), self::BACKEND);
 	}
 
 	public function getBinaryPath(): string {
@@ -186,10 +194,12 @@ class RcloneRunner {
 			throw new \RuntimeException('Could not create temp config directory');
 		}
 		$configPath = $dir . '/rclone.conf';
-		$ini = "[icloud]\n"
-			. "type = icloud\n"
+		$obscuredPassword = $this->obscurePassword($password);
+		$ini = '[' . self::REMOTE . "]\n"
+			. 'type = ' . self::BACKEND . "\n"
+			. "service = drive\n"
 			. 'apple_id = ' . $this->iniEscape($appleId) . "\n"
-			. 'password = ' . $this->iniEscape($password) . "\n";
+			. 'password = ' . $this->iniEscape($obscuredPassword) . "\n";
 		if (file_put_contents($configPath, $ini) === false) {
 			throw new \RuntimeException('Could not write rclone config');
 		}
@@ -212,6 +222,21 @@ class RcloneRunner {
 			return '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $value) . '"';
 		}
 		return $value;
+	}
+
+	private function obscurePassword(string $password): string {
+		$process = new Process([$this->getBinaryPath(), 'obscure', '-']);
+		$process->setInput($password);
+		$process->setTimeout(30);
+		$process->run();
+		if (!$process->isSuccessful()) {
+			throw new \RuntimeException('rclone obscure failed: ' . trim($process->getErrorOutput()));
+		}
+		$obscured = trim($process->getOutput());
+		if ($obscured === '') {
+			throw new \RuntimeException('rclone obscure returned empty output');
+		}
+		return $obscured;
 	}
 
 	/**
