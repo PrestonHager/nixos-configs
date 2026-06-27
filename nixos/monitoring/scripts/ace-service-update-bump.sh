@@ -72,6 +72,25 @@ done < <(jq -c --arg s "$SERVICE" '.[$s].bumpRules[]?' "$ACE_REGISTRY")
 
 if [[ "$(cat "$path")" == "$(cat "$tmp")" ]]; then
   rm -f "$tmp"
+  already_at_target=0
+  while IFS= read -r rule; do
+    [[ -z "$rule" ]] && continue
+    match="$(jq -r '.match' <<<"$rule")"
+    prefix="$(jq -r '.prefix // ""' <<<"$rule")"
+    if grep -qF "${match}${prefix}${TARGET}" "$path"; then
+      already_at_target=1
+      break
+    fi
+  done < <(jq -c --arg s "$SERVICE" '.[$s].bumpRules[]?' "$ACE_REGISTRY")
+  if [[ "$already_at_target" -eq 1 ]]; then
+    if nixos-rebuild switch --flake "${ACE_NIXOS_DIR}#ace"; then
+      printf 'Already at %s in %s; ran nixos-rebuild switch --flake %s#ace\n' \
+        "$TARGET" "$NIX_FILE" "$ACE_NIXOS_DIR"
+      exit 0
+    fi
+    echo "nixos-rebuild switch failed while ${NIX_FILE} already targets ${TARGET}" >&2
+    exit 1
+  fi
   echo "No version lines changed in ${NIX_FILE} for target ${TARGET}" >&2
   exit 1
 fi
