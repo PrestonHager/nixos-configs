@@ -94,7 +94,7 @@ in {
     requiredBy = [ "podman-zitadel.service" ];
     serviceConfig = {
       Type = "oneshot";
-      RemainAfterExit = false;
+      RemainAfterExit = true;
       ExecStart = zitadelEnvScript;
     };
   };
@@ -145,8 +145,9 @@ in {
           hostGw="10.88.0.1"
         fi
         if ${pkgs.podman}/bin/podman pod exists zitadel-pod; then
-          if ! ${pkgs.podman}/bin/podman pod inspect zitadel-pod --format '{{range .HostAdditions}}{{.Host}}:{{.IP}} {{end}}' \
-            | grep -q "${zitadelDomain}:''${hostGw}"; then
+          additions="$(${pkgs.podman}/bin/podman pod inspect zitadel-pod \
+            --format '{{range .HostAdditions}}{{.Host}}:{{.IP}} {{end}}' 2>/dev/null || true)"
+          if [ -z "''${additions}" ] || ! printf '%s' "''${additions}" | grep -q "${zitadelDomain}:''${hostGw}"; then
             ${pkgs.podman}/bin/podman pod stop -t 10 zitadel-pod || true
             ${pkgs.podman}/bin/podman pod rm -f zitadel-pod || true
           fi
