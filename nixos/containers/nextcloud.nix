@@ -3,8 +3,9 @@
 let
   sops-path = builtins.toString inputs.nix-secrets;
   ncRoot = "/stor/nextcloud";
-  # 34.0.1 not published on Docker Hub yet (github.com/nextcloud/docker/issues/2584)
-  nextcloudImage = "docker.io/library/nextcloud:34.0.1";
+  cloudMigrate = import ./nextcloud-cloud-migrate.nix { inherit pkgs; };
+  # 34.0.1 not published on Docker Hub (see nextcloud/docker#2584); use latest 34.0.x patch
+  nextcloudImage = "docker.io/library/nextcloud:34.0.0";
   clamavImage = "docker.io/clamav/clamav:stable";
   nextcloudPublicUrl = "https://cloud.prestonhager.com";
   nextcloudPushUrl = "${nextcloudPublicUrl}/push";
@@ -604,6 +605,7 @@ in
         "/etc/passwd:/etc/passwd:ro"
         "/etc/group:/etc/group:ro"
         "${ncRoot}/data/:/var/www/html/"
+        "${cloudMigrate.cloudMigrateApp}:/var/www/html/custom_apps/cloudmigrate:ro"
         "${nextcloudApacheHsts}:/etc/apache2/conf-enabled/z-nextcloud-hsts.conf:ro"
       ];
       environment = {

@@ -11,7 +11,6 @@
     ./mediawiki.nix
     # ./nextcloud-aio.nix (disabled; use nextcloud.nix)
     ./nextcloud.nix
-    ./nextcloud-cloud-migrate.nix
     #./phorge.nix
     ./prometheus.nix
     ./pushgateway.nix
