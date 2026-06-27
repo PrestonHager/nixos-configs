@@ -63,13 +63,13 @@ echo "=== yarn install ==="
 nix_panel bash -c "cd '$panel' && yarn install"
 
 echo "=== blueprint.sh framework ==="
-nix_panel env BLUEPRINT_ENVIRONMENT=ci bash -c "cd '$panel' && bash ./blueprint.sh"
+nix_panel env BLUEPRINT_ENVIRONMENT=ci bash -c "cd '$panel' && yes n | bash ./blueprint.sh"
 
 echo "=== sociallogin ==="
 curl -fsSL "$sl_url" -o "$tmp/sociallogin.blueprint"
 cp "$tmp/sociallogin.blueprint" "$panel/sociallogin.blueprint"
 chown prestonh:users "$panel/sociallogin.blueprint"
-nix_panel bash -c "cd '$panel' && rm -f .blueprint/lock && bash ./blueprint.sh -install sociallogin"
+nix_panel env BLUEPRINT_ENVIRONMENT=ci bash -c "cd '$panel' && rm -f .blueprint/lock && yes n | bash ./blueprint.sh -install sociallogin"
 rm -f "$panel/sociallogin.blueprint"
 
 install_dev_ext() {
@@ -77,7 +77,7 @@ install_dev_ext() {
   rm -rf "$panel/.blueprint/dev/"*
   cp -a "$1/." "$panel/.blueprint/dev/"
   chown -R prestonh:users "$panel/.blueprint/dev"
-  nix_panel bash -c "cd '$panel' && rm -f .blueprint/lock && bash ./blueprint.sh -install '[developer-build]'"
+  nix_panel env BLUEPRINT_ENVIRONMENT=ci bash -c "cd '$panel' && rm -f .blueprint/lock && yes n | bash ./blueprint.sh -install '[developer-build]'"
 }
 
 echo "=== dnsrecords ==="

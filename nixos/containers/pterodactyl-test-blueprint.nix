@@ -68,7 +68,7 @@ let
     }
 
     blueprint_cli_install() {
-      env \
+      env BLUEPRINT_ENVIRONMENT=ci \
         HOME=/home/prestonh \
         TERM=dumb \
         LC_ALL=C.UTF-8 \
