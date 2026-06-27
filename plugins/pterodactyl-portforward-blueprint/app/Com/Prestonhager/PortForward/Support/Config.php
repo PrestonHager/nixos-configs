@@ -152,7 +152,7 @@ class Config
     {
         return (string) $this->context->config()->get(
             'ssh_kex_algorithms',
-            '+diffie-hellman-group14-sha1,+diffie-hellman-group-exchange-sha1',
+            '+diffie-hellman-group14-sha1',
         );
     }
 

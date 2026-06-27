@@ -37,8 +37,8 @@
       "key": "ssh_kex_algorithms",
       "type": "string",
       "label": "SSH KEX algorithms",
-      "description": "Cisco IOS 15.x needs +diffie-hellman-group14-sha1,+diffie-hellman-group-exchange-sha1.",
-      "default": "+diffie-hellman-group14-sha1,+diffie-hellman-group-exchange-sha1",
+      "description": "Cisco IOS 15.x needs +diffie-hellman-group14-sha1 (OpenSSH 10+ dropped group-exchange-sha1).",
+      "default": "+diffie-hellman-group14-sha1",
       "surfaces": ["admin"],
       "storage": "config"
     },

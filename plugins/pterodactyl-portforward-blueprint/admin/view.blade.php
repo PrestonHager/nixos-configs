@@ -52,8 +52,8 @@
                     </div>
                     <div class="form-group">
                         <label for="ssh_kex_algorithms">SSH KEX algorithms</label>
-                        <input type="text" class="form-control" id="ssh_kex_algorithms" name="ssh_kex_algorithms" value="{{ old('ssh_kex_algorithms', $settings['ssh_kex_algorithms'] ?? '+diffie-hellman-group14-sha1,+diffie-hellman-group-exchange-sha1') }}">
-                        <p class="help-block">Cisco IOS 15.x requires legacy KEX. Prefix with <code>+</code> to append to OpenSSH defaults.</p>
+                        <input type="text" class="form-control" id="ssh_kex_algorithms" name="ssh_kex_algorithms" value="{{ old('ssh_kex_algorithms', $settings['ssh_kex_algorithms'] ?? '+diffie-hellman-group14-sha1') }}">
+                        <p class="help-block">Cisco IOS 15.x requires legacy KEX. Use <code>+diffie-hellman-group14-sha1</code> (OpenSSH 10+ no longer supports group-exchange-sha1).</p>
                     </div>
                     <div class="form-group">
                         <label for="ssh_host_key_algorithms">SSH host key algorithms</label>

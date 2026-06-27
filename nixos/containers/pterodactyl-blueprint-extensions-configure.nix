@@ -49,7 +49,7 @@ let
       "router_host" => "192.168.5.1",
       "router_ssh_user" => "pterofwd",
       "ssh_connect_host" => "astracap",
-      "ssh_kex_algorithms" => "+diffie-hellman-group14-sha1,+diffie-hellman-group-exchange-sha1",
+      "ssh_kex_algorithms" => "+diffie-hellman-group14-sha1",
       "ssh_host_key_algorithms" => "+ssh-rsa",
       "ssh_pubkey_accepted_algorithms" => "+ssh-rsa",
       "ssh_ciphers" => "",

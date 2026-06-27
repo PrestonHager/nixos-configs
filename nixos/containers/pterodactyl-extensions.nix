@@ -9,7 +9,7 @@ let
       User ${routerSshUser}
       IdentityFile ${containerKeyPath}
       IdentitiesOnly yes
-      KexAlgorithms +diffie-hellman-group14-sha1,+diffie-hellman-group-exchange-sha1
+      KexAlgorithms +diffie-hellman-group14-sha1
       HostKeyAlgorithms +ssh-rsa
       PubkeyAcceptedAlgorithms +ssh-rsa
       StrictHostKeyChecking accept-new
