@@ -2,10 +2,6 @@
 # Start ace-service-auto-update@SERVICE for each out-of-date tracked service.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=ace-service-update-common.sh
-source "$SCRIPT_DIR/ace-service-update-common.sh"
-
 ensure_state_dirs
 
 if [[ ! -f "$ACE_VERSIONS_PROM" ]]; then

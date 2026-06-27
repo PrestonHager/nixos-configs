@@ -2,6 +2,7 @@
 
 let
   scriptsDir = ./scripts;
+  commonScript = builtins.readFile "${scriptsDir}/ace-service-update-common.sh";
   registryPath = "/etc/ace-service-update/registry.json";
   publicUrl = "https://update.prestonhager.com";
   httpPort = 8765;
@@ -40,6 +41,7 @@ let
     export ACE_NEXTCLOUD_ENV="${config.sops.secrets."nextcloud-environment".path}"
     export ACE_GRAFANA_ENV="${config.sops.secrets."grafana-oauth-env".path}"
     export ACE_UPDATE_PUBLIC_URL="${publicUrl}"
+    ${commonScript}
     ${builtins.readFile "${scriptsDir}/ace-service-auto-update.sh"}
   '';
 
@@ -47,6 +49,7 @@ let
     export ACE_REGISTRY="${registryPath}"
     export ACE_UPDATE_STATE="${stateDir}"
     export ACE_VERSIONS_PROM="/var/lib/node-exporter-textfile/ace_versions.prom"
+    ${commonScript}
     ${builtins.readFile "${scriptsDir}/ace-service-update-dispatch.sh"}
   '';
 

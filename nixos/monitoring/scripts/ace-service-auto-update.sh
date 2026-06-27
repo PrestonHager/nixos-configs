@@ -5,10 +5,6 @@ set -euo pipefail
 SERVICE="${1:?service name required}"
 ACE_MAJOR_APPROVED="${ACE_MAJOR_APPROVED:-0}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=ace-service-update-common.sh
-source "$SCRIPT_DIR/ace-service-update-common.sh"
-
 run_update() {
   local service="$1"
   local current latest behind status strategy nix_file tmp detail exit_code
