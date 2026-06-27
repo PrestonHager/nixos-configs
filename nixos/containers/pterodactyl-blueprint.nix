@@ -69,7 +69,7 @@ let
       fi
     }
 
-    blueprint_integrated() {
+    blueprint_backend_integrated() {
       [ -f "$panel/app/Models/SocialProvider.php" ] \
         && grep -q 'Providers\\Blueprint\\RouteServiceProvider' "$panel/app/Providers/AppServiceProvider.php" \
         && grep -q "'blueprint'" "$panel/app/Http/Kernel.php" \
@@ -77,6 +77,76 @@ let
         && ${pkgs.podman}/bin/podman exec pterodactyl \
           php /var/www/pterodactyl/artisan route:list 2>/dev/null \
           | ${pkgs.gnugrep}/bin/grep -q 'extensions/sociallogin'
+    }
+
+    blueprint_frontend_integrated() {
+      grep -q '@blueprint/components/Authentication/Container/AfterContent' \
+        "$panel/resources/scripts/components/auth/LoginFormContainer.tsx" 2>/dev/null \
+        && grep -q "'@blueprint'" "$panel/webpack.config.js" 2>/dev/null \
+        && ${pkgs.gnugrep}/bin/grep -rq sociallogin "$panel/public/assets/"*.js 2>/dev/null
+    }
+
+    blueprint_integrated() {
+      blueprint_backend_integrated && blueprint_frontend_integrated
+    }
+
+    ensure_blueprint_webpack_alias() {
+      if grep -q "'@blueprint'" "$panel/webpack.config.js" 2>/dev/null; then
+        return 0
+      fi
+      echo "pterodactyl-blueprint-install: adding @blueprint webpack alias..."
+      ${pkgs.gnused}/bin/sed -i \
+        "/'@feature': path.join/a\\            '@blueprint': path.join(__dirname, '/resources/scripts/blueprint')," \
+        "$panel/webpack.config.js"
+      chown pterodactyl:pterodactyl "$panel/webpack.config.js"
+    }
+
+    ensure_blueprint_frontend_patches() {
+      login_form="$panel/resources/scripts/components/auth/LoginFormContainer.tsx"
+      if grep -q '@blueprint/components/Authentication/Container/AfterContent' "$login_form" 2>/dev/null; then
+        ensure_blueprint_webpack_alias
+        return 0
+      fi
+
+      echo "pterodactyl-blueprint-install: restoring Blueprint frontend patches from release..."
+      patch_tmp=$(mktemp -d)
+      ${pkgs.curl}/bin/curl -fsSL "${blueprintReleaseUrl}" -o "$patch_tmp/release.zip"
+      ${pkgs.unzip}/bin/unzip -o "$patch_tmp/release.zip" \
+        "resources/scripts/components/*" \
+        "resources/scripts/routers/*" \
+        "resources/scripts/index.tsx" \
+        "resources/scripts/blueprint/extends/*" \
+        -d "$patch_tmp/extract"
+      cp -a "$patch_tmp/extract/resources/scripts/components/." "$panel/resources/scripts/components/"
+      cp -a "$patch_tmp/extract/resources/scripts/routers/." "$panel/resources/scripts/routers/"
+      cp "$patch_tmp/extract/resources/scripts/index.tsx" "$panel/resources/scripts/index.tsx"
+      cp -a "$patch_tmp/extract/resources/scripts/blueprint/extends/." "$panel/resources/scripts/blueprint/extends/"
+      chown -R pterodactyl:pterodactyl \
+        "$panel/resources/scripts/components" \
+        "$panel/resources/scripts/routers" \
+        "$panel/resources/scripts/index.tsx" \
+        "$panel/resources/scripts/blueprint/extends"
+      rm -rf "$patch_tmp"
+      ensure_blueprint_webpack_alias
+    }
+
+    ensure_frontend_built() {
+      if ${pkgs.gnugrep}/bin/grep -rq sociallogin "$panel/public/assets/"*.js 2>/dev/null; then
+        return 0
+      fi
+      echo "pterodactyl-blueprint-install: building panel frontend with Blueprint extensions..."
+      cd "$panel"
+      if [ ! -d "$panel/node_modules" ]; then
+        runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" yarn install --frozen-lockfile 2>/dev/null \
+          || runuser -u pterodactyl -- env HOME=/var/lib/pterodactyl TERM=dumb PATH="$PATH" yarn install
+      fi
+      runuser -u pterodactyl -- env \
+        HOME=/var/lib/pterodactyl \
+        TERM=dumb \
+        NODE_ENV=production \
+        NODE_OPTIONS="--openssl-legacy-provider" \
+        PATH="$PATH" \
+        yarn build:production
     }
 
     ensure_blueprint_core_patches() {
@@ -121,6 +191,8 @@ let
         rm -f "$panel/.blueprint/lock"
         blueprint_cli -install sociallogin
       fi
+      ensure_blueprint_frontend_patches
+      ensure_frontend_built
     }
 
     install_dnsrecords_extension() {
@@ -147,6 +219,8 @@ let
     post_install_hooks() {
       ensure_blueprint_core_patches
       ensure_sociallogin_models
+      ensure_blueprint_frontend_patches
+      ensure_frontend_built
 
       ${pkgs.podman}/bin/podman exec \
         -e HOME=/var/www/pterodactyl \
@@ -182,19 +256,33 @@ let
     if [ -d "$panel/.blueprint/extensions/sociallogin" ] \
       && [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
       && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
-      echo "pterodactyl-blueprint-install: extensions present but Laravel integration missing, repairing..."
-      rerun_blueprint_framework
-      post_install_hooks
-      write_marker
-      echo "pterodactyl-blueprint-install: Blueprint integration repaired on production panel"
-      exit 0
+      if blueprint_backend_integrated && ! blueprint_frontend_integrated; then
+        echo "pterodactyl-blueprint-install: backend ready but login UI missing Social Login, repairing frontend..."
+        ensure_blueprint_frontend_patches
+        ensure_frontend_built
+        post_install_hooks
+        write_marker
+        echo "pterodactyl-blueprint-install: Blueprint Social Login frontend repaired on production panel"
+        exit 0
+      fi
+      if ! blueprint_backend_integrated; then
+        echo "pterodactyl-blueprint-install: extensions present but Laravel integration missing, repairing..."
+        rerun_blueprint_framework
+        post_install_hooks
+        write_marker
+        echo "pterodactyl-blueprint-install: Blueprint integration repaired on production panel"
+        exit 0
+      fi
     fi
 
     if [ -d "$panel/.blueprint/extensions/sociallogin" ] \
       && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
       echo "pterodactyl-blueprint-install: Social Login present, installing DNS Records only..."
-      if ! blueprint_integrated; then
+      if ! blueprint_backend_integrated; then
         rerun_blueprint_framework
+      elif ! blueprint_frontend_integrated; then
+        ensure_blueprint_frontend_patches
+        ensure_frontend_built
       fi
       install_dnsrecords_extension
       post_install_hooks
@@ -244,7 +332,7 @@ let
     fi
 
     cd "$panel"
-    if [ "$framework_ready" -eq 0 ] || ! blueprint_integrated; then
+    if [ "$framework_ready" -eq 0 ] || ! blueprint_backend_integrated; then
       blueprint_cli_install
     fi
 
