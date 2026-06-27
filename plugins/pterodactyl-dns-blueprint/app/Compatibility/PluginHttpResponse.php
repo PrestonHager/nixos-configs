@@ -4,10 +4,10 @@ namespace Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Compatibility;
 
 use Illuminate\Http\JsonResponse;
 
-class PluginHttpResponse
+class PluginHttpResponse extends JsonResponse
 {
-    public static function json(array $data, int $status = 200): JsonResponse
+    public static function json(array $data, int $status = 200): self
     {
-        return response()->json($data, $status);
+        return new self($data, $status);
     }
 }
