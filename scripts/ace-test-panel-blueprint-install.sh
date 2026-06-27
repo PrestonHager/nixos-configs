@@ -19,7 +19,8 @@ echo "=== Installing Blueprint framework ==="
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 curl -fsSL "$bp_url" -o "$tmp/release.zip"
-runuser -u prestonh -- unzip -o "$tmp/release.zip" -d "$panel"
+unzip -o "$tmp/release.zip" -d "$panel"
+chown -R prestonh:users "$panel"
 cat > "$panel/.blueprintrc" <<'EOF'
 WEBUSER="prestonh"
 OWNERSHIP="prestonh:users"
