@@ -14,8 +14,9 @@ in {
   services.prometheus.exporters.node = {
     enable = true;
     port = 9100;
-    enabledCollectors = [ "systemd" ];
+    enabledCollectors = [ "systemd" "textfile" ];
     extraFlags = [
+      "--collector.textfile.directory=/var/lib/node-exporter-textfile"
       "--collector.systemd.unit-whitelist=(pterodactyl|prometheus|blackbox).*\\.service"
     ];
   };

@@ -2,24 +2,28 @@
 
 let
   cfg = config.homelab.security;
+  nodeExporterAlreadyEnabled = config.services.prometheus.exporters.node.enable or false;
 in {
-  config = lib.mkIf (cfg.enable && cfg.role == "node") {
-    services.prometheus.exporters.node = {
-      enable = true;
-      port = 9100;
-      enabledCollectors = [ "textfile" "systemd" ];
-      extraFlags = [
-        "--collector.textfile.directory=/var/lib/node-exporter-textfile"
+  config = lib.mkMerge [
+    (lib.mkIf cfg.enable {
+      systemd.tmpfiles.rules = [
+        "d /var/lib/node-exporter-textfile 0755 node_exporter node_exporter -"
       ];
-    };
+    })
+    (lib.mkIf (cfg.enable && cfg.role == "node" && !nodeExporterAlreadyEnabled) {
+      services.prometheus.exporters.node = {
+        enable = true;
+        port = 9100;
+        enabledCollectors = [ "textfile" "systemd" ];
+        extraFlags = [
+          "--collector.textfile.directory=/var/lib/node-exporter-textfile"
+        ];
+      };
 
-    systemd.tmpfiles.rules = [
-      "d /var/lib/node-exporter-textfile 0755 node_exporter node_exporter -"
-    ];
-
-    networking.firewall.allowedTCPPorts = lib.mkAfter [ 9100 ];
-    networking.firewall.extraCommands = lib.mkAfter ''
-      iptables -A nixos-fw -p tcp -s 192.168.5.5 --dport 9100 -j nixos-fw-accept
-    '';
-  };
+      networking.firewall.allowedTCPPorts = lib.mkAfter [ 9100 ];
+      networking.firewall.extraCommands = lib.mkAfter ''
+        iptables -A nixos-fw -p tcp -s 192.168.5.5 --dport 9100 -j nixos-fw-accept
+      '';
+    })
+  ];
 }
