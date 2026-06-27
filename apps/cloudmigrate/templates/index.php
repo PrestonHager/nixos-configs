@@ -55,29 +55,36 @@
 		<section class="cloudmigrate-card" id="icloud-section">
 			<h3><?php p($l->t('Apple iCloud')); ?></h3>
 			<p class="hint">
-				<?php p($l->t('Apple does not offer a public OAuth API for iCloud Drive. Connect with an app-specific password (stored encrypted); migration runs server-side via rclone.')); ?>
+				<?php p($l->t('iCloud Drive uses rclone with your Apple ID password and a one-time two-factor sign-in. Trust tokens last about 30 days; then sign in again. App-specific passwords are not supported by rclone 1.74.')); ?>
 			</p>
 			<p id="icloud-rclone-hint" class="hint error" hidden></p>
 
 			<div id="icloud-connect">
-				<p class="hint">
-					<?php p($l->t('Generate at appleid.apple.com → Sign-In and Security → App-Specific Passwords.')); ?>
-				</p>
 				<label for="icloud-apple-id"><?php p($l->t('Apple ID')); ?></label>
 				<input id="icloud-apple-id" type="email" autocomplete="username" />
-				<label for="icloud-password"><?php p($l->t('App-specific password')); ?></label>
+				<label for="icloud-password"><?php p($l->t('Apple ID password')); ?></label>
 				<input id="icloud-password" type="password" autocomplete="current-password" />
 				<div class="cloudmigrate-actions">
-					<button id="icloud-save" class="button primary" type="button"><?php p($l->t('Connect iCloud')); ?></button>
+					<button id="icloud-save" class="button primary" type="button"><?php p($l->t('Save credentials')); ?></button>
 				</div>
 			</div>
 
 			<div id="icloud-connected" hidden>
+				<div id="icloud-auth-panel" hidden>
+					<p id="icloud-auth-message" class="hint"></p>
+					<label for="icloud-2fa-code"><?php p($l->t('Two-factor code')); ?></label>
+					<input id="icloud-2fa-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="<?php p($l->t('6-digit code or sms')); ?>" />
+					<div class="cloudmigrate-actions">
+						<button id="icloud-auth-start" class="button primary" type="button"><?php p($l->t('Start sign-in')); ?></button>
+						<button id="icloud-auth-submit" class="button primary" type="button" hidden><?php p($l->t('Submit code')); ?></button>
+					</div>
+				</div>
+				<p id="icloud-auth-status" class="cloudmigrate-badge" hidden></p>
 				<div class="cloudmigrate-actions">
 					<button id="icloud-disconnect" class="button" type="button"><?php p($l->t('Remove credentials')); ?></button>
 				</div>
 
-				<div id="icloud-migrate">
+				<div id="icloud-migrate" hidden>
 					<label for="icloud-folder"><?php p($l->t('Source folder')); ?></label>
 					<select id="icloud-folder">
 						<option value="" data-label="<?php p($l->t('All iCloud Drive files')); ?>"><?php p($l->t('All iCloud Drive files')); ?></option>

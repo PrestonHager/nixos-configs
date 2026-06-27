@@ -15,6 +15,7 @@ class TokenStore {
 	public const KEY_ONEDRIVE = 'onedrive_token';
 	public const KEY_ICLOUD_APPLE_ID = 'icloud_apple_id';
 	public const KEY_ICLOUD_PASSWORD = 'icloud_app_password';
+	public const KEY_ICLOUD_SESSION = 'icloud_rclone_session';
 
 	public function __construct(
 		private IConfig $config,
@@ -44,19 +45,24 @@ class TokenStore {
 		$this->config->deleteUserValue($userId, Application::APP_ID, self::KEY_ONEDRIVE);
 	}
 
-	public function storeIcloudCredentials(string $userId, string $appleId, string $appPassword): void {
+	public function storeIcloudCredentials(string $userId, string $appleId, string $password): void {
 		$this->config->setUserValue($userId, Application::APP_ID, self::KEY_ICLOUD_APPLE_ID, $appleId);
 		$this->config->setUserValue(
 			$userId,
 			Application::APP_ID,
 			self::KEY_ICLOUD_PASSWORD,
-			$this->crypto->encrypt($appPassword),
+			$this->crypto->encrypt($password),
 		);
+		$this->clearIcloudSession($userId);
 	}
 
 	public function getIcloudAppleId(string $userId): ?string {
 		$value = $this->config->getUserValue($userId, Application::APP_ID, self::KEY_ICLOUD_APPLE_ID, '');
 		return $value !== '' ? $value : null;
+	}
+
+	public function getIcloudPassword(string $userId): ?string {
+		return $this->getIcloudAppPassword($userId);
 	}
 
 	public function getIcloudAppPassword(string $userId): ?string {
@@ -74,6 +80,47 @@ class TokenStore {
 	public function clearIcloudCredentials(string $userId): void {
 		$this->config->deleteUserValue($userId, Application::APP_ID, self::KEY_ICLOUD_APPLE_ID);
 		$this->config->deleteUserValue($userId, Application::APP_ID, self::KEY_ICLOUD_PASSWORD);
+		$this->clearIcloudSession($userId);
+	}
+
+	/**
+	 * @param array{trust_token: string, cookies?: string, authenticated_at?: int} $session
+	 */
+	public function storeIcloudSession(string $userId, array $session): void {
+		$payload = json_encode($session, JSON_THROW_ON_ERROR);
+		$this->config->setUserValue(
+			$userId,
+			Application::APP_ID,
+			self::KEY_ICLOUD_SESSION,
+			$this->crypto->encrypt($payload),
+		);
+	}
+
+	/**
+	 * @return array{trust_token: string, cookies?: string, authenticated_at?: int}|null
+	 */
+	public function getIcloudSession(string $userId): ?array {
+		$encrypted = $this->config->getUserValue($userId, Application::APP_ID, self::KEY_ICLOUD_SESSION, '');
+		if ($encrypted === '') {
+			return null;
+		}
+		try {
+			$json = $this->crypto->decrypt($encrypted);
+			/** @var array{trust_token: string, cookies?: string, authenticated_at?: int} $session */
+			$session = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+			return $session;
+		} catch (\Throwable) {
+			return null;
+		}
+	}
+
+	public function hasIcloudSession(string $userId): bool {
+		$session = $this->getIcloudSession($userId);
+		return $session !== null && ($session['trust_token'] ?? '') !== '';
+	}
+
+	public function clearIcloudSession(string $userId): void {
+		$this->config->deleteUserValue($userId, Application::APP_ID, self::KEY_ICLOUD_SESSION);
 	}
 
 	public function getAdminClientId(): string {
@@ -118,6 +165,6 @@ class TokenStore {
 	}
 
 	public function isIcloudConfigured(string $userId): bool {
-		return $this->getIcloudAppleId($userId) !== null && $this->getIcloudAppPassword($userId) !== null;
+		return $this->getIcloudAppleId($userId) !== null && $this->getIcloudPassword($userId) !== null;
 	}
 }

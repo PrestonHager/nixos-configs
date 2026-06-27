@@ -18,10 +18,10 @@ Nextcloud web extension for one-time migration from **Microsoft OneDrive** and (
 
 ### iCloud Drive (Phase 2)
 
-- **Auth:** App-specific password per user (password encrypted via `ICrypto`; Apple ID stored in app config)
-- **Engine:** Server-side **rclone** `icloud` remote with ephemeral per-job config (no credentials on disk)
-- UI: connect, pick root folder or enter path, configurable destination (default `Migrated/iCloud`), dry-run, shared migration status
-- Requires **rclone** in the Nextcloud container (bind-mounted on ace via `nextcloud.nix`)
+- **Auth:** Apple ID + **regular Apple ID password** + one-time **2FA** (rclone `iclouddrive` trust token, ~30 days)
+- **Engine:** Server-side **rclone** `iclouddrive` remote; trust token + cookies encrypted in Nextcloud app config
+- UI: save credentials → **Start sign-in** → enter 2FA code → browse folders, dry-run, migrate
+- Requires **rclone** v1.74+ in the Nextcloud container (static binary bind-mounted on ace via `nextcloud.nix`)
 - **Not yet:** iCloud Photos (`icloudpd` background job)
 
 ## Microsoft Azure app registration
@@ -71,21 +71,36 @@ Apple does **not** provide a public OAuth web flow for iCloud Drive comparable t
 | Approach | Status |
 |----------|--------|
 | CloudKit / Sign in with Apple | Not suitable for bulk Drive file export in a browser app |
-| App-specific password | **Implemented** — encrypted per user; server-side rclone copy job |
+| rclone `iclouddrive` (Apple ID + 2FA trust token) | **Implemented** — web UI + `occ cloudmigrate:icloud-auth` |
+| App-specific password | **Not supported** by rclone 1.74 iclouddrive |
 | iCloud Photos (`icloudpd`) | Requires server background job — **not yet implemented** |
+
+### First-time iCloud sign-in (user)
+
+1. Open **Cloud Migrate → Apple iCloud**
+2. Enter **Apple ID** and your **regular Apple ID password** (not an app-specific password)
+3. Click **Save credentials**, then **Start sign-in**
+4. Approve the sign-in on a trusted Apple device, or type `sms` in the 2FA field for a text message
+5. Enter the 6-digit code → **Submit code**
+6. When status shows signed in, pick a source folder and run a dry run or migration
+
+Trust tokens expire after ~30 days. Repeat steps 3–5 if folder listing or migration fails with a trust-token error.
+
+### First-time iCloud sign-in (server console)
+
+If the web 2FA step fails, run on ace as the Nextcloud user:
+
+```bash
+podman exec -u www-data nextcloud php /var/www/html/occ cloudmigrate:icloud-auth YOUR_UID
+```
+
+Replace `YOUR_UID` with your Nextcloud username. Enter the 2FA code when prompted.
 
 ### Admin (ace)
 
-- Deploy includes rclone bind-mounted at `/usr/local/bin/rclone` in the Nextcloud container
+- Deploy includes static rclone at `/usr/local/bin/rclone` in the Nextcloud container
 - Optional **rclone binary path** override in **Settings → Administration → Cloud Migrate**
-- No Apple or iCloud secrets in admin settings — users enter app-specific passwords in the app UI
-
-### User flow
-
-1. Generate an [app-specific password](https://appleid.apple.com) for iCloud
-2. **Cloud Migrate → Apple iCloud → Connect iCloud**
-3. Select **All iCloud Drive files** or a folder, set destination (default `Migrated/iCloud`), dry-run optional
-4. Progress appears under **Migration status** (same queue as OneDrive)
+- No Apple secrets in admin settings — users store credentials encrypted in the app
 
 See `docs/nextcloud-cloud-migrate-app.md` for the full user guide.
 

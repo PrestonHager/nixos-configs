@@ -9,11 +9,11 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Process\Process;
 
 /**
- * Runs rclone with ephemeral per-user iCloud config (Apple ID + app-specific password).
+ * Runs rclone with ephemeral per-user iclouddrive config (Apple ID + trust token).
  */
 class RcloneRunner {
-	private const REMOTE = 'icloud';
-	private const BACKEND = 'iclouddrive';
+	public const REMOTE = 'icloud';
+	public const BACKEND = 'iclouddrive';
 
 	public function __construct(
 		private TokenStore $tokenStore,
@@ -185,10 +185,14 @@ class RcloneRunner {
 
 	private function createTempConfig(string $userId): string {
 		$appleId = $this->tokenStore->getIcloudAppleId($userId);
-		$password = $this->tokenStore->getIcloudAppPassword($userId);
+		$password = $this->tokenStore->getIcloudPassword($userId);
 		if ($appleId === null || $password === null) {
 			throw new \RuntimeException('iCloud credentials not configured');
 		}
+		if (!$this->tokenStore->hasIcloudSession($userId)) {
+			throw new \RuntimeException('Complete iCloud sign-in (2FA) before using rclone. Use Sign in in Cloud Migrate or run occ cloudmigrate:icloud-auth.');
+		}
+		$session = $this->tokenStore->getIcloudSession($userId);
 		$dir = sys_get_temp_dir() . '/cloudmigrate-' . bin2hex(random_bytes(8));
 		if (!mkdir($dir, 0700, true) && !is_dir($dir)) {
 			throw new \RuntimeException('Could not create temp config directory');
@@ -200,6 +204,16 @@ class RcloneRunner {
 			. "service = drive\n"
 			. 'apple_id = ' . $this->iniEscape($appleId) . "\n"
 			. 'password = ' . $this->iniEscape($obscuredPassword) . "\n";
+		if ($session !== null) {
+			$trustToken = (string)($session['trust_token'] ?? '');
+			if ($trustToken !== '') {
+				$ini .= 'trust_token = ' . $this->iniEscape($trustToken) . "\n";
+			}
+			$cookies = (string)($session['cookies'] ?? '');
+			if ($cookies !== '') {
+				$ini .= 'cookies = ' . $this->iniEscape($cookies) . "\n";
+			}
+		}
 		if (file_put_contents($configPath, $ini) === false) {
 			throw new \RuntimeException('Could not write rclone config');
 		}

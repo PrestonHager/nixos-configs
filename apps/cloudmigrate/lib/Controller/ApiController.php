@@ -41,6 +41,8 @@ class ApiController extends BaseApiController {
 			'icloud' => [
 				'oauthAvailable' => false,
 				'configured' => $this->iCloudService->isConnected($userId),
+				'authenticated' => $this->iCloudService->isAuthenticated($userId),
+				'authStatus' => $this->iCloudService->getAuthStatus($userId),
 				'rcloneAvailable' => $this->iCloudService->isRcloneAvailable(),
 				'phase' => 'beta',
 			],
@@ -89,6 +91,34 @@ class ApiController extends BaseApiController {
 				'folderPath' => $item['path'] !== '' ? $item['path'] : 'OneDrive',
 				'name' => $item['name'],
 			]);
+		} catch (\InvalidArgumentException $e) {
+			return new DataResponse(['message' => $e->getMessage()], 400);
+		} catch (\Throwable $e) {
+			return new DataResponse(['message' => $e->getMessage()], 500);
+		}
+	}
+
+	#[NoAdminRequired]
+	public function icloudAuthStart(): DataResponse {
+		$userId = $this->requireUserId();
+		try {
+			return new DataResponse($this->iCloudService->startAuth($userId));
+		} catch (\Throwable $e) {
+			return new DataResponse(['message' => $e->getMessage()], 500);
+		}
+	}
+
+	#[NoAdminRequired]
+	public function icloudAuthContinue(): DataResponse {
+		$userId = $this->requireUserId();
+		$body = $this->getRequestBody();
+		$state = trim((string)($body['state'] ?? ''));
+		$code = trim((string)($body['code'] ?? ''));
+		if ($state === '') {
+			return new DataResponse(['message' => 'state is required'], 400);
+		}
+		try {
+			return new DataResponse($this->iCloudService->continueAuth($userId, $state, $code));
 		} catch (\InvalidArgumentException $e) {
 			return new DataResponse(['message' => $e->getMessage()], 400);
 		} catch (\Throwable $e) {
@@ -177,7 +207,7 @@ class ApiController extends BaseApiController {
 		if ($provider === 'onedrive') {
 			$this->tokenStore->clearOneDriveToken($userId);
 		} elseif ($provider === 'icloud') {
-			$this->tokenStore->clearIcloudCredentials($userId);
+			$this->iCloudService->disconnect($userId);
 		} else {
 			return new DataResponse(['message' => 'Unknown provider'], 400);
 		}
@@ -189,14 +219,15 @@ class ApiController extends BaseApiController {
 		$userId = $this->requireUserId();
 		$body = $this->getRequestBody();
 		$appleId = trim((string)($body['appleId'] ?? ''));
-		$appPassword = trim((string)($body['appPassword'] ?? ''));
-		if ($appleId === '' || $appPassword === '') {
-			return new DataResponse(['message' => 'Apple ID and app-specific password are required'], 400);
+		$password = trim((string)($body['appPassword'] ?? $body['password'] ?? ''));
+		if ($appleId === '' || $password === '') {
+			return new DataResponse(['message' => 'Apple ID and Apple ID password are required'], 400);
 		}
-		$this->tokenStore->storeIcloudCredentials($userId, $appleId, $appPassword);
+		$this->tokenStore->storeIcloudCredentials($userId, $appleId, $password);
 		return new DataResponse([
 			'ok' => true,
-			'message' => 'iCloud credentials saved. You can now select folders and start a migration.',
+			'authStatus' => $this->iCloudService->getAuthStatus($userId),
+			'message' => 'Credentials saved. Complete Apple two-factor sign-in next.',
 		]);
 	}
 

@@ -22,12 +22,20 @@
 	const icloudStart = document.getElementById('icloud-start');
 	const icloudRcloneHint = document.getElementById('icloud-rclone-hint');
 	const icloudActionFeedback = document.getElementById('icloud-action-feedback');
+	const icloudAuthPanel = document.getElementById('icloud-auth-panel');
+	const icloudAuthMessage = document.getElementById('icloud-auth-message');
+	const icloudAuthStatus = document.getElementById('icloud-auth-status');
+	const icloudMigrate = document.getElementById('icloud-migrate');
+	const icloudAuthStart = document.getElementById('icloud-auth-start');
+	const icloudAuthSubmit = document.getElementById('icloud-auth-submit');
+	const icloud2faCode = document.getElementById('icloud-2fa-code');
 
 	let pollTimer = null;
 	let lastActiveMigrationCount = 0;
 	let onedriveConnected = false;
 	let foldersLoaded = false;
 	let icloudFoldersLoaded = false;
+	let icloudAuthState = '';
 	let selectedFolder = { id: 'root', path: 'OneDrive', label: 'OneDrive' };
 
 	const flash = appRoot.dataset.flash;
@@ -272,7 +280,32 @@
 			const ic = json.icloud;
 			icloudConnect.hidden = ic.configured;
 			icloudConnected.hidden = !ic.configured;
-			if (ic.configured && ic.rcloneAvailable) {
+			const authenticated = !!ic.authenticated;
+			const authStatus = ic.authStatus || 'none';
+			if (icloudAuthPanel) {
+				icloudAuthPanel.hidden = authenticated;
+			}
+			if (icloudAuthStatus) {
+				if (authenticated) {
+					icloudAuthStatus.hidden = false;
+					icloudAuthStatus.textContent = t('cloudmigrate', 'Signed in to iCloud Drive (trust token active). Re-sign before ~30 days if migrations fail.');
+				} else if (ic.configured) {
+					icloudAuthStatus.hidden = false;
+					icloudAuthStatus.textContent = t('cloudmigrate', 'Credentials saved — complete Apple two-factor sign-in below.');
+				} else {
+					icloudAuthStatus.hidden = true;
+				}
+			}
+			if (icloudMigrate) {
+				icloudMigrate.hidden = !authenticated;
+			}
+			if (icloudAuthStart) {
+				icloudAuthStart.hidden = authStatus === 'needs_2fa';
+			}
+			if (icloudAuthSubmit) {
+				icloudAuthSubmit.hidden = authStatus !== 'needs_2fa';
+			}
+			if (ic.configured && ic.rcloneAvailable && authenticated) {
 				icloudRcloneHint.hidden = true;
 				icloudRcloneHint.textContent = '';
 				if (!icloudFoldersLoaded) {
@@ -286,7 +319,7 @@
 				icloudFoldersLoaded = false;
 			}
 			if (icloudStart) {
-				icloudStart.disabled = ic.configured && !ic.rcloneAvailable;
+				icloudStart.disabled = !authenticated || !ic.rcloneAvailable;
 			}
 			const migrations = json.migrations || [];
 			renderMigrations(migrations);
@@ -392,7 +425,7 @@
 			method: 'POST',
 			body: {
 				appleId: document.getElementById('icloud-apple-id').value,
-				appPassword: document.getElementById('icloud-password').value,
+				password: document.getElementById('icloud-password').value,
 			},
 		}).then(({ ok, json }) => {
 			setButtonLoading(saveBtn, false);
@@ -401,6 +434,8 @@
 				showFlash(msg, 'success');
 				notify(msg);
 				document.getElementById('icloud-password').value = '';
+				icloudAuthState = '';
+				if (icloud2faCode) icloud2faCode.value = '';
 			} else {
 				showFlash(msg, 'error');
 				notify(msg, 'error');
@@ -409,7 +444,70 @@
 		});
 	});
 
+	function handleIcloudAuthResponse(json) {
+		const msg = json.message || '';
+		if (icloudAuthMessage && msg) {
+			icloudAuthMessage.textContent = msg;
+		}
+		if (json.status === 'needs_2fa') {
+			icloudAuthState = json.state || '2fa_do';
+			if (icloudAuthStart) icloudAuthStart.hidden = true;
+			if (icloudAuthSubmit) icloudAuthSubmit.hidden = false;
+			showFlash(msg, 'success');
+			notify(msg);
+			if (icloud2faCode) icloud2faCode.focus();
+		} else if (json.status === 'authenticated') {
+			icloudAuthState = '';
+			if (icloud2faCode) icloud2faCode.value = '';
+			showFlash(msg, 'success');
+			notify(msg);
+			icloudFoldersLoaded = false;
+		}
+		refreshStatus();
+	}
+
+	if (icloudAuthStart) {
+		icloudAuthStart.addEventListener('click', () => {
+			setButtonLoading(icloudAuthStart, true, t('cloudmigrate', 'Contacting Apple…'));
+			api('/api/icloud/auth/start', { method: 'POST' }).then(({ ok, json }) => {
+				setButtonLoading(icloudAuthStart, false);
+				if (!ok) {
+					const err = json.message || t('cloudmigrate', 'Sign-in failed.');
+					showFlash(err, 'error');
+					notify(err, 'error');
+					return;
+				}
+				handleIcloudAuthResponse(json);
+			});
+		});
+	}
+
+	if (icloudAuthSubmit) {
+		icloudAuthSubmit.addEventListener('click', () => {
+			const code = icloud2faCode ? icloud2faCode.value.trim() : '';
+			if (!code) {
+				showFlash(t('cloudmigrate', 'Enter the verification code.'), 'error');
+				return;
+			}
+			setButtonLoading(icloudAuthSubmit, true, t('cloudmigrate', 'Verifying…'));
+			api('/api/icloud/auth/continue', {
+				method: 'POST',
+				body: { state: icloudAuthState || '2fa_do', code },
+			}).then(({ ok, json }) => {
+				setButtonLoading(icloudAuthSubmit, false);
+				if (!ok) {
+					const err = json.message || t('cloudmigrate', 'Verification failed.');
+					showFlash(err, 'error');
+					notify(err, 'error');
+					return;
+				}
+				handleIcloudAuthResponse(json);
+			});
+		});
+	}
+
 	document.getElementById('icloud-disconnect').addEventListener('click', () => {
+		icloudAuthState = '';
 		api('/api/disconnect/icloud', { method: 'POST' }).then(refreshStatus);
 	});
 

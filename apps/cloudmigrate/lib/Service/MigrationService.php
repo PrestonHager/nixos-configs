@@ -90,6 +90,9 @@ class MigrationService {
 		if (!$this->tokenStore->isIcloudConfigured($userId)) {
 			throw new \RuntimeException('Connect iCloud before starting migration');
 		}
+		if (!$this->tokenStore->hasIcloudSession($userId)) {
+			throw new \RuntimeException('Complete iCloud sign-in (2FA) before starting migration');
+		}
 		if (!$this->rcloneRunner->isAvailable()) {
 			throw new \RuntimeException('rclone is not available on the server. Ask an administrator to install rclone for the Nextcloud container.');
 		}
