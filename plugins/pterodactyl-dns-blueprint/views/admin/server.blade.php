@@ -40,6 +40,33 @@
         hasFullAccess: function () { return true; },
         getRootClass: function () { return 'dns-plugin-admin'; }
     };
+
+    window.__dnsPanelBootError = function (message) {
+        var root = document.getElementById('plugin-root-com-prestonhager-dns');
+        if (!root) {
+            return;
+        }
+
+        root.innerHTML =
+            '<div class="alert alert-danger" role="alert">' +
+            '<strong>DNS panel failed to load.</strong> ' +
+            (message || 'Try a hard refresh or disable ad blockers for this site.') +
+            '</div>';
+    };
+
+    window.__dnsPanelBoot = function () {
+        if (typeof window.PterodactylPlugin_com_prestonhager_dns !== 'function') {
+            window.__dnsPanelBootError('Panel script did not load.');
+            return;
+        }
+
+        try {
+            window.PterodactylPlugin_com_prestonhager_dns();
+        } catch (err) {
+            window.__dnsPanelBootError(err && err.message ? err.message : String(err));
+        }
+    };
 </script>
-<script src="/extensions/dnsrecords/dns-admin.js"></script>
+<script src="/extensions/dnsrecords/server-panel.js" onerror="window.__dnsPanelBootError('Could not download panel script.')"></script>
+<script>window.__dnsPanelBoot();</script>
 @endsection
