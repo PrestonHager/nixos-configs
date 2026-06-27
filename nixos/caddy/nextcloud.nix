@@ -3,7 +3,8 @@
 let
   nextcloudWellKnown = pkgs.runCommand "nextcloud-well-known" { } ''
     mkdir -p $out/.well-known
-    cp ${../../static/nextcloud/.well-known/microsoft-identity-association.json} $out/.well-known/
+    cp ${../../static/nextcloud/.well-known/microsoft-identity-association.json} \
+      $out/.well-known/microsoft-identity-association.json
   '';
 in
 {
