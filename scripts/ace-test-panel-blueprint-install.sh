@@ -8,6 +8,13 @@ pf_src=/etc/nixos/plugins/pterodactyl-portforward-blueprint
 bp_url=https://github.com/BlueprintFramework/framework/releases/latest/download/release.zip
 sl_url=https://github.com/blueprint-community/extension-sociallogin/releases/download/1.2.0/sociallogin.blueprint
 
+run_panel() {
+  local cmd="$1"
+  nix shell nixpkgs#yarn nixpkgs#nodejs_22 nixpkgs#bash --command \
+    runuser -u prestonh -- env HOME=/home/prestonh TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 \
+    bash -c "cd '$panel' && $cmd"
+}
+
 echo "=== Cleaning test panel Blueprint state ==="
 rm -f /var/lib/pterodactyl-test/blueprint-installed
 runuser -u prestonh -- rm -rf \
@@ -45,17 +52,19 @@ if [ -d "$panel/blueprint" ]; then
 fi
 
 echo "=== yarn install ==="
-runuser -u prestonh -- env HOME=/home/prestonh TERM=dumb bash -c "cd '$panel' && yarn install"
+run_panel "yarn install"
 
 echo "=== blueprint.sh framework ==="
-runuser -u prestonh -- env HOME=/home/prestonh BLUEPRINT_ENVIRONMENT=ci TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 \
+nix shell nixpkgs#yarn nixpkgs#nodejs_22 nixpkgs#bash --command \
+  runuser -u prestonh -- env HOME=/home/prestonh BLUEPRINT_ENVIRONMENT=ci TERM=dumb LC_ALL=C.UTF-8 LANG=C.UTF-8 \
   bash -c "cd '$panel' && ./blueprint.sh"
 
 echo "=== sociallogin ==="
 curl -fsSL "$sl_url" -o "$tmp/sociallogin.blueprint"
 cp "$tmp/sociallogin.blueprint" "$panel/sociallogin.blueprint"
 chown prestonh:users "$panel/sociallogin.blueprint"
-runuser -u prestonh -- env HOME=/home/prestonh TERM=dumb \
+nix shell nixpkgs#yarn nixpkgs#nodejs_22 nixpkgs#bash --command \
+  runuser -u prestonh -- env HOME=/home/prestonh TERM=dumb \
   bash -c "cd '$panel' && rm -f .blueprint/lock && ./blueprint.sh -install sociallogin"
 rm -f "$panel/sociallogin.blueprint"
 
@@ -64,7 +73,8 @@ install_dev_ext() {
   rm -rf "$panel/.blueprint/dev/"*
   cp -a "$1/." "$panel/.blueprint/dev/"
   chown -R prestonh:users "$panel/.blueprint/dev"
-  runuser -u prestonh -- env HOME=/home/prestonh TERM=dumb \
+  nix shell nixpkgs#yarn nixpkgs#nodejs_22 nixpkgs#bash --command \
+    runuser -u prestonh -- env HOME=/home/prestonh TERM=dumb \
     bash -c "cd '$panel' && rm -f .blueprint/lock && ./blueprint.sh -install '[developer-build]'"
 }
 
@@ -74,8 +84,7 @@ echo "=== portforward ==="
 install_dev_ext "$pf_src"
 
 echo "=== frontend build ==="
-runuser -u prestonh -- env HOME=/home/prestonh NODE_ENV=production NODE_OPTIONS=--openssl-legacy-provider TERM=dumb \
-  bash -c "cd '$panel' && yarn build:production"
+run_panel "NODE_ENV=production NODE_OPTIONS=--openssl-legacy-provider yarn build:production"
 
 echo "=== composer + artisan ==="
 podman exec -e COMPOSER_HOME=/tmp/composer pterodactyl-test \
