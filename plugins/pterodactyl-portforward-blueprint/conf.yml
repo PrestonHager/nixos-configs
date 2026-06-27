@@ -3,7 +3,7 @@ info:
   identifier: 'portforward'
   description: 'Manage Astracap router NAT port forwards for game servers on crux and nova via SSH.'
   flags: ''
-  version: '1.0.1'
+  version: '1.0.2'
   target: 'beta-2025-09'
   author: 'Preston Hager'
   icon: ''

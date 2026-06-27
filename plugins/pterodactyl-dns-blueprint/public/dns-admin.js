@@ -72,7 +72,7 @@ window.PterodactylPlugin_com_prestonhager_dns = function () {
     }
 
     function serverPath(suffix) {
-        return '/servers/' + encodeURIComponent(ctx.serverUuid) + suffix;
+        return suffix;
     }
 
     function adminApi(path, options) {

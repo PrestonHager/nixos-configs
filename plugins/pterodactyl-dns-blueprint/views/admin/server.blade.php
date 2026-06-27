@@ -35,4 +35,9 @@
     };
 </script>
 <script src="/extensions/dnsrecords/dns-admin.js"></script>
+<script>
+    if (typeof window.PterodactylPlugin_com_prestonhager_dns === 'function') {
+        window.PterodactylPlugin_com_prestonhager_dns();
+    }
+</script>
 @endsection
