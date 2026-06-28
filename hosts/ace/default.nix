@@ -9,8 +9,8 @@
     ../../nixos/headless
     ../../nixos/security
     ../../nixos/nextcloud-migrate.nix
-    # include SAMBA for file sharing
-    #../../nixos/samba
+    # Samba share for Windows (Steam library on /stor/ace-drive)
+    ../../nixos/samba
     # include nfs for caddy lets encrypt certs
     ../../nixos/nfs
     # matrix home server (Synapse)
