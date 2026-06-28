@@ -52,6 +52,10 @@ in {
     services.caddy = {
       package = cfg.package;
       globalConfig = lib.mkAfter ''
+        # Public resolvers for DNS-01 propagation checks. Ace uses Technitium
+        # (192.168.5.5) as primary resolver; authoritative prestonhager.com zone
+        # returns NXDOMAIN for _acme-challenge.* not in LAN zone.
+        dns 1.1.1.1 8.8.8.8
         acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}
       '';
     };
