@@ -42,6 +42,7 @@ let
       --provider-display-name=Zitadel \
       --scope="openid profile email urn:zitadel:iam:org:project:id:${zitadelProjectId}:aud" \
       --reverse-proxy=true \
+      --skip-provider-button=true \
       --skip-auth-route=GET=^/oauth2/start$ \
       --skip-auth-route=GET=^/oauth2/sign_in$ \
       --skip-auth-route=GET=^/oauth2/static/.*$
