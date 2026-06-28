@@ -8,11 +8,11 @@
         "nixpkgs-cuda114": "nixpkgs-cuda114"
       },
       "locked": {
-        "lastModified": 1782607621,
-        "narHash": "sha256-LM7G0kudXxD2oGxAbXv1/xOFVS24XD9xn94s1JjOAzo=",
+        "lastModified": 1782612437,
+        "narHash": "sha256-TulPZnNuDP0mS2dya+8nlEgF3V6agoBMxU8H/fo7YqQ=",
         "owner": "PrestonHager",
         "repo": "ace-k80-stack",
-        "rev": "dac416898512a05111843ddc3119ea249e6bc88d",
+        "rev": "a0e101f3fa0297985b3f115ef99a500ed606e80e",
         "type": "github"
       },
       "original": {
@@ -120,11 +120,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1782577849,
-        "narHash": "sha256-EQPkLU2BL4clnkVJ4vBc+KBE6ftwFTkTBTI1t4ha96c=",
+        "lastModified": 1782609473,
+        "narHash": "sha256-dS9oKnHewzE8vNlsq3fswx3xtpr5BHQrPWHusitKCb8=",
         "ref": "refs/heads/main",
-        "rev": "fea08161ba024aea147b2887d189e4f7e1fe96ec",
-        "revCount": 90,
+        "rev": "c68e1f17fbb5fface11712777e2669fd31de6929",
+        "revCount": 91,
         "type": "git",
         "url": "ssh://git@github.com/PrestonHager/nixos-secrets.git"
       },
