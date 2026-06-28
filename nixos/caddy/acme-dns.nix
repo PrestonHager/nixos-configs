@@ -9,8 +9,8 @@ in {
   options.homelab.caddy.cloudflareAcme = {
     enable = lib.mkEnableOption ''
       Obtain Let's Encrypt certificates via Cloudflare DNS-01 challenge.
-      Requires a scoped API token in nix-secrets and bypasses split-horizon DNS
-      for _acme-challenge (Caddy uses 1.1.1.1 for propagation checks).
+      Requires a scoped API token in nix-secrets. Set tls_resolvers to public
+      DNS so propagation checks bypass Technitium split-horizon (see docs/dns-ace.md).
     '';
 
     accountId = lib.mkOption {
@@ -54,8 +54,8 @@ in {
       globalConfig = lib.mkAfter ''
         # Public resolvers for DNS-01 propagation checks. Ace uses Technitium
         # (192.168.5.5) as primary resolver; authoritative prestonhager.com zone
-        # returns NXDOMAIN for _acme-challenge.* not in LAN zone.
-        dns 1.1.1.1 8.8.8.8
+        # returns no _acme-challenge TXT (split horizon).
+        tls_resolvers 1.1.1.1 8.8.8.8
         acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}
       '';
     };
