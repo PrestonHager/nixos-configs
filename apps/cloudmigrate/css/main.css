@@ -201,6 +201,36 @@
 }
 
 .status-completed { color: var(--color-success); }
-.status-failed { color: var(--color-error); }
+.status-failed, .status-cancelled { color: var(--color-error); }
 .status-running, .status-queued { color: var(--color-warning); }
+.status-paused { color: var(--color-text-maxcontrast); }
 .error { color: var(--color-error); }
+
+.migration-detail {
+	font-size: 0.92em;
+	color: var(--color-main-text);
+}
+
+.migration-actions {
+	margin-top: 0.5rem;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+}
+
+.migration-action {
+	font-size: 0.85em;
+	padding: 0.2rem 0.55rem;
+	border-radius: var(--border-radius);
+	border: 1px solid var(--color-border);
+	background: var(--color-main-background);
+	cursor: pointer;
+}
+
+.migration-action:hover {
+	border-color: var(--color-primary-element);
+}
+
+.migration-cancel {
+	color: var(--color-error);
+}

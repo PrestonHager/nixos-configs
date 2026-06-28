@@ -104,13 +104,16 @@
 	}
 
 	function formatMigrationSummary(m) {
+		if (m.statusText) {
+			return m.statusText;
+		}
 		if (m.dryRun && m.status === 'completed') {
 			return t('cloudmigrate', 'Dry run complete: {count} file(s) found in {source}.', {
 				count: m.totalFiles,
 				source: m.sourcePath,
 			});
 		}
-		if (m.dryRun && m.status === 'running') {
+		if (m.dryRun && (m.status === 'running' || m.phase === 'scanning')) {
 			return t('cloudmigrate', 'Dry run in progress… {done}/{total} files scanned.', {
 				done: m.copiedFiles,
 				total: m.totalFiles || '?',
@@ -123,7 +126,40 @@
 				dest: m.destPath,
 			});
 		}
+		if (m.status === 'cancelled') {
+			return t('cloudmigrate', 'Migration cancelled.');
+		}
+		if (m.status === 'paused') {
+			return t('cloudmigrate', 'Migration paused.');
+		}
+		if (m.status === 'failed' && m.errorMessage) {
+			return m.errorMessage;
+		}
 		return '';
+	}
+
+	function formatProgressLabel(m) {
+		if (m.phase === 'scanning' || (m.status === 'running' && m.totalFiles === 0)) {
+			return m.copiedFiles + ' ' + t('cloudmigrate', 'file(s) scanned');
+		}
+		return m.copiedFiles + '/' + (m.totalFiles || '?');
+	}
+
+	function migrationAction(migrationId, action, btn) {
+		const labels = {
+			cancel: t('cloudmigrate', 'Cancelling…'),
+			pause: t('cloudmigrate', 'Pausing…'),
+			resume: t('cloudmigrate', 'Resuming…'),
+		};
+		setButtonLoading(btn, true, labels[action] || '');
+		return api('/api/migrate/' + migrationId + '/' + action, { method: 'POST' }).then(({ ok, json }) => {
+			setButtonLoading(btn, false);
+			if (!ok) {
+				notify(json.message || t('cloudmigrate', 'Action failed.'), 'error');
+				return;
+			}
+			refreshStatus();
+		});
 	}
 
 	function renderMigrations(migrations) {
@@ -134,14 +170,39 @@
 		migrationList.innerHTML = migrations.map((m) => {
 			const label = m.dryRun ? ' (' + t('cloudmigrate', 'dry run') + ')' : '';
 			const summary = formatMigrationSummary(m);
-			return '<div class="migration-row">' +
+			const staleHint = m.status === 'failed' && m.errorMessage && m.errorMessage.indexOf('Interrupted') === 0
+				? '<br><span class="hint">' + t('cloudmigrate', 'This job was not running on the server (likely after a restart).') + '</span>'
+				: '';
+			const actions = [];
+			if (m.canCancel) {
+				actions.push('<button type="button" class="migration-action migration-cancel" data-id="' + m.id + '" data-action="cancel">' + t('cloudmigrate', 'Cancel') + '</button>');
+			}
+			if (m.canPause) {
+				actions.push('<button type="button" class="migration-action migration-pause" data-id="' + m.id + '" data-action="pause">' + t('cloudmigrate', 'Pause') + '</button>');
+			}
+			if (m.canResume) {
+				actions.push('<button type="button" class="migration-action migration-resume" data-id="' + m.id + '" data-action="resume">' + t('cloudmigrate', 'Resume') + '</button>');
+			}
+			const actionBar = actions.length
+				? '<div class="migration-actions">' + actions.join(' ') + '</div>'
+				: '';
+			return '<div class="migration-row" data-migration-id="' + m.id + '">' +
 				'<strong>' + escapeHtml(m.provider) + '</strong> ' + escapeHtml(m.sourcePath) + ' → ' + escapeHtml(m.destPath) + label +
-				'<br><span class="status-' + escapeHtml(m.status) + '">' + escapeHtml(m.status) + '</span> ' +
-				m.progress + '% (' + m.copiedFiles + '/' + m.totalFiles + ')' +
-				(summary ? '<br><span class="hint">' + escapeHtml(summary) + '</span>' : '') +
-				(m.errorMessage ? '<br><span class="error">' + escapeHtml(m.errorMessage) + '</span>' : '') +
+				'<br><span class="status-' + escapeHtml(m.status) + '">' + escapeHtml(m.status) + '</span>' +
+				(m.phase && m.phase !== m.status ? ' <span class="hint">(' + escapeHtml(m.phase) + ')</span>' : '') +
+				' — ' + m.progress + '% (' + escapeHtml(formatProgressLabel(m)) + ')' +
+				(summary ? '<br><span class="migration-detail">' + escapeHtml(summary) + '</span>' : '') +
+				staleHint +
+				(m.errorMessage && m.status !== 'failed' ? '<br><span class="error">' + escapeHtml(m.errorMessage) + '</span>' : '') +
+				(m.errorMessage && m.status === 'failed' && !summary ? '<br><span class="error">' + escapeHtml(m.errorMessage) + '</span>' : '') +
+				actionBar +
 				'</div>';
 		}).join('');
+		migrationList.querySelectorAll('.migration-action').forEach((btn) => {
+			btn.addEventListener('click', () => {
+				migrationAction(parseInt(btn.dataset.id, 10), btn.dataset.action, btn);
+			});
+		});
 	}
 
 	function escapeHtml(s) {
@@ -151,7 +212,7 @@
 	}
 
 	function hasActiveMigrations(migrations) {
-		return migrations.some((m) => m.status === 'queued' || m.status === 'running');
+		return migrations.some((m) => m.isActive || m.status === 'queued' || m.status === 'running' || m.status === 'paused');
 	}
 
 	function configurePolling(migrations) {
@@ -172,7 +233,7 @@
 				}
 			}
 		}
-		lastActiveMigrationCount = active ? migrations.filter((m) => m.status === 'queued' || m.status === 'running').length : 0;
+		lastActiveMigrationCount = active ? migrations.filter((m) => m.isActive || m.status === 'queued' || m.status === 'running' || m.status === 'paused').length : 0;
 	}
 
 	function updateSelectedDisplay() {

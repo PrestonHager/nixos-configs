@@ -6,6 +6,8 @@ namespace OCA\CloudMigrate\Service;
 
 use OCA\CloudMigrate\Db\MigrationEntity;
 use OCA\CloudMigrate\Db\MigrationMapper;
+use OCA\CloudMigrate\Exception\MigrationCancelledException;
+use OCA\CloudMigrate\Exception\MigrationPausedException;
 use OCP\BackgroundJob\IJobList;
 use OCP\Files\IRootFolder;
 use OCP\Files\NotPermittedException;
@@ -23,6 +25,7 @@ class MigrationService {
 		private RcloneRunner $rcloneRunner,
 		private TokenStore $tokenStore,
 		private IRootFolder $rootFolder,
+		private JobControl $jobControl,
 		private LoggerInterface $logger,
 	) {
 	}
@@ -60,23 +63,9 @@ class MigrationService {
 
 		$destPath = PathValidator::normalizeDestPath($destBase, $destSubpath);
 
-		$entity = new MigrationEntity();
-		$entity->setUserId($userId);
-		$entity->setProvider('onedrive');
-		$entity->setStatus('queued');
-		$entity->setSourcePath($displayPath);
-		$entity->setSourceItemId($folderId);
-		$entity->setDestPath($destPath);
-		$entity->setDryRun($dryRun);
-		$entity->setProgress(0);
-		$entity->setTotalFiles(0);
-		$entity->setCopiedFiles(0);
-		$entity->setCreatedAt(time());
-		$entity->setUpdatedAt(time());
+		$entity = $this->newQueuedEntity($userId, 'onedrive', $displayPath, $folderId, $destPath, $dryRun);
 		$inserted = $this->mapper->insert($entity);
-		$this->jobList->add(\OCA\CloudMigrate\BackgroundJob\MigrationJob::class, [
-			'migrationId' => $inserted->getId(),
-		]);
+		$this->enqueue($inserted->getId());
 		return $inserted;
 	}
 
@@ -98,23 +87,9 @@ class MigrationService {
 		}
 		$normalizedSource = PathValidator::normalizeOneDrivePath($sourcePath);
 		$validatedDest = PathValidator::normalizeDestPath($destPath);
-		$entity = new MigrationEntity();
-		$entity->setUserId($userId);
-		$entity->setProvider('icloud');
-		$entity->setStatus('queued');
-		$entity->setSourcePath($sourceLabel);
-		$entity->setSourceItemId($normalizedSource);
-		$entity->setDestPath($validatedDest);
-		$entity->setDryRun($dryRun);
-		$entity->setProgress(0);
-		$entity->setTotalFiles(0);
-		$entity->setCopiedFiles(0);
-		$entity->setCreatedAt(time());
-		$entity->setUpdatedAt(time());
+		$entity = $this->newQueuedEntity($userId, 'icloud', $sourceLabel, $normalizedSource, $validatedDest, $dryRun);
 		$inserted = $this->mapper->insert($entity);
-		$this->jobList->add(\OCA\CloudMigrate\BackgroundJob\MigrationJob::class, [
-			'migrationId' => $inserted->getId(),
-		]);
+		$this->enqueue($inserted->getId());
 		return $inserted;
 	}
 
@@ -123,9 +98,20 @@ class MigrationService {
 		if ($entity === null) {
 			throw new \RuntimeException('Migration not found');
 		}
+		if (in_array($entity->getStatus(), ['cancelled', 'completed', 'failed'], true)) {
+			return;
+		}
+
+		$pid = getmypid() ?: null;
 		$entity->setStatus('running');
+		$entity->setWorkerPid($pid);
+		$entity->setPhase('starting');
+		$entity->setStatusText('Starting migration…');
 		$entity->setUpdatedAt(time());
 		$this->mapper->update($entity);
+		if ($pid !== null) {
+			$this->jobControl->registerWorker($migrationId, $pid);
+		}
 
 		try {
 			if ($entity->getProvider() === 'onedrive') {
@@ -136,13 +122,89 @@ class MigrationService {
 				throw new \RuntimeException('Provider not implemented: ' . $entity->getProvider());
 			}
 			$entity->setStatus('completed');
+			$entity->setPhase('done');
+			$entity->setStatusText('Migration complete');
+			$entity->setProgress(100);
+		} catch (MigrationCancelledException $e) {
+			$entity->setStatus('cancelled');
+			$entity->setPhase('');
+			$entity->setStatusText('Cancelled');
+			$entity->setErrorMessage($e->getMessage() !== '' ? $e->getMessage() : 'Cancelled by user');
+		} catch (MigrationPausedException $e) {
+			$entity->setStatus('paused');
+			$entity->setPhase('paused');
+			$entity->setStatusText('Paused');
 		} catch (\Throwable $e) {
 			$this->logger->error('Cloud migrate failed: ' . $e->getMessage(), ['exception' => $e]);
 			$entity->setStatus('failed');
+			$entity->setPhase('');
+			$entity->setStatusText('');
 			$entity->setErrorMessage($e->getMessage());
 		}
+		$entity->setWorkerPid(null);
 		$entity->setUpdatedAt(time());
 		$this->mapper->update($entity);
+		$this->jobControl->clear($migrationId);
+	}
+
+	public function cancelMigration(int $migrationId, string $userId): MigrationEntity {
+		$entity = $this->requireOwned($migrationId, $userId);
+		if (!in_array($entity->getStatus(), ['queued', 'running', 'paused'], true)) {
+			throw new \RuntimeException('This migration cannot be cancelled');
+		}
+		$entity->setStatus('cancelled');
+		$entity->setPhase('');
+		$entity->setStatusText('Cancelled');
+		$entity->setErrorMessage('Cancelled by user');
+		$entity->setWorkerPid(null);
+		$entity->setUpdatedAt(time());
+		$this->mapper->update($entity);
+		$this->jobControl->killRclone($migrationId);
+		$this->jobControl->killWorker($migrationId);
+		$this->jobControl->clear($migrationId);
+		return $entity;
+	}
+
+	public function pauseMigration(int $migrationId, string $userId): MigrationEntity {
+		$entity = $this->requireOwned($migrationId, $userId);
+		if ($entity->getStatus() !== 'running') {
+			throw new \RuntimeException('Only running migrations can be paused');
+		}
+		$entity->setStatus('paused');
+		$entity->setPhase('paused');
+		$entity->setStatusText('Paused by user');
+		$entity->setUpdatedAt(time());
+		$this->mapper->update($entity);
+		$this->jobControl->pauseRclone($migrationId);
+		return $entity;
+	}
+
+	public function resumeMigration(int $migrationId, string $userId): MigrationEntity {
+		$entity = $this->requireOwned($migrationId, $userId);
+		if ($entity->getStatus() !== 'paused') {
+			throw new \RuntimeException('Only paused migrations can be resumed');
+		}
+		$entity->setStatus('queued');
+		$entity->setPhase('queued');
+		$entity->setStatusText('Queued to resume…');
+		$entity->setUpdatedAt(time());
+		$this->mapper->update($entity);
+		$this->jobControl->resumeRclone($migrationId);
+		$this->enqueue($migrationId);
+		return $entity;
+	}
+
+	/**
+	 * @return list<MigrationEntity>
+	 */
+	public function listForUser(string $userId): array {
+		$migrations = $this->mapper->findByUser($userId);
+		return $this->jobControl->reconcileStaleJobs($migrations);
+	}
+
+	public function getLatestForUser(string $userId): ?MigrationEntity {
+		$list = $this->listForUser($userId);
+		return $list[0] ?? null;
 	}
 
 	private function runOneDrive(MigrationEntity $entity): void {
@@ -150,24 +212,76 @@ class MigrationService {
 		$folderId = $entity->getSourceItemId();
 		$destBase = $entity->getDestPath();
 		$dryRun = $entity->isDryRun();
+		$checkpoint = $entity->getCheckpoint() ?? '';
+		$afterCheckpoint = $checkpoint === '';
 
-		$files = iterator_to_array($this->graphClient->walkFolder($userId, $folderId));
-		$total = count($files);
-		$entity->setTotalFiles($total);
+		$entity->setPhase('scanning');
+		$entity->setStatusText('Scanning OneDrive folders…');
+		$entity->setUpdatedAt(time());
 		$this->mapper->update($entity);
 
-		$userFolder = $this->rootFolder->getUserFolder($userId);
-		$copied = 0;
-		foreach ($files as $file) {
-			$targetPath = $destBase . '/' . $file['relativePath'];
-			if (!$dryRun) {
-				$this->ensureParentFolders($userFolder, $targetPath);
-				$content = $this->graphClient->downloadItemContent($userId, $file['id']);
-				$this->writeFile($userFolder, $targetPath, $content);
+		$files = [];
+		$scanned = 0;
+		foreach ($this->graphClient->walkFolder($userId, $folderId) as $file) {
+			$this->assertActive($entity);
+			$files[] = $file;
+			$scanned++;
+			if ($scanned % 25 === 0) {
+				$entity->setCopiedFiles($scanned);
+				$entity->setStatusText('Scanning… ' . $scanned . ' file(s) found');
+				$entity->setUpdatedAt(time());
+				$this->mapper->update($entity);
 			}
+		}
+
+		$total = count($files);
+		$entity->setTotalFiles($total);
+		$entity->setCopiedFiles(0);
+		$entity->setPhase('copying');
+		$entity->setStatusText($total > 0 ? 'Copying 0/' . $total . ' files…' : 'No files to copy');
+		$entity->setUpdatedAt(time());
+		$this->mapper->update($entity);
+
+		if ($dryRun) {
+			$entity->setCopiedFiles($total);
+			$entity->setProgress(100);
+			$entity->setStatusText('Dry run complete: ' . $total . ' file(s) found');
+			return;
+		}
+
+		$userFolder = $this->rootFolder->getUserFolder($userId);
+		$copied = (int)$entity->getCopiedFiles();
+		foreach ($files as $file) {
+			$this->assertActive($entity);
+			$rel = $file['relativePath'];
+			if (!$afterCheckpoint) {
+				if ($rel === $checkpoint) {
+					$afterCheckpoint = true;
+				}
+				continue;
+			}
+			$targetPath = $destBase . '/' . $rel;
+			$this->ensureParentFolders($userFolder, $targetPath);
+			if ($userFolder->nodeExists($targetPath)) {
+				$node = $userFolder->get($targetPath);
+				if ($node->getType() === \OCP\Files\FileInfo::TYPE_FILE && $node->getSize() === $file['size']) {
+					$copied++;
+					$entity->setCheckpoint($rel);
+					$entity->setCopiedFiles($copied);
+					$entity->setProgress($total > 0 ? (int)round(($copied / $total) * 100) : 100);
+					$entity->setStatusText('Copying ' . $copied . '/' . $total . ': ' . $rel . ' (skipped, already exists)');
+					$entity->setUpdatedAt(time());
+					$this->mapper->update($entity);
+					continue;
+				}
+			}
+			$content = $this->graphClient->downloadItemContent($userId, $file['id']);
+			$this->writeFile($userFolder, $targetPath, $content);
 			$copied++;
+			$entity->setCheckpoint($rel);
 			$entity->setCopiedFiles($copied);
 			$entity->setProgress($total > 0 ? (int)round(($copied / $total) * 100) : 100);
+			$entity->setStatusText('Copying ' . $copied . '/' . $total . ': ' . $rel);
 			$entity->setUpdatedAt(time());
 			$this->mapper->update($entity);
 		}
@@ -178,17 +292,39 @@ class MigrationService {
 		$sourcePath = $entity->getSourceItemId();
 		$destPath = $entity->getDestPath();
 		$dryRun = $entity->isDryRun();
+		$migrationId = $entity->getId();
 
-		$files = $this->rcloneRunner->listFilesRecursive($userId, $sourcePath);
+		$entity->setPhase('scanning');
+		$entity->setStatusText('Scanning iCloud Drive…');
+		$entity->setUpdatedAt(time());
+		$this->mapper->update($entity);
+
+		$files = $this->rcloneRunner->listFilesRecursive(
+			$userId,
+			$sourcePath,
+			function (int $count, string $currentPath) use ($entity): void {
+				$this->assertActive($entity);
+				$entity->setCopiedFiles($count);
+				$entity->setStatusText('Scanning… ' . $count . ' file(s) found' . ($currentPath !== '' ? ' — ' . $currentPath : ''));
+				$entity->setUpdatedAt(time());
+				$this->mapper->update($entity);
+			},
+			function () use ($entity): void {
+				$this->assertActive($entity);
+			},
+		);
+
 		$total = count($files);
 		$entity->setTotalFiles($total);
+		$entity->setCopiedFiles(0);
+		$entity->setUpdatedAt(time());
 		$this->mapper->update($entity);
 
 		if ($dryRun) {
 			$entity->setCopiedFiles($total);
 			$entity->setProgress(100);
-			$entity->setUpdatedAt(time());
-			$this->mapper->update($entity);
+			$entity->setPhase('done');
+			$entity->setStatusText('Dry run complete: ' . $total . ' file(s) found');
 			return;
 		}
 
@@ -197,14 +333,43 @@ class MigrationService {
 			$localDest .= '/' . $sourcePath;
 		}
 
-		$entity->setProgress(10);
+		$entity->setPhase('copying');
+		$entity->setStatusText('Copying with rclone…');
+		$entity->setProgress(0);
 		$entity->setUpdatedAt(time());
 		$this->mapper->update($entity);
 
-		$this->rcloneRunner->copyToLocal($userId, $sourcePath, $localDest, false);
+		$this->rcloneRunner->copyToLocal(
+			$userId,
+			$sourcePath,
+			$localDest,
+			false,
+			$migrationId,
+			function (string $line) use ($entity, $total): void {
+				$this->assertActive($entity);
+				if (preg_match('/Transferred:\s+(\d+)\s*\/\s*(\d+)/', $line, $m)) {
+					$done = (int)$m[1];
+					$found = (int)$m[2];
+					$denom = $total > 0 ? $total : max($found, 1);
+					$entity->setCopiedFiles($done);
+					$entity->setProgress(min(99, (int)round(($done / $denom) * 100)));
+					$entity->setStatusText('Copying… ' . $done . '/' . $denom . ' transferred');
+					$entity->setUpdatedAt(time());
+					$this->mapper->update($entity);
+				} elseif (preg_match('/Checks:\s+(\d+)/', $line, $m)) {
+					$entity->setStatusText('Copying… checking files (' . $m[1] . ' checked)');
+					$entity->setUpdatedAt(time());
+					$this->mapper->update($entity);
+				}
+			},
+			function () use ($entity): void {
+				$this->assertActive($entity);
+			},
+		);
 
-		$entity->setCopiedFiles($total);
-		$entity->setProgress(90);
+		$entity->setPhase('indexing');
+		$entity->setStatusText('Indexing files in Nextcloud…');
+		$entity->setProgress(95);
 		$entity->setUpdatedAt(time());
 		$this->mapper->update($entity);
 
@@ -212,6 +377,62 @@ class MigrationService {
 
 		$entity->setCopiedFiles($total);
 		$entity->setProgress(100);
+		$entity->setStatusText('Copy complete');
+	}
+
+	private function assertActive(MigrationEntity $entity): void {
+		$fresh = $this->mapper->findById($entity->getId());
+		if ($fresh === null) {
+			throw new MigrationCancelledException('Migration removed');
+		}
+		$status = $fresh->getStatus();
+		if ($status === 'cancelled') {
+			throw new MigrationCancelledException('Cancelled by user');
+		}
+		if ($status === 'paused') {
+			throw new MigrationPausedException('Paused by user');
+		}
+		$entity->setStatus($status);
+	}
+
+	private function newQueuedEntity(
+		string $userId,
+		string $provider,
+		string $sourcePath,
+		string $sourceItemId,
+		string $destPath,
+		bool $dryRun,
+	): MigrationEntity {
+		$entity = new MigrationEntity();
+		$entity->setUserId($userId);
+		$entity->setProvider($provider);
+		$entity->setStatus('queued');
+		$entity->setPhase('queued');
+		$entity->setStatusText('Queued');
+		$entity->setSourcePath($sourcePath);
+		$entity->setSourceItemId($sourceItemId);
+		$entity->setDestPath($destPath);
+		$entity->setDryRun($dryRun);
+		$entity->setProgress(0);
+		$entity->setTotalFiles(0);
+		$entity->setCopiedFiles(0);
+		$entity->setCreatedAt(time());
+		$entity->setUpdatedAt(time());
+		return $entity;
+	}
+
+	private function enqueue(int $migrationId): void {
+		$this->jobList->add(\OCA\CloudMigrate\BackgroundJob\MigrationJob::class, [
+			'migrationId' => $migrationId,
+		]);
+	}
+
+	private function requireOwned(int $migrationId, string $userId): MigrationEntity {
+		$entity = $this->mapper->findById($migrationId);
+		if ($entity === null || $entity->getUserId() !== $userId) {
+			throw new \RuntimeException('Migration not found');
+		}
+		return $entity;
 	}
 
 	private function ensureParentFolders(\OCP\Files\Folder $userFolder, string $path): void {
@@ -237,16 +458,5 @@ class MigrationService {
 			}
 		}
 		$userFolder->newFile($path, $content);
-	}
-
-	/**
-	 * @return list<MigrationEntity>
-	 */
-	public function listForUser(string $userId): array {
-		return $this->mapper->findByUser($userId);
-	}
-
-	public function getLatestForUser(string $userId): ?MigrationEntity {
-		return $this->mapper->findLatestByUser($userId);
 	}
 }

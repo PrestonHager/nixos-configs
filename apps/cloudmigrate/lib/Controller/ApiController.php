@@ -205,6 +205,39 @@ class ApiController extends BaseApiController {
 	}
 
 	#[NoAdminRequired]
+	public function cancelMigration(int $id): DataResponse {
+		$userId = $this->requireUserId();
+		try {
+			$migration = $this->migrationService->cancelMigration($id, $userId);
+			return new DataResponse(['migration' => $this->serializeMigration($migration)]);
+		} catch (\Throwable $e) {
+			return new DataResponse(['message' => $e->getMessage()], 400);
+		}
+	}
+
+	#[NoAdminRequired]
+	public function pauseMigration(int $id): DataResponse {
+		$userId = $this->requireUserId();
+		try {
+			$migration = $this->migrationService->pauseMigration($id, $userId);
+			return new DataResponse(['migration' => $this->serializeMigration($migration)]);
+		} catch (\Throwable $e) {
+			return new DataResponse(['message' => $e->getMessage()], 400);
+		}
+	}
+
+	#[NoAdminRequired]
+	public function resumeMigration(int $id): DataResponse {
+		$userId = $this->requireUserId();
+		try {
+			$migration = $this->migrationService->resumeMigration($id, $userId);
+			return new DataResponse(['migration' => $this->serializeMigration($migration)]);
+		} catch (\Throwable $e) {
+			return new DataResponse(['message' => $e->getMessage()], 400);
+		}
+	}
+
+	#[NoAdminRequired]
 	public function disconnect(string $provider): DataResponse {
 		$userId = $this->requireUserId();
 		if ($provider === 'onedrive') {
@@ -265,10 +298,15 @@ class ApiController extends BaseApiController {
 	}
 
 	private function serializeMigration(MigrationEntity $m): array {
+		$status = $m->getStatus();
+		$phase = $m->getPhase() ?? '';
+		$active = in_array($status, ['queued', 'running', 'paused'], true);
 		return [
 			'id' => $m->getId(),
 			'provider' => $m->getProvider(),
-			'status' => $m->getStatus(),
+			'status' => $status,
+			'phase' => $phase,
+			'statusText' => $m->getStatusText() ?? '',
 			'sourcePath' => $m->getSourcePath(),
 			'destPath' => $m->getDestPath(),
 			'dryRun' => $m->isDryRun(),
@@ -278,6 +316,10 @@ class ApiController extends BaseApiController {
 			'errorMessage' => $m->getErrorMessage(),
 			'createdAt' => $m->getCreatedAt(),
 			'updatedAt' => $m->getUpdatedAt(),
+			'canCancel' => $active,
+			'canPause' => $status === 'running',
+			'canResume' => $status === 'paused',
+			'isActive' => $active,
 		];
 	}
 }

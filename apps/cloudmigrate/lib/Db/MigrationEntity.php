@@ -31,6 +31,14 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCopiedFiles(int $copiedFiles)
  * @method string|null getErrorMessage()
  * @method void setErrorMessage(?string $errorMessage)
+ * @method string|null getStatusText()
+ * @method void setStatusText(?string $statusText)
+ * @method string|null getPhase()
+ * @method void setPhase(?string $phase)
+ * @method int|null getWorkerPid()
+ * @method void setWorkerPid(?int $workerPid)
+ * @method string|null getCheckpoint()
+ * @method void setCheckpoint(?string $checkpoint)
  * @method int getCreatedAt()
  * @method void setCreatedAt(int $createdAt)
  * @method int getUpdatedAt()
@@ -48,6 +56,10 @@ class MigrationEntity extends Entity {
 	protected $totalFiles;
 	protected $copiedFiles;
 	protected $errorMessage;
+	protected $statusText;
+	protected $phase;
+	protected $workerPid;
+	protected $checkpoint;
 	protected $createdAt;
 	protected $updatedAt;
 
@@ -56,6 +68,7 @@ class MigrationEntity extends Entity {
 		$this->addType('progress', 'integer');
 		$this->addType('totalFiles', 'integer');
 		$this->addType('copiedFiles', 'integer');
+		$this->addType('workerPid', 'integer');
 		$this->addType('createdAt', 'integer');
 		$this->addType('updatedAt', 'integer');
 	}

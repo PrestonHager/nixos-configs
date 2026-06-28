@@ -14,10 +14,12 @@ use Symfony\Component\Process\Process;
 class RcloneRunner {
 	public const REMOTE = 'icloud';
 	public const BACKEND = 'iclouddrive';
+	private const LSJSON_TIMEOUT = 3600;
 
 	public function __construct(
 		private TokenStore $tokenStore,
 		private IConfig $config,
+		private JobControl $jobControl,
 		private LoggerInterface $logger,
 	) {
 	}
@@ -60,7 +62,7 @@ class RcloneRunner {
 				'--dirs-only',
 				'--max-depth',
 				'1',
-			], $configPath);
+			], $configPath, 120);
 			$entries = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
 			if (!is_array($entries)) {
 				return [];
@@ -92,45 +94,103 @@ class RcloneRunner {
 	}
 
 	/**
+	 * Walk iCloud Drive incrementally so large libraries report scan progress.
+	 *
+	 * @param callable(int $count, string $currentPath): void|null $onProgress
+	 * @param callable(): void|null $shouldContinue returns false to abort
 	 * @return list<array{path: string, size: int}>
 	 */
-	public function listFilesRecursive(string $userId, string $sourcePath): array {
+	public function listFilesRecursive(
+		string $userId,
+		string $sourcePath,
+		?callable $onProgress = null,
+		?callable $shouldContinue = null,
+	): array {
 		$configPath = $this->createTempConfig($userId);
 		try {
-			$remote = $this->remotePath($sourcePath);
-			$output = $this->runJson([
-				'lsjson',
-				$remote,
-				'-R',
-				'--files-only',
-			], $configPath);
-			$entries = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
-			if (!is_array($entries)) {
-				return [];
-			}
 			$prefix = trim($sourcePath, '/');
 			$files = [];
-			foreach ($entries as $entry) {
-				if (!is_array($entry) || ($entry['IsDir'] ?? false)) {
-					continue;
-				}
-				$name = (string)($entry['Name'] ?? '');
-				$relPath = (string)($entry['Path'] ?? $name);
-				if ($prefix !== '' && str_starts_with($relPath, $prefix . '/')) {
-					$relPath = substr($relPath, strlen($prefix) + 1);
-				}
-				$files[] = [
-					'path' => $relPath,
-					'size' => (int)($entry['Size'] ?? 0),
-				];
-			}
+			$this->walkDirectory(
+				$configPath,
+				$prefix,
+				$prefix,
+				$files,
+				$onProgress,
+				$shouldContinue,
+			);
 			return $files;
 		} finally {
 			$this->removeTempConfig($configPath);
 		}
 	}
 
-	public function copyToLocal(string $userId, string $sourcePath, string $localDestDir, bool $dryRun): void {
+	/**
+	 * @param list<array{path: string, size: int}> $files
+	 */
+	private function walkDirectory(
+		string $configPath,
+		string $rootPrefix,
+		string $dirPath,
+		array &$files,
+		?callable $onProgress,
+		?callable $shouldContinue,
+	): void {
+		if ($shouldContinue !== null && $shouldContinue() === false) {
+			return;
+		}
+		$remote = $this->remotePath($dirPath);
+		$output = $this->runJson([
+			'lsjson',
+			$remote,
+			'--max-depth',
+			'1',
+		], $configPath, self::LSJSON_TIMEOUT);
+		$entries = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
+		if (!is_array($entries)) {
+			return;
+		}
+		foreach ($entries as $entry) {
+			if (!is_array($entry)) {
+				continue;
+			}
+			$name = (string)($entry['Name'] ?? '');
+			if ($name === '') {
+				continue;
+			}
+			$entryPath = trim($dirPath === '' ? $name : $dirPath . '/' . $name, '/');
+			if ($entry['IsDir'] ?? false) {
+				$this->walkDirectory($configPath, $rootPrefix, $entryPath, $files, $onProgress, $shouldContinue);
+				continue;
+			}
+			$relPath = $entryPath;
+			if ($rootPrefix !== '' && str_starts_with($relPath, $rootPrefix . '/')) {
+				$relPath = substr($relPath, strlen($rootPrefix) + 1);
+			} elseif ($rootPrefix !== '' && $relPath === $rootPrefix) {
+				$relPath = $name;
+			}
+			$files[] = [
+				'path' => $relPath,
+				'size' => (int)($entry['Size'] ?? 0),
+			];
+			if ($onProgress !== null) {
+				$onProgress(count($files), $relPath);
+			}
+		}
+	}
+
+	/**
+	 * @param callable(string $line): void|null $onOutput
+	 * @param callable(): void|null $shouldContinue
+	 */
+	public function copyToLocal(
+		string $userId,
+		string $sourcePath,
+		string $localDestDir,
+		bool $dryRun,
+		?int $migrationId = null,
+		?callable $onOutput = null,
+		?callable $shouldContinue = null,
+	): void {
 		$configPath = $this->createTempConfig($userId);
 		try {
 			if (!is_dir($localDestDir) && !$dryRun) {
@@ -147,11 +207,13 @@ class RcloneRunner {
 				'--checkers=8',
 				'--retries=5',
 				'--low-level-retries=10',
+				'--stats=5s',
+				'--stats-one-line',
 			];
 			if ($dryRun) {
 				$args[] = '--dry-run';
 			}
-			$this->runProcess($args, $configPath, 3600);
+			$this->runProcessStreaming($args, $configPath, 7200, $migrationId, $onOutput, $shouldContinue);
 		} finally {
 			$this->removeTempConfig($configPath);
 		}
@@ -256,8 +318,8 @@ class RcloneRunner {
 	/**
 	 * @param list<string> $args
 	 */
-	private function runJson(array $args, string $configPath): string {
-		$process = $this->buildProcess($args, $configPath, 600);
+	private function runJson(array $args, string $configPath, int $timeout): string {
+		$process = $this->buildProcess($args, $configPath, $timeout);
 		$process->run();
 		if (!$process->isSuccessful()) {
 			$err = trim($process->getErrorOutput() . "\n" . $process->getOutput());
@@ -268,10 +330,48 @@ class RcloneRunner {
 
 	/**
 	 * @param list<string> $args
+	 * @param callable(string $line): void|null $onOutput
+	 * @param callable(): void|null $shouldContinue
 	 */
-	private function runProcess(array $args, string $configPath, int $timeout): void {
+	private function runProcessStreaming(
+		array $args,
+		string $configPath,
+		int $timeout,
+		?int $migrationId,
+		?callable $onOutput,
+		?callable $shouldContinue,
+	): void {
 		$process = $this->buildProcess($args, $configPath, $timeout);
-		$process->run();
+		$process->start();
+		if ($migrationId !== null) {
+			$this->jobControl->registerRclone($migrationId, $process->getPid() ?? 0);
+		}
+		$buffer = '';
+		while ($process->isRunning()) {
+			if ($shouldContinue !== null) {
+				$shouldContinue();
+			}
+			$chunk = $process->getIncrementalOutput() . $process->getIncrementalErrorOutput();
+			if ($chunk !== '') {
+				$buffer .= $chunk;
+				while (($pos = strpos($buffer, "\n")) !== false) {
+					$line = rtrim(substr($buffer, 0, $pos), "\r");
+					$buffer = substr($buffer, $pos + 1);
+					if ($onOutput !== null && $line !== '') {
+						$onOutput($line);
+					}
+				}
+			}
+			usleep(200000);
+		}
+		$tail = trim($buffer . $process->getOutput() . $process->getErrorOutput());
+		if ($onOutput !== null && $tail !== '') {
+			foreach (preg_split('/\r?\n/', $tail) ?: [] as $line) {
+				if ($line !== '') {
+					$onOutput($line);
+				}
+			}
+		}
 		if (!$process->isSuccessful()) {
 			$err = trim($process->getErrorOutput() . "\n" . $process->getOutput());
 			throw new \RuntimeException('rclone failed: ' . ($err !== '' ? $err : 'exit ' . $process->getExitCode()));
