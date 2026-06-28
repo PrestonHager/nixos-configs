@@ -57,7 +57,9 @@
 
     window.__dnsPanelBoot = function () {
         if (typeof window.PterodactylPlugin_com_prestonhager_dns !== 'function') {
-            window.__dnsPanelBootError('Panel script did not load.');
+            window.__dnsPanelBootError(
+                'Panel script did not load (server returned HTML instead of JavaScript). Hard-refresh or contact an admin.'
+            );
             return;
         }
 

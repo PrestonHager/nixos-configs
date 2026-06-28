@@ -337,6 +337,10 @@ let
             rm -rf "$dest/$sub"
             cp -a "$src/$sub" "$dest/$sub"
             chown -R prestonh:users "$dest/$sub"
+            if [ "$sub" = "public" ]; then
+              find "$dest/$sub" -type d -exec chmod 755 {} +
+              find "$dest/$sub" -type f -exec chmod 644 {} +
+            fi
           fi
         done
       }
@@ -375,6 +379,15 @@ let
       sync_extension_wrapper portforward "${portforwardExtensionSrc}"
       sync_extension_panel_routes dnsrecords "${dnsExtensionSrc}"
       sync_extension_panel_routes portforward "${portforwardExtensionSrc}"
+    }
+
+    ensure_extension_public_permissions() {
+      for ext in blueprint sociallogin dnsrecords portforward; do
+        public_dir="$panel/.blueprint/extensions/$ext/public"
+        [ -d "$public_dir" ] || continue
+        find "$public_dir" -type d ! -perm /005 -exec chmod 755 {} + 2>/dev/null || true
+        find "$public_dir" -type f ! -perm /004 -exec chmod 644 {} + 2>/dev/null || true
+      done
     }
 
     ensure_extension_migrations() {
@@ -721,6 +734,7 @@ let
       ensure_public_assets_extension_symlinks
       ensure_blueprint_admin_extension_theme
       ensure_extension_backend_sync
+      ensure_extension_public_permissions
       ensure_extension_admin_files
       ensure_extension_migrations
       ensure_blueprint_frontend_patches
