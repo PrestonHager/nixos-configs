@@ -16,7 +16,7 @@ Browser (LAN)
 |-----------|--------|
 | Caddy | `nixos/caddy/ai.nix` — reverse_proxy to oauth2-proxy (WebSocket-safe); `/ollama` uses forward_auth |
 | oauth2-proxy | `nixos/containers/openclaw-oauth.nix` — port 4181, upstream OpenClaw |
-| OpenClaw | `/stor/openclaw/.openclaw/openclaw.json` — `gateway.auth.mode: trusted-proxy` |
+| OpenClaw | `/stor/openclaw/.openclaw/openclaw.json` — `gateway.auth.mode: trusted-proxy` (enforced by `openclaw-trusted-proxy-config` on boot) |
 | Zitadel app | Home Lab project, redirect `https://ai.prestonhager.com/oauth2/callback` |
 | Secrets | `nixos-secrets/secrets/containers/openclaw-oauth.yaml` (sops) |
 
@@ -114,6 +114,8 @@ Optional hardening: set `gateway.auth.trustedProxy.allowUsers` to restrict to sp
 4. oauth2-proxy sets session cookie and proxies to OpenClaw with `X-Forwarded-Email`
 5. OpenClaw Control UI loads; WebSocket connects without manual gateway token
 
+If the UI loads but WebSocket fails with `token_missing` in gateway logs, OpenClaw is still in token auth mode — redeploy or run `bash scripts/ace-openclaw-config.sh`, then hard-refresh the browser.
+
 Non-LAN clients receive HTTP 403 (Caddy `@lan` matcher unchanged).
 
 ## Verify
@@ -144,7 +146,8 @@ After browser login, confirm Control UI loads and chat/WebSocket work.
 | Redirect loop on `/oauth2/*` | Redirect URI mismatch in Zitadel app |
 | `trusted_proxy_untrusted_source` | Ensure `trustedProxies: ["127.0.0.1"]` and `allowLoopback: true` |
 | `trusted_proxy_user_missing` | oauth2-proxy not passing email; check `--pass-user-headers=true` |
-| WebSocket 1008 unauthorized / `token_missing` | Use oauth2-proxy as reverse-proxy upstream (not forward_auth only); see `nixos/caddy/ai.nix` |
+| WebSocket 1008 unauthorized / `token_missing` | OpenClaw still in token mode — run `bash scripts/ace-openclaw-config.sh` or redeploy (systemd `openclaw-trusted-proxy-config`); ensure oauth2-proxy reverse-proxies with `--pass-user-headers` |
+| WS connects then fails / no WS in gateway logs | Hard-refresh browser (Ctrl+Shift+R); clear site data for ai.prestonhager.com; verify DNS resolves to 192.168.5.5 on LAN (`dig @192.168.5.5 ai.prestonhager.com`) |
 | `forward_auth` + WebSocket | Caddy forward_auth does not pass identity headers on WS upgrades; oauth2-proxy must proxy OpenClaw directly |
 | `mixed_trusted_proxy_token` on startup | Remove `gateway.auth.token` / `OPENCLAW_GATEWAY_TOKEN` |
 | External access works when it should not | Verify Caddy `@lan` matcher on ai.prestonhager.com |

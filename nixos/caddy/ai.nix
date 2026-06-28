@@ -11,11 +11,11 @@ let
   oauthProxy = "127.0.0.1:4181";
 
   oauthProxyHeaders = ''
+    header_up Host {host}
     header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
     header_up X-Forwarded-Proto {scheme}
     header_up X-Forwarded-Host {host}
-    header_up Connection {>Connection}
-    header_up Upgrade {>Upgrade}
   '';
 
   oauthForwardAuth = ''
@@ -37,6 +37,11 @@ let
   oauthReverseProxy = ''
     reverse_proxy ${oauthProxy} {
       ${oauthProxyHeaders}
+      flush_interval -1
+      transport http {
+        read_timeout 0
+        write_timeout 0
+      }
     }
   '';
 in
