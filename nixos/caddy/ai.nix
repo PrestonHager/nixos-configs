@@ -1,12 +1,22 @@
 # ai.prestonhager.com — OpenClaw gateway + optional Ollama API (K80 stack).
 # LAN-only: Caddy @lan remote_ip matcher (RFC1918 + homelab 192.168.5.0/24).
-# Zitadel SSO: oauth2-proxy forward_auth → OpenClaw trusted-proxy auth.
+# Zitadel SSO: Caddy → oauth2-proxy (reverse proxy) → OpenClaw trusted-proxy auth.
+# oauth2-proxy must sit in front of OpenClaw (not forward_auth only) so WebSocket
+# upgrades receive X-Forwarded-Email. /ollama keeps forward_auth (HTTP API only).
 # See docs/ace-openclaw-sso.md
 
 { config, ... }:
 
 let
   oauthProxy = "127.0.0.1:4181";
+
+  oauthProxyHeaders = ''
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Forwarded-Host {host}
+    header_up Connection {>Connection}
+    header_up Upgrade {>Upgrade}
+  '';
 
   oauthForwardAuth = ''
     forward_auth ${oauthProxy} {
@@ -24,13 +34,9 @@ let
     }
   '';
 
-  openclawUpstream = ''
-    reverse_proxy http://127.0.0.1:18789 {
-      header_up Host {host}
-      header_up X-Forwarded-Proto {scheme}
-      header_up X-Forwarded-Host {host}
-      header_up Connection {>Connection}
-      header_up Upgrade {>Upgrade}
+  oauthReverseProxy = ''
+    reverse_proxy ${oauthProxy} {
+      ${oauthProxyHeaders}
     }
   '';
 in
@@ -42,13 +48,6 @@ in
       }
 
       handle @lan {
-        handle /oauth2/* {
-          reverse_proxy ${oauthProxy} {
-            header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-Uri {uri}
-          }
-        }
-
         handle /ollama/* {
           ${oauthForwardAuth}
           uri strip_prefix /ollama
@@ -60,8 +59,7 @@ in
         }
 
         handle {
-          ${oauthForwardAuth}
-          ${openclawUpstream}
+          ${oauthReverseProxy}
         }
       }
 

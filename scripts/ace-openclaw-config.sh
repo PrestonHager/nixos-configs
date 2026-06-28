@@ -33,7 +33,7 @@ cat >"$PATCH_FILE" <<EOF
     "auth": {
       "mode": "trusted-proxy",
       "trustedProxy": {
-        "userHeader": "x-auth-request-email",
+        "userHeader": "x-forwarded-email",
         "allowLoopback": true,
         "requiredHeaders": ["x-forwarded-proto", "x-forwarded-host"]
       }

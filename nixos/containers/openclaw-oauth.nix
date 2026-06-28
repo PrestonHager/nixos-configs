@@ -29,13 +29,14 @@ let
       --client-id="$OPENCLAW_OIDC_CLIENT_ID" \
       --client-secret="$OPENCLAW_OIDC_CLIENT_SECRET" \
       --redirect-url=${oauthRedirectUri} \
-      --upstream=file:///dev/null \
+      --upstream=http://127.0.0.1:18789/ \
       --http-address=${oauthProxyListen} \
       --cookie-secret="$OAUTH2_PROXY_COOKIE_SECRET" \
       --email-domain=* \
       --cookie-secure=true \
       --set-xauthrequest=true \
-      --pass-user-headers=false \
+      --pass-user-headers=true \
+      --pass-host-header=true \
       --user-id-claim=email \
       --whitelist-domain=${aiDomain} \
       --provider-display-name=Zitadel \

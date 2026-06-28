@@ -7,15 +7,15 @@ Browser SSO for the OpenClaw AI portal at https://ai.prestonhager.com via Zitade
 ```
 Browser (LAN)
   → Caddy ai.prestonhager.com (@lan only)
-    → oauth2-proxy (127.0.0.1:4181, Zitadel OIDC)
-      → forward_auth sets X-Auth-Request-Email
+    → oauth2-proxy (127.0.0.1:4181, Zitadel OIDC, reverse proxy upstream)
+      → passes X-Forwarded-Email on HTTP + WebSocket upgrades
     → OpenClaw gateway (127.0.0.1:18789, trusted-proxy auth)
 ```
 
 | Component | Config |
 |-----------|--------|
-| Caddy | `nixos/caddy/ai.nix` — forward_auth + WebSocket upgrade headers |
-| oauth2-proxy | `nixos/containers/openclaw-oauth.nix` — port 4181 |
+| Caddy | `nixos/caddy/ai.nix` — reverse_proxy to oauth2-proxy (WebSocket-safe); `/ollama` uses forward_auth |
+| oauth2-proxy | `nixos/containers/openclaw-oauth.nix` — port 4181, upstream OpenClaw |
 | OpenClaw | `/stor/openclaw/.openclaw/openclaw.json` — `gateway.auth.mode: trusted-proxy` |
 | Zitadel app | Home Lab project, redirect `https://ai.prestonhager.com/oauth2/callback` |
 | Secrets | `nixos-secrets/secrets/containers/openclaw-oauth.yaml` (sops) |
@@ -90,7 +90,7 @@ Applied by `scripts/ace-openclaw-config.sh`:
     "auth": {
       "mode": "trusted-proxy",
       "trustedProxy": {
-        "userHeader": "x-auth-request-email",
+        "userHeader": "x-forwarded-email",
         "allowLoopback": true,
         "requiredHeaders": ["x-forwarded-proto", "x-forwarded-host"]
       }
@@ -109,9 +109,9 @@ Optional hardening: set `gateway.auth.trustedProxy.allowUsers` to restrict to sp
 ## Browser flow
 
 1. From a LAN client, open https://ai.prestonhager.com
-2. Caddy forward_auth returns 401 → redirect to `/oauth2/start`
+2. oauth2-proxy redirects unauthenticated users to `/oauth2/start` → Zitadel login
 3. Zitadel login (same IdP as Grafana, Nextcloud, etc.)
-4. oauth2-proxy sets session cookie; Caddy passes `X-Auth-Request-Email` to OpenClaw
+4. oauth2-proxy sets session cookie and proxies to OpenClaw with `X-Forwarded-Email`
 5. OpenClaw Control UI loads; WebSocket connects without manual gateway token
 
 Non-LAN clients receive HTTP 403 (Caddy `@lan` matcher unchanged).
@@ -124,7 +124,7 @@ systemctl status openclaw-oauth2-proxy openclaw-gateway caddy
 
 # Unauthenticated → redirect to Zitadel (302 to /oauth2/start)
 curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' \
-  --resolve ai.prestonhager.com:443:127.0.0.1 \
+  --resolve ai.prestonhager.com:443:192.168.5.5 \
   https://ai.prestonhager.com/
 
 # Loopback gateway health (no SSO, direct)
@@ -143,8 +143,9 @@ After browser login, confirm Control UI loads and chat/WebSocket work.
 | `openclaw-oauth2-proxy` fails to start | Check `/run/secrets/openclaw-oauth-env`; placeholder client id |
 | Redirect loop on `/oauth2/*` | Redirect URI mismatch in Zitadel app |
 | `trusted_proxy_untrusted_source` | Ensure `trustedProxies: ["127.0.0.1"]` and `allowLoopback: true` |
-| `trusted_proxy_user_missing` | oauth2-proxy not passing email; check `--user-id-claim=email` |
-| WebSocket 1008 unauthorized | forward_auth must run on upgrade; check Caddy logs |
+| `trusted_proxy_user_missing` | oauth2-proxy not passing email; check `--pass-user-headers=true` |
+| WebSocket 1008 unauthorized / `token_missing` | Use oauth2-proxy as reverse-proxy upstream (not forward_auth only); see `nixos/caddy/ai.nix` |
+| `forward_auth` + WebSocket | Caddy forward_auth does not pass identity headers on WS upgrades; oauth2-proxy must proxy OpenClaw directly |
 | `mixed_trusted_proxy_token` on startup | Remove `gateway.auth.token` / `OPENCLAW_GATEWAY_TOKEN` |
 | External access works when it should not | Verify Caddy `@lan` matcher on ai.prestonhager.com |
 
