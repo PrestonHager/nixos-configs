@@ -86,8 +86,8 @@
   # See docs/ace-k80-gpu.md and https://github.com/PrestonHager/ace-k80-stack
   services.aceK80 = {
     enable = true;
-    # enableOllama = true;    # dogkeeper886/ollama37 → /stor/ollama
-    # enableOpenClaw = true;  # gateway :18789; set openclaw.package when packaged
+    enableOllama = true;
+    enableOpenClaw = true;
   };
 }
 
