@@ -42,7 +42,7 @@ let
       --provider-display-name=Zitadel \
       --scope="openid profile email urn:zitadel:iam:org:project:id:${zitadelProjectId}:aud" \
       --reverse-proxy=true \
-      --force-https=true \
+      --trusted-proxy-ip=127.0.0.1/32 \
       --real-client-ip-header=X-Real-IP \
       --request-logging=true \
       --skip-provider-button=true \

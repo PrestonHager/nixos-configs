@@ -17,7 +17,8 @@ let
       exit 0
     fi
     run_oc() {
-      sudo -u openclaw HOME=${openclawHome} OLLAMA_API_KEY=ollama-local \
+      ${pkgs.util-linux}/bin/runuser -u openclaw -- \
+        env HOME=${openclawHome} OLLAMA_API_KEY=ollama-local \
         "${openclawBin}/bin/openclaw" "$@"
     }
     run_oc config set gateway.auth.mode trusted-proxy
