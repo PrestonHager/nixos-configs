@@ -96,6 +96,83 @@ let
       fi
     }
 
+    ensure_blueprint_private_core() {
+      private="$panel/.blueprint/extensions/blueprint/private"
+      install -d -m 0755 -o prestonh -g users "$private/debug"
+      for item in extensionfs.php build db; do
+        if [ -e "$private/$item" ]; then
+          continue
+        fi
+        if [ -e "$prod_panel/.blueprint/extensions/blueprint/private/$item" ]; then
+          echo "pterodactyl-test-blueprint-install: copying blueprint private/$item from production..."
+          cp -a "$prod_panel/.blueprint/extensions/blueprint/private/$item" "$private/$item"
+          chown -R prestonh:users "$private/$item"
+        elif [ -e "$panel/.blueprint/blueprint/extensions/blueprint/private/$item" ]; then
+          echo "pterodactyl-test-blueprint-install: copying blueprint private/$item from framework tree..."
+          cp -a "$panel/.blueprint/blueprint/extensions/blueprint/private/$item" "$private/$item"
+          chown -R prestonh:users "$private/$item"
+        fi
+      done
+    }
+
+    ensure_installed_extension_trees() {
+      installed_file="$panel/.blueprint/extensions/blueprint/private/db/installed_extensions"
+      [ -f "$installed_file" ] || return 0
+
+      for ext in sociallogin dnsrecords portforward; do
+        if ! grep -q "|$ext," "$installed_file" 2>/dev/null; then
+          continue
+        fi
+        conf="$panel/.blueprint/extensions/$ext/private/.store/conf.yml"
+        if [ -f "$conf" ]; then
+          continue
+        fi
+        if [ -d "$prod_panel/.blueprint/extensions/$ext" ]; then
+          echo "pterodactyl-test-blueprint-install: copying $ext extension tree from production..."
+          install -d -m 0755 -o prestonh -g users "$panel/.blueprint/extensions"
+          cp -a "$prod_panel/.blueprint/extensions/$ext" "$panel/.blueprint/extensions/$ext"
+          chown -R prestonh:users "$panel/.blueprint/extensions/$ext"
+          continue
+        fi
+        case "$ext" in
+          dnsrecords) install_dnsrecords_extension ;;
+          portforward) install_portforward_extension ;;
+          sociallogin)
+            tmp=$(mktemp -d)
+            ${pkgs.curl}/bin/curl -fsSL "${socialloginBlueprintUrl}" -o "$tmp/sociallogin.blueprint"
+            cp "$tmp/sociallogin.blueprint" "$panel/sociallogin.blueprint"
+            chown prestonh:users "$panel/sociallogin.blueprint"
+            rm -f "$panel/.blueprint/lock"
+            blueprint_cli -install sociallogin
+            rm -f "$panel/sociallogin.blueprint"
+            rm -rf "$tmp"
+            ;;
+        esac
+      done
+    }
+
+    ensure_extension_container_permissions() {
+      for ext in blueprint sociallogin dnsrecords portforward; do
+        ext_dir="$panel/.blueprint/extensions/$ext"
+        [ -d "$ext_dir" ] || continue
+        find "$ext_dir" -type d -exec chmod 755 {} + 2>/dev/null || true
+        find "$ext_dir" -type f -exec chmod 644 {} + 2>/dev/null || true
+        ${pkgs.acl}/bin/setfacl -R -m u:pterodactyl:rwx "$ext_dir" 2>/dev/null || true
+        ${pkgs.acl}/bin/setfacl -R -d -m u:pterodactyl:rwx "$ext_dir" 2>/dev/null || true
+      done
+    }
+
+    blueprint_private_integrated() {
+      [ -f "$panel/.blueprint/extensions/blueprint/private/extensionfs.php" ] \
+        && [ -f "$panel/.blueprint/extensions/blueprint/private/db/installed_extensions" ]
+      installed_file="$panel/.blueprint/extensions/blueprint/private/db/installed_extensions"
+      for ext in sociallogin dnsrecords portforward; do
+        if grep -q "|$ext," "$installed_file" 2>/dev/null; then
+          [ -f "$panel/.blueprint/extensions/$ext/private/.store/conf.yml" ] || return 1
+        fi
+      done
+    }
+
     ensure_blueprint_assets() {
       if [ -d "$panel/.blueprint/assets/Extensions" ]; then
         return 0
@@ -439,6 +516,7 @@ let
     }
 
     extension_backend_integrated() {
+      blueprint_private_integrated || return 1
       for ext in sociallogin dnsrecords portforward; do
         [ -e "$panel/app/BlueprintFramework/Extensions/$ext" ] || return 1
         [ -f "$panel/app/Http/Controllers/Admin/Extensions/$ext/''${ext}ExtensionController.php" ] || return 1
@@ -745,9 +823,12 @@ let
     }
 
     post_install_hooks() {
+      ensure_blueprint_private_core
+      ensure_installed_extension_trees
       ensure_blueprint_assets
       ensure_blueprint_core_patches
       ensure_sociallogin_models
+      ensure_extension_container_permissions
       ensure_extension_app_symlinks
       ensure_storage_extension_symlinks
       ensure_public_assets_extension_symlinks
@@ -803,8 +884,24 @@ let
       && [ -d "$panel/.blueprint/extensions/portforward" ] \
       && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
       ensure_extension_public_permissions
+      ensure_extension_container_permissions
       write_marker
       echo "pterodactyl-test-blueprint-install: Blueprint, Social Login, DNS Records, and Port Forward ready"
+      exit 0
+    fi
+
+    if [ -f "$panel/blueprint.sh" ] \
+      && [ -d "$panel/.blueprint/blueprint" ] \
+      && ! blueprint_private_integrated; then
+      echo "pterodactyl-test-blueprint-install: Blueprint private core or extension conf missing, repairing..."
+      ensure_blueprint_private_core
+      ensure_installed_extension_trees
+      ensure_extension_container_permissions
+      ensure_extension_app_symlinks
+      ensure_storage_extension_symlinks
+      post_install_hooks
+      write_marker
+      echo "pterodactyl-test-blueprint-install: Blueprint private core repaired on test panel"
       exit 0
     fi
 
