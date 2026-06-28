@@ -4,6 +4,9 @@
   // Ollama37 base URL has no /v1 suffix (native ollama provider).
   gateway: {
     mode: "local",
+    controlUi: {
+      allowedOrigins: ["https://ai.prestonhager.com"],
+    },
   },
   env: {
     vars: {

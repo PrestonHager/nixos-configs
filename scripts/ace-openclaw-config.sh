@@ -26,6 +26,11 @@ run_oc config set env.vars.OLLAMA_API_KEY ollama-local
 PATCH_FILE=$(mktemp)
 cat >"$PATCH_FILE" <<EOF
 {
+  "gateway": {
+    "controlUi": {
+      "allowedOrigins": ["https://ai.prestonhager.com"]
+    }
+  },
   "models": {
     "providers": {
       "ollama": {
