@@ -199,6 +199,11 @@ in {
     description = "Podman pod for Matrix Synapse (Synapse + PostgreSQL)";
     wants = [ "network-online.target" ];
     after = [ "network-online.target" "matrix-synapse-init.service" ];
+    before = [
+      "podman-matrix-db.service"
+      "podman-matrix-synapse.service"
+      "caddy.service"
+    ];
     requiredBy = [
       "podman-matrix-db.service"
       "podman-matrix-synapse.service"
@@ -254,10 +259,22 @@ in {
     ];
   };
 
-  systemd.services.podman-matrix-synapse.restartTriggers = [
-    config.sops.secrets."matrix-db-env".path
-    config.sops.secrets."matrix-secrets".path
-    config.sops.secrets."matrix-oauth-env".path
-    synapseInitScript
-  ];
+  systemd.services.podman-matrix-synapse = {
+    # Synapse fetches Zitadel OIDC discovery at startup; must not start before Zitadel API is up.
+    after = [
+      "podman-zitadel.service"
+      "podman-zitadel-login.service"
+    ];
+    wants = [
+      "podman-zitadel.service"
+      "podman-zitadel-login.service"
+    ];
+    before = [ "caddy.service" ];
+    restartTriggers = [
+      config.sops.secrets."matrix-db-env".path
+      config.sops.secrets."matrix-secrets".path
+      config.sops.secrets."matrix-oauth-env".path
+      synapseInitScript
+    ];
+  };
 }

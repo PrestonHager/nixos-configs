@@ -102,7 +102,12 @@ in {
   systemd.services."podman-zitadel" = {
     after = [ "zitadel-container-env.service" "sops-nix.service" ];
     requires = [ "zitadel-container-env.service" ];
+    before = [ "caddy.service" ];
     serviceConfig.ExecStartPre = pkgs.lib.mkOrder 100 zitadelEnvScript;
+  };
+
+  systemd.services."podman-zitadel-login" = {
+    before = [ "caddy.service" ];
   };
 
   systemd.services.zitadel-login-client-keygen = {
@@ -129,6 +134,12 @@ in {
     description = "Podman pod for Zitadel (API, login UI, PostgreSQL)";
     wants = [ "network-online.target" ];
     after = [ "network-online.target" ];
+    before = [
+      "podman-zitadel-db.service"
+      "podman-zitadel.service"
+      "podman-zitadel-login.service"
+      "caddy.service"
+    ];
     requiredBy = [
       "podman-zitadel-db.service"
       "podman-zitadel.service"
