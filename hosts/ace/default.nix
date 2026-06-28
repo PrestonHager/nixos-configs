@@ -9,7 +9,7 @@
     ../../nixos/headless
     ../../nixos/security
     ../../nixos/nextcloud-migrate.nix
-    # Samba share for Windows (Steam library on /stor/ace-drive)
+    # Samba share for Windows (Steam library on /var/lib/ace-drive, root volume)
     ../../nixos/samba
     # include nfs for caddy lets encrypt certs
     ../../nixos/nfs

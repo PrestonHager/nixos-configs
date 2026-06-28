@@ -3,7 +3,7 @@
 let
   sops-path = builtins.toString inputs.nix-secrets;
   lanCidr = "192.168.5.0/24";
-  sharePath = "/stor/ace-drive";
+  sharePath = "/var/lib/ace-drive";
   smbUser = "prestonh";
 in
 {
