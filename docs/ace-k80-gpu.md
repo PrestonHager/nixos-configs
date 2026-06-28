@@ -87,8 +87,8 @@ systemctl status podman-ollama37        # if Ollama enabled
 systemctl status openclaw-gateway       # if OpenClaw enabled
 curl -sS http://127.0.0.1:11434/api/tags
 curl -sS http://127.0.0.1:18789/health
-bash scripts/ace-ollama-pull.sh gemma2:2b   # pull + smoke-test a K80 model
-bash scripts/ace-openclaw-config.sh gemma2:2b
+bash scripts/ace-ollama-pull.sh llama3.2:3b   # pull + smoke-test a K80 model (128k ctx; gemma2:2b is too small)
+bash scripts/ace-openclaw-config.sh llama3.2:3b
 systemctl restart openclaw-gateway
 curl -sS -o /dev/null -w '%{http_code}\n' https://ai.prestonhager.com/
 ```

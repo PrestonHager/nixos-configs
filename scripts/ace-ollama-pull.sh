@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Pull a small K80-suitable model via Ollama37 API (run on ace).
 set -euo pipefail
-MODEL="${1:-gemma2:2b}"
+MODEL="${1:-llama3.2:3b}"
 echo "Pulling ${MODEL}..."
 curl -sf -X POST http://127.0.0.1:11434/api/pull \
   -H 'Content-Type: application/json' \

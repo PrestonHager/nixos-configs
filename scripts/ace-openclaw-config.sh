@@ -8,7 +8,7 @@ if [ -z "$OPENCLAW" ] || [ ! -x "$OPENCLAW" ]; then
   echo "openclaw binary not found" >&2
   exit 1
 fi
-MODEL="${1:-gemma2:2b}"
+MODEL="${1:-llama3.2:3b}"
 
 run_oc() {
   sudo -u openclaw HOME=/stor/openclaw OLLAMA_API_KEY=ollama-local "$OPENCLAW" "$@"
@@ -47,7 +47,15 @@ cat >"$PATCH_FILE" <<EOF
       "ollama": {
         "baseUrl": "http://127.0.0.1:11434",
         "apiKey": "ollama-local",
-        "api": "ollama"
+        "api": "ollama",
+        "models": [
+          {
+            "id": "${MODEL}",
+            "name": "${MODEL}",
+            "contextWindow": 131072,
+            "maxTokens": 4096
+          }
+        ]
       }
     }
   },
@@ -57,7 +65,8 @@ cat >"$PATCH_FILE" <<EOF
         "primary": "ollama/${MODEL}"
       },
       "compaction": {
-        "reserveTokensFloor": 20000
+        "reserveTokens": 2048,
+        "reserveTokensFloor": 0
       }
     }
   }

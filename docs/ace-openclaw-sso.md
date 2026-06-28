@@ -73,7 +73,7 @@ Required keys in `openclaw-oauth-env`:
 ```bash
 cd /etc/nixos
 nixos-rebuild switch --flake .#ace
-bash scripts/ace-openclaw-config.sh gemma2:2b
+bash scripts/ace-openclaw-config.sh llama3.2:3b
 systemctl restart openclaw-gateway openclaw-oauth2-proxy
 systemctl reload caddy
 ```
