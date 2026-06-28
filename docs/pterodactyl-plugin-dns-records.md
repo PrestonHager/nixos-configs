@@ -109,7 +109,8 @@ Same as TC-DNS-1 with provider mode `both`. Verify Cloudflare dashboard **and** 
 
 ## Known limitations
 
-- Manual CRUD via admin DNS tab remains Cloudflare-centric; auto-provision uses ProviderManager for both backends
+- Manual CRUD uses the configured provider mode (`cloudflare`, `technitium`, or `both`); auto-provision writes through ProviderManager for all enabled backends
+- Game server hostnames use **CNAME → node FQDN** plus **SRV → node FQDN**; private LAN A records are rejected
 - Technitium records in Nix-managed infra labels (`ace`, `crux`, `panel`, …) are blocked
 - Nix `technitium-zones.nix` sync may overwrite extension records in shared zones on rebuild — prefer game-specific subdomains
 

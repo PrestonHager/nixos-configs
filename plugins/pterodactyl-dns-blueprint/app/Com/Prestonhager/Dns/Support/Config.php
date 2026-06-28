@@ -68,6 +68,44 @@ class Config
         return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? (bool) $value;
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public function nodeFqdnMap(): array
+    {
+        $raw = $this->context->config()->get('node_fqdn_map', []);
+        if (!is_array($raw)) {
+            return $this->defaultNodeFqdnMap();
+        }
+
+        $map = [];
+        foreach ($raw as $key => $value) {
+            if (!is_string($key) || !is_string($value)) {
+                continue;
+            }
+
+            $fqdn = strtolower(rtrim(trim($value), '.'));
+            if ($fqdn !== '') {
+                $map[(string) $key] = $fqdn;
+            }
+        }
+
+        return $map !== [] ? $map : $this->defaultNodeFqdnMap();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function defaultNodeFqdnMap(): array
+    {
+        return [
+            '1' => 'crux.lc1.nm.us.prestonhager.com',
+            '2' => 'nova.lc1.nm.us.prestonhager.com',
+            'default_crux' => 'crux.lc1.nm.us.prestonhager.com',
+            'default_nova' => 'nova.lc1.nm.us.prestonhager.com',
+        ];
+    }
+
     public function hasCloudflare(): bool
     {
         try {

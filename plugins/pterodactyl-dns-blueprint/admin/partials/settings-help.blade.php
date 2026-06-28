@@ -99,12 +99,12 @@
         </table>
 
         <h5>How records are named</h5>
-        <p>For profile <code>minecraft-java</code>, hostname label <code>ead</code>, and primary domain <code>prestonhager.com</code>:</p>
+        <p>For profile <code>minecraft-java</code>, hostname label <code>ead</code>, and primary domain <code>prestonhager.com</code> on node <code>crux.lc1.nm.us.prestonhager.com</code>:</p>
         <ul>
-            <li>A record: <code>ead.prestonhager.com</code> → node IP</li>
-            <li>SRV record: <code>_minecraft._tcp.ead.prestonhager.com</code> → target hostname + port</li>
+            <li>CNAME: <code>ead.prestonhager.com</code> → <code>crux.lc1.nm.us.prestonhager.com</code> (node FQDN, not LAN IP)</li>
+            <li>SRV record: <code>_minecraft._tcp.ead.prestonhager.com</code> → node FQDN + allocation port</li>
         </ul>
-        <p>Clients connect using the SRV name; the A record provides the target host.</p>
+        <p>Game clients should connect via SRV. The CNAME gives bare-hostname lookups a stable public target without publishing <code>192.168.x.x</code> addresses to Cloudflare.</p>
 
         <h5>Validation rules</h5>
         <ul>
@@ -125,7 +125,8 @@
             <li>Setting a fixed <code>port</code> when Pterodactyl assigns dynamic ports — omit <code>port</code> so the primary allocation is used.</li>
             <li>Mixing Bedrock (<code>_udp</code>) and Java (<code>_tcp</code>) under one profile — use separate profiles.</li>
             <li>Trailing commas in JSON — invalid in strict JSON parsers.</li>
-            <li>Expecting SRV alone without an A record — the extension creates both when provisioning.</li>
+            <li>Expecting SRV alone without a hostname alias — the extension creates a CNAME to the node FQDN when provisioning.</li>
+            <li>Creating A records with LAN IPs — use CNAME to the node FQDN or rely on SRV only.</li>
         </ul>
     </div>
 

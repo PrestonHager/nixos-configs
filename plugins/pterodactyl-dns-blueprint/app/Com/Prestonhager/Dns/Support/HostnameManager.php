@@ -4,6 +4,9 @@ namespace Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\
 
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Cloudflare\Client;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Cloudflare\SrvProvisioner;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Providers\ProviderManager;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\NodeTargetResolver;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\PrivateNetwork;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Dto\ServerSummary;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Compatibility\PluginContext;
 
@@ -16,6 +19,8 @@ class HostnameManager
         private readonly ServerDnsState $state,
         private readonly SrvProvisioner $provisioner,
         private readonly HostnameRegistry $registry,
+        private readonly ProviderManager $providers,
+        private readonly NodeTargetResolver $nodeTargets,
     ) {
     }
 
@@ -45,7 +50,7 @@ class HostnameManager
         $newFqdn = RecordName::fqdn($label, $primaryDomain->domain);
         $oldFqdn = $this->state->aRecordName($serverId);
 
-        $this->renameARecord($serverId, $newFqdn, $primaryDomain->zoneId, $oldFqdn);
+        $this->renameHostnameAlias($serverId, $newFqdn, $primaryDomain->zoneId, $oldFqdn);
         $this->cleanupOrphanSrvRecords($serverId, $label, $oldFqdn, $primaryDomain);
 
         $this->state->setHostnameLabel($serverId, $label);
@@ -94,77 +99,65 @@ class HostnameManager
         return RecordName::generate($server, 'uuid_only');
     }
 
-    private function renameARecord(int $serverId, string $newFqdn, string $zoneId, ?string $oldFqdn): void
+    private function renameHostnameAlias(int $serverId, string $newFqdn, string $zoneId, ?string $oldFqdn): void
     {
-        $network = $this->context->servers()->getNetworkSummary($serverId);
-        $primary = null;
-        foreach ($network->allocations as $allocation) {
-            if ($allocation->isPrimary) {
-                $primary = $allocation;
-                break;
-            }
-        }
-
-        if (is_null($primary)) {
-            return;
-        }
-
-        $ip = $primary->ip;
+        $nodeFqdn = $this->nodeTargets->fqdnForServer($serverId);
         $existingId = $this->state->aRecordId($serverId);
         $payload = [
-            'type' => 'A',
+            'type' => 'CNAME',
             'name' => $newFqdn,
-            'content' => $ip,
+            'content' => $nodeFqdn,
             'ttl' => $this->config->defaultTtl(),
             'proxied' => false,
         ];
 
         if (!is_null($existingId)) {
-            $this->client->updateRecord($existingId, $payload, $zoneId);
-            $this->state->setARecord($serverId, $existingId, $newFqdn);
-            $this->state->upsertRecord($serverId, [
-                'cloudflare_id' => $existingId,
-                'type' => 'A',
-                'name' => $newFqdn,
-                'content' => $ip,
-                'profile_id' => null,
-                'zone_id' => $zoneId,
-                'updated_at' => now()->toIso8601String(),
-            ]);
-
-            if ($oldFqdn !== null && strtolower($oldFqdn) !== strtolower($newFqdn)) {
-                $this->deleteStaleARecord($serverId, $oldFqdn, $existingId, $zoneId);
+            $existing = $this->state->findRecord($serverId, $existingId);
+            if (!is_null($existing)) {
+                if (($existing['type'] ?? '') === 'A' && PrivateNetwork::isPrivateLan((string) ($existing['content'] ?? ''))) {
+                    try {
+                        $this->providers->deleteRecord($existing, $serverId);
+                    } catch (\Throwable) {
+                    }
+                    $this->state->removeRecord($serverId, $this->state->recordKey($existing));
+                    $existing = null;
+                }
             }
 
-            return;
+            if (!is_null($existing)) {
+                $updated = $this->providers->updateRecord($existingId, $payload, $zoneId, $existing, $serverId);
+                foreach ($updated as $record) {
+                    $this->state->upsertRecord($serverId, $record);
+                    $this->state->setARecord($serverId, $this->state->recordKey($record), $newFqdn);
+                }
+
+                if ($oldFqdn !== null && strtolower($oldFqdn) !== strtolower($newFqdn)) {
+                    $this->deleteStaleAliasRecord($serverId, $oldFqdn, $this->state->recordKey($updated[0] ?? $existing), $zoneId);
+                }
+
+                return;
+            }
         }
 
-        $result = $this->client->createRecord($payload, $zoneId);
-        $id = (string) ($result['result']['id'] ?? '');
-        if ($id !== '') {
-            $this->state->setARecord($serverId, $id, $newFqdn);
-            $this->state->upsertRecord($serverId, [
-                'cloudflare_id' => $id,
-                'type' => 'A',
-                'name' => $newFqdn,
-                'content' => $ip,
-                'profile_id' => null,
-                'zone_id' => $zoneId,
-                'created_at' => now()->toIso8601String(),
-                'updated_at' => now()->toIso8601String(),
-            ]);
+        $created = $this->providers->createRecord($payload, $zoneId, null, $serverId);
+        foreach ($created as $record) {
+            $id = $this->state->recordKey($record);
+            if ($id !== '') {
+                $this->state->setARecord($serverId, $id, $newFqdn);
+                $this->state->upsertRecord($serverId, $record);
+            }
         }
     }
 
-    private function deleteStaleARecord(int $serverId, string $oldFqdn, string $currentId, string $zoneId): void
+    private function deleteStaleAliasRecord(int $serverId, string $oldFqdn, string $currentId, string $zoneId): void
     {
         foreach ($this->state->dnsRecords($serverId) as $record) {
-            $id = (string) ($record['cloudflare_id'] ?? '');
+            $id = $this->state->recordKey($record);
             $name = strtolower((string) ($record['name'] ?? ''));
-            if ($id !== '' && $id !== $currentId && $name === strtolower($oldFqdn) && ($record['type'] ?? '') === 'A') {
+            $type = strtoupper((string) ($record['type'] ?? ''));
+            if ($id !== '' && $id !== $currentId && $name === strtolower($oldFqdn) && in_array($type, ['A', 'CNAME'], true)) {
                 try {
-                    $recordZone = (string) ($record['zone_id'] ?? $zoneId);
-                    $this->client->deleteRecord($id, $recordZone);
+                    $this->providers->deleteRecord($record, $serverId);
                 } catch (\Throwable) {
                 }
                 $this->state->removeRecord($serverId, $id);
@@ -194,11 +187,11 @@ class HostnameManager
 
             $name = (string) ($record['name'] ?? '');
             if ($name !== '' && str_contains(strtolower($name), '.' . strtolower($oldLabel) . '.')) {
-                $id = (string) ($record['cloudflare_id'] ?? '');
+                $id = $this->state->recordKey($record);
                 if ($id !== '') {
                     try {
                         $zoneId = (string) ($record['zone_id'] ?? $primaryDomain->zoneId);
-                        $this->client->deleteRecord($id, $zoneId);
+                        $this->providers->deleteRecord($record, $serverId);
                     } catch (\Throwable) {
                     }
                     $this->state->removeRecord($serverId, $id);

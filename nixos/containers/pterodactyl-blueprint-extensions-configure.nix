@@ -95,6 +95,12 @@ let
     ];
     dnsDefault("srv_profiles", $srvProfiles);
     dnsDefault("primary_domains", []);
+    dnsDefault("node_fqdn_map", [
+      "1" => "crux.lc1.nm.us.prestonhager.com",
+      "2" => "nova.lc1.nm.us.prestonhager.com",
+      "default_crux" => "crux.lc1.nm.us.prestonhager.com",
+      "default_nova" => "nova.lc1.nm.us.prestonhager.com",
+    ]);
 
     $zoneId = resolveCloudflareZoneId();
     if ($zoneId !== "") {

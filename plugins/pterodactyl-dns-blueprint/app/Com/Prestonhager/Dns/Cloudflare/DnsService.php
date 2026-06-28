@@ -6,7 +6,8 @@ use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Su
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\RecordName;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\ResolvedZoneName;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\ServerDnsState;
-use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\SrvProfile;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\PrivateNetwork;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\NodeTargetResolver;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\ZoneResolver;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Dto\ServerSummary;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Compatibility\PluginException;
@@ -20,6 +21,7 @@ class DnsService
         private readonly Client $client,
         private readonly ServerDnsState $state,
         private readonly ZoneResolver $zoneResolver,
+        private readonly NodeTargetResolver $nodeTargets,
     ) {
     }
 
@@ -38,15 +40,24 @@ class DnsService
     public function createRecord(int $serverId, ServerSummary $server, array $input): array
     {
         $type = strtoupper((string) ($input['type'] ?? ''));
+        $this->assertAllowedRecord($type, $input, $serverId);
         $built = $this->buildPayload($type, $input, $server, $serverId);
-        $result = $this->client->createRecord($built['payload'], $built['zone_id']);
-        $record = $this->mapCloudflareResult($result['result'] ?? [], $input, $built);
+        $providerManager = \Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Services::providerManager($this->context);
+        $created = $providerManager->createRecord($built['payload'], $built['zone_id'], null, $serverId);
 
-        $this->state->upsertRecord($serverId, $record);
+        if ($created === []) {
+            throw new PluginException('No DNS provider is configured for record creation.');
+        }
+
+        $record = $created[0];
+        foreach ($created as $providerRecord) {
+            $this->state->upsertRecord($serverId, $providerRecord);
+        }
+
         $this->context->activity()->log('dns-record-created', [
             'server_id' => $serverId,
             'type' => $type,
-            'cloudflare_id' => $record['cloudflare_id'],
+            'cloudflare_id' => $record['cloudflare_id'] ?? null,
         ]);
 
         return $record;
@@ -56,49 +67,57 @@ class DnsService
      * @param array<string, mixed> $input
      * @return array<string, mixed>
      */
-    public function updateRecord(int $serverId, ServerSummary $server, string $cloudflareId, array $input): array
+    public function updateRecord(int $serverId, ServerSummary $server, string $recordId, array $input): array
     {
-        $existing = $this->state->findRecord($serverId, $cloudflareId);
-        if (is_null($existing)) {
-            throw new PluginException('DNS record not found for this server.');
-        }
-
+        $existing = $this->resolveExistingRecord($serverId, $recordId);
         $type = strtoupper((string) ($input['type'] ?? $existing['type'] ?? ''));
+        $this->assertAllowedRecord($type, array_merge($existing, $input), $serverId);
         $built = $this->buildPayload($type, array_merge($existing, $input), $server, $serverId, partial: true);
         $zoneId = (string) ($existing['zone_id'] ?? $this->config->zoneId());
-        $result = $this->client->updateRecord($cloudflareId, $built['payload'], $zoneId);
-        $record = $this->mapCloudflareResult($result['result'] ?? [], array_merge($existing, $input), $built);
+        $providerManager = \Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Services::providerManager($this->context);
+        $updated = $providerManager->updateRecord(
+            $this->state->recordKey($existing),
+            $built['payload'],
+            $zoneId,
+            $existing,
+            $serverId,
+        );
+        $record = $updated[0] ?? $existing;
 
         $this->state->upsertRecord($serverId, $record);
         $this->context->activity()->log('dns-record-updated', [
             'server_id' => $serverId,
-            'cloudflare_id' => $cloudflareId,
+            'cloudflare_id' => $this->state->recordKey($record),
         ]);
 
         return $record;
     }
 
-    public function deleteRecord(int $serverId, string $cloudflareId): void
+    public function deleteRecord(int $serverId, string $recordId): void
     {
-        $existing = $this->state->findRecord($serverId, $cloudflareId);
-        if (is_null($existing)) {
-            throw new PluginException('DNS record not found for this server.');
+        $existing = $this->resolveExistingRecord($serverId, $recordId);
+        $providerManager = \Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Services::providerManager($this->context);
+
+        foreach ($this->matchingRecords($serverId, $existing) as $record) {
+            try {
+                $providerManager->deleteRecord($record, $serverId);
+            } catch (PluginException) {
+            }
+
+            $this->state->removeRecord($serverId, $this->state->recordKey($record));
         }
 
-        $zoneId = (string) ($existing['zone_id'] ?? $this->config->zoneId());
-        $this->client->deleteRecord($cloudflareId, $zoneId);
-
-        if ($this->state->aRecordId($serverId) === $cloudflareId) {
+        $aliasId = $this->state->aRecordId($serverId);
+        if (!is_null($aliasId) && ($aliasId === $recordId || $aliasId === ($existing['cloudflare_id'] ?? '') || $aliasId === ($existing['record_id'] ?? ''))) {
             $state = $this->state->all($serverId);
             $state['a_record_id'] = null;
             $state['a_record_name'] = null;
             $this->state->save($serverId, $state);
         }
 
-        $this->state->removeRecord($serverId, $cloudflareId);
         $this->context->activity()->log('dns-record-deleted', [
             'server_id' => $serverId,
-            'cloudflare_id' => $cloudflareId,
+            'cloudflare_id' => $recordId,
         ]);
     }
 
@@ -306,17 +325,69 @@ class DnsService
 
     private function primaryAllocationTarget(int $serverId): string
     {
-        $network = $this->context->servers()->getNetworkSummary($serverId);
+        return $this->nodeTargets->fqdnForServer($serverId);
+    }
 
-        foreach ($network->allocations as $allocation) {
-            if ($allocation->isPrimary) {
-                return ($allocation->ipAlias !== null && $allocation->ipAlias !== '')
-                    ? $allocation->ipAlias
-                    : $allocation->ip;
+    /**
+     * @param array<string, mixed> $input
+     */
+    private function assertAllowedRecord(string $type, array $input, int $serverId): void
+    {
+        if ($type === 'A') {
+            $content = (string) ($input['content'] ?? $input['ip'] ?? '');
+            if (PrivateNetwork::isPrivateLan($content)) {
+                throw new PluginException(
+                    'A records must not use private LAN addresses. Use a CNAME to the node FQDN (for example '
+                    . $this->nodeTargets->fqdnForServer($serverId)
+                    . ') or rely on SRV records instead.'
+                );
+            }
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function resolveExistingRecord(int $serverId, string $recordId): array
+    {
+        $existing = $this->state->findRecord($serverId, $recordId);
+        if (!is_null($existing)) {
+            return $existing;
+        }
+
+        if (str_starts_with($recordId, 'technitium:')) {
+            $parts = explode(':', $recordId, 4);
+            if (count($parts) === 4) {
+                $byName = $this->state->findRecordByNameAndType($serverId, $parts[2], $parts[3]);
+                if (!is_null($byName)) {
+                    return $byName;
+                }
             }
         }
 
-        throw new PluginException('No primary allocation found for this server.');
+        throw new PluginException('DNS record not found for this server.');
+    }
+
+    /**
+     * @param array<string, mixed> $existing
+     * @return array<int, array<string, mixed>>
+     */
+    private function matchingRecords(int $serverId, array $existing): array
+    {
+        $name = strtolower(rtrim((string) ($existing['name'] ?? ''), '.'));
+        $type = strtoupper((string) ($existing['type'] ?? ''));
+        $matches = [];
+
+        foreach ($this->state->dnsRecords($serverId) as $record) {
+            $recordName = strtolower(rtrim((string) ($record['name'] ?? ''), '.'));
+            $recordType = strtoupper((string) ($record['type'] ?? ''));
+
+            if ($recordName === $name && $recordType === $type) {
+                $matches[] = $record;
+            }
+        }
+
+        return $matches !== [] ? $matches : [$existing];
     }
 
     private function primaryAllocationPort(int $serverId): int

@@ -35,7 +35,7 @@
       "key": "auto_provision_enabled",
       "type": "boolean",
       "label": "Auto-provision on install",
-      "description": "Automatically create A and SRV records when a server finishes installing.",
+      "description": "Automatically create CNAME (to node FQDN) and SRV records when a server finishes installing.",
       "surfaces": ["admin"],
       "storage": "config",
       "default": true

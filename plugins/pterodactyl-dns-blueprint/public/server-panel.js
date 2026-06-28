@@ -339,6 +339,8 @@ window.PterodactylPlugin_com_prestonhager_dns = function () {
                         (record.data && record.data.target ? record.data.target : record.target || '') +
                         ':' +
                         (record.port || (record.data && record.data.port) || '');
+                } else if (record.type === 'CNAME') {
+                    details = '→ ' + (record.content || record.target || '');
                 }
                 if (record.profile_id) {
                     details = (record.label || record.profile_id) + ' — ' + details;
@@ -354,9 +356,10 @@ window.PterodactylPlugin_com_prestonhager_dns = function () {
                     '</td><td>';
 
                 if (can('records.delete')) {
+                    var recordId = record.record_id || record.cloudflare_id || '';
                     html +=
                         '<button type="button" class="ptero-btn ptero-btn--danger ptero-btn--sm" data-action="delete-record" data-id="' +
-                        escapeHtml(record.cloudflare_id) +
+                        escapeHtml(recordId) +
                         '">Delete</button>';
                 }
 

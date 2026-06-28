@@ -5,7 +5,7 @@ namespace Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Services;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\RecordName;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\SrvPresets;
-use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\SrvProfile;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\NodeTargetResolver;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Dto\AllocationSummary;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Compatibility\PluginHttpRequest;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Compatibility\PluginHttpResponse;
@@ -99,9 +99,13 @@ class SrvProfilesController
         $target = '';
         $port = 25565;
         if (!is_null($primary)) {
-            $target = ($primary->ipAlias !== null && $primary->ipAlias !== '')
-                ? $primary->ipAlias
-                : $primary->ip;
+            try {
+                $target = Services::nodeTargetResolver($context)->fqdnForServer($serverId);
+            } catch (PluginException) {
+                $target = ($primary->ipAlias !== null && $primary->ipAlias !== '')
+                    ? $primary->ipAlias
+                    : $primary->ip;
+            }
             $port = $primary->port;
         }
 

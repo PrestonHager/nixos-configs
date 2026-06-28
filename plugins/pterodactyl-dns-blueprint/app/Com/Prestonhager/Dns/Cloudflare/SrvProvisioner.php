@@ -8,6 +8,8 @@ use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Su
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\SrvProfile;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Dto\AllocationSummary;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Dto\ServerSummary;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\NodeTargetResolver;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\PrivateNetwork;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Providers\ProviderManager;
 
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Compatibility\PluginContext;
@@ -21,6 +23,7 @@ class SrvProvisioner
         private readonly ServerDnsState $state,
         private readonly SrvRecordMatcher $matcher,
         private readonly ProviderManager $providers,
+        private readonly NodeTargetResolver $nodeTargets,
     ) {
     }
 
@@ -46,13 +49,13 @@ class SrvProvisioner
         }
 
         $baseDomain = $primaryDomain->domain;
-        $aFqdn = RecordName::fqdn($label, $baseDomain);
-        $target = $this->allocationTarget($primary);
+        $aliasFqdn = RecordName::fqdn($label, $baseDomain);
+        $nodeFqdn = $this->nodeTargets->fqdnForServer($serverId);
         $zoneId = $primaryDomain->zoneId;
 
-        $this->ensureARecord($serverId, $aFqdn, $primary->ip, $zoneId);
+        $this->ensureHostnameAlias($serverId, $aliasFqdn, $nodeFqdn, $zoneId);
 
-        $targetCandidates = $this->targetCandidates($target, $primary, $aFqdn, $serverId);
+        $targetCandidates = $this->targetCandidates($nodeFqdn, $primary, $aliasFqdn, $serverId);
         $localRecords = $this->state->dnsRecords($serverId);
 
         foreach ($profiles as $profile) {
@@ -61,7 +64,7 @@ class SrvProvisioner
                 $network->server,
                 $profile,
                 $label,
-                $target,
+                $nodeFqdn,
                 $primary->port,
                 $zoneId,
                 $baseDomain,
@@ -95,13 +98,14 @@ class SrvProvisioner
     /**
      * @return string[]
      */
-    private function targetCandidates(string $currentTarget, AllocationSummary $primary, string $aFqdn, int $serverId): array
+    private function targetCandidates(string $currentTarget, AllocationSummary $primary, string $aliasFqdn, int $serverId): array
     {
+        $nodeFqdn = $this->nodeTargets->fqdnForServer($serverId);
         $candidates = array_filter([
             $currentTarget,
-            $primary->ip,
+            $nodeFqdn,
             $primary->ipAlias,
-            $aFqdn,
+            $aliasFqdn,
             $this->state->aRecordName($serverId),
         ], fn ($value) => is_string($value) && $value !== '');
 
@@ -151,12 +155,14 @@ class SrvProvisioner
         return $selected;
     }
 
-    private function ensureARecord(int $serverId, string $fqdn, string $ip, string $zoneId): void
+    private function ensureHostnameAlias(int $serverId, string $fqdn, string $nodeFqdn, string $zoneId): void
     {
+        $this->removeStaleLanARecords($serverId, $fqdn, $zoneId);
+
         $payload = [
-            'type' => 'A',
+            'type' => 'CNAME',
             'name' => $fqdn,
-            'content' => $ip,
+            'content' => $nodeFqdn,
             'ttl' => $this->config->defaultTtl(),
             'proxied' => false,
         ];
@@ -165,10 +171,25 @@ class SrvProvisioner
         if (!is_null($existingId)) {
             $existing = $this->state->findRecord($serverId, $existingId);
             if (!is_null($existing)) {
+                if (($existing['type'] ?? '') === 'CNAME' && strtolower(rtrim((string) ($existing['content'] ?? ''), '.')) === strtolower($nodeFqdn)) {
+                    return;
+                }
+
+                if (($existing['type'] ?? '') !== 'CNAME') {
+                    try {
+                        $this->providers->deleteRecord($existing, $serverId);
+                    } catch (\Throwable) {
+                    }
+                    $this->state->removeRecord($serverId, $this->state->recordKey($existing));
+                    $existing = null;
+                }
+            }
+
+            if (!is_null($existing)) {
                 $updated = $this->providers->updateRecord($existingId, $payload, $zoneId, $existing, $serverId);
                 foreach ($updated as $record) {
                     $this->state->upsertRecord($serverId, $record);
-                    $this->state->setARecord($serverId, (string) ($record['record_id'] ?? $record['cloudflare_id']), $fqdn);
+                    $this->state->setARecord($serverId, $this->state->recordKey($record), $fqdn);
                 }
 
                 return;
@@ -177,11 +198,37 @@ class SrvProvisioner
 
         $created = $this->providers->createRecord($payload, $zoneId, null, $serverId);
         foreach ($created as $record) {
-            $id = (string) ($record['record_id'] ?? $record['cloudflare_id'] ?? '');
+            $id = $this->state->recordKey($record);
             if ($id !== '') {
                 $this->state->setARecord($serverId, $id, $fqdn);
                 $this->state->upsertRecord($serverId, $record);
             }
+        }
+    }
+
+    private function removeStaleLanARecords(int $serverId, string $fqdn, string $zoneId): void
+    {
+        foreach ($this->state->dnsRecords($serverId) as $record) {
+            if (($record['type'] ?? '') !== 'A') {
+                continue;
+            }
+
+            $name = strtolower(rtrim((string) ($record['name'] ?? ''), '.'));
+            if ($name !== strtolower(rtrim($fqdn, '.'))) {
+                continue;
+            }
+
+            $content = (string) ($record['content'] ?? '');
+            if (!PrivateNetwork::isPrivateLan($content)) {
+                continue;
+            }
+
+            try {
+                $this->providers->deleteRecord($record, $serverId);
+            } catch (\Throwable) {
+            }
+
+            $this->state->removeRecord($serverId, $this->state->recordKey($record));
         }
     }
 

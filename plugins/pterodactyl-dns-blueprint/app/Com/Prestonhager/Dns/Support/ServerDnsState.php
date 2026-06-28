@@ -261,15 +261,55 @@ class ServerDnsState
         return $this->all($serverId)['dns_records'];
     }
 
-    public function findRecord(int $serverId, string $cloudflareId): ?array
+    public function findRecord(int $serverId, string $recordId): ?array
     {
         foreach ($this->dnsRecords($serverId) as $record) {
-            if (($record['cloudflare_id'] ?? '') === $cloudflareId) {
+            if ($this->recordMatchesId($record, $recordId)) {
                 return $record;
             }
         }
 
         return null;
+    }
+
+    public function findRecordByNameAndType(int $serverId, string $name, string $type): ?array
+    {
+        $needleName = strtolower(rtrim($name, '.'));
+        $needleType = strtoupper($type);
+
+        foreach ($this->dnsRecords($serverId) as $record) {
+            $recordName = strtolower(rtrim((string) ($record['name'] ?? ''), '.'));
+            $recordType = strtoupper((string) ($record['type'] ?? ''));
+
+            if ($recordName === $needleName && $recordType === $needleType) {
+                return $record;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $record
+     */
+    public function recordKey(array $record): string
+    {
+        $id = (string) ($record['record_id'] ?? $record['cloudflare_id'] ?? '');
+
+        return $id;
+    }
+
+    /**
+     * @param array<string, mixed> $record
+     */
+    private function recordMatchesId(array $record, string $recordId): bool
+    {
+        if ($recordId === '') {
+            return false;
+        }
+
+        return ($record['cloudflare_id'] ?? '') === $recordId
+            || ($record['record_id'] ?? '') === $recordId;
     }
 
     public function findRecordByProfile(int $serverId, string $profileId): ?array
@@ -305,12 +345,12 @@ class ServerDnsState
         $this->save($serverId, $state);
     }
 
-    public function removeRecord(int $serverId, string $cloudflareId): void
+    public function removeRecord(int $serverId, string $recordId): void
     {
         $state = $this->all($serverId);
         $state['dns_records'] = array_values(array_filter(
             $state['dns_records'],
-            fn (array $record) => ($record['cloudflare_id'] ?? '') !== $cloudflareId
+            fn (array $record) => !$this->recordMatchesId($record, $recordId)
         ));
         $this->save($serverId, $state);
     }

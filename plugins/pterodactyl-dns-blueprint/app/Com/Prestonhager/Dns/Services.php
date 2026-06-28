@@ -16,6 +16,7 @@ use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Su
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\DnsPolicy;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\HostnameManager;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\HostnameRegistry;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\NodeTargetResolver;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\ServerDnsState;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\SubdomainValidator;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\ZoneResolver;
@@ -68,6 +69,11 @@ final class Services
         );
     }
 
+    public static function nodeTargetResolver(PluginContext $context): NodeTargetResolver
+    {
+        return new NodeTargetResolver(self::config($context));
+    }
+
     public static function hostnameManager(PluginContext $context): HostnameManager
     {
         return new HostnameManager(
@@ -77,6 +83,8 @@ final class Services
             self::state($context),
             self::srvProvisioner($context),
             self::hostnameRegistry($context),
+            self::providerManager($context),
+            self::nodeTargetResolver($context),
         );
     }
 
@@ -95,6 +103,7 @@ final class Services
             self::client($context),
             self::state($context),
             self::zoneResolver($context),
+            self::nodeTargetResolver($context),
         );
     }
 
@@ -142,6 +151,7 @@ final class Services
             self::state($context),
             self::srvMatcher($context),
             self::providerManager($context),
+            self::nodeTargetResolver($context),
         );
     }
 }
