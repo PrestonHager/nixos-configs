@@ -343,6 +343,12 @@ let
             fi
           fi
         done
+        public_dir="$dest/public"
+        if [ -d "$public_dir" ]; then
+          chmod 755 "$public_dir"
+          find "$public_dir" -type d -exec chmod 755 {} +
+          find "$public_dir" -type f -exec chmod 644 {} +
+        fi
       }
       sync_extension_wrapper() {
         ext="$1"
@@ -385,8 +391,21 @@ let
       for ext in blueprint sociallogin dnsrecords portforward; do
         public_dir="$panel/.blueprint/extensions/$ext/public"
         [ -d "$public_dir" ] || continue
-        find "$public_dir" -type d ! -perm /005 -exec chmod 755 {} + 2>/dev/null || true
-        find "$public_dir" -type f ! -perm /004 -exec chmod 644 {} + 2>/dev/null || true
+        chmod 755 "$public_dir" 2>/dev/null || true
+        find "$public_dir" -type d -exec chmod 755 {} + 2>/dev/null || true
+        find "$public_dir" -type f -exec chmod 644 {} + 2>/dev/null || true
+      done
+    }
+
+    extension_public_permissions_ok() {
+      for ext in blueprint sociallogin dnsrecords portforward; do
+        public_dir="$panel/.blueprint/extensions/$ext/public"
+        [ -d "$public_dir" ] || continue
+        perms=$(${pkgs.coreutils}/bin/stat -c '%a' "$public_dir" 2>/dev/null || echo 0)
+        case "$perms" in
+          7??|5??) ;;
+          *) return 1 ;;
+        esac
       done
     }
 
@@ -425,7 +444,7 @@ let
         [ -f "$panel/app/Http/Controllers/Admin/Extensions/$ext/''${ext}ExtensionController.php" ] || return 1
         extension_admin_view_ok "$ext" || return 1
       done
-      extension_migrations_integrated && extension_public_assets_integrated
+      extension_migrations_integrated && extension_public_assets_integrated && extension_public_permissions_ok
     }
 
     blueprint_core_backend_integrated() {
@@ -768,6 +787,7 @@ let
 
       chown -R prestonh:users "$panel"
       find "$panel/storage" "$panel/bootstrap/cache" -type d -exec chmod 2775 {} + 2>/dev/null || true
+      ensure_extension_public_permissions
     }
 
     write_marker() {
@@ -782,6 +802,7 @@ let
       && [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
       && [ -d "$panel/.blueprint/extensions/portforward" ] \
       && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
+      ensure_extension_public_permissions
       write_marker
       echo "pterodactyl-test-blueprint-install: Blueprint, Social Login, DNS Records, and Port Forward ready"
       exit 0
