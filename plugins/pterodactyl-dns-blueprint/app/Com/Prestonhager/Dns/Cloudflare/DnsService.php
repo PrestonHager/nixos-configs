@@ -8,6 +8,7 @@ use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Su
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\ServerDnsState;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\PrivateNetwork;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\NodeTargetResolver;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\SrvProfile;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\ZoneResolver;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Dto\ServerSummary;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Compatibility\PluginException;
@@ -93,9 +94,9 @@ class DnsService
         return $record;
     }
 
-    public function deleteRecord(int $serverId, string $recordId): void
+    public function deleteRecord(int $serverId, string $recordId, ?string $name = null, ?string $type = null): void
     {
-        $existing = $this->resolveExistingRecord($serverId, $recordId);
+        $existing = $this->resolveExistingRecord($serverId, $recordId, $name, $type);
         $providerManager = \Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Services::providerManager($this->context);
 
         foreach ($this->matchingRecords($serverId, $existing) as $record) {
@@ -348,11 +349,22 @@ class DnsService
     /**
      * @return array<string, mixed>
      */
-    private function resolveExistingRecord(int $serverId, string $recordId): array
+    private function resolveExistingRecord(int $serverId, string $recordId, ?string $name = null, ?string $type = null): array
     {
-        $existing = $this->state->findRecord($serverId, $recordId);
-        if (!is_null($existing)) {
-            return $existing;
+        $recordId = rawurldecode(trim($recordId));
+
+        if ($recordId !== '') {
+            $existing = $this->state->findRecord($serverId, $recordId);
+            if (!is_null($existing)) {
+                return $existing;
+            }
+        }
+
+        if ($name !== null && $type !== null && $name !== '' && $type !== '') {
+            $byName = $this->state->findRecordByNameAndType($serverId, $name, $type);
+            if (!is_null($byName)) {
+                return $byName;
+            }
         }
 
         if (str_starts_with($recordId, 'technitium:')) {
@@ -361,6 +373,16 @@ class DnsService
                 $byName = $this->state->findRecordByNameAndType($serverId, $parts[2], $parts[3]);
                 if (!is_null($byName)) {
                     return $byName;
+                }
+            }
+        }
+
+        $aliasId = $this->state->aRecordId($serverId);
+        if (!is_null($aliasId) && $aliasId !== '') {
+            $aliasRecord = $this->state->findRecord($serverId, $aliasId);
+            if (!is_null($aliasRecord)) {
+                if ($recordId === '' || $this->state->recordKey($aliasRecord) === $recordId) {
+                    return $aliasRecord;
                 }
             }
         }

@@ -330,7 +330,9 @@ class ServerDnsState
         $found = false;
 
         foreach ($records as $index => $existing) {
-            if (($existing['cloudflare_id'] ?? '') === ($record['cloudflare_id'] ?? '')) {
+            $existingKey = (string) ($existing['record_id'] ?? $existing['cloudflare_id'] ?? '');
+            $incomingKey = (string) ($record['record_id'] ?? $record['cloudflare_id'] ?? '');
+            if ($existingKey !== '' && $incomingKey !== '' && $existingKey === $incomingKey) {
                 $records[$index] = array_merge($existing, $record);
                 $found = true;
                 break;

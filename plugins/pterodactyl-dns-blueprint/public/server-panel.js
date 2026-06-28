@@ -360,6 +360,10 @@ window.PterodactylPlugin_com_prestonhager_dns = function () {
                     html +=
                         '<button type="button" class="ptero-btn ptero-btn--danger ptero-btn--sm" data-action="delete-record" data-id="' +
                         escapeHtml(recordId) +
+                        '" data-name="' +
+                        escapeHtml(record.name || '') +
+                        '" data-type="' +
+                        escapeHtml(record.type || '') +
                         '">Delete</button>';
                 }
 
@@ -489,7 +493,11 @@ window.PterodactylPlugin_com_prestonhager_dns = function () {
         }
 
         if (action === 'delete-record') {
-            deleteRecord(actionEl.getAttribute('data-id'));
+            deleteRecord(
+                actionEl.getAttribute('data-id'),
+                actionEl.getAttribute('data-name'),
+                actionEl.getAttribute('data-type')
+            );
             return;
         }
 
@@ -638,12 +646,32 @@ window.PterodactylPlugin_com_prestonhager_dns = function () {
             });
     }
 
-    function deleteRecord(id) {
+    function deleteRecord(id, name, type) {
         if (!confirm('Delete this DNS record?')) {
             return;
         }
         state.error = '';
-        api(serverPath('/records/' + encodeURIComponent(id)), { method: 'DELETE' })
+        var path = '/records/' + encodeURIComponent(id);
+        var query = [];
+        if (name) {
+            query.push('name=' + encodeURIComponent(name));
+        }
+        if (type) {
+            query.push('type=' + encodeURIComponent(type));
+        }
+        if (query.length > 0) {
+            path += '?' + query.join('&');
+        }
+        var request;
+        if (String(id).indexOf(':') !== -1) {
+            request = api(serverPath('/records/delete'), {
+                method: 'POST',
+                body: { record_id: id, name: name || '', type: type || '' },
+            });
+        } else {
+            request = api(serverPath(path), { method: 'DELETE' });
+        }
+        request
             .then(load)
             .catch(function (err) {
                 state.error = err.message;

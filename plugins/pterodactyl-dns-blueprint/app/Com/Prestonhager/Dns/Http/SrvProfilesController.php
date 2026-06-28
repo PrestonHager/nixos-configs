@@ -6,6 +6,7 @@ use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Se
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\RecordName;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\SrvPresets;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\NodeTargetResolver;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\SrvProfile;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Dto\AllocationSummary;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Compatibility\PluginHttpRequest;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Compatibility\PluginHttpResponse;
@@ -39,9 +40,33 @@ class SrvProfilesController
                 'profiles' => $profiles,
                 'enabled' => $enabled,
                 'presets' => array_keys(SrvPresets::all()),
-                'defaults' => $this->buildDefaults($context, $serverId, $config->srvProfiles(), $enabled),
+                'defaults' => $this->safeBuildDefaults($context, $serverId, $config->srvProfiles(), $enabled),
             ],
         ]);
+    }
+
+    /**
+     * @param SrvProfile[] $profiles
+     * @param string[] $enabled
+     * @return array<string, mixed>
+     */
+    private function safeBuildDefaults(PluginContext $context, int $serverId, array $profiles, array $enabled): array
+    {
+        try {
+            return $this->buildDefaults($context, $serverId, $profiles, $enabled);
+        } catch (\Throwable) {
+            return [
+                'record_type' => 'SRV',
+                'name' => '',
+                'base_domain' => Services::config($context)->baseDomain(),
+                'target' => '',
+                'port' => 25565,
+                'service' => '_minecraft',
+                'proto' => '_tcp',
+                'priority' => 0,
+                'weight' => 5,
+            ];
+        }
     }
 
     public function update(PluginContext $context, PluginHttpRequest $request): PluginHttpResponse

@@ -58,7 +58,16 @@ class RecordsController
 
         $serverId = $this->requireServerId($request);
         $recordId = (string) $request->route('recordId', '');
-        Services::dns($context)->deleteRecord($serverId, $recordId);
+        if ($recordId === '' && isset($request->body['record_id'])) {
+            $recordId = (string) $request->body['record_id'];
+        }
+
+        Services::dns($context)->deleteRecord(
+            $serverId,
+            $recordId,
+            $this->optionalString($request->query['name'] ?? $request->body['name'] ?? null),
+            $this->optionalString($request->query['type'] ?? $request->body['type'] ?? null),
+        );
 
         return PluginHttpResponse::json([], 204);
     }
@@ -70,5 +79,16 @@ class RecordsController
         }
 
         return $request->serverId;
+    }
+
+    private function optionalString(mixed $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value !== '' ? $value : null;
     }
 }

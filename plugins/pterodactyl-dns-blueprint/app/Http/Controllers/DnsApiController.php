@@ -44,6 +44,11 @@ class DnsApiController
         return $this->invoke($this->records, 'destroy', $request);
     }
 
+    public function recordsDestroyByBody(Request $request): JsonResponse
+    {
+        return $this->invoke($this->records, 'destroy', $request);
+    }
+
     public function srvProfilesIndex(Request $request): JsonResponse
     {
         return $this->invoke($this->srvProfiles, 'index', $request);
@@ -139,6 +144,16 @@ class DnsApiController
                     'detail' => $exception->getMessage(),
                 ]],
             ], $status);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return response()->json([
+                'errors' => [[
+                    'code' => class_basename($exception),
+                    'status' => '500',
+                    'detail' => $exception->getMessage(),
+                ]],
+            ], 500);
         }
     }
 }

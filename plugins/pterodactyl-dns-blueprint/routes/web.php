@@ -22,8 +22,11 @@ Route::middleware(['auth.session', RequireTwoFactorAuthentication::class, AdminA
     Route::group(['prefix' => '/admin/servers/{server}'], function () {
         Route::get('/records', [DnsApiController::class, 'recordsIndex']);
         Route::post('/records', [DnsApiController::class, 'recordsStore']);
-        Route::patch('/records/{recordId}', [DnsApiController::class, 'recordsUpdate']);
-        Route::delete('/records/{recordId}', [DnsApiController::class, 'recordsDestroy']);
+        Route::post('/records/delete', [DnsApiController::class, 'recordsDestroyByBody']);
+        Route::patch('/records/{recordId}', [DnsApiController::class, 'recordsUpdate'])
+            ->where('recordId', '.+');
+        Route::delete('/records/{recordId}', [DnsApiController::class, 'recordsDestroy'])
+            ->where('recordId', '.+');
 
         Route::get('/srv-profiles', [DnsApiController::class, 'srvProfilesIndex']);
         Route::put('/srv-profiles', [DnsApiController::class, 'srvProfilesUpdate']);
