@@ -84,9 +84,18 @@ hardware.nvidia-container-toolkit = {
 nvidia-smi
 modprobe nvidia_uvm
 systemctl status podman-ollama37        # if Ollama enabled
+systemctl status openclaw-gateway       # if OpenClaw enabled
 curl -sS http://127.0.0.1:11434/api/tags
+curl -sS http://127.0.0.1:18789/health
+bash scripts/ace-ollama-pull.sh gemma2:2b   # pull + smoke-test a K80 model
+bash scripts/ace-openclaw-config.sh gemma2:2b
+systemctl restart openclaw-gateway
 curl -sS -o /dev/null -w '%{http_code}\n' https://ai.prestonhager.com/
 ```
+
+OpenClaw config lives at `/stor/openclaw/.openclaw/openclaw.json` (template in
+`config/openclaw/openclaw.json.template`). Set `OLLAMA_API_KEY=ollama-local` and
+point the ollama provider at `http://127.0.0.1:11434` (no `/v1` suffix).
 
 CUDA smoke test:
 

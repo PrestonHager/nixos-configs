@@ -1,0 +1,26 @@
+{
+  // Template for /stor/openclaw/.openclaw/openclaw.json on ace.
+  // Apply with: bash scripts/ace-openclaw-config.sh [model]
+  // Ollama37 base URL has no /v1 suffix (native ollama provider).
+  gateway: {
+    mode: "local",
+  },
+  env: {
+    vars: {
+      OLLAMA_API_KEY: "ollama-local",
+    },
+  },
+  models: {
+    providers: {
+      ollama: {
+        baseUrl: "http://127.0.0.1:11434",
+        apiKey: "ollama-local",
+      },
+    },
+  },
+  agents: {
+    defaults: {
+      model: "ollama/gemma2:2b",
+    },
+  },
+}
