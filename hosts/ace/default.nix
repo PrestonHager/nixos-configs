@@ -79,5 +79,18 @@
     enable = true;
     accountId = "12f5428fd594b9e9c2eaadfdd0fdc857";
   };
+
+  # --- K80 GPU stack (Tesla K80 / legacy 470) — enable after hardware install ---
+  # See docs/ace-k80-gpu.md and https://github.com/PrestonHager/ace-k80-stack
+  #
+  # imports = [
+  #   inputs.ace-k80-stack.nixosModules.k80-gpu
+  # ];
+  #
+  # services.aceK80 = {
+  #   enable = true;
+  #   # enableOllama = true;    # dogkeeper886/ollama37 → /stor/ollama
+  #   # enableOpenClaw = true;  # gateway :18789; set openclaw.package when packaged
+  # };
 }
 

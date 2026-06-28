@@ -24,6 +24,8 @@
     ./wg-portal.nix
     ./zitadel.nix
     ./serverdocs.nix
+    # K80 / AI stack (enable after GPU install — see docs/ace-k80-gpu.md)
+    #./ai.nix
   ];
 
   # Enable the HTTP/HTTPS ports on the firewall
