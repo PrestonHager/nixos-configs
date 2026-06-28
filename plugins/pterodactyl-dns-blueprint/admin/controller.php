@@ -9,6 +9,8 @@ use Illuminate\View\View;
 use Pterodactyl\Http\Controllers\Controller;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Compatibility\PluginContext;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\ExtensionDefaults;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\CloudflareZoneId;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\PrimaryDomain;
 use Pterodactyl\BlueprintFramework\Libraries\ExtensionLibrary\Admin\BlueprintAdminLibrary as BlueprintExtensionLibrary;
 
 class dnsrecordsExtensionController extends Controller
@@ -94,9 +96,15 @@ class dnsrecordsExtensionController extends Controller
             if (!empty($validated[$input])) {
                 $decoded = json_decode($validated[$input], true);
                 if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                    $settings[$key] = $decoded;
+                    $settings[$key] = $key === 'primary_domains'
+                        ? $this->sanitizePrimaryDomains($decoded, $settings['zone_id'], $settings['base_domain'])
+                        : $decoded;
                 }
             }
+        }
+
+        if (CloudflareZoneId::isZoneId($settings['zone_id'])) {
+            $settings['zone_id'] = strtolower($settings['zone_id']);
         }
 
         $context->config()->replace($settings);
@@ -124,6 +132,40 @@ class dnsrecordsExtensionController extends Controller
         }
 
         return $merged;
+    }
+
+    /**
+     * @param array<int, mixed> $entries
+     * @return array<int, array<string, mixed>>
+     */
+    private function sanitizePrimaryDomains(array $entries, string $defaultZoneId, string $baseDomain): array
+    {
+        $defaultZoneId = CloudflareZoneId::isZoneId($defaultZoneId)
+            ? strtolower($defaultZoneId)
+            : $defaultZoneId;
+        $sanitized = [];
+
+        foreach ($entries as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $domain = PrimaryDomain::fromConfigEntry($entry, $defaultZoneId, $baseDomain);
+            if (is_null($domain)) {
+                continue;
+            }
+
+            $row = $entry;
+            if ($domain->zoneId === $defaultZoneId) {
+                unset($row['zone_id']);
+            } else {
+                $row['zone_id'] = $domain->zoneId;
+            }
+
+            $sanitized[] = $row;
+        }
+
+        return $sanitized;
     }
 
     /**

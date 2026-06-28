@@ -151,7 +151,9 @@ class Config
 
     public function zoneId(): string
     {
-        return $this->optionalString('zone_id');
+        $value = $this->optionalString('zone_id');
+
+        return CloudflareZoneId::isZoneId($value) ? strtolower($value) : $value;
     }
 
     public function baseDomain(): string

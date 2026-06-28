@@ -28,8 +28,8 @@ readonly class PrimaryDomain
         }
 
         $zoneId = trim((string) ($entry['zone_id'] ?? ''));
-        if ($zoneId === '') {
-            $zoneId = $defaultZoneId;
+        if ($zoneId === '' || !CloudflareZoneId::isZoneId($zoneId)) {
+            $zoneId = CloudflareZoneId::normalize($zoneId, $defaultZoneId, $defaultDomain, $domain);
         }
 
         return new self(

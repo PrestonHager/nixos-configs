@@ -3,6 +3,7 @@
 namespace Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Cloudflare;
 
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\Config;
+use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Com\Prestonhager\Dns\Support\CloudflareZoneId;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Compatibility\PluginContext;
 use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Compatibility\PluginException;
 
@@ -126,6 +127,11 @@ class Client
     private function zonePath(string $suffix, ?string $zoneId = null): string
     {
         $zoneId ??= $this->config->zoneId();
+        $zoneId = CloudflareZoneId::normalize(
+            $zoneId,
+            $this->config->zoneId(),
+            $this->config->baseDomain(),
+        );
 
         return self::BASE . '/zones/' . $zoneId . $suffix;
     }

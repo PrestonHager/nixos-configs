@@ -16,6 +16,37 @@ let
       DnsExtensionSetting::query()->firstOrCreate(["key" => $key], ["value" => $value]);
     }
 
+    function isCloudflareZoneId(string $value): bool {
+      return (bool) preg_match('/^[a-f0-9]{32}$/i', trim($value));
+    }
+
+    function sanitizePrimaryDomains(mixed $entries, string $defaultZoneId, string $baseDomain): array {
+      if (!is_array($entries)) {
+        return [];
+      }
+      $defaultZoneId = isCloudflareZoneId($defaultZoneId) ? strtolower($defaultZoneId) : $defaultZoneId;
+      $out = [];
+      foreach ($entries as $entry) {
+        if (!is_array($entry)) {
+          continue;
+        }
+        $domain = trim((string) ($entry["domain"] ?? ""));
+        if ($domain === "") {
+          continue;
+        }
+        $zoneId = trim((string) ($entry["zone_id"] ?? ""));
+        if ($zoneId === "" || !isCloudflareZoneId($zoneId)) {
+          unset($entry["zone_id"]);
+        } elseif (strtolower($zoneId) === strtolower($defaultZoneId)) {
+          unset($entry["zone_id"]);
+        } else {
+          $entry["zone_id"] = strtolower($zoneId);
+        }
+        $out[] = $entry;
+      }
+      return $out;
+    }
+
     function resolveCloudflareZoneId(): string {
       $token = getenv("CLOUDFLARE_API_TOKEN") ?: "";
       $tokenFile = getenv("CLOUDFLARE_API_TOKEN_FILE") ?: "";
@@ -111,6 +142,14 @@ let
       } else {
         dnsDefault("zone_id", $zoneId);
       }
+    }
+
+    $baseDomain = (string) (DnsExtensionSetting::query()->where("key", "base_domain")->value("value") ?? "prestonhager.com");
+    $resolvedZoneId = (string) (DnsExtensionSetting::query()->where("key", "zone_id")->value("value") ?? $zoneId);
+    $primaryDomains = DnsExtensionSetting::query()->where("key", "primary_domains")->value("value");
+    if (is_array($primaryDomains)) {
+      $fixed = sanitizePrimaryDomains($primaryDomains, $resolvedZoneId, $baseDomain);
+      DnsExtensionSetting::query()->updateOrCreate(["key" => "primary_domains"], ["value" => $fixed]);
     }
     echo "extensions configured\n";
   '';

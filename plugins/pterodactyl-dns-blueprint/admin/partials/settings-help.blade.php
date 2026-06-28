@@ -132,7 +132,8 @@
 
     <div data-dns-help-panel="primary-domains">
         <h5>Purpose</h5>
-        <p>Primary domains control which DNS zone apex is used for server vanity hostnames. Each game server gets a label (for example <code>ead</code>) appended to a primary domain, producing <code>ead.prestonhager.com</code>.</p>
+        <p>Primary domains control which DNS zone apex is used for server vanity hostnames. Each game server gets a label (for example <code>ead</code>) appended to a primary domain, producing <code>ead.prestonhager.com</code> or <code>ead.games.prestonhager.com</code>.</p>
+        <p>Vanity bases like <code>games.prestonhager.com</code> are <strong>hostname suffixes</strong>, not separate Cloudflare zones. DNS records still live in the parent zone (<code>prestonhager.com</code>). Omit <code>zone_id</code> to inherit the default Cloudflare zone ID above.</p>
         <p>You do <strong>not</strong> need to list your main zone here. The extension always exposes an implicit <code>default</code> domain from <strong>Base domain</strong> and <strong>Default zone ID</strong> above.</p>
 
         <h5>JSON structure</h5>
@@ -162,7 +163,7 @@
                 <tr>
                     <td><code>zone_id</code></td>
                     <td>No</td>
-                    <td>Cloudflare zone ID for this domain. Defaults to <strong>Default zone ID</strong> when omitted. Required when the domain lives in a different Cloudflare zone than the base domain.</td>
+                    <td>Cloudflare zone ID (32-character hex), <strong>not</strong> a domain name. Defaults to <strong>Default zone ID</strong> when omitted. For <code>games.prestonhager.com</code> vanity hostnames, omit this — records go in the <code>prestonhager.com</code> zone.</td>
                 </tr>
                 <tr>
                     <td><code>client_selectable</code></td>
