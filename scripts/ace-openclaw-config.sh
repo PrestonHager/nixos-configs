@@ -55,6 +55,9 @@ cat >"$PATCH_FILE" <<EOF
     "defaults": {
       "model": {
         "primary": "ollama/${MODEL}"
+      },
+      "compaction": {
+        "reserveTokensFloor": 20000
       }
     }
   }

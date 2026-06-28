@@ -33,6 +33,9 @@
   agents: {
     defaults: {
       model: "ollama/gemma2:2b",
+      compaction: {
+        reserveTokensFloor: 20000,
+      },
     },
   },
 }
