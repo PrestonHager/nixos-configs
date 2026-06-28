@@ -22,10 +22,10 @@ in
 
   systemd.services.samba-set-prestonh-password = {
     description = "Ensure Samba password for ${smbUser} from sops";
-    after = [ "sops-install-secrets.service" ];
-    requires = [ "sops-install-secrets.service" ];
-    before = [ "smbd.service" "nmbd.service" ];
+    after = [ "local-fs.target" ];
+    before = [ "samba-smbd.service" "samba-nmbd.service" ];
     wantedBy = [ "multi-user.target" ];
+    unitConfig.ConditionPathExists = "/run/secrets/ace-samba-prestonh";
     serviceConfig = {
       Type = "oneshot";
       ExecStart = pkgs.writeShellScript "samba-set-prestonh-password" ''
