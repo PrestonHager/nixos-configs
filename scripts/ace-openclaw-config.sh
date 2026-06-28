@@ -22,11 +22,22 @@ fi
 
 run_oc config set gateway.mode local
 run_oc config set env.vars.OLLAMA_API_KEY ollama-local
+run_oc config set gateway.auth.mode trusted-proxy
+run_oc config unset gateway.auth.token 2>/dev/null || true
 
 PATCH_FILE=$(mktemp)
 cat >"$PATCH_FILE" <<EOF
 {
   "gateway": {
+    "trustedProxies": ["127.0.0.1"],
+    "auth": {
+      "mode": "trusted-proxy",
+      "trustedProxy": {
+        "userHeader": "x-auth-request-email",
+        "allowLoopback": true,
+        "requiredHeaders": ["x-forwarded-proto", "x-forwarded-host"]
+      }
+    },
     "controlUi": {
       "allowedOrigins": ["https://ai.prestonhager.com"]
     }

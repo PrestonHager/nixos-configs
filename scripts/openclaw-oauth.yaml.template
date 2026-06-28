@@ -1,0 +1,11 @@
+# Copy to nixos-secrets/secrets/containers/openclaw-oauth.yaml and encrypt with sops on ace.
+# Create Zitadel OIDC app first:
+#   nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-openclaw-console-setup.js
+# Redirect URI: https://ai.prestonhager.com/oauth2/callback
+# Cookie secret: openssl rand -base64 32 | tr -d '\n' | head -c 32
+
+openclaw-oauth-env: |
+  OPENCLAW_OIDC_CLIENT_ID=REPLACE_ZITADEL_CLIENT_ID
+  OPENCLAW_OIDC_CLIENT_SECRET=REPLACE_ZITADEL_CLIENT_SECRET
+  OAUTH2_PROXY_COOKIE_SECRET=REPLACE_OAUTH2_PROXY_COOKIE_SECRET
+  ZITADEL_PROJECT_ID=376196450586990901

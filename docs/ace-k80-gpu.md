@@ -65,7 +65,7 @@ bash scripts/ace-k80-deploy.sh
 |---------|----------|-------|
 | Ollama 37 | `http://127.0.0.1:11434` | Container `dogkeeper886/ollama37`, data `/stor/ollama` |
 | OpenClaw | `http://127.0.0.1:18789` | Gateway default port; loopback bind |
-| Public | `https://ai.prestonhager.com` | Caddy → OpenClaw; `/ollama/*` → Ollama API |
+| Public | `https://ai.prestonhager.com` | Caddy → OpenClaw (Zitadel SSO); `/ollama/*` → Ollama API |
 
 ### NVIDIA container toolkit (470)
 
@@ -93,6 +93,8 @@ systemctl restart openclaw-gateway
 curl -sS -o /dev/null -w '%{http_code}\n' https://ai.prestonhager.com/
 ```
 
+SSO setup (Zitadel + trusted-proxy): [ace-openclaw-sso.md](./ace-openclaw-sso.md).
+
 OpenClaw config lives at `/stor/openclaw/.openclaw/openclaw.json` (template in
 `config/openclaw/openclaw.json.template`). Set `OLLAMA_API_KEY=ollama-local` and
 point the ollama provider at `http://127.0.0.1:11434` (no `/v1` suffix).
@@ -106,5 +108,6 @@ nix run .#cuda_11_4_toolkit -- nvcc --version
 
 ## Related docs
 
+- [OpenClaw SSO on ace](./ace-openclaw-sso.md) — Zitadel browser login for Control UI
 - [DNS on ace](dns-ace.md) — `ai` CNAME in Technitium zones
 - [ace-k80-stack README](https://github.com/PrestonHager/ace-k80-stack/blob/main/README.md)

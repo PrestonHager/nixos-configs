@@ -1,9 +1,18 @@
 {
   // Template for /stor/openclaw/.openclaw/openclaw.json on ace.
   // Apply with: bash scripts/ace-openclaw-config.sh [model]
-  // Ollama37 base URL has no /v1 suffix (native ollama provider).
+  // SSO: Caddy + oauth2-proxy (Zitadel) → trusted-proxy auth. See docs/ace-openclaw-sso.md
   gateway: {
     mode: "local",
+    trustedProxies: ["127.0.0.1"],
+    auth: {
+      mode: "trusted-proxy",
+      trustedProxy: {
+        userHeader: "x-auth-request-email",
+        allowLoopback: true,
+        requiredHeaders: ["x-forwarded-proto", "x-forwarded-host"],
+      },
+    },
     controlUi: {
       allowedOrigins: ["https://ai.prestonhager.com"],
     },

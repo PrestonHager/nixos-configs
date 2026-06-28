@@ -21,6 +21,7 @@
     ./vaultwarden.nix
     ./wg-portal.nix
     ./technitium.nix
+    ./openclaw-oauth.nix
     # ./lancache.nix — disabled; Technitium is primary LAN DNS on 192.168.5.5:53
     ./zitadel.nix
   ];
