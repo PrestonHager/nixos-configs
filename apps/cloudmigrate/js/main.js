@@ -23,11 +23,14 @@
 	const icloudRcloneHint = document.getElementById('icloud-rclone-hint');
 	const icloudActionFeedback = document.getElementById('icloud-action-feedback');
 	const icloudAuthPanel = document.getElementById('icloud-auth-panel');
+	const icloudAuthStepStart = document.getElementById('icloud-auth-step-start');
+	const icloudAuthStep2fa = document.getElementById('icloud-auth-step-2fa');
 	const icloudAuthMessage = document.getElementById('icloud-auth-message');
 	const icloudAuthStatus = document.getElementById('icloud-auth-status');
 	const icloudMigrate = document.getElementById('icloud-migrate');
 	const icloudAuthStart = document.getElementById('icloud-auth-start');
 	const icloudAuthSubmit = document.getElementById('icloud-auth-submit');
+	const icloudAuthRestart = document.getElementById('icloud-auth-restart');
 	const icloud2faCode = document.getElementById('icloud-2fa-code');
 
 	let pollTimer = null;
@@ -282,16 +285,32 @@
 			icloudConnected.hidden = !ic.configured;
 			const authenticated = !!ic.authenticated;
 			const authStatus = ic.authStatus || 'none';
+			const awaiting2fa = authStatus === 'needs_2fa';
+			if (ic.authState) {
+				icloudAuthState = ic.authState;
+			}
 			if (icloudAuthPanel) {
 				icloudAuthPanel.hidden = authenticated;
+			}
+			if (icloudAuthStepStart) {
+				icloudAuthStepStart.hidden = authenticated || awaiting2fa;
+			}
+			if (icloudAuthStep2fa) {
+				icloudAuthStep2fa.hidden = authenticated || !awaiting2fa;
+			}
+			if (icloudAuthMessage && awaiting2fa) {
+				icloudAuthMessage.textContent = t('cloudmigrate', 'Step 2: Enter the verification code Apple sent you, then click Submit code. Do not click Start sign-in again.');
 			}
 			if (icloudAuthStatus) {
 				if (authenticated) {
 					icloudAuthStatus.hidden = false;
 					icloudAuthStatus.textContent = t('cloudmigrate', 'Signed in to iCloud Drive (trust token active). Re-sign before ~30 days if migrations fail.');
+				} else if (awaiting2fa) {
+					icloudAuthStatus.hidden = false;
+					icloudAuthStatus.textContent = t('cloudmigrate', 'Waiting for two-factor code — use Submit code below.');
 				} else if (ic.configured) {
 					icloudAuthStatus.hidden = false;
-					icloudAuthStatus.textContent = t('cloudmigrate', 'Credentials saved — complete Apple two-factor sign-in below.');
+					icloudAuthStatus.textContent = t('cloudmigrate', 'Credentials saved — click Start sign-in (step 1).');
 				} else {
 					icloudAuthStatus.hidden = true;
 				}
@@ -300,10 +319,7 @@
 				icloudMigrate.hidden = !authenticated;
 			}
 			if (icloudAuthStart) {
-				icloudAuthStart.hidden = authStatus === 'needs_2fa';
-			}
-			if (icloudAuthSubmit) {
-				icloudAuthSubmit.hidden = authStatus !== 'needs_2fa';
+				icloudAuthStart.disabled = awaiting2fa;
 			}
 			if (ic.configured && ic.rcloneAvailable && authenticated) {
 				icloudRcloneHint.hidden = true;
@@ -451,25 +467,55 @@
 		}
 		if (json.status === 'needs_2fa') {
 			icloudAuthState = json.state || '2fa_do';
-			if (icloudAuthStart) icloudAuthStart.hidden = true;
-			if (icloudAuthSubmit) icloudAuthSubmit.hidden = false;
-			showFlash(msg, 'success');
-			notify(msg);
-			if (icloud2faCode) icloud2faCode.focus();
+			if (!json.resumed) {
+				showFlash(msg, 'success');
+				notify(msg);
+			}
+			if (icloud2faCode) {
+				icloud2faCode.focus();
+			}
 		} else if (json.status === 'authenticated') {
 			icloudAuthState = '';
-			if (icloud2faCode) icloud2faCode.value = '';
+			if (icloud2faCode) {
+				icloud2faCode.value = '';
+			}
 			showFlash(msg, 'success');
 			notify(msg);
 			icloudFoldersLoaded = false;
 		}
-		refreshStatus();
+		return refreshStatus();
+	}
+
+	function submitIcloud2faCode() {
+		const code = icloud2faCode ? icloud2faCode.value.trim() : '';
+		if (!code) {
+			showFlash(t('cloudmigrate', 'Enter the verification code, then click Submit code.'), 'error');
+			return;
+		}
+		setButtonLoading(icloudAuthSubmit, true, t('cloudmigrate', 'Verifying…'));
+		api('/api/icloud/auth/continue', {
+			method: 'POST',
+			body: { state: icloudAuthState || '', code },
+		}).then(({ ok, json }) => {
+			setButtonLoading(icloudAuthSubmit, false);
+			if (!ok) {
+				const err = json.message || t('cloudmigrate', 'Verification failed.');
+				showFlash(err, 'error');
+				notify(err, 'error');
+				return;
+			}
+			handleIcloudAuthResponse(json);
+		});
 	}
 
 	if (icloudAuthStart) {
 		icloudAuthStart.addEventListener('click', () => {
+			if (icloudAuthStart.disabled) {
+				showFlash(t('cloudmigrate', 'Enter your verification code and click Submit code. Use Restart sign-in only if you need a new code.'), 'error');
+				return;
+			}
 			setButtonLoading(icloudAuthStart, true, t('cloudmigrate', 'Contacting Apple…'));
-			api('/api/icloud/auth/start', { method: 'POST' }).then(({ ok, json }) => {
+			api('/api/icloud/auth/start', { method: 'POST', body: { restart: false } }).then(({ ok, json }) => {
 				setButtonLoading(icloudAuthStart, false);
 				if (!ok) {
 					const err = json.message || t('cloudmigrate', 'Sign-in failed.');
@@ -483,26 +529,35 @@
 	}
 
 	if (icloudAuthSubmit) {
-		icloudAuthSubmit.addEventListener('click', () => {
-			const code = icloud2faCode ? icloud2faCode.value.trim() : '';
-			if (!code) {
-				showFlash(t('cloudmigrate', 'Enter the verification code.'), 'error');
-				return;
+		icloudAuthSubmit.addEventListener('click', submitIcloud2faCode);
+	}
+
+	if (icloudAuthRestart) {
+		icloudAuthRestart.addEventListener('click', () => {
+			icloudAuthState = '';
+			if (icloud2faCode) {
+				icloud2faCode.value = '';
 			}
-			setButtonLoading(icloudAuthSubmit, true, t('cloudmigrate', 'Verifying…'));
-			api('/api/icloud/auth/continue', {
-				method: 'POST',
-				body: { state: icloudAuthState || '2fa_do', code },
-			}).then(({ ok, json }) => {
-				setButtonLoading(icloudAuthSubmit, false);
+			setButtonLoading(icloudAuthRestart, true, t('cloudmigrate', 'Restarting…'));
+			api('/api/icloud/auth/start', { method: 'POST', body: { restart: true } }).then(({ ok, json }) => {
+				setButtonLoading(icloudAuthRestart, false);
 				if (!ok) {
-					const err = json.message || t('cloudmigrate', 'Verification failed.');
+					const err = json.message || t('cloudmigrate', 'Restart failed.');
 					showFlash(err, 'error');
 					notify(err, 'error');
 					return;
 				}
 				handleIcloudAuthResponse(json);
 			});
+		});
+	}
+
+	if (icloud2faCode) {
+		icloud2faCode.addEventListener('keydown', (event) => {
+			if (event.key === 'Enter') {
+				event.preventDefault();
+				submitIcloud2faCode();
+			}
 		});
 	}
 

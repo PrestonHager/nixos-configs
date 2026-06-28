@@ -16,6 +16,7 @@ class TokenStore {
 	public const KEY_ICLOUD_APPLE_ID = 'icloud_apple_id';
 	public const KEY_ICLOUD_PASSWORD = 'icloud_app_password';
 	public const KEY_ICLOUD_SESSION = 'icloud_rclone_session';
+	public const KEY_ICLOUD_AUTH_PENDING = 'icloud_auth_pending';
 
 	public function __construct(
 		private IConfig $config,
@@ -54,6 +55,7 @@ class TokenStore {
 			$this->crypto->encrypt($password),
 		);
 		$this->clearIcloudSession($userId);
+		$this->clearIcloudAuthPending($userId);
 	}
 
 	public function getIcloudAppleId(string $userId): ?string {
@@ -81,6 +83,7 @@ class TokenStore {
 		$this->config->deleteUserValue($userId, Application::APP_ID, self::KEY_ICLOUD_APPLE_ID);
 		$this->config->deleteUserValue($userId, Application::APP_ID, self::KEY_ICLOUD_PASSWORD);
 		$this->clearIcloudSession($userId);
+		$this->clearIcloudAuthPending($userId);
 	}
 
 	/**
@@ -121,6 +124,46 @@ class TokenStore {
 
 	public function clearIcloudSession(string $userId): void {
 		$this->config->deleteUserValue($userId, Application::APP_ID, self::KEY_ICLOUD_SESSION);
+	}
+
+	/**
+	 * @param array{state: string, started_at?: int} $pending
+	 */
+	public function storeIcloudAuthPending(string $userId, array $pending): void {
+		$payload = json_encode($pending, JSON_THROW_ON_ERROR);
+		$this->config->setUserValue(
+			$userId,
+			Application::APP_ID,
+			self::KEY_ICLOUD_AUTH_PENDING,
+			$this->crypto->encrypt($payload),
+		);
+	}
+
+	/**
+	 * @return array{state: string, started_at?: int}|null
+	 */
+	public function getIcloudAuthPending(string $userId): ?array {
+		$encrypted = $this->config->getUserValue($userId, Application::APP_ID, self::KEY_ICLOUD_AUTH_PENDING, '');
+		if ($encrypted === '') {
+			return null;
+		}
+		try {
+			$json = $this->crypto->decrypt($encrypted);
+			/** @var array{state: string, started_at?: int} $pending */
+			$pending = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+			return $pending;
+		} catch (\Throwable) {
+			return null;
+		}
+	}
+
+	public function isIcloudAuthPending(string $userId): bool {
+		$pending = $this->getIcloudAuthPending($userId);
+		return $pending !== null && ($pending['state'] ?? '') !== '';
+	}
+
+	public function clearIcloudAuthPending(string $userId): void {
+		$this->config->deleteUserValue($userId, Application::APP_ID, self::KEY_ICLOUD_AUTH_PENDING);
 	}
 
 	public function getAdminClientId(): string {

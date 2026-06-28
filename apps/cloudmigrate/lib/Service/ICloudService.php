@@ -24,6 +24,10 @@ class ICloudService {
 		return $this->rcloneAuthService->getAuthStatus($userId);
 	}
 
+	public function getAuthPendingState(string $userId): ?string {
+		return $this->rcloneAuthService->getPendingAuthState($userId);
+	}
+
 	public function isRcloneAvailable(): bool {
 		return $this->rcloneRunner->isAvailable();
 	}
@@ -31,8 +35,8 @@ class ICloudService {
 	/**
 	 * @return array{status: string, state?: string, message: string, option?: array<string, mixed>}
 	 */
-	public function startAuth(string $userId): array {
-		return $this->rcloneAuthService->startAuth($userId);
+	public function startAuth(string $userId, bool $restart = false): array {
+		return $this->rcloneAuthService->startAuth($userId, $restart);
 	}
 
 	/**

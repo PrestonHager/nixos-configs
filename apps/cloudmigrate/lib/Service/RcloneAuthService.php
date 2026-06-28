@@ -32,14 +32,29 @@ class RcloneAuthService {
 		if ($this->tokenStore->hasIcloudSession($userId)) {
 			return self::STATUS_AUTHENTICATED;
 		}
+		if ($this->isPending2fa($userId)) {
+			return self::STATUS_NEEDS_2FA;
+		}
 		return self::STATUS_NEEDS_AUTH;
 	}
 
+	public function getPendingAuthState(string $userId): ?string {
+		if (!$this->isPending2fa($userId)) {
+			return null;
+		}
+		$pending = $this->tokenStore->getIcloudAuthPending($userId);
+		return $pending['state'] ?? '2fa_do';
+	}
+
 	/**
-	 * @return array{status: string, state?: string, message: string, option?: array<string, mixed>}
+	 * @return array{status: string, state?: string, message: string, option?: array<string, mixed>, resumed?: bool}
 	 */
-	public function startAuth(string $userId): array {
+	public function startAuth(string $userId, bool $restart = false): array {
 		$this->assertCredentials($userId);
+		if (!$restart && $this->isPending2fa($userId)) {
+			return $this->buildPending2faResponse($userId, true);
+		}
+
 		$configPath = $this->prepareAuthConfig($userId);
 		$credentials = $this->getCredentials($userId);
 
@@ -62,12 +77,16 @@ class RcloneAuthService {
 		$this->assertCredentials($userId);
 		$configPath = $this->getAuthConfigPath($userId);
 		if (!is_file($configPath)) {
-			throw new \RuntimeException('Sign-in session expired. Start iCloud sign-in again.');
+			$this->tokenStore->clearIcloudAuthPending($userId);
+			throw new \RuntimeException('Sign-in session expired. Click Restart sign-in and try again.');
 		}
 		$credentials = $this->getCredentials($userId);
 		$result = trim($result);
 		if ($result === '') {
 			throw new \InvalidArgumentException('2FA code is required');
+		}
+		if ($state === '') {
+			$state = $this->getPendingAuthState($userId) ?? '2fa_do';
 		}
 
 		$output = $this->runConfigCreate([
@@ -85,6 +104,7 @@ class RcloneAuthService {
 
 	public function clearAuthState(string $userId): void {
 		$this->tokenStore->clearIcloudSession($userId);
+		$this->tokenStore->clearIcloudAuthPending($userId);
 		$configPath = $this->getAuthConfigPath($userId);
 		if (is_file($configPath)) {
 			@unlink($configPath);
@@ -102,6 +122,7 @@ class RcloneAuthService {
 
 	private function prepareAuthConfig(string $userId): string {
 		$this->tokenStore->clearIcloudSession($userId);
+		$this->tokenStore->clearIcloudAuthPending($userId);
 		$configPath = $this->getAuthConfigPath($userId);
 		if (is_file($configPath)) {
 			@unlink($configPath);
@@ -153,12 +174,11 @@ class RcloneAuthService {
 
 		$option = $payload['Option'] ?? $payload['option'] ?? null;
 		if ($state === '2fa_do' || (is_array($option) && ($option['Name'] ?? '') === 'config_2fa')) {
-			return [
-				'status' => self::STATUS_NEEDS_2FA,
+			$this->tokenStore->storeIcloudAuthPending($userId, [
 				'state' => $state,
-				'message' => 'Enter the 6-digit code from your trusted Apple device, or type sms to receive a text message.',
-				'option' => is_array($option) ? $option : [],
-			];
+				'started_at' => time(),
+			]);
+			return $this->buildPending2faResponse($userId, false);
 		}
 
 		throw new \RuntimeException('Unexpected rclone config state: ' . $state);
@@ -194,6 +214,7 @@ class RcloneAuthService {
 			'cookies' => (string)($remote['cookies'] ?? ''),
 			'authenticated_at' => time(),
 		]);
+		$this->tokenStore->clearIcloudAuthPending($userId);
 	}
 
 	/**
@@ -249,5 +270,33 @@ class RcloneAuthService {
 			}
 		}
 		return $output !== '' ? $output : 'rclone config failed';
+	}
+
+	private function isPending2fa(string $userId): bool {
+		if (!$this->tokenStore->isIcloudAuthPending($userId)) {
+			return false;
+		}
+		$configPath = $this->getAuthConfigPath($userId);
+		if (!is_file($configPath)) {
+			$this->tokenStore->clearIcloudAuthPending($userId);
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * @return array{status: string, state: string, message: string, resumed: bool}
+	 */
+	private function buildPending2faResponse(string $userId, bool $resumed): array {
+		$state = $this->getPendingAuthState($userId) ?? '2fa_do';
+		$message = $resumed
+			? 'Waiting for your two-factor code. Enter it below and click Submit code — do not click Start sign-in again (that sends a new code).'
+			: 'Apple sent a verification code to your trusted device. Step 2: enter the code below and click Submit code.';
+		return [
+			'status' => self::STATUS_NEEDS_2FA,
+			'state' => $state,
+			'message' => $message,
+			'resumed' => $resumed,
+		];
 	}
 }

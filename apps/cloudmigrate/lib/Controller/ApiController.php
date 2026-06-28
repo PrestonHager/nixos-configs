@@ -43,6 +43,7 @@ class ApiController extends BaseApiController {
 				'configured' => $this->iCloudService->isConnected($userId),
 				'authenticated' => $this->iCloudService->isAuthenticated($userId),
 				'authStatus' => $this->iCloudService->getAuthStatus($userId),
+				'authState' => $this->iCloudService->getAuthPendingState($userId) ?? '',
 				'rcloneAvailable' => $this->iCloudService->isRcloneAvailable(),
 				'phase' => 'beta',
 			],
@@ -101,8 +102,10 @@ class ApiController extends BaseApiController {
 	#[NoAdminRequired]
 	public function icloudAuthStart(): DataResponse {
 		$userId = $this->requireUserId();
+		$body = $this->getRequestBody();
+		$restart = filter_var($body['restart'] ?? false, FILTER_VALIDATE_BOOLEAN);
 		try {
-			return new DataResponse($this->iCloudService->startAuth($userId));
+			return new DataResponse($this->iCloudService->startAuth($userId, $restart));
 		} catch (\Throwable $e) {
 			return new DataResponse(['message' => $e->getMessage()], 500);
 		}
@@ -114,8 +117,8 @@ class ApiController extends BaseApiController {
 		$body = $this->getRequestBody();
 		$state = trim((string)($body['state'] ?? ''));
 		$code = trim((string)($body['code'] ?? ''));
-		if ($state === '') {
-			return new DataResponse(['message' => 'state is required'], 400);
+		if ($code === '') {
+			return new DataResponse(['message' => '2FA code is required'], 400);
 		}
 		try {
 			return new DataResponse($this->iCloudService->continueAuth($userId, $state, $code));
