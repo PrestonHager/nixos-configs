@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Configure OpenClaw on ace for local Ollama37 (run on ace as root).
+# Configure OpenClaw on ace for local Ollama (run on ace as root).
 set -euo pipefail
 
 OPENCLAW="${OPENCLAW:-$(grep -oP '/nix/store/[^ ]+/bin/openclaw' /etc/systemd/system/openclaw-gateway.service 2>/dev/null || true)}"
@@ -14,28 +14,38 @@ run_oc() {
   sudo -u openclaw HOME=/stor/openclaw OLLAMA_API_KEY=ollama-local "$OPENCLAW" "$@"
 }
 
+was_active=0
+if systemctl is-active --quiet openclaw-gateway; then
+  was_active=1
+  systemctl stop openclaw-gateway
+fi
+
 run_oc config set gateway.mode local
 run_oc config set env.vars.OLLAMA_API_KEY ollama-local
 
-PATCH_FILE=/stor/openclaw/.openclaw/patch-ollama.json
+PATCH_FILE=$(mktemp)
 cat >"$PATCH_FILE" <<EOF
 {
-  models: {
-    providers: {
-      ollama: {
-        baseUrl: "http://127.0.0.1:11434",
-        apiKey: "ollama-local",
-      },
-    },
+  "models": {
+    "providers": {
+      "ollama": {
+        "baseUrl": "http://127.0.0.1:11434",
+        "apiKey": "ollama-local",
+        "api": "ollama"
+      }
+    }
   },
-  agents: {
-    defaults: {
-      model: "ollama/${MODEL}",
-    },
-  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "ollama/${MODEL}"
+      }
+    }
+  }
 }
 EOF
 chown openclaw:openclaw "$PATCH_FILE"
+chmod 600 "$PATCH_FILE"
 
 run_oc config patch --file "$PATCH_FILE"
 run_oc config validate
@@ -43,3 +53,7 @@ rm -f "$PATCH_FILE"
 
 echo "Config written to /stor/openclaw/.openclaw/openclaw.json"
 cat /stor/openclaw/.openclaw/openclaw.json
+
+if [ "$was_active" -eq 1 ] || [ "${START_GATEWAY:-1}" = "1" ]; then
+  systemctl start openclaw-gateway
+fi
