@@ -39,6 +39,7 @@
 	let foldersLoaded = false;
 	let icloudFoldersLoaded = false;
 	let icloudAuthState = '';
+	let icloudAwaiting2fa = false;
 	let selectedFolder = { id: 'root', path: 'OneDrive', label: 'OneDrive' };
 
 	const flash = appRoot.dataset.flash;
@@ -257,6 +258,62 @@
 		});
 	}
 
+	function applyIcloudAuthUi(ic) {
+		const authenticated = !!ic.authenticated;
+		const authStatus = ic.authStatus || 'none';
+		if (authStatus === 'needs_2fa') {
+			icloudAwaiting2fa = true;
+		}
+		if (authenticated) {
+			icloudAwaiting2fa = false;
+		}
+		if (ic.authState) {
+			icloudAuthState = ic.authState;
+		}
+		const canSubmit2fa = icloudAwaiting2fa || authStatus === 'needs_2fa';
+
+		if (icloudAuthPanel) {
+			icloudAuthPanel.hidden = authenticated;
+		}
+		if (icloudAuthStepStart) {
+			icloudAuthStepStart.hidden = authenticated;
+		}
+		if (icloudAuthStep2fa) {
+			icloudAuthStep2fa.hidden = authenticated;
+		}
+		if (icloudAuthMessage) {
+			if (canSubmit2fa) {
+				icloudAuthMessage.textContent = t('cloudmigrate', 'Apple sent a verification code. Enter it below and click Submit code.');
+			} else {
+				icloudAuthMessage.textContent = t('cloudmigrate', 'Step 2: After you click Start sign-in above, enter the verification code here.');
+			}
+		}
+		if (icloudAuthStatus) {
+			if (authenticated) {
+				icloudAuthStatus.hidden = false;
+				icloudAuthStatus.textContent = t('cloudmigrate', 'Signed in to iCloud Drive (trust token active). Re-sign before ~30 days if migrations fail.');
+			} else if (canSubmit2fa) {
+				icloudAuthStatus.hidden = false;
+				icloudAuthStatus.textContent = t('cloudmigrate', 'Waiting for verification code — use the field below.');
+			} else if (ic.configured) {
+				icloudAuthStatus.hidden = false;
+				icloudAuthStatus.textContent = t('cloudmigrate', 'Credentials saved — click Start sign-in (step 1), then enter the code (step 2).');
+			} else {
+				icloudAuthStatus.hidden = true;
+			}
+		}
+		if (icloudMigrate) {
+			icloudMigrate.hidden = !authenticated;
+		}
+		if (icloudAuthStart) {
+			icloudAuthStart.disabled = canSubmit2fa;
+		}
+		if (icloudAuthSubmit) {
+			icloudAuthSubmit.disabled = !canSubmit2fa;
+		}
+		return { authenticated, authStatus, canSubmit2fa };
+	}
+
 	function refreshStatus() {
 		return api('/api/status').then(({ ok, json }) => {
 			if (!ok) {
@@ -283,44 +340,7 @@
 			const ic = json.icloud;
 			icloudConnect.hidden = ic.configured;
 			icloudConnected.hidden = !ic.configured;
-			const authenticated = !!ic.authenticated;
-			const authStatus = ic.authStatus || 'none';
-			const awaiting2fa = authStatus === 'needs_2fa';
-			if (ic.authState) {
-				icloudAuthState = ic.authState;
-			}
-			if (icloudAuthPanel) {
-				icloudAuthPanel.hidden = authenticated;
-			}
-			if (icloudAuthStepStart) {
-				icloudAuthStepStart.hidden = authenticated || awaiting2fa;
-			}
-			if (icloudAuthStep2fa) {
-				icloudAuthStep2fa.hidden = authenticated || !awaiting2fa;
-			}
-			if (icloudAuthMessage && awaiting2fa) {
-				icloudAuthMessage.textContent = t('cloudmigrate', 'Step 2: Enter the verification code Apple sent you, then click Submit code. Do not click Start sign-in again.');
-			}
-			if (icloudAuthStatus) {
-				if (authenticated) {
-					icloudAuthStatus.hidden = false;
-					icloudAuthStatus.textContent = t('cloudmigrate', 'Signed in to iCloud Drive (trust token active). Re-sign before ~30 days if migrations fail.');
-				} else if (awaiting2fa) {
-					icloudAuthStatus.hidden = false;
-					icloudAuthStatus.textContent = t('cloudmigrate', 'Waiting for two-factor code — use Submit code below.');
-				} else if (ic.configured) {
-					icloudAuthStatus.hidden = false;
-					icloudAuthStatus.textContent = t('cloudmigrate', 'Credentials saved — click Start sign-in (step 1).');
-				} else {
-					icloudAuthStatus.hidden = true;
-				}
-			}
-			if (icloudMigrate) {
-				icloudMigrate.hidden = !authenticated;
-			}
-			if (icloudAuthStart) {
-				icloudAuthStart.disabled = awaiting2fa;
-			}
+			const { authenticated, canSubmit2fa } = applyIcloudAuthUi(ic);
 			if (ic.configured && ic.rcloneAvailable && authenticated) {
 				icloudRcloneHint.hidden = true;
 				icloudRcloneHint.textContent = '';
@@ -451,6 +471,7 @@
 				notify(msg);
 				document.getElementById('icloud-password').value = '';
 				icloudAuthState = '';
+				icloudAwaiting2fa = false;
 				if (icloud2faCode) icloud2faCode.value = '';
 			} else {
 				showFlash(msg, 'error');
@@ -467,6 +488,16 @@
 		}
 		if (json.status === 'needs_2fa') {
 			icloudAuthState = json.state || '2fa_do';
+			icloudAwaiting2fa = true;
+			if (icloudAuthSubmit) {
+				icloudAuthSubmit.disabled = false;
+			}
+			if (icloudAuthStart) {
+				icloudAuthStart.disabled = true;
+			}
+			if (icloudAuthStep2fa) {
+				icloudAuthStep2fa.hidden = false;
+			}
 			if (!json.resumed) {
 				showFlash(msg, 'success');
 				notify(msg);
@@ -476,6 +507,7 @@
 			}
 		} else if (json.status === 'authenticated') {
 			icloudAuthState = '';
+			icloudAwaiting2fa = false;
 			if (icloud2faCode) {
 				icloud2faCode.value = '';
 			}
@@ -534,11 +566,12 @@
 
 	if (icloudAuthRestart) {
 		icloudAuthRestart.addEventListener('click', () => {
-			icloudAuthState = '';
-			if (icloud2faCode) {
-				icloud2faCode.value = '';
-			}
-			setButtonLoading(icloudAuthRestart, true, t('cloudmigrate', 'Restarting…'));
+		icloudAuthState = '';
+		icloudAwaiting2fa = false;
+		if (icloud2faCode) {
+			icloud2faCode.value = '';
+		}
+		setButtonLoading(icloudAuthRestart, true, t('cloudmigrate', 'Restarting…'));
 			api('/api/icloud/auth/start', { method: 'POST', body: { restart: true } }).then(({ ok, json }) => {
 				setButtonLoading(icloudAuthRestart, false);
 				if (!ok) {
@@ -563,6 +596,7 @@
 
 	document.getElementById('icloud-disconnect').addEventListener('click', () => {
 		icloudAuthState = '';
+		icloudAwaiting2fa = false;
 		api('/api/disconnect/icloud', { method: 'POST' }).then(refreshStatus);
 	});
 

@@ -72,17 +72,17 @@
 			<div id="icloud-connected" hidden>
 				<div id="icloud-auth-panel">
 					<div id="icloud-auth-step-start">
-						<p class="hint"><?php p($l->t('Step 1: Start sign-in. Apple will send a verification code to a trusted device or phone.')); ?></p>
+						<p class="hint"><?php p($l->t('Step 1: Click Start sign-in. Apple sends a verification code to a trusted device or phone.')); ?></p>
 						<div class="cloudmigrate-actions">
 							<button id="icloud-auth-start" class="button primary" type="button"><?php p($l->t('Start sign-in')); ?></button>
 						</div>
 					</div>
-					<div id="icloud-auth-step-2fa" hidden>
-						<p id="icloud-auth-message" class="hint cloudmigrate-auth-waiting"><?php p($l->t('Step 2: Enter the verification code and click Submit code. Do not click Start sign-in again — that sends a new code.')); ?></p>
+					<div id="icloud-auth-step-2fa" class="cloudmigrate-auth-2fa">
+						<p id="icloud-auth-message" class="hint cloudmigrate-auth-waiting"><?php p($l->t('Step 2: After Apple sends a code, enter it here and click Submit code. Do not click Start sign-in again — that sends a new code.')); ?></p>
 						<label for="icloud-2fa-code"><?php p($l->t('Verification code')); ?></label>
 						<input id="icloud-2fa-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="<?php p($l->t('6-digit code, or type sms')); ?>" />
 						<div class="cloudmigrate-actions">
-							<button id="icloud-auth-submit" class="button primary" type="button"><?php p($l->t('Submit code')); ?></button>
+							<button id="icloud-auth-submit" class="button primary" type="button" disabled><?php p($l->t('Submit code')); ?></button>
 							<button id="icloud-auth-restart" class="button" type="button"><?php p($l->t('Restart sign-in')); ?></button>
 						</div>
 					</div>

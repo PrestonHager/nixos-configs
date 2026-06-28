@@ -159,12 +159,35 @@
 	opacity: 0.85;
 }
 
+.cloudmigrate-badge {
 	display: inline-block;
 	margin-top: 0.75rem;
 	padding: 0.25rem 0.5rem;
 	border-radius: var(--border-radius);
 	background: var(--color-background-dark);
 	font-size: 0.9em;
+}
+
+.cloudmigrate-auth-2fa {
+	margin-top: 1.25rem;
+	padding-top: 1rem;
+	border-top: 1px solid var(--color-border);
+	max-width: 28rem;
+}
+
+.cloudmigrate-auth-2fa input[type="text"] {
+	width: 100%;
+	max-width: 28rem;
+	background: var(--color-main-background);
+	color: var(--color-main-text);
+	border: 1px solid var(--color-border);
+	border-radius: var(--border-radius);
+	padding: 0.5rem 0.75rem;
+}
+
+.cloudmigrate-auth-waiting {
+	font-weight: 600;
+	color: var(--color-main-text);
 }
 
 .hint {

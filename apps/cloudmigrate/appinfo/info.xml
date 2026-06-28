@@ -5,7 +5,7 @@
 	<name>Cloud Migrate</name>
 	<summary>Migrate files from iCloud and OneDrive into Nextcloud</summary>
 	<description><![CDATA[One-time migration from Microsoft OneDrive and Apple iCloud into your Nextcloud files. Connect OneDrive via OAuth. iCloud Drive uses rclone iclouddrive with Apple ID password and a one-time 2FA trust token (~30 days).]]></description>
-	<version>0.2.2</version>
+	<version>0.2.3</version>
 	<licence>agpl</licence>
 	<author mail="admin@prestonhager.com">Preston Hager</author>
 	<namespace>CloudMigrate</namespace>
