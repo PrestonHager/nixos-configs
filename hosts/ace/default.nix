@@ -88,6 +88,7 @@
     enable = true;
     enableOllama = true;
     enableOpenClaw = true;
+    openclaw.package = pkgs.openclaw;
   };
 }
 
