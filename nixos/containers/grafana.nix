@@ -4,7 +4,7 @@ let
   sops-path = builtins.toString inputs.nix-secrets;
   etc = config.environment.etc;
   etcPath = name: etc.${name}.source;
-  grafanaVersion = "13.0.3";
+  grafanaVersion = "13.1.0";
   # Remote image renderer (replaces deprecated in-Grafana plugin). Shares pod network with Grafana.
   imageRendererVersion = "v5.8.8";
   grafanaPort = 8082;
