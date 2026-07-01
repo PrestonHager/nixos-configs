@@ -21,7 +21,7 @@ let
     chmod +x $out/bin/rclone
   '';
   # 34.0.1 not published on Docker Hub (see nextcloud/docker#2584); use latest 34.0.x patch
-  nextcloudImage = "docker.io/library/nextcloud:34.0.0";
+  nextcloudImage = "docker.io/library/nextcloud:34.0.1";
   clamavImage = "docker.io/clamav/clamav:stable";
   whiteboardImage = "ghcr.io/nextcloud-releases/whiteboard:stable";
   whiteboardPort = 3002;
