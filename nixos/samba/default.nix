@@ -65,7 +65,8 @@ in
         "read only" = false;
         "guest ok" = false;
         "valid users" = smbUser;
-        "create mask" = "0664";
+        "create mask" = "0775";
+        "force create mode" = "0775";
         "directory mask" = "0775";
         "force user" = smbUser;
         "force group" = "sambashare";
