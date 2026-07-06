@@ -203,7 +203,7 @@ in
         "--env-file=${config.sops.secrets."pterodactyl-env".path}"
       ];
 
-      image = "mariadb:latest";
+      image = "mariadb:11.4";
     };
     # Redis is not required, but is a great cache system
     "pterodactyl-redis" = {
@@ -221,7 +221,7 @@ in
 
       extraOptions = [ "--pod=pterodactyl" ];
 
-      image = "redis:latest";
+      image = "redis:7.4";
     };
   };
 }

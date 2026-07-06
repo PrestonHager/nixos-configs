@@ -252,7 +252,7 @@ HASHIDS_LENGTH=8
 MAIL_MAILER=log
 
 PTERODACTYL_UPDATE_REPOSITORY=pterodactyl/panel
-PTERODACTYL_UPDATE_BRANCH=release/v1.14.0
+PTERODACTYL_UPDATE_BRANCH=release/v1.14.1
 PTERODACTYL_UPDATE_MODE=git
 PTERODACTYL_UPDATE_GIT_REMOTE=origin
 PTERODACTYL_UPDATE_GIT_STRATEGY=auto
@@ -272,7 +272,7 @@ EOF
 
       ${ensureEnvVar "APP_ENVIRONMENT_ONLY" "false"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_REPOSITORY" "pterodactyl/panel"}
-      ${ensureEnvVar "PTERODACTYL_UPDATE_BRANCH" "release/v1.14.0"}
+      ${ensureEnvVar "PTERODACTYL_UPDATE_BRANCH" "release/v1.14.1"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_MODE" "git"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_GIT_REMOTE" "origin"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_GIT_STRATEGY" "auto"}
@@ -503,7 +503,7 @@ EOF
         "--env-file=${testEnvFile}"
         "--env-file=/pterodactyl/secrets/blueprint-extensions.env"
       ];
-      image = "pterodactyl-runtime:v1.14.0";
+      image = "pterodactyl-runtime:v1.14.1";
       imageFile = pterodactylImages.runtimeImage;
     };
 
@@ -522,7 +522,7 @@ EOF
         "--pod=pterodactyl-test"
         "--env-file=${testEnvFile}"
       ];
-      image = "mariadb:latest";
+      image = "mariadb:11.4";
     };
 
     pterodactyl-test-redis = {
@@ -535,7 +535,7 @@ EOF
       ];
       cmd = [ "redis-server" "--save" "59" "1" "--loglevel" "warning" ];
       extraOptions = [ "--pod=pterodactyl-test" ];
-      image = "redis:latest";
+      image = "redis:7.4";
     };
   };
 }

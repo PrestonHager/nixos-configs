@@ -55,7 +55,7 @@ in
     };
 
     # Finally, the prometheus image and version
-    image = "docker.io/prom/prometheus:latest";
+    image = "docker.io/prom/prometheus:v3.13.0";
   };
 }
 

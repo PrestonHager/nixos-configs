@@ -3,7 +3,7 @@
 let
   sops-path = builtins.toString inputs.nix-secrets;
   matrixDomain = "matrix.prestonhager.com";
-  synapseImage = "matrixdotorg/synapse:v1.127.0";
+  synapseImage = "matrixdotorg/synapse:v1.131.0";
   synapseDataDir = "/matrix/data";
   synapsePostgresDir = "/matrix/postgres";
   synapseOidcDir = ./matrix;

@@ -213,6 +213,6 @@ in
       "--add-host=host.containers.internal:host-gateway"
     ];
 
-    image = "docker.io/jellyfin/jellyfin:latest";
+    image = "docker.io/jellyfin/jellyfin:10.11.11";
   };
 }

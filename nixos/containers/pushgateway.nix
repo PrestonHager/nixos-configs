@@ -25,7 +25,7 @@ in {
     extraOptions = [
       "--add-host=host.containers.internal:host-gateway"
     ];
-    image = "docker.io/prom/pushgateway:latest";
+    image = "docker.io/prom/pushgateway:v1.11.3";
   };
 
   # Accept metric pushes from crux external probe timer only (not WAN).
