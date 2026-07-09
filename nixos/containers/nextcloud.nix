@@ -787,7 +787,7 @@ in
         "--pod=nextcloud"
         "--env-file=${config.sops.secrets."nextcloud-db-environment".path}"
       ];
-      image = "docker.io/library/mariadb:11.4";
+      image = "docker.io/library/mariadb:12.3.2";
     };
     nextcloud-redis = {
       autoStart = true;
@@ -797,7 +797,7 @@ in
       ];
       cmd = [ "redis-server" "--save" "60" "1" "--loglevel" "warning" "--bind" "127.0.0.1" ];
       extraOptions = [ "--pod=nextcloud" ];
-      image = "docker.io/library/redis:7.4";
+      image = "docker.io/library/redis:8.8.0";
     };
   };
 }

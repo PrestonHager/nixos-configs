@@ -4,7 +4,7 @@ let
   sops-path = builtins.toString inputs.nix-secrets;
   etc = config.environment.etc;
   etcPath = name: etc.${name}.source;
-  grafanaVersion = "12.0.3";
+  grafanaVersion = "13.1.0";
   # Remote image renderer (replaces deprecated in-Grafana plugin). Shares pod network with Grafana.
   imageRendererVersion = "v5.9.1";
   grafanaPort = 8082;
@@ -155,7 +155,7 @@ in {
 
   virtualisation.oci-containers.containers.grafana = {
     autoStart = true;
-    image = "docker.io/grafana/grafana-oss:${grafanaVersion}";
+    image = "docker.io/grafana/grafana:${grafanaVersion}";
     user = "grafana:grafana";
 
     extraOptions = [
