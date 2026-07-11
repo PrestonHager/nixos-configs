@@ -282,13 +282,33 @@ EOF
       fi
     fi
 
-    for _ in $(seq 1 120); do
+    # ClamAV can end up orphaned from the pod netns after a pod recreate while its
+    # unit was left running; repair by restarting before configuring files_antivirus.
+    clamReady=0
+    for _ in $(seq 1 24); do
       if $podman exec nextcloud bash -c 'exec 3<>/dev/tcp/127.0.0.1/3310' 2>/dev/null; then
         $podman exec nextcloud bash -c 'exec 3<&- 3>&-' 2>/dev/null || true
+        clamReady=1
         break
       fi
       sleep 5
     done
+    if [ "$clamReady" != 1 ]; then
+      echo "nextcloud-occ-maintain: clamav not reachable on 127.0.0.1:3310; restarting container" >&2
+      systemctl restart podman-nextcloud-clamav.service || true
+      for _ in $(seq 1 60); do
+        if $podman exec nextcloud bash -c 'exec 3<>/dev/tcp/127.0.0.1/3310' 2>/dev/null; then
+          $podman exec nextcloud bash -c 'exec 3<&- 3>&-' 2>/dev/null || true
+          clamReady=1
+          break
+        fi
+        sleep 5
+      done
+    fi
+    if [ "$clamReady" != 1 ]; then
+      echo "nextcloud-occ-maintain: clamav still unreachable after restart" >&2
+      exit 1
+    fi
 
     occ config:app:set files_antivirus av_mode --value=daemon
     occ config:app:set files_antivirus av_host --value=127.0.0.1
@@ -610,10 +630,20 @@ in
     };
   };
 
-  systemd.services."podman-nextcloud" = {
-    requires = [ "nextcloud-container-env.service" "nextcloud-cloudmigrate-sync.service" ];
-    after = [ "nextcloud-container-env.service" "nextcloud-cloudmigrate-sync.service" ];
-    serviceConfig.ExecStartPre = [ nextcloudEnvScript ];
+  # Keep pod members tied to pod-nextcloud so a pod recreate restarts every
+  # container (avoids ClamAV staying up on a stale netns while Nextcloud moves).
+  systemd.services = {
+    "podman-nextcloud" = {
+      requires = [ "nextcloud-container-env.service" "nextcloud-cloudmigrate-sync.service" ];
+      after = [ "nextcloud-container-env.service" "nextcloud-cloudmigrate-sync.service" ];
+      partOf = [ "pod-nextcloud.service" ];
+      serviceConfig.ExecStartPre = [ nextcloudEnvScript ];
+    };
+    "podman-nextcloud-db".partOf = [ "pod-nextcloud.service" ];
+    "podman-nextcloud-redis".partOf = [ "pod-nextcloud.service" ];
+    "podman-nextcloud-clamav".partOf = [ "pod-nextcloud.service" ];
+    "podman-nextcloud-notify-push".partOf = [ "pod-nextcloud.service" ];
+    "podman-nextcloud-whiteboard".partOf = [ "pod-nextcloud.service" ];
   };
 
   systemd.services.pod-nextcloud = {
@@ -655,17 +685,18 @@ in
             $podman pod rm -f nextcloud
           fi
         fi
-        $podman pod exists nextcloud || \
-        $podman pod create \
-          -p 127.0.0.1:8083:80 \
-          -p 127.0.0.1:7867:7867 \
-          -p 127.0.0.1:${toString whiteboardPort}:${toString whiteboardPort} \
-          --hostname nextcloud \
-          --dns=192.168.5.5 \
-          --add-host=cloud.prestonhager.com:192.168.5.5 \
-          --add-host=${zitadelDomain}:''${hostGw} \
-          --add-host=host.containers.internal:host-gateway \
-          nextcloud
+        if ! $podman pod exists nextcloud; then
+          $podman pod create \
+            -p 127.0.0.1:8083:80 \
+            -p 127.0.0.1:7867:7867 \
+            -p 127.0.0.1:${toString whiteboardPort}:${toString whiteboardPort} \
+            --hostname nextcloud \
+            --dns=192.168.5.5 \
+            --add-host=cloud.prestonhager.com:192.168.5.5 \
+            --add-host=${zitadelDomain}:''${hostGw} \
+            --add-host=host.containers.internal:host-gateway \
+            nextcloud
+        fi
       '';
     };
     path = [ pkgs.podman pkgs.iproute2 pkgs.gawk ];
@@ -707,7 +738,7 @@ in
         MAIL_FROM_ADDRESS = "admin@prestonhager.com";
         MAIL_DOMAIN = "prestonhager.com";
       };
-      dependsOn = [ "nextcloud-db" "nextcloud-redis" ];
+      dependsOn = [ "nextcloud-db" "nextcloud-redis" "nextcloud-clamav" ];
       extraOptions = [
         "--pod=nextcloud"
         "--env-file=${ncRuntimeEnv}"
