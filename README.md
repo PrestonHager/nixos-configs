@@ -101,3 +101,7 @@ Homelab server runbooks are published as an mdBook site:
 
 Source: `docs/*.md` (canonical) + `docs/site/` (mdBook wrapper). See `docs/site/src/shared/local-development.md`.
 
+Optional services (not enabled on hosts until you opt in):
+
+- [GitHub Actions self-hosted runners](docs/github-runner.md) — `nixos/services/github-runner.nix`
+

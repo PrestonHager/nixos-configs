@@ -34,6 +34,7 @@
 
 # Shared
 
+- [GitHub Actions runners](shared/github-runner.md)
 - [IDS & Security Monitoring Plan](shared/security-ids-plan.md)
 - [IDS Test Cases](shared/security-ids-test-cases.md)
 - [Network topology](shared/network-topology.md)
