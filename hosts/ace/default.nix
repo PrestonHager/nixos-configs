@@ -86,6 +86,10 @@
 
   # --- K80 GPU stack (Tesla K80 / legacy 470) ---
   # See docs/ace-k80-gpu.md and https://github.com/PrestonHager/ace-k80-stack
+  # openclaw is marked insecure in nixpkgs (LLM prompt-injection surface); required for ai.prestonhager.com.
+  nixpkgs.config.permittedInsecurePackages = [
+    "openclaw-${pkgs.openclaw.version}"
+  ];
   services.aceK80 = {
     enable = true;
     enableOllama = true;
