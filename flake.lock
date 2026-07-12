@@ -120,11 +120,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1782617554,
-        "narHash": "sha256-V6iCP8pdvk7p6JHNt/baMWJTIAzGrlVIPugXhTD1DmY=",
+        "lastModified": 1783880359,
+        "narHash": "sha256-EXwMQDFjU22sa1mzuub2oCWxTklt0DGq08ZaPa8tp6M=",
         "ref": "refs/heads/main",
-        "rev": "3c91434dd23a0ed2a3d971170c4cb45f81d248e8",
-        "revCount": 92,
+        "rev": "3ca963a89a64697f877d8bea861f4de78efd7ef2",
+        "revCount": 93,
         "type": "git",
         "url": "ssh://git@github.com/PrestonHager/nixos-secrets.git"
       },
