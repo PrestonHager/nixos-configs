@@ -28,6 +28,15 @@
     inputs.ace-k80-stack.nixosModules.k80-gpu
   ];
 
+  # 32 GiB swap file on root (sdb2, ~2.9T free) — safety net for rebuild memory
+  # pressure. Chosen over zram: disk-backed swap does not compete with the
+  # compressed-RAM budget on a 31 GiB host. Created on activation when size is set.
+  # Pending constrained rebuild — do not apply unconstrained. See docs/ace-rebuild-freeze-rca.md.
+  swapDevices = [{
+    device = "/var/lib/swapfile";
+    size = 32 * 1024; # MiB
+  }];
+
   # Add prestonh to jellyfin group to allow for rsync into /jf/media folder
   users.users.prestonh.extraGroups = [ "jellyfin" ];
 

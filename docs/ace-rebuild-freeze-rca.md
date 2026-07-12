@@ -86,8 +86,15 @@ Never start a second rebuild while one is running. Prefer substituters; avoid lo
 
 ### 2. Hardware / kernel safety net — add swap and/or zram; consider more RAM
 
-- Add **zram** (e.g. 8–16 GiB) and/or a **swap file/partition on `/stor`** (16–32 GiB) so pressure becomes reclaimable instead of a hard hang.
+- **Configured (pending apply):** 32 GiB disk swap file at `/var/lib/swapfile` on root (`hosts/ace/default.nix` → `swapDevices`). Root has ~2.9 T free; file is created on activation when `size` is set. **Not yet live** — wait for a careful constrained rebuild (see below); do not `nixos-rebuild` unconstrained just to enable swap.
+- **zram considered, disk swap chosen:** zram would compress pages in RAM and compete with the already-tight 31 GiB working set under a heavy `nodejs` build. A disk-backed swap file on the large root volume absorbs spikes without shrinking usable RAM.
 - Longer term: populate empty R730xd DIMM slots toward **64 GiB+** if ace remains both builder and production host.
+
+**Safe apply (swap-enabling rebuild):** prefer implementing option 1 (`nix.settings.max-jobs` / `cores` caps) in the **same** rebuild (or first), then:
+
+```bash
+NIX_BUILD_CORES=2 nixos-rebuild switch --flake .#ace -j 2 --option max-jobs 2 --option cores 2
+```
 
 ### 3. Software / architecture — keep heavy builds off the live production host
 
@@ -102,6 +109,14 @@ Never start a second rebuild while one is running. Prefer substituters; avoid lo
 - Do **not** probe-build `nodejs_20` / `github-runner` on the live host “to see if it works”.
 - Do **not** assume TCP/22 open means the host is healthy — wait for an SSH **banner** / interactive shell.
 - If hung again: use **iDRAC** `192.168.5.10` ForceRestart ([ace-idrac.md](ace-idrac.md)); do not pile on more SSH rebuild attempts.
+
+## Status — option 2 (swap)
+
+| Item | State |
+|------|--------|
+| Config | `swapDevices` → `/var/lib/swapfile`, 32 GiB in `hosts/ace/default.nix` |
+| Live on ace | **No** — config only; constrained rebuild not run yet |
+| Next | Apply with capped `-j` / `max-jobs` (option 1 recommended in same switch); confirm with `swapon --show` |
 
 ## Related
 
