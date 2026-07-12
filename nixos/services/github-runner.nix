@@ -8,6 +8,31 @@ let
   cfg = config.homelab.github-runners;
   sops-path = builtins.toString inputs.nix-secrets;
 
+  # Tools GitHub-hosted Ubuntu runners commonly provide that CI scripts expect.
+  # Upstream services.github-runners already puts bash, coreutils, git, gnutar,
+  # gzip, nix, findutils, gnugrep, and gnused on PATH; these fill the gaps.
+  defaultParityPackages = with pkgs; [
+    curl
+    wget
+    jq
+    unzip
+    zip
+    rsync
+    gnupg
+    openssh
+    which
+    file
+    cacert
+    bashInteractive
+    nodejs_20
+    python3
+    gcc
+    gnumake
+    cmake
+    pkg-config
+    openssl
+  ];
+
   runnerModule = { name, ... }: {
     options = {
       enable = lib.mkOption {
@@ -91,10 +116,10 @@ let
       extraPackages = lib.mkOption {
         type = lib.types.listOf lib.types.package;
         default = [ ];
-        example = lib.literalExpression "with pkgs; [ jq curl cachix ]";
+        example = lib.literalExpression "with pkgs; [ cachix ]";
         description = ''
-          Extra packages on PATH for workflows. Upstream already provides
-          bash, coreutils, git, gnutar, gzip, and nix.
+          Extra packages on PATH for this runner, in addition to
+          `homelab.github-runners.parityPackages`.
         '';
       };
 
@@ -138,12 +163,35 @@ let
     else config.sops.secrets.${r.tokenSecret}.path;
 
   needsDocker = lib.any (r: r.docker.enable) (lib.attrValues enabledRunners);
+  needsNode20 = lib.elem "node20" cfg.nodeRuntimes;
 in {
   options.homelab.github-runners = {
     enable = lib.mkEnableOption ''
       Self-hosted GitHub Actions runners via services.github-runners.
       See docs/github-runner.md for token + sops setup.
     '';
+
+    nodeRuntimes = lib.mkOption {
+      type = lib.types.nonEmptyListOf (lib.types.enum [ "node20" "node24" ]);
+      default = [ "node20" "node24" ];
+      description = ''
+        Node.js runtimes shipped under the runner package `lib/externals/`.
+        Actions expression helpers such as `hashFiles(...)` still expect
+        `externals/node20` even when workflows request a newer Node.
+        Nixpkgs defaults the package to node24-only (node20 is EOL/insecure);
+        we re-enable node20 and permit that package when it is listed here.
+      '';
+    };
+
+    parityPackages = lib.mkOption {
+      type = lib.types.listOf lib.types.package;
+      default = defaultParityPackages;
+      defaultText = lib.literalExpression "curl wget jq unzip zip rsync … (see module)";
+      description = ''
+        Packages added to every runner PATH for closer parity with
+        GitHub-hosted Ubuntu runners. Per-runner `extraPackages` are appended.
+      '';
+    };
 
     runners = lib.mkOption {
       type = lib.types.attrsOf (lib.types.submodule runnerModule);
@@ -179,6 +227,11 @@ in {
       '';
     }) enabledRunners;
 
+    # nodejs_20 is marked insecure (EOL) but Actions still require externals/node20.
+    nixpkgs.config.permittedInsecurePackages = lib.mkIf needsNode20 [
+      "nodejs-${pkgs.nodejs_20.version}"
+    ];
+
     # Declare sops secrets only when not overridden by tokenFile.
     sops.secrets = lib.mkMerge (
       lib.mapAttrsToList (_name: r:
@@ -210,10 +263,12 @@ in {
 
     services.github-runners = lib.mapAttrs (name: r: {
       enable = true;
-      inherit (r) name url ephemeral replace extraLabels extraPackages extraEnvironment;
+      inherit (r) name url ephemeral replace extraLabels extraEnvironment;
+      inherit (cfg) nodeRuntimes;
       tokenFile = resolvedTokenFile name r;
       user = r.user;
       group = r.group;
+      extraPackages = cfg.parityPackages ++ r.extraPackages;
       serviceOverrides = lib.mkMerge [
         (lib.optionalAttrs r.docker.enable {
           SupplementaryGroups = [ "docker" ];

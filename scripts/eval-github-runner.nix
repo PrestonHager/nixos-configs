@@ -46,4 +46,10 @@ in {
   ephemeral = enabled.config.services.github-runners.default.ephemeral;
   tokenFile = enabled.config.services.github-runners.default.tokenFile;
   labels = enabled.config.services.github-runners.default.extraLabels;
+  nodeRuntimes = enabled.config.services.github-runners.default.nodeRuntimes;
+  # parityPackages are merged into the upstream service extraPackages
+  hasCurl = lib.any (p: p.pname or p.name or "" == "curl")
+    enabled.config.services.github-runners.default.extraPackages;
+  hasJq = lib.any (p: (lib.getName p) == "jq")
+    enabled.config.services.github-runners.default.extraPackages;
 }

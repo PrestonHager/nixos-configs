@@ -123,10 +123,22 @@ journalctl -u github-runner-ace -u github-runner-soundbytes-app -e
 | `runners.<name>.tokenFile` | `null` | Bypass sops (tests only) |
 | `runners.<name>.ephemeral` | `true` | Prefer PAT |
 | `runners.<name>.extraLabels` | `[ "nixos" ]` | |
-| `runners.<name>.extraPackages` | `[]` | git/nix already on PATH |
+| `runners.<name>.extraPackages` | `[]` | Appended after `parityPackages` |
 | `runners.<name>.docker.enable` | `false` | Needs `user` + `group` |
+| `nodeRuntimes` | `[ "node20" "node24" ]` | Ships `lib/externals/node20` (needed for `hashFiles`) + node24 |
+| `parityPackages` | curl, wget, jq, … | Shared PATH tooling for all runners (see below) |
 
 Under the hood this configures NixOS `services.github-runners`.
+
+### Tooling parity (vs GitHub-hosted)
+
+Nixpkgs' `github-runner` package currently defaults to **node24 only** (node20 is EOL/insecure). Actions expression helpers such as `hashFiles(...)` still look for `externals/node20`, so this module sets `nodeRuntimes = [ "node20" "node24" ]` and permits `nodejs-<version>` as an insecure package for the runner externals symlink.
+
+Each runner PATH also gets `parityPackages` (closest practical subset of GitHub-hosted Ubuntu tools without a full Ubuntu image):
+
+`curl`, `wget`, `jq`, `unzip`, `zip`, `rsync`, `gnupg`, `openssh`, `which`, `file`, `cacert`, `bashInteractive`, `nodejs_20`, `python3`, `gcc`, `gnumake`, `cmake`, `pkg-config`, `openssl`
+
+Upstream already provides `bash`/`coreutils`/`git`/`gnutar`/`gzip`/`nix`/`findutils`/`gnugrep`/`gnused`. Override `parityPackages` or append per-runner `extraPackages` as needed. Docker/podman are opt-in via `docker.enable`.
 
 ## Smoke-test without a production host
 
