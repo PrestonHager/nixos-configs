@@ -227,11 +227,12 @@ in {
       '';
     }) enabledRunners;
 
-    # nodejs_20 is marked insecure (EOL) but Actions still require externals/node20.
-    # The runner package links nodejs-slim; parityPackages may pull full nodejs_20.
+    # Prefer hosts/<name> nixpkgs.config.permittedInsecurePackages for nodejs-20 /
+    # nodejs-slim-20 literals when enabling node20 (flake eval can race mkIf permits).
+    # Kept here so non-ace hosts that import this module still document the need.
     nixpkgs.config.permittedInsecurePackages = lib.mkIf needsNode20 [
-      "nodejs-${pkgs.nodejs_20.version}"
-      "nodejs-slim-${pkgs.nodejs_20.version}"
+      "nodejs-20.20.2"
+      "nodejs-slim-20.20.2"
     ];
 
     # Declare sops secrets only when not overridden by tokenFile.

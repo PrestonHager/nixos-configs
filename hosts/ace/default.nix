@@ -86,10 +86,13 @@
 
   # --- K80 GPU stack (Tesla K80 / legacy 470) ---
   # See docs/ace-k80-gpu.md and https://github.com/PrestonHager/ace-k80-stack
-  # openclaw is marked insecure in nixpkgs (LLM prompt-injection surface); required for ai.prestonhager.com.
-  # Use a literal name — referencing pkgs.openclaw.version here re-enters the insecure check before permits apply.
+  # Insecure packages required on ace (literal names — avoid pkgs.*.version here).
+  # - openclaw: LLM gateway for ai.prestonhager.com
+  # - nodejs 20 / slim: GitHub Actions runner externals/node20 + parityPackages
   nixpkgs.config.permittedInsecurePackages = [
     "openclaw-2026.6.5"
+    "nodejs-20.20.2"
+    "nodejs-slim-20.20.2"
   ];
   services.aceK80 = {
     enable = true;
