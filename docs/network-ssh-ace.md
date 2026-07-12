@@ -200,6 +200,7 @@ Remove-Item Env:CISCO_ENABLE_PASSWORD
 | SSH alias | IP | User |
 |-----------|-----|------|
 | ace | 192.168.5.5 | root |
+| ace iDRAC | 192.168.5.10 | `root` (Vaultwarden item **`iDRAC`**; HTTPS/Redfish, not SSH key) |
 | crux | 192.168.5.6 | root |
 | nova | 192.168.5.7 | root |
 

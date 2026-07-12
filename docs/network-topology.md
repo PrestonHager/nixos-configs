@@ -18,6 +18,7 @@ flowchart TB
   subgraph LAN["LAN 192.168.5.0/24"]
     SW["Astraquasar 192.168.5.3<br/>L2 switch VLAN 1"]
     Ace["ace 192.168.5.5<br/>Technitium DNS, Caddy, Grafana, …"]
+    iDRAC["ace iDRAC 192.168.5.10<br/>Gi2/0/47 OOB"]
     Crux["crux 192.168.5.6<br/>Pterodactyl node"]
     Nova["nova 192.168.5.7<br/>Pterodactyl node"]
     AP["Astraspring AP"]
@@ -31,6 +32,7 @@ flowchart TB
   Gi0 --> Gi2
   Gi2 --> SW
   SW -->|"Po1 LACP"| Ace
+  SW -->|"Gi2/0/47"| iDRAC
   SW --> AP
   SW --> Crux
   SW --> Nova
@@ -38,7 +40,7 @@ flowchart TB
   Gi0 -->|"static NAT TCP 80/443"| Ace
 ```
 
-Solid lines are observed switch/router attachments; **crux/nova** switch ports are inferred from IP planning (see [Astraquasar port table](network-astraquasar-switch.md)).
+Solid lines are observed switch/router attachments; **crux/nova** switch ports are inferred from IP planning (see [Astraquasar port table](network-astraquasar-switch.md)). iDRAC runbook: [ace-idrac.md](ace-idrac.md).
 
 ## DNS flow
 
@@ -71,7 +73,9 @@ Details: [DNS on ace](dns-ace.md).
 | `192.168.5.5` | ace — static; primary DNS, reverse proxy, monitoring |
 | `192.168.5.6` | crux — static (repo) |
 | `192.168.5.7` | nova — static (repo) |
-| `192.168.5.21`–`.254` | DHCP pool (`.1`–`.20` excluded) |
+| `192.168.5.10` | ace iDRAC — static OOB (`18:66:DA:82:52:D6`, Gi2/0/47); see [ace-idrac.md](ace-idrac.md) |
+| `192.168.5.1`–`.20` | Static / infrastructure (DHCP excluded); pool floor **`.21`** |
+| `192.168.5.21`–`.254` | DHCP pool (Astracap `LAN-Pool`) |
 | `10.0.0.x` | WAN side DHCP on Astracap Gi0/0 |
 
 ## NAT / published services

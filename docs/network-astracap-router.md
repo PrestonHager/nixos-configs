@@ -55,11 +55,13 @@ Default route: **`0.0.0.0/0` via DHCP** on WAN (learned gateway `10.0.0.1`).
 |---------|--------|
 | Pool name | `LAN-Pool` |
 | Network | `192.168.5.0 /255.255.255.0` |
-| Excluded | `192.168.5.1`–`192.168.5.20` (infrastructure / static range) |
+| Excluded | `192.168.5.1`–`192.168.5.20` (infrastructure / static range) — **DHCP pool floor is `.21`** |
 | Default router | `192.168.5.1` |
 | Domain name | `home.internal` |
 | DNS servers | `192.168.5.5`, `1.1.1.1` |
 | Lease | 7 days |
+
+Static examples in the excluded range: ace `.5`, crux `.6`, nova `.7`, **ace iDRAC `.10`** ([ace-idrac.md](ace-idrac.md)).
 
 Clients should use **Technitium on ace** (`192.168.5.5`) as primary DNS; see [DNS on ace](dns-ace.md).
 

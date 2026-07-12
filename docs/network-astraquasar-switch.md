@@ -31,10 +31,9 @@ flowchart TB
   R --- U --> SW
   SW --> AP
   SW --> Po --> Ace
-  SW --> P25 --> Host
-  SW --> P47
+  SW --> P25
+  SW --> P47 --> Host
 ```
-
 ## VLANs
 
 | VLAN | Name | Ports | Notes |
@@ -55,7 +54,7 @@ All documented access ports use **`switchport mode access`** (no 802.1Q trunks i
 | `Po1` | Ace_Bond | connected (via active member) | Aggregates ace NICs |
 | `Gi2/0/25` | access | connected | Host present (dynamic MAC); **crux/nova not confirmed by label** |
 | `Gi2/0/27` | access | notconnect | Spare |
-| `Gi2/0/47` | **Ace_iDRAC** — access VLAN 1, portfast (**no** port-security) | connected (Jul 2026) | Dedicated Dell iDRAC OOB NIC. Previously had sticky port-security MAC from an old desktop (`1866.da82.52d6`) which blocked iDRAC DHCP; cleared 2026-07-12. DHCP is **Astracap**, not Technitium. |
+| `Gi2/0/47` | **Ace_iDRAC** — access VLAN 1, portfast (**no** port-security) | connected (Jul 2026) | Dedicated Dell iDRAC OOB NIC — MAC `18:66:DA:82:52:D6`, static **`192.168.5.10`**. Sticky port-security cleared 2026-07-12. Runbook: [ace-idrac.md](ace-idrac.md). |
 | `Te2/1/4` | Uplink_to_Astracap (routed, no IP) | shutdown | Alternate uplink not in use |
 | `Gi2/1/1`, `Gi2/1/2`, `Te2/1/3` | default | — | Unused uplink capacity |
 

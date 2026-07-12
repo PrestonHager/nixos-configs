@@ -7,6 +7,7 @@ Homelab documentation for the [nixos-configs](https://github.com/PrestonHager/ni
 | Host | IP | Flake target | Role |
 |------|-----|--------------|------|
 | **ace** | 192.168.5.5 | `#ace` | Main server — Caddy, Podman stacks, DNS, monitoring |
+| **ace iDRAC** | 192.168.5.10 | — | OOB management ([iDRAC](ace/idrac.md)) |
 | **crux** | 192.168.5.6 | `#crux` | Pterodactyl Wings node |
 | **nova** | 192.168.5.7 | `#nova` | Pterodactyl Wings node |
 | **ph-nixos** | DHCP | `#ph-nixos` | Laptop/desktop (GNOME) |

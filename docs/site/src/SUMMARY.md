@@ -5,6 +5,7 @@
 # Ace (192.168.5.5)
 
 - [Overview](ace/index.md)
+- [iDRAC (OOB)](ace/idrac.md)
 - [Health Report](ace/health-report.md)
 - [DNS (Technitium)](shared/dns.md)
 - [LanCache (deprecated)](ace/lancache.md)

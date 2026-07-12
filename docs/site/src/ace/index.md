@@ -9,6 +9,7 @@ Main homelab server on a Dell PowerEdge R730xd at **192.168.5.5**.
 | Gateway | 192.168.5.1 (Astracap) |
 | Resolver | 192.168.5.5, 1.1.1.1 |
 | Bond | `eno1` + `eno2` → `bond0` (802.3ad LACP) |
+| iDRAC | **`192.168.5.10`** — see [iDRAC](idrac.md) |
 
 ## Stack
 
