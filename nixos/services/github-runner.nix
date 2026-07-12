@@ -163,7 +163,6 @@ let
     else config.sops.secrets.${r.tokenSecret}.path;
 
   needsDocker = lib.any (r: r.docker.enable) (lib.attrValues enabledRunners);
-  needsNode20 = lib.elem "node20" cfg.nodeRuntimes;
 in {
   options.homelab.github-runners = {
     enable = lib.mkEnableOption ''
@@ -227,13 +226,10 @@ in {
       '';
     }) enabledRunners;
 
-    # Prefer hosts/<name> nixpkgs.config.permittedInsecurePackages for nodejs-20 /
-    # nodejs-slim-20 literals when enabling node20 (flake eval can race mkIf permits).
-    # Kept here so non-ace hosts that import this module still document the need.
-    nixpkgs.config.permittedInsecurePackages = lib.mkIf needsNode20 [
-      "nodejs-20.20.2"
-      "nodejs-slim-20.20.2"
-    ];
+    # nodejs_20 is marked insecure (EOL) but Actions still require externals/node20.
+    # Host must list nodejs-20.20.2 + nodejs-slim-20.20.2 in
+    # nixpkgs.config.permittedInsecurePackages (see hosts/ace/default.nix).
+    # Do not set permits here via mkIf + pkgs.*.version — flake eval races the check.
 
     # Declare sops secrets only when not overridden by tokenFile.
     sops.secrets = lib.mkMerge (
