@@ -228,8 +228,10 @@ in {
     }) enabledRunners;
 
     # nodejs_20 is marked insecure (EOL) but Actions still require externals/node20.
+    # The runner package links nodejs-slim; parityPackages may pull full nodejs_20.
     nixpkgs.config.permittedInsecurePackages = lib.mkIf needsNode20 [
       "nodejs-${pkgs.nodejs_20.version}"
+      "nodejs-slim-${pkgs.nodejs_20.version}"
     ];
 
     # Declare sops secrets only when not overridden by tokenFile.
