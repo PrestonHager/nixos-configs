@@ -37,11 +37,10 @@
     size = 32 * 1024; # MiB
   }];
 
-  # Cap Nix parallelism permanently -- unconstrained rebuilds freeze this 31 GiB host
-  # (see docs/ace-rebuild-freeze-rca.md). CLI -j still honored; these bound daemons/runners.
+  # Memory-bound host: keep concurrent derivations low, give each build more cores.
   nix.settings = {
-    max-jobs = 2;
-    cores = 2;
+    max-jobs = 4;
+    cores = 12;
   };
 
   # Add prestonh to jellyfin group to allow for rsync into /jf/media folder
