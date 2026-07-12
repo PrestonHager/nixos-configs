@@ -33,8 +33,8 @@
     "serverdocs.prestonhager.com"
     "matrix.prestonhager.com"
     "spacetime.prestonhager.com"
-    # K80 AI stack — docs/ace-k80-gpu.md
-    "ai.prestonhager.com"
+    # K80 AI stack — docs/ace-k80-gpu.md (TEMPORARILY DISABLED with OpenClaw)
+    # "ai.prestonhager.com"
     "test.sui.prestonhager.com"
     "faucet.test.sui.prestonhager.com"
     "indexer.test.sui.prestonhager.com"

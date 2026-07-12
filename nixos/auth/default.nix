@@ -36,7 +36,8 @@ in {
         vaultwarden = "https://vault.prestonhager.com/identity/connect/oidc-signin";
         nextcloud = "https://cloud.prestonhager.com/apps/user_oidc/code";
         pterodactyl = "https://panel.prestonhager.com/oauth2/callback";
-        openclaw = "https://ai.prestonhager.com/oauth2/callback";
+        # TEMPORARILY DISABLED with OpenClaw / ai.prestonhager.com
+        # openclaw = "https://ai.prestonhager.com/oauth2/callback";
       };
     };
   };

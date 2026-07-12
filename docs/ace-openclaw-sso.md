@@ -1,5 +1,11 @@
 ﻿# OpenClaw SSO on ace
 
+> **Status (2026-07-12): TEMPORARILY DISABLED** on ace.
+> - `services.aceK80.enableOpenClaw = false` in `hosts/ace/default.nix`
+> - Caddy `./ai.nix`, `openclaw-oauth.nix`, and `openclaw-config.nix` imports commented out
+> - `ai.prestonhager.com` removed from local hosts; not in Grafana blackbox/version-check targets
+> Re-enable by reversing those comments / flags and redeploying (`nixos-rebuild switch --flake .#ace`).
+
 Browser SSO for the OpenClaw AI portal at https://ai.prestonhager.com via Zitadel + oauth2-proxy + Caddy forward auth. OpenClaw uses `trusted-proxy` auth mode (no gateway token in the browser).
 
 ## Architecture

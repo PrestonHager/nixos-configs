@@ -21,8 +21,9 @@
     ./vaultwarden.nix
     ./wg-portal.nix
     ./technitium.nix
-    ./openclaw-oauth.nix
-    ./openclaw-config.nix
+    # TEMPORARILY DISABLED — OpenClaw SSO (avoids openclaw-oauth sops when off)
+    # ./openclaw-oauth.nix
+    # ./openclaw-config.nix
     # ./lancache.nix — disabled; Technitium is primary LAN DNS on 192.168.5.5:53
     ./zitadel.nix
   ];

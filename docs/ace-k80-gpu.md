@@ -4,6 +4,8 @@ Separate flake: [PrestonHager/ace-k80-stack](https://github.com/PrestonHager/ace
 
 Host hardware: `hardware/dell-poweredge-730xd` (Dell PowerEdge R730xd). DNS: `ai.prestonhager.com` → ace (Technitium + Cloudflare grey CNAME).
 
+> **OpenClaw / ai.prestonhager.com:** TEMPORARILY DISABLED (2026-07-12). Ollama/K80 stack may still be enabled; portal + gateway are off. See [ace-openclaw-sso.md](./ace-openclaw-sso.md).
+
 ## Hardware
 
 | Item | Value |

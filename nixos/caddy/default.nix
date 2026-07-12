@@ -25,7 +25,8 @@
     ./zitadel.nix
     ./serverdocs.nix
     # K80 / AI stack — docs/ace-k80-gpu.md
-    ./ai.nix
+    # TEMPORARILY DISABLED — ai.prestonhager.com / OpenClaw (re-enable with services.aceK80.enableOpenClaw)
+    # ./ai.nix
   ];
 
   # Enable the HTTP/HTTPS ports on the firewall
