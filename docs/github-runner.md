@@ -3,7 +3,16 @@
 Reusable NixOS module: `nixos/services/github-runner.nix`  
 Option namespace: `homelab.github-runners`
 
-Not enabled on any host by default — import and turn on when you want a runner.
+Enabled on **ace** (`hosts/ace/default.nix`) with two runners:
+
+| Runner name | Register URL | systemd unit | Extra labels |
+|-------------|--------------|--------------|--------------|
+| `ace` | `https://github.com/PrestonHager` (org-wide) | `github-runner-ace` | `nixos`, `linux`, `x64`, `ace` |
+| `soundbytes-app` | `https://github.com/PrestonHager/soundbytes-app` | `github-runner-soundbytes-app` | `nixos`, `linux`, `x64`, `ace`, `soundbytes-app` |
+
+Token: nix-secrets `secrets/github-runner.yaml` key `token` (shared by both).
+
+Verify Online: org → **Settings → Actions → Runners**, and repo → **Settings → Actions → Runners**. On ace: `systemctl status github-runner-ace github-runner-soundbytes-app`.
 
 ## Few steps to join GitHub
 
@@ -46,7 +55,7 @@ Multiple runners can share one PAT (`tokenSecret` / `sopsKey` defaults), or use 
 
 ### 3. Enable the module on a host
 
-In that host’s `default.nix` (example only — not applied in-repo yet):
+Ace already does this (`hosts/ace/default.nix`). Pattern for another host:
 
 ```nix
 { config, pkgs, ... }:
@@ -57,14 +66,17 @@ In that host’s `default.nix` (example only — not applied in-repo yet):
 
   homelab.github-runners = {
     enable = true;
-    runners.default = {
-      # Org-wide:
-      url = "https://github.com/PrestonHager";
-      # Or a single repo:
-      # url = "https://github.com/PrestonHager/nixos-configs";
-      extraLabels = [ "nixos" ]; # GitHub also adds self-hosted / OS / arch
-      # ephemeral = true;  # default — needs a PAT, not a short-lived registration token
-      # extraPackages = with pkgs; [ jq curl cachix ];
+    runners = {
+      # Org-wide (any repo in the org can use it):
+      ace = {
+        url = "https://github.com/PrestonHager";
+        extraLabels = [ "nixos" "linux" "x64" "ace" ];
+      };
+      # Single repo:
+      soundbytes-app = {
+        url = "https://github.com/PrestonHager/soundbytes-app";
+        extraLabels = [ "nixos" "linux" "x64" "ace" "soundbytes-app" ];
+      };
     };
   };
 }
@@ -73,7 +85,7 @@ In that host’s `default.nix` (example only — not applied in-repo yet):
 Optional Docker for `container:` jobs:
 
 ```nix
-homelab.github-runners.runners.default = {
+homelab.github-runners.runners.ace = {
   url = "https://github.com/PrestonHager";
   user = "github-runner";
   group = "github-runner";
@@ -90,11 +102,11 @@ sudo nixos-rebuild switch --flake /etc/nixos#HOSTNAME
 ### 5. Verify
 
 1. GitHub → org or repo → **Settings → Actions → Runners** → runner **Online**
-2. On the host:
+2. On the host (ace):
 
 ```bash
-systemctl status github-runner-default
-journalctl -u github-runner-default -e
+systemctl status github-runner-ace github-runner-soundbytes-app
+journalctl -u github-runner-ace -u github-runner-soundbytes-app -e
 ```
 
 ## Options (summary)

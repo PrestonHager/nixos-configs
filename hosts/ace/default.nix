@@ -15,6 +15,8 @@
     ../../nixos/nfs
     # matrix home server (Synapse)
     ../../nixos/matrix.nix
+    # GitHub Actions self-hosted runners — docs/github-runner.md
+    ../../nixos/services/github-runner.nix
     # hardware configuration for the MSI Summit E16 Flip
     ../../hardware/dell-poweredge-730xd/hardware-configuration.nix
     # yubico keys
@@ -89,6 +91,22 @@
     enableOllama = true;
     enableOpenClaw = true;
     openclaw.package = pkgs.openclaw;
+  };
+
+  # GitHub Actions runners (token: nix-secrets secrets/github-runner.yaml → token)
+  # Org runner: any PrestonHager repo. Repo runner: soundbytes-app only.
+  homelab.github-runners = {
+    enable = true;
+    runners = {
+      ace = {
+        url = "https://github.com/PrestonHager";
+        extraLabels = [ "nixos" "linux" "x64" "ace" ];
+      };
+      soundbytes-app = {
+        url = "https://github.com/PrestonHager/soundbytes-app";
+        extraLabels = [ "nixos" "linux" "x64" "ace" "soundbytes-app" ];
+      };
+    };
   };
 }
 
