@@ -94,12 +94,13 @@
   };
 
   # GitHub Actions runners (token: nix-secrets secrets/github-runner.yaml → token)
-  # Org runner: any PrestonHager repo. Repo runner: soundbytes-app only.
+  # PrestonHager is a personal account (not an org), so runners are repo-scoped only.
+  # Default runner → nixos-configs; dedicated runner → soundbytes-app.
   homelab.github-runners = {
     enable = true;
     runners = {
       ace = {
-        url = "https://github.com/PrestonHager";
+        url = "https://github.com/PrestonHager/nixos-configs";
         extraLabels = [ "nixos" "linux" "x64" "ace" ];
       };
       soundbytes-app = {

@@ -3,16 +3,18 @@
 Reusable NixOS module: `nixos/services/github-runner.nix`  
 Option namespace: `homelab.github-runners`
 
-Enabled on **ace** (`hosts/ace/default.nix`) with two runners:
+Enabled on **ace** (`hosts/ace/default.nix`) with two **repo-scoped** runners:
 
 | Runner name | Register URL | systemd unit | Extra labels |
 |-------------|--------------|--------------|--------------|
-| `ace` | `https://github.com/PrestonHager` (org-wide) | `github-runner-ace` | `nixos`, `linux`, `x64`, `ace` |
+| `ace` | `https://github.com/PrestonHager/nixos-configs` | `github-runner-ace` | `nixos`, `linux`, `x64`, `ace` |
 | `soundbytes-app` | `https://github.com/PrestonHager/soundbytes-app` | `github-runner-soundbytes-app` | `nixos`, `linux`, `x64`, `ace`, `soundbytes-app` |
+
+**Note:** `PrestonHager` is a personal GitHub user, not an organization. GitHub only allows org-wide runners on Organizations (`https://github.com/ORG`). Personal accounts must register one runner per repository.
 
 Token: nix-secrets `secrets/github-runner.yaml` key `token` (shared by both).
 
-Verify Online: org → **Settings → Actions → Runners**, and repo → **Settings → Actions → Runners**. On ace: `systemctl status github-runner-ace github-runner-soundbytes-app`.
+Verify Online: each repo → **Settings → Actions → Runners**. On ace: `systemctl status github-runner-ace github-runner-soundbytes-app`.
 
 ## Few steps to join GitHub
 
@@ -67,12 +69,11 @@ Ace already does this (`hosts/ace/default.nix`). Pattern for another host:
   homelab.github-runners = {
     enable = true;
     runners = {
-      # Org-wide (any repo in the org can use it):
+      # Repo-scoped (required for personal accounts; use ORG URL only for Organizations):
       ace = {
-        url = "https://github.com/PrestonHager";
+        url = "https://github.com/PrestonHager/nixos-configs";
         extraLabels = [ "nixos" "linux" "x64" "ace" ];
       };
-      # Single repo:
       soundbytes-app = {
         url = "https://github.com/PrestonHager/soundbytes-app";
         extraLabels = [ "nixos" "linux" "x64" "ace" "soundbytes-app" ];
@@ -86,7 +87,7 @@ Optional Docker for `container:` jobs:
 
 ```nix
 homelab.github-runners.runners.ace = {
-  url = "https://github.com/PrestonHager";
+  url = "https://github.com/PrestonHager/nixos-configs";
   user = "github-runner";
   group = "github-runner";
   docker.enable = true;
