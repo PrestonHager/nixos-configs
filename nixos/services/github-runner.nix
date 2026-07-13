@@ -36,62 +36,68 @@ let
 
   # Bootstrap once into a shared volume: build-essential, cross gcc, rustup
   # with host + aarch64-unknown-linux-gnu targets (GitHub-hosted parity).
-  containerEntrypoint = pkgs.writeShellScript "github-runner-container-entrypoint" ''
-    set -euo pipefail
+  # Must use /bin/bash shebang — Nix store interpreters are invisible in Ubuntu.
+  containerEntrypoint = pkgs.writeTextFile {
+    name = "github-runner-container-entrypoint";
+    executable = true;
+    text = ''
+      #!/bin/bash
+      set -euo pipefail
 
-    TOOLS="''${HOMELAB_CI_TOOLS:-/opt/homelab-ci}"
-    mkdir -p "$TOOLS"
-    export DEBIAN_FRONTEND=noninteractive
-    export CARGO_HOME="$TOOLS/cargo"
-    export RUSTUP_HOME="$TOOLS/rustup"
-    export PATH="$CARGO_HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      TOOLS="''${HOMELAB_CI_TOOLS:-/opt/homelab-ci}"
+      mkdir -p "$TOOLS"
+      export DEBIAN_FRONTEND=noninteractive
+      export CARGO_HOME="$TOOLS/cargo"
+      export RUSTUP_HOME="$TOOLS/rustup"
+      export PATH="$CARGO_HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-    # Apt packages live in the container layer; rustup lives on the shared volume.
-    if ! command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
-      echo "homelab-ci: installing apt build/cross packages ..."
-      apt-get update -qq
-      apt-get install -y --no-install-recommends \
-        build-essential pkg-config libssl-dev libffi-dev zlib1g-dev \
-        ca-certificates curl wget jq unzip zip rsync gnupg openssh-client \
-        git cmake python3 \
-        gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
-        libc6-dev-arm64-cross binutils-aarch64-linux-gnu
-    fi
+      # Apt packages live in the container layer; rustup lives on the shared volume.
+      if ! command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
+        echo "homelab-ci: installing apt build/cross packages ..."
+        apt-get update -qq
+        apt-get install -y --no-install-recommends \
+          build-essential pkg-config libssl-dev libffi-dev zlib1g-dev \
+          ca-certificates curl wget jq unzip zip rsync gnupg openssh-client \
+          git cmake python3 \
+          gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+          libc6-dev-arm64-cross binutils-aarch64-linux-gnu
+      fi
 
-    if [ ! -x "$CARGO_HOME/bin/rustup" ]; then
-      echo "homelab-ci: installing rustup into $TOOLS ..."
-      got_lock=0
-      while ! mkdir "$TOOLS/.bootstrap.lock.d" 2>/dev/null; do
-        if [ -x "$CARGO_HOME/bin/rustup" ]; then
-          break
+      if [ ! -x "$CARGO_HOME/bin/rustup" ]; then
+        echo "homelab-ci: installing rustup into $TOOLS ..."
+        got_lock=0
+        while ! mkdir "$TOOLS/.bootstrap.lock.d" 2>/dev/null; do
+          if [ -x "$CARGO_HOME/bin/rustup" ]; then
+            break
+          fi
+          sleep 2
+        done
+        if [ -d "$TOOLS/.bootstrap.lock.d" ] && [ ! -x "$CARGO_HOME/bin/rustup" ]; then
+          got_lock=1
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --no-modify-path --default-toolchain stable \
+              --profile minimal \
+              --target x86_64-unknown-linux-gnu,aarch64-unknown-linux-gnu
+          echo "homelab-ci: rustup install complete"
         fi
-        sleep 2
-      done
-      if [ -d "$TOOLS/.bootstrap.lock.d" ] && [ ! -x "$CARGO_HOME/bin/rustup" ]; then
-        got_lock=1
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-          | sh -s -- -y --no-modify-path --default-toolchain stable \
-            --profile minimal \
-            --target x86_64-unknown-linux-gnu,aarch64-unknown-linux-gnu
-        echo "homelab-ci: rustup install complete"
+        if [ "$got_lock" = 1 ]; then
+          rmdir "$TOOLS/.bootstrap.lock.d" 2>/dev/null || true
+        fi
       fi
-      if [ "$got_lock" = 1 ]; then
-        rmdir "$TOOLS/.bootstrap.lock.d" 2>/dev/null || true
+
+      if [ -x "$CARGO_HOME/bin/rustup" ]; then
+        "$CARGO_HOME/bin/rustup" target add \
+          x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu >/dev/null 2>&1 || true
       fi
-    fi
 
-    if [ -x "$CARGO_HOME/bin/rustup" ]; then
-      "$CARGO_HOME/bin/rustup" target add \
-        x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu >/dev/null 2>&1 || true
-    fi
+      # Cross-link defaults for cargo/rustc (matches GitHub ubuntu runners + apt cross gcc).
+      export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER="''${CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER:-aarch64-linux-gnu-gcc}"
+      export CC_aarch64_unknown_linux_gnu="''${CC_aarch64_unknown_linux_gnu:-aarch64-linux-gnu-gcc}"
+      export CXX_aarch64_unknown_linux_gnu="''${CXX_aarch64_unknown_linux_gnu:-aarch64-linux-gnu-g++}"
 
-    # Cross-link defaults for cargo/rustc (matches GitHub ubuntu runners + apt cross gcc).
-    export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER="''${CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER:-aarch64-linux-gnu-gcc}"
-    export CC_aarch64_unknown_linux_gnu="''${CC_aarch64_unknown_linux_gnu:-aarch64-linux-gnu-gcc}"
-    export CXX_aarch64_unknown_linux_gnu="''${CXX_aarch64_unknown_linux_gnu:-aarch64-linux-gnu-g++}"
-
-    exec /entrypoint.sh "$@"
-  '';
+      exec /entrypoint.sh "$@"
+    '';
+  };
 
   runnerModule = { name, ... }: {
     options = {
