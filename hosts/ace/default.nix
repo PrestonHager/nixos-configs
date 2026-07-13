@@ -117,7 +117,8 @@
     # openclaw.package = pkgs.openclaw;
   };
 
-  # GitHub Actions runners ? Ubuntu Noble OCI (myoung34/github-runner:ubuntu-noble).
+  # GitHub Actions runners ? Ubuntu Noble OCI via baked local image
+  # (localhost/homelab-github-runner:ubuntu-noble from myoung34 + apt/cross).
   # Profiling 2026-07-12 on ace: 48 CPUs, 31 GiB RAM + 32 GiB swap; ~7 GiB steady
   # for web stacks. N=4 × 4096m × 4 CPUs ? 16 GiB / 16 CPUs peak CI; rest for
   # Nextcloud/Pterodactyl/Matrix/Grafana/Caddy and nix max-jobs=4.
@@ -125,6 +126,7 @@
   # (GitHub API 404). All four register to soundbytes-app (primary CI consumer).
   # Token: nix-secrets secrets/github-runner.yaml ? token
   # Workflows: runs-on: ace-ubuntu-x64-4  (GitHub also adds self-hosted/Linux/X64)
+  # Ops: docs/github-runner.md (ghost recovery, image bake, workdir wipe)
   homelab.github-runners = {
     enable = true;
     backend = "container";

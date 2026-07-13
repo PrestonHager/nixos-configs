@@ -34,11 +34,15 @@ let
     zig
   ];
 
-  defaultContainerImage = "docker.io/myoung34/github-runner:ubuntu-noble";
+  defaultBaseImage = "docker.io/myoung34/github-runner:ubuntu-noble";
+  defaultContainerImage = "localhost/homelab-github-runner:ubuntu-noble";
+  containerfileSrc = ./github-runner/Containerfile;
+  imageStampPath = "/var/lib/github-runner-tools/image.stamp";
 
-  # Bootstrap once into a shared volume: build-essential, cross gcc, rustup
-  # with host + aarch64-unknown-linux-gnu targets (GitHub-hosted parity).
-  # Must use /bin/bash shebang — Nix store interpreters are invisible in Ubuntu.
+  # Bootstrap once into a shared volume: rustup (+ apt fallback if image lacks
+  # cross gcc). Must use /bin/bash shebang — Nix store interpreters are invisible
+  # in Ubuntu. Wraps myoung34 entrypoint so deregister runs while config exists
+  # (or falls back to GitHub API delete-by-name when files were already wiped).
   containerEntrypoint = pkgs.writeTextFile {
     name = "github-runner-container-entrypoint";
     executable = true;
@@ -56,9 +60,9 @@ let
       export RUSTUP_HOME="$TOOLS/rustup"
       export PATH="$TOOLS/bin:$TOOLS_CARGO/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-      # Apt packages live in the container layer; rustup lives on the shared volume.
+      # Prefer baked image packages; keep apt as fallback for stock base images.
       if ! command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
-        echo "homelab-ci: installing apt build/cross packages ..."
+        echo "homelab-ci: installing apt build/cross packages (image missing toolchain) ..."
         apt-get update -qq
         apt-get install -y --no-install-recommends \
           build-essential pkg-config libssl-dev libffi-dev zlib1g-dev \
@@ -66,6 +70,8 @@ let
           git cmake python3 \
           gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
           libc6-dev-arm64-cross binutils-aarch64-linux-gnu
+      else
+        echo "homelab-ci: apt/cross toolchain present (baked image)"
       fi
 
       if [ ! -x "$TOOLS_CARGO/bin/rustup" ]; then
@@ -112,9 +118,119 @@ let
       # next job cannot read another workflow's cargo/npm artifacts from disk.
       rm -rf "$CARGO_HOME/registry" "$CARGO_HOME/git" /root/.npm /root/.cache/npm
 
-      exec /entrypoint.sh "$@"
+      # Clear bind-mounted workdir between ephemeral restarts (stale checkout / _actions).
+      if [ -n "''${RUNNER_WORKDIR:-}" ] && [ -d "''${RUNNER_WORKDIR}" ]; then
+        echo "homelab-ci: clearing workdir ''${RUNNER_WORKDIR}"
+        find "''${RUNNER_WORKDIR}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+      fi
+
+      # Disable myoung34 EXIT trap: it calls config.sh remove AFTER Runner.Listener
+      # already deleted .runner/.credentials ("config files are missing"), which
+      # skips server-side remove and leaves offline+busy ghosts. We deregister
+      # while files exist, with API delete-by-name fallback.
+      export DISABLE_AUTOMATIC_DEREGISTRATION=true
+      export RANDOM_RUNNER_SUFFIX=false
+
+      _HOMELAB_DEREGISTERED=false
+
+      homelab_owner_repo() {
+        local u="''${REPO_URL:-}"
+        u="''${u#https://github.com/}"
+        u="''${u#http://github.com/}"
+        u="''${u%.git}"
+        u="''${u%/}"
+        printf '%s' "$u"
+      }
+
+      homelab_api_delete_runner_by_name() {
+        local name="''${RUNNER_NAME:-}"
+        local token="''${ACCESS_TOKEN:-}"
+        local or id
+        if [ -z "$name" ] || [ -z "$token" ]; then
+          echo "homelab-ci: API delete skipped (missing RUNNER_NAME or ACCESS_TOKEN)"
+          return 0
+        fi
+        or="$(homelab_owner_repo)"
+        if [ -z "$or" ]; then
+          return 0
+        fi
+        echo "homelab-ci: API delete-by-name name=$name repo=$or"
+        id="$(curl -fsS \
+          -H "Authorization: Bearer ''${token}" \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "https://api.github.com/repos/''${or}/actions/runners" \
+          | jq -r --arg n "$name" '.runners[]? | select(.name == $n) | .id' \
+          | head -n1 || true)"
+        if [ -n "''${id:-}" ] && [ "$id" != "null" ]; then
+          curl -fsS -X DELETE \
+            -H "Authorization: Bearer ''${token}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/''${or}/actions/runners/''${id}" \
+            && echo "homelab-ci: deleted runner id=$id" \
+            || echo "homelab-ci: API delete failed for id=$id (may already be gone)"
+        else
+          echo "homelab-ci: no server-side runner named $name"
+        fi
+      }
+
+      homelab_deregister() {
+        local reason="''${1:-EXIT}"
+        if [ "''${_HOMELAB_DEREGISTERED}" = "true" ]; then
+          return 0
+        fi
+        _HOMELAB_DEREGISTERED=true
+        echo "homelab-ci: deregister ($reason)"
+        if [ -f /actions-runner/.runner ]; then
+          echo "homelab-ci: .runner present — config.sh remove while credentials exist"
+          if [ -n "''${ACCESS_TOKEN:-}" ]; then
+            (
+              cd /actions-runner
+              _TOKEN="$(ACCESS_TOKEN="''${ACCESS_TOKEN}" bash /token.sh)" || true
+              RUNNER_TOKEN="$(printf '%s' "''${_TOKEN:-}" | jq -r .token)"
+              if [ -n "''${RUNNER_TOKEN:-}" ] && [ "''${RUNNER_TOKEN}" != "null" ]; then
+                ./config.sh remove --token "''${RUNNER_TOKEN}" || true
+              else
+                echo "homelab-ci: could not obtain remove token; API fallback"
+                homelab_api_delete_runner_by_name || true
+              fi
+            )
+          else
+            homelab_api_delete_runner_by_name || true
+          fi
+        else
+          echo "homelab-ci: .runner already gone — API fallback by name"
+          homelab_api_delete_runner_by_name || true
+        fi
+      }
+
+      trap 'homelab_deregister EXIT' EXIT
+      trap 'homelab_deregister SIGTERM; exit 143' TERM
+      trap 'homelab_deregister SIGINT; exit 130' INT
+
+      # Do not exec: keep traps. myoung34 runs Runner.Listener in the foreground.
+      set +e
+      /entrypoint.sh "$@"
+      rc=$?
+      set -e
+      exit "$rc"
     '';
   };
+
+  recoverGhostScript = pkgs.writeShellScriptBin "github-runner-recover-ghost" ''
+    export PATH=${lib.makeBinPath [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.curl
+      pkgs.jq
+      pkgs.openssh
+      pkgs.systemd
+      pkgs.gnugrep
+      pkgs.gnused
+    ]}:$PATH
+    exec ${pkgs.bash}/bin/bash ${../../scripts/github-runner-recover-ghost.sh} "$@"
+  '';
 
   runnerModule = { name, ... }: {
     options = {
@@ -251,9 +367,12 @@ let
 
       container = {
         image = lib.mkOption {
-          type = lib.types.str;
-          default = defaultContainerImage;
-          description = "OCI image for container-backend runners.";
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          description = ''
+            OCI image for this runner. Null inherits
+            `homelab.github-runners.containerImage` (baked local image by default).
+          '';
         };
 
         memory = lib.mkOption {
@@ -340,7 +459,20 @@ in {
     containerImage = lib.mkOption {
       type = lib.types.str;
       default = defaultContainerImage;
-      description = "Default OCI image for container-backend runners.";
+      description = ''
+        OCI image for container-backend runners. Default is the locally built
+        `localhost/homelab-github-runner:ubuntu-noble` (base + apt/cross toolchain).
+        Built by `github-runner-image.service` from nixos/services/github-runner/Containerfile.
+      '';
+    };
+
+    containerBaseImage = lib.mkOption {
+      type = lib.types.str;
+      default = defaultBaseImage;
+      description = ''
+        Upstream image used as FROM when building `containerImage`.
+        Default: myoung34/github-runner:ubuntu-noble.
+      '';
     };
 
     containerMemory = lib.mkOption {
@@ -504,6 +636,11 @@ in {
 
     # Render ACCESS_TOKEN=… env files from sops/tokenFile for myoung34 image.
     # Also provision pkgs.zig (and future Nix toolchains) into the shared tools volume.
+    # Build baked runner image; optional ghost-watch timer.
+    environment.systemPackages = lib.mkIf (cfg.backend == "container") [
+      recoverGhostScript
+    ];
+
     systemd.services = lib.mkMerge (
       # Env renderers (container)
       (lib.optionals (cfg.backend == "container") (
@@ -529,6 +666,60 @@ in {
           };
         }) enabledRunners
       ))
+      # Bake apt/cross into local OCI image (skip per-start apt on ephemeral restarts).
+      ++ (lib.optionals (cfg.backend == "container") [{
+        github-runner-image = {
+          description = "Build homelab GitHub runner OCI image (apt/cross baked in)";
+          wantedBy = [ "multi-user.target" ];
+          before = map ({ cname, ... }: "${containerUnitName cname}.service")
+            containerInstances;
+          after = [ "network-online.target" "podman.socket" ];
+          wants = [ "network-online.target" "podman.socket" ];
+          path = [ pkgs.podman pkgs.coreutils pkgs.gnugrep ];
+          serviceConfig = {
+            Type = "oneshot";
+            RemainAfterExit = true;
+            TimeoutStartSec = "45min";
+          };
+          script = ''
+            set -euo pipefail
+            install -d -m 0755 ${toolsDir}
+            base=${lib.escapeShellArg cfg.containerBaseImage}
+            tag=${lib.escapeShellArg cfg.containerImage}
+            cf=${lib.escapeShellArg "${containerfileSrc}"}
+            stamp=${lib.escapeShellArg imageStampPath}
+
+            echo "homelab-ci: ensuring base image $base"
+            podman pull "$base"
+
+            base_id="$(podman image inspect "$base" --format '{{.Id}}')"
+            cf_hash="$(sha256sum "$cf" | cut -d' ' -f1)"
+            want="''${cf_hash}-''${base_id}"
+
+            have_tag=0
+            if podman image exists "$tag"; then
+              have_tag=1
+            fi
+
+            if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$want" ] && [ "$have_tag" = 1 ]; then
+              echo "homelab-ci: runner image $tag up to date"
+              exit 0
+            fi
+
+            echo "homelab-ci: building $tag from $cf (base=$base)"
+            builddir="$(mktemp -d)"
+            trap 'rm -rf "$builddir"' EXIT
+            cp "$cf" "$builddir/Containerfile"
+            podman build \
+              --build-arg "BASE_IMAGE=$base" \
+              -t "$tag" \
+              -f "$builddir/Containerfile" \
+              "$builddir"
+            printf '%s\n' "$want" > "$stamp"
+            echo "homelab-ci: built $tag"
+          '';
+        };
+      }])
       # Symlink nixpkgs toolchains into the shared volume (survives ephemeral restarts).
       ++ (lib.optionals (cfg.backend == "container") [{
         github-runner-tools-bin = {
@@ -549,6 +740,102 @@ in {
           '';
         };
       }])
+      # Ghost offline+busy auto-recovery (uses PAT from env file; no secrets logged).
+      ++ (lib.optionals (cfg.backend == "container" && enabledRunners != { }) (
+        let
+          # Prefer first enabled runner definition for token + repo URL.
+          primaryName = builtins.head (lib.attrNames enabledRunners);
+          primary = enabledRunners.${primaryName};
+          ownerRepo =
+            let
+              u = primary.url;
+              stripped = lib.removeSuffix "/" (lib.removeSuffix ".git" (
+                lib.removePrefix "https://github.com/" (
+                  lib.removePrefix "http://github.com/" u
+                )
+              ));
+            in stripped;
+          runnerNames = lib.concatStringsSep " " (
+            lib.concatLists (
+              lib.mapAttrsToList (name: r:
+                map (i: instanceName (if r.name != null then r.name else name) r i)
+                  (instanceRange r)
+              ) enabledRunners
+            )
+          );
+        in [{
+          github-runner-ghost-watch = {
+            description = "Recover GitHub runners stuck offline+busy";
+            after = [
+              "network-online.target"
+              "github-runner-env-${primaryName}.service"
+            ];
+            wants = [ "network-online.target" ];
+            path = [ pkgs.curl pkgs.jq pkgs.systemd pkgs.coreutils pkgs.gnugrep ];
+            serviceConfig = {
+              Type = "oneshot";
+            };
+            script = ''
+              set -euo pipefail
+              envf=${lib.escapeShellArg (envFilePath primaryName)}
+              if [ ! -f "$envf" ]; then
+                echo "homelab-ci: ghost-watch skip (no env file)"
+                exit 0
+              fi
+              # shellcheck disable=SC1090
+              set -a
+              # Only ACCESS_TOKEN=... ; do not echo
+              token="$(sed -n 's/^ACCESS_TOKEN=//p' "$envf" | tr -d '\r\n')"
+              set +a
+              if [ -z "$token" ]; then
+                echo "homelab-ci: ghost-watch skip (empty token)"
+                exit 0
+              fi
+              repo=${lib.escapeShellArg ownerRepo}
+              known=${lib.escapeShellArg runnerNames}
+              api() {
+                curl -fsS -H "Authorization: Bearer ''${token}" \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  "$@"
+              }
+              json="$(api "https://api.github.com/repos/''${repo}/actions/runners" || true)"
+              if [ -z "$json" ]; then
+                echo "homelab-ci: ghost-watch: runners API unavailable"
+                exit 0
+              fi
+              echo "$json" | jq -r --arg known "$known" '
+                ($known | split(" ")) as $k
+                | .runners[]?
+                | select(.status=="offline" and .busy==true)
+                | select(.name as $n | $k | index($n) != null)
+                | .name
+              ' | while read -r name; do
+                [ -z "$name" ] && continue
+                echo "homelab-ci: ghost-watch recovering $name"
+                # Cancel in-progress runs that have jobs on this runner
+                runs="$(api "https://api.github.com/repos/''${repo}/actions/runs?status=in_progress&per_page=20" \
+                  | jq -r '.workflow_runs[]?.id' || true)"
+                for run_id in $runs; do
+                  [ -z "$run_id" ] && continue
+                  hit="$(api "https://api.github.com/repos/''${repo}/actions/runs/''${run_id}/jobs" \
+                    | jq -r --arg n "$name" \
+                      '[.jobs[]? | select(.runner_name==$n and .status=="in_progress")] | length' || echo 0)"
+                  if [ "''${hit:-0}" != "0" ]; then
+                    echo "homelab-ci: cancelling run $run_id for $name"
+                    curl -fsS -X POST \
+                      -H "Authorization: Bearer ''${token}" \
+                      -H "Accept: application/vnd.github+json" \
+                      -H "X-GitHub-Api-Version: 2022-11-28" \
+                      "https://api.github.com/repos/''${repo}/actions/runs/''${run_id}/cancel" >/dev/null || true
+                  fi
+                done
+                systemctl restart "podman-github-runner-''${name}.service" || true
+              done
+            '';
+          };
+        }]
+      ))
       # Native: wait for sops
       ++ (lib.optionals (cfg.backend == "native") (
         lib.concatLists (
@@ -563,7 +850,7 @@ in {
           ) enabledRunners
         )
       ))
-      # Container units: depend on env + tools dir; always restart (ephemeral
+      # Container units: depend on env + tools + image; always restart (ephemeral
       # runners exit 0 after each job and must come back online).
       ++ (lib.optionals (cfg.backend == "container") (
         map ({ name, cname, ... }: {
@@ -571,11 +858,13 @@ in {
             after = [
               "github-runner-env-${name}.service"
               "github-runner-tools-bin.service"
+              "github-runner-image.service"
               "podman.socket"
             ];
             requires = [
               "github-runner-env-${name}.service"
               "github-runner-tools-bin.service"
+              "github-runner-image.service"
             ];
             wants = [ "podman.socket" ];
             serviceConfig = {
@@ -587,13 +876,26 @@ in {
       ))
     );
 
+    systemd.timers = lib.mkIf (cfg.backend == "container" && enabledRunners != { }) {
+      github-runner-ghost-watch = {
+        description = "Periodically recover ghost offline+busy GitHub runners";
+        wantedBy = [ "timers.target" ];
+        timerConfig = {
+          OnBootSec = "3min";
+          OnUnitActiveSec = "5min";
+          Persistent = true;
+        };
+      };
+    };
+
     virtualisation.oci-containers.containers = lib.mkIf (cfg.backend == "container") (
       lib.listToAttrs (
         map ({ name, r, i, cname, runnerName }: {
           name = cname;
           value = {
             autoStart = true;
-            image = r.container.image;
+            image =
+              if r.container.image != null then r.container.image else cfg.containerImage;
             entrypoint = "/bootstrap/homelab-entrypoint.sh";
             # Image CMD is dropped when entrypoint is overridden; restore it so
             # myoung34's entrypoint actually starts Runner.Listener.
@@ -607,6 +909,9 @@ in {
               RUNNER_WORKDIR = workDir name i;
               EPHEMERAL = if r.ephemeral then "true" else "";
               DISABLE_AUTO_UPDATE = "1";
+              # Homelab entrypoint owns deregister (see containerEntrypoint).
+              DISABLE_AUTOMATIC_DEREGISTRATION = "true";
+              RANDOM_RUNNER_SUFFIX = "false";
               RUN_AS_ROOT = "true";
               HOMELAB_CI_TOOLS = toolsDir;
               # Toolchains on shared volume; job Cargo registry/git use /root/.cargo

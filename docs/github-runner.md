@@ -60,12 +60,58 @@ Live profile (2026-07-12):
 
 Raise `instances` only after re-checking `free -h` / `systemd-cgtop` under load. Prefer more runner *containers* over job concurrency tricks (each GitHub runner is one job).
 
+## Hardening (ephemeral + ghosts)
+
+Ephemeral runners exit after each job and re-register. Past failure mode: process exits mid-job, local `.runner` is already gone, myoung34’s EXIT trap cannot call `config.sh remove`, GitHub keeps the runner **offline + busy**, and a job can sit `in_progress` with 0 steps.
+
+Mitigations in this module:
+
+1. **Baked image** — `github-runner-image.service` builds `localhost/homelab-github-runner:ubuntu-noble` from `nixos/services/github-runner/Containerfile` (base `myoung34/github-runner:ubuntu-noble` + apt build/cross packages). Ephemeral restarts should log `homelab-ci: apt/cross toolchain present (baked image)` instead of downloading ~74 MB of debs.
+2. **Deregister order** — `DISABLE_AUTOMATIC_DEREGISTRATION=true`; homelab entrypoint deregisters with `config.sh remove` **while** `.runner` exists, else deletes the runner by name via the GitHub API.
+3. **Workdir wipe** — each start clears `$RUNNER_WORKDIR` contents (bind-mounted `/var/lib/github-runner/<name>-<i>/work`).
+4. **Ghost recovery** — timer `github-runner-ghost-watch.timer` (every ~5 min) cancels stuck jobs and restarts offline+busy units; ops script `scripts/github-runner-recover-ghost.sh` (also `github-runner-recover-ghost` on PATH on ace).
+
+### Ghost recovery (manual)
+
+From a machine with `gh` auth:
+
+```bash
+./scripts/github-runner-recover-ghost.sh ace-3
+./scripts/github-runner-recover-ghost.sh all
+```
+
+On ace (uses `/run/github-runner/*.env`, does not print the token):
+
+```bash
+github-runner-recover-ghost --local ace-3
+# or
+systemctl start github-runner-ghost-watch.service
+```
+
+### Custom image build / storage
+
+| Item | Value |
+|------|--------|
+| Containerfile | `nixos/services/github-runner/Containerfile` |
+| Build unit | `github-runner-image.service` |
+| Image tag | `localhost/homelab-github-runner:ubuntu-noble` (Podman local store) |
+| Stamp | `/var/lib/github-runner-tools/image.stamp` (Containerfile sha256 + base image id) |
+| Base option | `homelab.github-runners.containerBaseImage` |
+| Image option | `homelab.github-runners.containerImage` |
+
+Rebuild the image after Containerfile or base digest changes (automatic on next `github-runner-image.service` start / nixos-rebuild). Force:
+
+```bash
+rm -f /var/lib/github-runner-tools/image.stamp
+systemctl restart github-runner-image.service
+```
+
 ## Backend: container vs native
 
 | | `backend = "container"` (ace default) | `backend = "native"` |
 |--|----------------------------------------|----------------------|
-| Runtime | Podman OCI (`myoung34/github-runner:ubuntu-noble`) | NixOS `services.github-runners` |
-| FHS / libs | Ubuntu glibc + apt (`build-essential`, openssl, …) | Nix store PATH + `parityPackages` |
+| Runtime | Podman OCI (`localhost/homelab-github-runner:ubuntu-noble`, from myoung34) | NixOS `services.github-runners` |
+| FHS / libs | Ubuntu glibc + apt (`build-essential`, openssl, …) baked into local image | Nix store PATH + `parityPackages` |
 | Rust | Bootstrap installs rustup + `x86_64` + `aarch64-unknown-linux-gnu` into `/var/lib/github-runner-tools` | Must add toolchain yourself; cross `core`/`std` often missing |
 | Zig | Host symlinks `pkgs.zig` → `/var/lib/github-runner-tools/bin/zig` (+ `/nix/store` RO mount) | Included in `parityPackages` |
 | Job `container:` | Host Podman socket mounted at `/var/run/docker.sock` | Opt-in `docker.enable` (Docker) |
@@ -175,7 +221,7 @@ podman exec github-runner-ace-1 bash -lc \
   'rustup show; rustup target list --installed; rustc --print target-libdir --target aarch64-unknown-linux-gnu; which zig; zig version'
 ```
 
-Expect installed targets including `aarch64-unknown-linux-gnu` (so `core`/`std` resolve), and `zig` on `PATH` from `/var/lib/github-runner-tools/bin`. First container start bootstraps apt + rustup into `/var/lib/github-runner-tools` (shared; flocked). Zig is provisioned by `github-runner-tools-bin.service` on each rebuild.
+Expect installed targets including `aarch64-unknown-linux-gnu` (so `core`/`std` resolve), and `zig` on `PATH` from `/var/lib/github-runner-tools/bin`. Cold start should **not** re-download apt cross packages when using the baked image (`homelab-ci: apt/cross toolchain present`). Rustup still bootstraps once into `/var/lib/github-runner-tools` (shared; flocked). Zig is provisioned by `github-runner-tools-bin.service` on each rebuild.
 
 ## Options (summary)
 
@@ -183,7 +229,8 @@ Expect installed targets including `aarch64-unknown-linux-gnu` (so `core`/`std` 
 |--------|---------|--------|
 | `enable` | `false` | Master switch |
 | `backend` | `"container"` | `"container"` or `"native"` |
-| `containerImage` | `myoung34/github-runner:ubuntu-noble` | Ubuntu Noble Actions runner |
+| `containerImage` | `localhost/homelab-github-runner:ubuntu-noble` | Baked local image (see Hardening) |
+| `containerBaseImage` | `myoung34/github-runner:ubuntu-noble` | FROM for `github-runner-image.service` |
 | `containerMemory` / `containerCpus` | `4096m` / `4` | Defaults when per-runner `container.*` is null |
 | `runners.<name>.url` | required | Org or repo URL |
 | `runners.<name>.name` | attr key | Base name in GitHub UI |
@@ -203,13 +250,13 @@ Expect installed targets including `aarch64-unknown-linux-gnu` (so `core`/`std` 
 
 ### Tooling parity (container backend)
 
-On first start, each Ubuntu runner bootstraps (once, shared volume `/var/lib/github-runner-tools`):
+On first start of a **stock** base image, each Ubuntu runner would apt-install build/cross packages. Ace uses the **baked** local image so that step is skipped. Shared volume `/var/lib/github-runner-tools` still gets:
 
-- `build-essential`, `pkg-config`, OpenSSL/FFI/zlib headers, cmake, git, jq, curl, …
-- `gcc-aarch64-linux-gnu` / `g++-aarch64-linux-gnu` (cross linker)
 - **rustup** stable with targets `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` (binaries under the tools volume; on `PATH`)
 - **zig** from nixpkgs (`pkgs.zig`), symlinked to `/var/lib/github-runner-tools/bin/zig` by `github-runner-tools-bin` (containers mount `/nix/store` read-only so the Nix-linked binary runs)
 - Env: `RUSTUP_HOME=/var/lib/github-runner-tools/rustup`, `CARGO_HOME=/root/.cargo`, cross-linker vars; `PATH` includes `$TOOLS/bin` then `$TOOLS/cargo/bin`
+
+Each start also clears the runner **workdir** and per-container cargo/npm caches (not the shared toolchains).
 
 This fixes CI errors like `can't find crate for core` / `std` for `aarch64-unknown-linux-gnu`, and lets workflows skip downloading Zig when they detect it on `PATH` (or drop `setup-zig` on Ace-labeled jobs).
 

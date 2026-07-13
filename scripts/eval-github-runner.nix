@@ -83,8 +83,12 @@ in {
     # Job CARGO_HOME must not be the shared tools volume (actions/cache instead).
     cargoHome = enabledContainer.config.virtualisation.oci-containers.containers."github-runner-default-1".environment.CARGO_HOME;
     rustupHome = enabledContainer.config.virtualisation.oci-containers.containers."github-runner-default-1".environment.RUSTUP_HOME;
+    disableAutoDereg =
+      enabledContainer.config.virtualisation.oci-containers.containers."github-runner-default-1".environment.DISABLE_AUTOMATIC_DEREGISTRATION;
     hasNixStoreMount = lib.any (v: lib.hasPrefix "/nix/store:" v)
       enabledContainer.config.virtualisation.oci-containers.containers."github-runner-default-1".volumes;
     hasToolsBinService = enabledContainer.config.systemd.services ? github-runner-tools-bin;
+    hasImageService = enabledContainer.config.systemd.services ? github-runner-image;
+    hasGhostWatch = enabledContainer.config.systemd.services ? github-runner-ghost-watch;
   };
 }

@@ -1,0 +1,38 @@
+# Homelab GitHub Actions runner image: myoung34 ubuntu-noble + apt build/cross
+# toolchain baked in so ephemeral restarts skip ~74MB apt-get every time.
+#
+# Built on the host by github-runner-image.service (Podman).
+# Tag: localhost/homelab-github-runner:ubuntu-noble
+ARG BASE_IMAGE=docker.io/myoung34/github-runner:ubuntu-noble
+FROM ${BASE_IMAGE}
+
+USER root
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update -qq \
+ && apt-get install -y --no-install-recommends \
+      build-essential \
+      pkg-config \
+      libssl-dev \
+      libffi-dev \
+      zlib1g-dev \
+      ca-certificates \
+      curl \
+      wget \
+      jq \
+      unzip \
+      zip \
+      rsync \
+      gnupg \
+      openssh-client \
+      git \
+      cmake \
+      python3 \
+      gcc-aarch64-linux-gnu \
+      g++-aarch64-linux-gnu \
+      libc6-dev-arm64-cross \
+      binutils-aarch64-linux-gnu \
+ && rm -rf /var/lib/apt/lists/*
+
+# Keep image entrypoint/cmd from base (myoung34). Homelab overrides entrypoint
+# via the NixOS module to run bootstrap + deregister-safe wrapper.
