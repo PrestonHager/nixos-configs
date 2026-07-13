@@ -526,9 +526,7 @@ in {
           value = {
             autoStart = true;
             image = r.container.image;
-            # Script lives in the Nix store on the host; mount to a fixed path
-            # inside Ubuntu (no /nix/store in the image).
-            entrypoint = [ "/bootstrap/homelab-entrypoint.sh" ];
+            entrypoint = "/bootstrap/homelab-entrypoint.sh";
             environmentFiles = [ (envFilePath name) ];
             environment = {
               REPO_URL = r.url;
