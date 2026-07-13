@@ -86,6 +86,8 @@ let
       fi
 
       if [ -x "$CARGO_HOME/bin/rustup" ]; then
+        "$CARGO_HOME/bin/rustup" default stable >/dev/null 2>&1 || \
+          "$CARGO_HOME/bin/rustup" toolchain install stable --profile minimal
         "$CARGO_HOME/bin/rustup" target add \
           x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu >/dev/null 2>&1 || true
       fi
@@ -510,7 +512,8 @@ in {
           ) enabledRunners
         )
       ))
-      # Container units: depend on env + tools dir
+      # Container units: depend on env + tools dir; always restart (ephemeral
+      # runners exit 0 after each job and must come back online).
       ++ (lib.optionals (cfg.backend == "container") (
         map ({ name, cname, ... }: {
           "${containerUnitName cname}" = {
@@ -520,6 +523,10 @@ in {
             ];
             requires = [ "github-runner-env-${name}.service" ];
             wants = [ "podman.socket" ];
+            serviceConfig = {
+              Restart = lib.mkForce "always";
+              RestartSec = "5";
+            };
           };
         }) containerInstances
       ))
