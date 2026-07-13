@@ -117,29 +117,24 @@
     # openclaw.package = pkgs.openclaw;
   };
 
-  # GitHub Actions runners — Ubuntu OCI containers for GitHub-hosted parity
-  # (rustup aarch64 + glibc/apt libs). Profiling 2026-07-12 on ace:
-  #   48 CPUs (2× E5-2680 v3), 31 GiB RAM, ~7 GiB steady / ~23 GiB available,
-  #   32 GiB swap unused. Reserve ~14 GiB for web stacks + OS; CI budget ~10–12 GiB.
-  # N=4 runners × 3072m × 8 CPUs ≈ 12 GiB / 32 CPUs peak — leaves headroom for
+  # GitHub Actions runners ? Ubuntu Noble OCI (myoung34/github-runner:ubuntu-noble).
+  # Profiling 2026-07-12 on ace: 48 CPUs, 31 GiB RAM + 32 GiB swap; ~7 GiB steady
+  # for web stacks. N=4 � 4096m � 4 CPUs ? 16 GiB / 16 CPUs peak CI; rest for
   # Nextcloud/Pterodactyl/Matrix/Grafana/Caddy and nix max-jobs=4.
-  # PrestonHager is a personal account (not an org), so runners are repo-scoped only.
-  # Token: nix-secrets secrets/github-runner.yaml → token
+  # PrestonHager is a personal account (not an org): no user/org-wide runners
+  # (GitHub API 404). All four register to soundbytes-app (primary CI consumer).
+  # Token: nix-secrets secrets/github-runner.yaml ? token
+  # Workflows: runs-on: ace-ubuntu-x64-4  (GitHub also adds self-hosted/Linux/X64)
   homelab.github-runners = {
     enable = true;
     backend = "container";
-    containerMemory = "3072m";
-    containerCpus = "8";
+    containerMemory = "4096m";
+    containerCpus = "4";
     runners = {
       ace = {
-        url = "https://github.com/PrestonHager/nixos-configs";
-        instances = 2;
-        extraLabels = [ "nixos" "linux" "x64" "ace" "ubuntu-noble" ];
-      };
-      soundbytes-app = {
         url = "https://github.com/PrestonHager/soundbytes-app";
-        instances = 2;
-        extraLabels = [ "nixos" "linux" "x64" "ace" "soundbytes-app" "ubuntu-noble" ];
+        instances = 4;
+        extraLabels = [ "ace-ubuntu-x64-4" ];
       };
     };
   };

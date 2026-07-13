@@ -3,24 +3,39 @@
 Reusable NixOS module: `nixos/services/github-runner.nix`  
 Option namespace: `homelab.github-runners`
 
-Enabled on **ace** (`hosts/ace/default.nix`) with **container backend** (Ubuntu Noble OCI via Podman) and **4 parallel runners** (2 per repo):
+Enabled on **ace** (`hosts/ace/default.nix`) with **container backend** (Ubuntu Noble OCI via Podman) and **4 parallel runners**, all registered to **soundbytes-app**:
 
-| Runner name(s) | Register URL | systemd / Podman unit(s) | Extra labels |
+| Runner name(s) | Register URL | systemd / Podman unit(s) | Custom label |
 |----------------|--------------|--------------------------|--------------|
-| `ace-1`, `ace-2` | `https://github.com/PrestonHager/nixos-configs` | `podman-github-runner-ace-1`, `podman-github-runner-ace-2` | `nixos`, `linux`, `x64`, `ace`, `ubuntu-noble` |
-| `soundbytes-app-1`, `soundbytes-app-2` | `https://github.com/PrestonHager/soundbytes-app` | `podman-github-runner-soundbytes-app-1`, `podman-github-runner-soundbytes-app-2` | `nixos`, `linux`, `x64`, `ace`, `soundbytes-app`, `ubuntu-noble` |
+| `ace-1` … `ace-4` | `https://github.com/PrestonHager/soundbytes-app` | `podman-github-runner-ace-1` … `-4` | `ace-ubuntu-x64-4` |
 
-**Note:** `PrestonHager` is a personal GitHub user, not an organization. GitHub only allows org-wide runners on Organizations (`https://github.com/ORG`). Personal accounts must register one runner per repository.
+**Org / user-wide runners:** not available. `PrestonHager` is a personal GitHub user (not an Organization). `GET /orgs/PrestonHager/actions/runners` returns **404**. GitHub only supports org-scoped shared runners on Organizations. Personal accounts must register runners **per repository**. Ace therefore points all four at `soundbytes-app` (the primary CI consumer). To also serve `nixos-configs`, you would need a second set of repo-scoped runners (more CPU/RAM) or a GitHub Organization.
 
 Token: nix-secrets `secrets/github-runner.yaml` key `token` (shared by all; rendered to `/run/github-runner/<name>.env` as `ACCESS_TOKEN=`).
 
-Verify Online: each repo → **Settings → Actions → Runners**. On ace:
+Verify Online: **soundbytes-app → Settings → Actions → Runners**. On ace:
 
 ```bash
-systemctl status podman-github-runner-ace-1 podman-github-runner-ace-2 \
-  podman-github-runner-soundbytes-app-1 podman-github-runner-soundbytes-app-2
+systemctl status podman-github-runner-ace-{1,2,3,4}
 podman ps --filter name=github-runner
 ```
+
+## Targeting workflows (`runs-on`)
+
+Use the single custom label:
+
+```yaml
+jobs:
+  build:
+    runs-on: ace-ubuntu-x64-4
+    steps:
+      - uses: actions/checkout@v4
+      # …
+```
+
+GitHub **always** also attaches read-only labels `self-hosted`, `Linux`, and `X64` (cannot be removed). Workflows may still match with `runs-on: [self-hosted, linux, x64]` style lists, but prefer **`ace-ubuntu-x64-4` alone** so jobs land only on these Ace Ubuntu 4-vCPU runners.
+
+**Migration:** older Ace labels (`ace`, `soundbytes-app`, `ubuntu-noble`, `nixos`, …) are no longer registered. Update any workflow still using those custom labels to `ace-ubuntu-x64-4`.
 
 ## Capacity / sizing (ace)
 
@@ -34,14 +49,14 @@ Live profile (2026-07-12):
 | Other load | Nextcloud, Pterodactyl, MediaWiki, Grafana/Loki/Alloy, Matrix, Zitadel, Caddy, Samba, Technitium, … |
 | Nix caps | `max-jobs=4`, `cores=12` (do not raise for CI) |
 
-**Chosen N = 4** (2× `ace` + 2× `soundbytes-app`):
+**Chosen N = 4** (all on `soundbytes-app`):
 
 | Budget | Amount | Rationale |
 |--------|--------|-----------|
 | Reserved for web/OS | ~14 GiB | Steady ~7 GiB + spike headroom |
-| Per-runner memory cap | `3072m` | Rust/npm jobs ~2–3 GiB typical |
-| Peak CI RAM | ~12 GiB | 4 × 3072m hard cap |
-| Per-runner CPUs | `8` | 4 × 8 = 32 of 48; ~16 left for services |
+| Per-runner memory cap | `4096m` | Rust/npm jobs; hard cap so one runaway cannot eat the host |
+| Peak CI RAM | ~16 GiB | 4 × 4096m; swap available if contended |
+| Per-runner CPUs | `4` | 4 × 4 = 16 of 48; ~32 left for services |
 
 Raise `instances` only after re-checking `free -h` / `systemd-cgtop` under load. Prefer more runner *containers* over job concurrency tricks (each GitHub runner is one job).
 
@@ -62,10 +77,10 @@ Workflows do **not** need a job-level `container:` for Ubuntu parity — the **r
 
 ### 1. Create a token
 
-**Recommended (ephemeral runners):** a fine-grained PAT with **Read and Write** on **organization** or **repository** *Self-hosted runners*.
+**Recommended (ephemeral runners):** a fine-grained PAT with **Read and Write** on **repository** *Self-hosted runners* for each repo you register against (here: `soundbytes-app`).
 
-- Org-wide: [GitHub → Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens?type=beta)
-- Classic PAT: `admin:org` (org) or `repo` (single repo)
+- Fine-grained: [GitHub → Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens?type=beta)
+- Classic PAT: `repo` scope (single-repo registration)
 
 **Alternative (not recommended with `ephemeral = true`):** Settings → Actions → Runners → New self-hosted runner → copy the registration token (expires in ~1 hour).
 
@@ -111,18 +126,14 @@ Ace already does this (`hosts/ace/default.nix`). Pattern:
   homelab.github-runners = {
     enable = true;
     backend = "container"; # or "native"
-    containerMemory = "3072m";
-    containerCpus = "8";
+    containerMemory = "4096m";
+    containerCpus = "4";
     runners = {
       ace = {
-        url = "https://github.com/PrestonHager/nixos-configs";
-        instances = 2;
-        extraLabels = [ "nixos" "linux" "x64" "ace" "ubuntu-noble" ];
-      };
-      soundbytes-app = {
         url = "https://github.com/PrestonHager/soundbytes-app";
-        instances = 2;
-        extraLabels = [ "nixos" "linux" "x64" "ace" "soundbytes-app" "ubuntu-noble" ];
+        instances = 4;
+        # Single custom label; GitHub still adds self-hosted / Linux / X64
+        extraLabels = [ "ace-ubuntu-x64-4" ];
       };
     };
   };
@@ -136,7 +147,7 @@ homelab.github-runners = {
   enable = true;
   backend = "native";
   runners.ace = {
-    url = "https://github.com/PrestonHager/nixos-configs";
+    url = "https://github.com/PrestonHager/soundbytes-app";
     user = "github-runner";
     group = "github-runner";
     docker.enable = true;
@@ -154,12 +165,13 @@ NIX_BUILD_CORES=12 nixos-rebuild switch --flake .#ace -j 4 --option max-jobs 4 -
 
 ### 5. Verify
 
-1. GitHub → repo → **Settings → Actions → Runners** → four runners **Online** (`ace-1`/`ace-2`, `soundbytes-app-1`/`soundbytes-app-2`)
+1. GitHub → **soundbytes-app** → **Settings → Actions → Runners** → four runners **Online** (`ace-1`…`ace-4`)
 2. On the host:
 
 ```bash
-systemctl status podman-github-runner-ace-{1,2} podman-github-runner-soundbytes-app-{1,2}
-podman exec github-runner-soundbytes-app-1 bash -lc \
+systemctl status podman-github-runner-ace-{1,2,3,4}
+podman logs --tail 30 github-runner-ace-1   # expect "Listening for Jobs"
+podman exec github-runner-ace-1 bash -lc \
   'rustup show; rustup target list --installed; rustc --print target-libdir --target aarch64-unknown-linux-gnu; which zig; zig version'
 ```
 
@@ -172,7 +184,7 @@ Expect installed targets including `aarch64-unknown-linux-gnu` (so `core`/`std` 
 | `enable` | `false` | Master switch |
 | `backend` | `"container"` | `"container"` or `"native"` |
 | `containerImage` | `myoung34/github-runner:ubuntu-noble` | Ubuntu Noble Actions runner |
-| `containerMemory` / `containerCpus` | `3072m` / `8` | Per-container caps |
+| `containerMemory` / `containerCpus` | `4096m` / `4` | Defaults when per-runner `container.*` is null |
 | `runners.<name>.url` | required | Org or repo URL |
 | `runners.<name>.name` | attr key | Base name in GitHub UI |
 | `runners.<name>.instances` | `1` | Parallel runners (`name-1`…`name-N`) |
@@ -181,7 +193,8 @@ Expect installed targets including `aarch64-unknown-linux-gnu` (so `core`/`std` 
 | `runners.<name>.sopsKey` | `token` | YAML key |
 | `runners.<name>.tokenFile` | `null` | Bypass sops (tests only) |
 | `runners.<name>.ephemeral` | `true` | Prefer PAT |
-| `runners.<name>.extraLabels` | `[ "nixos" ]` | |
+| `runners.<name>.extraLabels` | `[ "ace-ubuntu-x64-4" ]` | Custom only; GH adds self-hosted/OS/arch |
+| `runners.<name>.container.memory` / `.cpus` | `null` | Inherit top-level defaults |
 | `runners.<name>.extraPackages` | `[]` | Native only |
 | `runners.<name>.docker.enable` | `false` | Native only; needs `user` + `group` |
 | `runners.<name>.container.mountDockerSocket` | `true` | Podman sock → docker.sock |
@@ -307,10 +320,6 @@ If `/var/lib/github-runner-tools/cargo/{registry,git}` grew while `CARGO_HOME` p
 rm -rf /var/lib/github-runner-tools/cargo/registry \
        /var/lib/github-runner-tools/cargo/git
 ```
-
-### Workflow labels (soundbytes-app / other repos)
-
-Existing labels (`self-hosted`, `linux`, `x64`, `ace`, `soundbytes-app`) still match. Optional: add `ubuntu-noble` to prefer these containers. No required `container:` image change for Rust cross-compile — jobs already run on Ubuntu. If a workflow forced a NixOS-hostile toolchain install, prefer relying on the preinstalled rustup or `dtolnay/rust-toolchain` (works on Ubuntu).
 
 ## Smoke-test without a production host
 

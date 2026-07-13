@@ -198,10 +198,12 @@ let
 
       extraLabels = lib.mkOption {
         type = lib.types.listOf lib.types.str;
-        default = [ "nixos" ];
+        default = [ "ace-ubuntu-x64-4" ];
         description = ''
-          Extra labels (GitHub already adds self-hosted / OS / arch by default).
-          Example overrides: [ "nixos" "linux" "x64" "ace" ]
+          Custom labels only. GitHub always also attaches read-only
+          `self-hosted`, OS (`Linux`), and arch (`X64`) — those cannot be removed.
+          Prefer one descriptive label (e.g. `ace-ubuntu-x64-4`) so workflows use
+          `runs-on: ace-ubuntu-x64-4`.
         '';
       };
 
@@ -255,15 +257,21 @@ let
         };
 
         memory = lib.mkOption {
-          type = lib.types.str;
-          default = "3072m";
-          description = "Podman/Docker memory limit per runner (e.g. 3072m).";
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          description = ''
+            Podman/Docker memory limit per runner (e.g. 4096m).
+            Null inherits `homelab.github-runners.containerMemory`.
+          '';
         };
 
         cpus = lib.mkOption {
-          type = lib.types.str;
-          default = "8";
-          description = "Podman/Docker CPU limit per runner (e.g. 8).";
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          description = ''
+            Podman/Docker CPU limit per runner (e.g. 4).
+            Null inherits `homelab.github-runners.containerCpus`.
+          '';
         };
 
         mountDockerSocket = lib.mkOption {
@@ -337,17 +345,21 @@ in {
 
     containerMemory = lib.mkOption {
       type = lib.types.str;
-      default = "3072m";
+      default = "4096m";
       description = ''
-        Default memory hard-cap per runner container. Sized so N concurrent
+        Default memory hard-cap per runner container when
+        `runners.<name>.container.memory` is null. Sized so N concurrent
         runners leave headroom for ace web services (see docs/github-runner.md).
       '';
     };
 
     containerCpus = lib.mkOption {
       type = lib.types.str;
-      default = "8";
-      description = "Default CPU limit per runner container.";
+      default = "4";
+      description = ''
+        Default CPU limit per runner container when
+        `runners.<name>.container.cpus` is null.
+      '';
     };
 
     nodeRuntimes = lib.mkOption {
@@ -374,9 +386,9 @@ in {
       default = { };
       example = {
         default = {
-          url = "https://github.com/PrestonHager";
-          instances = 2;
-          extraLabels = [ "nixos" "ace" ];
+          url = "https://github.com/PrestonHager/soundbytes-app";
+          instances = 4;
+          extraLabels = [ "ace-ubuntu-x64-4" ];
         };
       };
       description = ''
@@ -618,8 +630,8 @@ in {
               ++ lib.optional r.container.mountDockerSocket
                 "/run/podman/podman.sock:/var/run/docker.sock";
             extraOptions = [
-              "--memory=${r.container.memory}"
-              "--cpus=${r.container.cpus}"
+              "--memory=${if r.container.memory != null then r.container.memory else cfg.containerMemory}"
+              "--cpus=${if r.container.cpus != null then r.container.cpus else cfg.containerCpus}"
               # Nested docker/podman via host socket
               "--security-opt=label=disable"
             ];

@@ -55,7 +55,7 @@ let
           tokenFile = "/dev/null";
           ephemeral = true;
           instances = 2;
-          extraLabels = [ "nixos" "ubuntu-noble" ];
+          extraLabels = [ "ace-ubuntu-x64-4" ];
         };
       };
     }
