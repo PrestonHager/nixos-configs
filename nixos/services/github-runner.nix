@@ -554,6 +554,12 @@ in {
               DISABLE_AUTO_UPDATE = "1";
               RUN_AS_ROOT = "true";
               HOMELAB_CI_TOOLS = toolsDir;
+              # Ensure job steps inherit cross-link defaults (not only bootstrap).
+              CARGO_HOME = "${toolsDir}/cargo";
+              RUSTUP_HOME = "${toolsDir}/rustup";
+              CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER = "aarch64-linux-gnu-gcc";
+              CC_aarch64_unknown_linux_gnu = "aarch64-linux-gnu-gcc";
+              CXX_aarch64_unknown_linux_gnu = "aarch64-linux-gnu-g++";
             } // r.extraEnvironment;
             volumes =
               [
