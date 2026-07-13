@@ -45,11 +45,13 @@ let
       set -euo pipefail
 
       TOOLS="''${HOMELAB_CI_TOOLS:-/opt/homelab-ci}"
+      TOOLS_CARGO="$TOOLS/cargo"
       mkdir -p "$TOOLS"
       export DEBIAN_FRONTEND=noninteractive
-      export CARGO_HOME="$TOOLS/cargo"
+      # Bootstrap only: rustup installs toolchain binaries under the shared tools volume.
+      export CARGO_HOME="$TOOLS_CARGO"
       export RUSTUP_HOME="$TOOLS/rustup"
-      export PATH="$CARGO_HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      export PATH="$TOOLS_CARGO/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
       # Apt packages live in the container layer; rustup lives on the shared volume.
       if ! command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
@@ -63,16 +65,16 @@ let
           libc6-dev-arm64-cross binutils-aarch64-linux-gnu
       fi
 
-      if [ ! -x "$CARGO_HOME/bin/rustup" ]; then
+      if [ ! -x "$TOOLS_CARGO/bin/rustup" ]; then
         echo "homelab-ci: installing rustup into $TOOLS ..."
         got_lock=0
         while ! mkdir "$TOOLS/.bootstrap.lock.d" 2>/dev/null; do
-          if [ -x "$CARGO_HOME/bin/rustup" ]; then
+          if [ -x "$TOOLS_CARGO/bin/rustup" ]; then
             break
           fi
           sleep 2
         done
-        if [ -d "$TOOLS/.bootstrap.lock.d" ] && [ ! -x "$CARGO_HOME/bin/rustup" ]; then
+        if [ -d "$TOOLS/.bootstrap.lock.d" ] && [ ! -x "$TOOLS_CARGO/bin/rustup" ]; then
           got_lock=1
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
             | sh -s -- -y --no-modify-path --default-toolchain stable \
@@ -85,10 +87,10 @@ let
         fi
       fi
 
-      if [ -x "$CARGO_HOME/bin/rustup" ]; then
-        "$CARGO_HOME/bin/rustup" default stable >/dev/null 2>&1 || \
-          "$CARGO_HOME/bin/rustup" toolchain install stable --profile minimal
-        "$CARGO_HOME/bin/rustup" target add \
+      if [ -x "$TOOLS_CARGO/bin/rustup" ]; then
+        "$TOOLS_CARGO/bin/rustup" default stable >/dev/null 2>&1 || \
+          "$TOOLS_CARGO/bin/rustup" toolchain install stable --profile minimal
+        "$TOOLS_CARGO/bin/rustup" target add \
           x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu >/dev/null 2>&1 || true
       fi
 
@@ -96,6 +98,16 @@ let
       export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER="''${CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER:-aarch64-linux-gnu-gcc}"
       export CC_aarch64_unknown_linux_gnu="''${CC_aarch64_unknown_linux_gnu:-aarch64-linux-gnu-gcc}"
       export CXX_aarch64_unknown_linux_gnu="''${CXX_aarch64_unknown_linux_gnu:-aarch64-linux-gnu-g++}"
+
+      # Job caches must NOT live on the shared tools volume (cross-job/PR/repo leak).
+      # Use GitHub actions/cache (Swatinem/rust-cache, actions/setup-node cache) instead.
+      # Keep toolchain binaries on PATH; point CARGO_HOME at a per-container home path.
+      export PATH="$TOOLS_CARGO/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      export CARGO_HOME="''${HOMELAB_JOB_CARGO_HOME:-/root/.cargo}"
+      mkdir -p "$CARGO_HOME"
+      # Ephemeral runners restart after each job — wipe local dependency caches so the
+      # next job cannot read another workflow's cargo/npm artifacts from disk.
+      rm -rf "$CARGO_HOME/registry" "$CARGO_HOME/git" /root/.npm /root/.cache/npm
 
       exec /entrypoint.sh "$@"
     '';
@@ -554,9 +566,11 @@ in {
               DISABLE_AUTO_UPDATE = "1";
               RUN_AS_ROOT = "true";
               HOMELAB_CI_TOOLS = toolsDir;
-              # Ensure job steps inherit cross-link defaults (not only bootstrap).
-              CARGO_HOME = "${toolsDir}/cargo";
+              # Toolchains on shared volume; job Cargo registry/git use /root/.cargo
+              # (wiped each start). Do NOT set CARGO_HOME to toolsDir — that shared
+              # writable cache across repos/PRs. Prefer actions/cache in workflows.
               RUSTUP_HOME = "${toolsDir}/rustup";
+              CARGO_HOME = "/root/.cargo";
               CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER = "aarch64-linux-gnu-gcc";
               CC_aarch64_unknown_linux_gnu = "aarch64-linux-gnu-gcc";
               CXX_aarch64_unknown_linux_gnu = "aarch64-linux-gnu-g++";

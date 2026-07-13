@@ -80,5 +80,8 @@ in {
     hasC2 = enabledContainer.config.virtualisation.oci-containers.containers ? "github-runner-default-2";
     image = enabledContainer.config.virtualisation.oci-containers.containers."github-runner-default-1".image;
     labels = enabledContainer.config.virtualisation.oci-containers.containers."github-runner-default-1".environment.LABELS;
+    # Job CARGO_HOME must not be the shared tools volume (actions/cache instead).
+    cargoHome = enabledContainer.config.virtualisation.oci-containers.containers."github-runner-default-1".environment.CARGO_HOME;
+    rustupHome = enabledContainer.config.virtualisation.oci-containers.containers."github-runner-default-1".environment.RUSTUP_HOME;
   };
 }

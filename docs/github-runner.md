@@ -189,14 +189,122 @@ Expect installed targets including `aarch64-unknown-linux-gnu` (so `core`/`std` 
 
 ### Tooling parity (container backend)
 
-On first start, each Ubuntu runner bootstraps (once, shared volume):
+On first start, each Ubuntu runner bootstraps (once, shared volume `/var/lib/github-runner-tools`):
 
 - `build-essential`, `pkg-config`, OpenSSL/FFI/zlib headers, cmake, git, jq, curl, …
 - `gcc-aarch64-linux-gnu` / `g++-aarch64-linux-gnu` (cross linker)
-- **rustup** stable with targets `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`
-- Env: `CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc`
+- **rustup** stable with targets `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` (binaries under the tools volume; on `PATH`)
+- Env: `RUSTUP_HOME=/var/lib/github-runner-tools/rustup`, `CARGO_HOME=/root/.cargo`, cross-linker vars
 
 This fixes CI errors like `can't find crate for core` / `std` for `aarch64-unknown-linux-gnu`.
+
+**Not shared across jobs:** Cargo registry/git and npm caches. Each ephemeral container start wipes `/root/.cargo/{registry,git}` and `/root/.npm`. Restore them with **GitHub Actions cache** in the workflow (below) — not host bind-mounts.
+
+### Caching (prefer `actions/cache`, not runner disk)
+
+#### Why not shared `$HOME/.cache/…` on the runner
+
+Self-hosted runners often share one machine (and Ace shares a tools volume across four containers). Writable caches on runner disk (`CARGO_HOME`, `target/`, `node_modules`, `npm` cache, `sccache`) can:
+
+- Leak build artifacts between **repos**, **branches**, and **PRs** (including forks with read access to the runner)
+- Survive `actions/checkout` refreshes of `$GITHUB_WORKSPACE` if placed outside the workspace — which is convenient and also the security footgun
+- Bypass GitHub’s cache **scope** rules (repo + branch / base-branch)
+
+Ace therefore does **not** mount a shared soundbytes/cache volume and does **not** point job `CARGO_HOME` at the shared tools volume. Toolchains may be shared (same trusted bootstrap); dependency/build caches must go through GitHub’s cache service.
+
+#### How `actions/cache` works on self-hosted runners
+
+- Storage is **GitHub’s cache backend** (HTTPS), not a folder on Ace.
+- Scope: cache **key** + **version** + **branch**; default-branch caches are visible to other branches/PRs; unrelated branches do not share freely.
+- Fork PRs typically get **read-only** cache access (cannot poison the base repo’s cache writes).
+- Same API as GitHub-hosted runners; Ace’s Ubuntu Noble image already speaks the Actions cache protocol. Prefer `actions/cache@v4` (or newer compatible with your runner version); keep runners updated (`DISABLE_AUTO_UPDATE` is set — bump the image periodically).
+- Repo cache size is capped (~10 GB); old entries are evicted.
+
+#### Recommended: Rust (`Swatinem/rust-cache`)
+
+[`Swatinem/rust-cache`](https://github.com/Swatinem/rust-cache) wraps `actions/cache` with sensible Cargo registry/git/`target` keys.
+
+```yaml
+- uses: actions/checkout@v4
+
+- uses: dtolnay/rust-toolchain@stable
+  # Optional if you rely on the runner’s preinstalled rustup; still fine on Ace Ubuntu.
+
+- uses: Swatinem/rust-cache@v2
+  with:
+    workspaces: "backend -> target"
+    # Self-hosted: toolchain lives on PATH from /var/lib/github-runner-tools/cargo/bin.
+    # Avoid rust-cache wiping unrelated bins under ~/.cargo/bin if you put tools there.
+    cache-bin: "false"
+    # Optional: only save from the default branch
+    # save-if: ${{ github.ref == 'refs/heads/main' }}
+```
+
+Manual equivalent (if you cannot use the composite):
+
+```yaml
+- uses: actions/cache@v4
+  with:
+    path: |
+      ~/.cargo/registry/index/
+      ~/.cargo/registry/cache/
+      ~/.cargo/git/db/
+      backend/target/
+    key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    restore-keys: |
+      ${{ runner.os }}-cargo-
+```
+
+Key carefully: include lockfile hash; consider toolchain / target triple in the key when those change. Caching `target/` is a speed win but makes keys larger and more fragile across feature flags — `rust-cache` handles common cases.
+
+#### Recommended: npm (`actions/setup-node` cache)
+
+```yaml
+- uses: actions/setup-node@v4
+  with:
+    node-version: "20"
+    cache: npm
+    cache-dependency-path: frontend/package-lock.json
+```
+
+Or explicit:
+
+```yaml
+- uses: actions/cache@v4
+  with:
+    path: ~/.npm
+    key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+    restore-keys: |
+      ${{ runner.os }}-npm-
+```
+
+Do **not** commit `node_modules/` or `target/`; do **not** set runner-level `npm_config_cache` / `CARGO_TARGET_DIR` to a shared host path.
+
+#### Patches for soundbytes-app setup composites
+
+`soundbytes-app` (and composites such as `setup-rust-lambda` / `setup-node-monorepo`) are **not** in this repo. In that app repo, wire cache into the setup actions (or call sites), for example:
+
+**`setup-rust-lambda` / Rust jobs** — after toolchain setup, before `cargo build` / `cargo lambda`:
+
+```yaml
+- uses: Swatinem/rust-cache@v2
+  with:
+    workspaces: "backend -> target"
+    cache-bin: "false"
+```
+
+**`setup-node-monorepo` / Node jobs** — use setup-node’s cache (or add `actions/cache` on `~/.npm` keyed by the monorepo lockfile(s)).
+
+Avoid exporting shared host paths into `GITHUB_ENV` (`CARGO_HOME=$HOME/.cache/soundbytes/...`, `npm_config_cache=...`, `SCCACHE_DIR=...`). If a composite currently `mkdir`s those dirs, remove that and rely on the cache actions above.
+
+#### One-time host cleanup (optional)
+
+If `/var/lib/github-runner-tools/cargo/{registry,git}` grew while `CARGO_HOME` previously pointed at the tools volume, prune once on ace (toolchains/binaries stay):
+
+```bash
+rm -rf /var/lib/github-runner-tools/cargo/registry \
+       /var/lib/github-runner-tools/cargo/git
+```
 
 ### Workflow labels (soundbytes-app / other repos)
 
