@@ -533,6 +533,9 @@ in {
             autoStart = true;
             image = r.container.image;
             entrypoint = "/bootstrap/homelab-entrypoint.sh";
+            # Image CMD is dropped when entrypoint is overridden; restore it so
+            # myoung34's entrypoint actually starts Runner.Listener.
+            cmd = [ "./bin/Runner.Listener" "run" "--startuptype" "service" ];
             environmentFiles = [ (envFilePath name) ];
             environment = {
               REPO_URL = r.url;
