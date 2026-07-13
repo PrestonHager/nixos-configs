@@ -52,6 +52,7 @@ Raise `instances` only after re-checking `free -h` / `systemd-cgtop` under load.
 | Runtime | Podman OCI (`myoung34/github-runner:ubuntu-noble`) | NixOS `services.github-runners` |
 | FHS / libs | Ubuntu glibc + apt (`build-essential`, openssl, …) | Nix store PATH + `parityPackages` |
 | Rust | Bootstrap installs rustup + `x86_64` + `aarch64-unknown-linux-gnu` into `/var/lib/github-runner-tools` | Must add toolchain yourself; cross `core`/`std` often missing |
+| Zig | Host symlinks `pkgs.zig` → `/var/lib/github-runner-tools/bin/zig` (+ `/nix/store` RO mount) | Included in `parityPackages` |
 | Job `container:` | Host Podman socket mounted at `/var/run/docker.sock` | Opt-in `docker.enable` (Docker) |
 | Node externals | Image provides Actions node | Module ships `node20`+`node24` externals |
 
@@ -159,10 +160,10 @@ NIX_BUILD_CORES=12 nixos-rebuild switch --flake .#ace -j 4 --option max-jobs 4 -
 ```bash
 systemctl status podman-github-runner-ace-{1,2} podman-github-runner-soundbytes-app-{1,2}
 podman exec github-runner-soundbytes-app-1 bash -lc \
-  'rustup show; rustup target list --installed; rustc --print target-libdir --target aarch64-unknown-linux-gnu'
+  'rustup show; rustup target list --installed; rustc --print target-libdir --target aarch64-unknown-linux-gnu; which zig; zig version'
 ```
 
-Expect installed targets including `aarch64-unknown-linux-gnu` (so `core`/`std` resolve). First container start bootstraps apt + rustup into `/var/lib/github-runner-tools` (shared; flocked).
+Expect installed targets including `aarch64-unknown-linux-gnu` (so `core`/`std` resolve), and `zig` on `PATH` from `/var/lib/github-runner-tools/bin`. First container start bootstraps apt + rustup into `/var/lib/github-runner-tools` (shared; flocked). Zig is provisioned by `github-runner-tools-bin.service` on each rebuild.
 
 ## Options (summary)
 
@@ -194,9 +195,10 @@ On first start, each Ubuntu runner bootstraps (once, shared volume `/var/lib/git
 - `build-essential`, `pkg-config`, OpenSSL/FFI/zlib headers, cmake, git, jq, curl, …
 - `gcc-aarch64-linux-gnu` / `g++-aarch64-linux-gnu` (cross linker)
 - **rustup** stable with targets `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` (binaries under the tools volume; on `PATH`)
-- Env: `RUSTUP_HOME=/var/lib/github-runner-tools/rustup`, `CARGO_HOME=/root/.cargo`, cross-linker vars
+- **zig** from nixpkgs (`pkgs.zig`), symlinked to `/var/lib/github-runner-tools/bin/zig` by `github-runner-tools-bin` (containers mount `/nix/store` read-only so the Nix-linked binary runs)
+- Env: `RUSTUP_HOME=/var/lib/github-runner-tools/rustup`, `CARGO_HOME=/root/.cargo`, cross-linker vars; `PATH` includes `$TOOLS/bin` then `$TOOLS/cargo/bin`
 
-This fixes CI errors like `can't find crate for core` / `std` for `aarch64-unknown-linux-gnu`.
+This fixes CI errors like `can't find crate for core` / `std` for `aarch64-unknown-linux-gnu`, and lets workflows skip downloading Zig when they detect it on `PATH` (or drop `setup-zig` on Ace-labeled jobs).
 
 **Not shared across jobs:** Cargo registry/git and npm caches. Each ephemeral container start wipes `/root/.cargo/{registry,git}` and `/root/.npm`. Restore them with **GitHub Actions cache** in the workflow (below) — not host bind-mounts.
 

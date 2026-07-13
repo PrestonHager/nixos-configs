@@ -9,7 +9,8 @@ let
   sops-path = builtins.toString inputs.nix-secrets;
 
   # Tools GitHub-hosted Ubuntu runners commonly provide that CI scripts expect.
-  # Used only for backend = "native". Container backend uses an Ubuntu image.
+  # Used only for backend = "native". Container backend uses an Ubuntu image
+  # plus a shared tools volume (rustup bootstrap + pkgs.zig symlink).
   defaultParityPackages = with pkgs; [
     curl
     wget
@@ -30,6 +31,7 @@ let
     cmake
     pkg-config
     openssl
+    zig
   ];
 
   defaultContainerImage = "docker.io/myoung34/github-runner:ubuntu-noble";
@@ -46,12 +48,13 @@ let
 
       TOOLS="''${HOMELAB_CI_TOOLS:-/opt/homelab-ci}"
       TOOLS_CARGO="$TOOLS/cargo"
-      mkdir -p "$TOOLS"
+      mkdir -p "$TOOLS" "$TOOLS/bin"
       export DEBIAN_FRONTEND=noninteractive
       # Bootstrap only: rustup installs toolchain binaries under the shared tools volume.
+      # pkgs.zig is symlinked into $TOOLS/bin on the host (needs /nix/store mounted).
       export CARGO_HOME="$TOOLS_CARGO"
       export RUSTUP_HOME="$TOOLS/rustup"
-      export PATH="$TOOLS_CARGO/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      export PATH="$TOOLS/bin:$TOOLS_CARGO/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
       # Apt packages live in the container layer; rustup lives on the shared volume.
       if ! command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
@@ -102,7 +105,7 @@ let
       # Job caches must NOT live on the shared tools volume (cross-job/PR/repo leak).
       # Use GitHub actions/cache (Swatinem/rust-cache, actions/setup-node cache) instead.
       # Keep toolchain binaries on PATH; point CARGO_HOME at a per-container home path.
-      export PATH="$TOOLS_CARGO/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      export PATH="$TOOLS/bin:$TOOLS_CARGO/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       export CARGO_HOME="''${HOMELAB_JOB_CARGO_HOME:-/root/.cargo}"
       mkdir -p "$CARGO_HOME"
       # Ephemeral runners restart after each job — wipe local dependency caches so the
@@ -476,7 +479,10 @@ in {
     # Container backend (Ubuntu OCI via Podman)
     ########################################################################
     systemd.tmpfiles.rules = lib.mkIf (cfg.backend == "container") (
-      [ "d ${toolsDir} 0755 root root -" ]
+      [
+        "d ${toolsDir} 0755 root root -"
+        "d ${toolsDir}/bin 0755 root root -"
+      ]
       ++ lib.concatMap ({ name, r, i, ... }: [
         "d /var/lib/github-runner/${name}-${toString i} 0755 root root -"
         "d ${workDir name i} 0755 root root -"
@@ -485,6 +491,7 @@ in {
     );
 
     # Render ACCESS_TOKEN=… env files from sops/tokenFile for myoung34 image.
+    # Also provision pkgs.zig (and future Nix toolchains) into the shared tools volume.
     systemd.services = lib.mkMerge (
       # Env renderers (container)
       (lib.optionals (cfg.backend == "container") (
@@ -510,6 +517,26 @@ in {
           };
         }) enabledRunners
       ))
+      # Symlink nixpkgs toolchains into the shared volume (survives ephemeral restarts).
+      ++ (lib.optionals (cfg.backend == "container") [{
+        github-runner-tools-bin = {
+          description = "Provision shared GitHub runner toolchain bins (zig)";
+          wantedBy = [ "multi-user.target" ];
+          before = map ({ cname, ... }: "${containerUnitName cname}.service")
+            containerInstances;
+          serviceConfig = {
+            Type = "oneshot";
+            RemainAfterExit = true;
+          };
+          # Keep zig's nix store path alive across GC.
+          path = [ pkgs.coreutils ];
+          script = ''
+            set -euo pipefail
+            install -d -m 0755 ${toolsDir}/bin
+            ln -sfn ${lib.escapeShellArg "${pkgs.zig}/bin/zig"} ${toolsDir}/bin/zig
+          '';
+        };
+      }])
       # Native: wait for sops
       ++ (lib.optionals (cfg.backend == "native") (
         lib.concatLists (
@@ -531,9 +558,13 @@ in {
           "${containerUnitName cname}" = {
             after = [
               "github-runner-env-${name}.service"
+              "github-runner-tools-bin.service"
               "podman.socket"
             ];
-            requires = [ "github-runner-env-${name}.service" ];
+            requires = [
+              "github-runner-env-${name}.service"
+              "github-runner-tools-bin.service"
+            ];
             wants = [ "podman.socket" ];
             serviceConfig = {
               Restart = lib.mkForce "always";
@@ -579,6 +610,9 @@ in {
               [
                 "${containerEntrypoint}:/bootstrap/homelab-entrypoint.sh:ro"
                 "${toolsDir}:${toolsDir}"
+                # pkgs.zig (and any other Nix-linked tools under ${toolsDir}/bin)
+                # need store paths resolvable inside the Ubuntu container.
+                "/nix/store:/nix/store:ro"
                 "${workDir name i}:${workDir name i}"
               ]
               ++ lib.optional r.container.mountDockerSocket
