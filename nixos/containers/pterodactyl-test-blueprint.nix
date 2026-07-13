@@ -47,6 +47,25 @@ let
       exit 0
     fi
 
+    ensure_blueprint_private_core() {
+      private="$panel/.blueprint/extensions/blueprint/private"
+      install -d -m 0755 -o prestonh -g users "$private/debug" "$private/db"
+      for item in extensionfs.php build db; do
+        if [ -e "$private/$item" ]; then
+          continue
+        fi
+        if [ -e "$prod_panel/.blueprint/extensions/blueprint/private/$item" ]; then
+          echo "pterodactyl-test-blueprint-install: copying blueprint private/$item from production..."
+          cp -a "$prod_panel/.blueprint/extensions/blueprint/private/$item" "$private/$item"
+          chown -R prestonh:users "$private/$item"
+        elif [ -e "$panel/.blueprint/blueprint/extensions/blueprint/private/$item" ]; then
+          echo "pterodactyl-test-blueprint-install: copying blueprint private/$item from framework tree..."
+          cp -a "$panel/.blueprint/blueprint/extensions/blueprint/private/$item" "$private/$item"
+          chown -R prestonh:users "$private/$item"
+        fi
+      done
+    }
+
     export PATH="${toolPath}:$PATH"
     export HOME=/home/prestonh
     export YARN_CACHE_FOLDER=/home/prestonh/.cache/yarn-blueprint-test
@@ -81,6 +100,27 @@ let
 
     prod_panel="/pterodactyl/html"
 
+    ensure_sociallogin_registered() {
+      if blueprint_cli -info 2>/dev/null | grep -qi sociallogin; then
+        return 0
+      fi
+      if [ ! -f "$panel/blueprint.sh" ] || [ ! -d "$panel/.blueprint/blueprint" ]; then
+        echo "pterodactyl-test-blueprint-install: Blueprint framework missing, cannot register Social Login" >&2
+        return 1
+      fi
+      echo "pterodactyl-test-blueprint-install: registering Social Login with Blueprint..."
+      tmp=$(mktemp -d)
+      trap 'rm -rf "$tmp"' RETURN
+      ${pkgs.curl}/bin/curl -fsSL "${socialloginBlueprintUrl}" -o "$tmp/sociallogin.blueprint"
+      cp "$tmp/sociallogin.blueprint" "$panel/sociallogin.blueprint"
+      chown prestonh:users "$panel/sociallogin.blueprint"
+      rm -f "$panel/.blueprint/lock"
+      blueprint_cli -install sociallogin
+      rm -f "$panel/sociallogin.blueprint"
+    }
+
+    ensure_blueprint_private_core
+
     ensure_sociallogin_models() {
       datadir="$panel/.blueprint/extensions/sociallogin/private"
       if [ ! -f "$panel/app/Models/SocialProvider.php" ] && [ -f "$datadir/SocialProvider.php" ]; then
@@ -94,25 +134,6 @@ let
         cp -f "$prod_panel/.blueprint/extensions/sociallogin/private/SocialConnection.php" "$panel/app/Models/SocialConnection.php"
         chown prestonh:users "$panel/app/Models/SocialProvider.php" "$panel/app/Models/SocialConnection.php"
       fi
-    }
-
-    ensure_blueprint_private_core() {
-      private="$panel/.blueprint/extensions/blueprint/private"
-      install -d -m 0755 -o prestonh -g users "$private/debug"
-      for item in extensionfs.php build db; do
-        if [ -e "$private/$item" ]; then
-          continue
-        fi
-        if [ -e "$prod_panel/.blueprint/extensions/blueprint/private/$item" ]; then
-          echo "pterodactyl-test-blueprint-install: copying blueprint private/$item from production..."
-          cp -a "$prod_panel/.blueprint/extensions/blueprint/private/$item" "$private/$item"
-          chown -R prestonh:users "$private/$item"
-        elif [ -e "$panel/.blueprint/blueprint/extensions/blueprint/private/$item" ]; then
-          echo "pterodactyl-test-blueprint-install: copying blueprint private/$item from framework tree..."
-          cp -a "$panel/.blueprint/blueprint/extensions/blueprint/private/$item" "$private/$item"
-          chown -R prestonh:users "$private/$item"
-        fi
-      done
     }
 
     ensure_installed_extension_trees() {
@@ -761,6 +782,7 @@ let
     rerun_blueprint_framework() {
       echo "pterodactyl-test-blueprint-install: re-running Blueprint framework install..."
       ensure_blueprint_core_patches
+      install -d -m 0755 -o prestonh -g users "$panel/.blueprint/extensions/blueprint/private/db"
       rm -f "$panel/.blueprint/extensions/blueprint/private/db/is_installed"
       rm -f "$panel/.blueprint/lock" 2>/dev/null || true
       cd "$panel"
@@ -798,10 +820,7 @@ let
     }
 
     install_dnsrecords_extension() {
-      if ! blueprint_cli -info 2>/dev/null | grep -qi sociallogin; then
-        echo "pterodactyl-test-blueprint-install: Social Login required before custom extensions" >&2
-        return 1
-      fi
+      ensure_sociallogin_registered || return 1
       if [ ! -d "${dnsExtensionSrc}" ]; then
         echo "pterodactyl-test-blueprint-install: DNS extension source missing at ${dnsExtensionSrc}" >&2
         return 1

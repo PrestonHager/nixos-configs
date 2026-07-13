@@ -25,14 +25,19 @@ pkgs.dockerTools.buildLayeredImage {
   fromImage = pkgs.dockerTools.pullImage dockerImage;
 
   contents = [
-    pkgs.busybox
     pkgs.redis
     mwjobrunner
   ];
 
   config = {
     Cmd = [ "/bin/sh" "-c" ''
-      /sbin/apk add --no-cache php83-pecl-redis
+      if ! php -m 2>/dev/null | grep -q '^redis$'; then
+        if command -v apk >/dev/null 2>&1; then
+          apk add --no-cache autoconf gcc g++ make musl-dev openssl-dev
+          pecl install redis
+          docker-php-ext-enable redis
+        fi
+      fi
       redis-server --daemonize yes
       mwjobrunner &
       exec php-fpm -F

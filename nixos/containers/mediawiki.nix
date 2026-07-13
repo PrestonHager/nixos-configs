@@ -65,11 +65,11 @@ in
 
   # Create the data directory
   systemd.tmpfiles.rules = [
-    "d /mw 0770 root root -"
+    "d /mw 0755 root root -"
     "d /mw/images 0770 www-data www-data -"
     "d /mw/data 0770 nm-iodine nscd -"
     "d /mw/redis 0770 nm-iodine nscd -"
-    "d /mw/html 0770 www-data www-data -"
+    "d /mw/html 0755 www-data www-data -"
     "d /mw/apache2 0770 root root -"
     "d /mw/run 0770 root root -"
   ];
@@ -172,9 +172,12 @@ in
       dependsOn = [ "mediawiki-db" "mediawiki-redis" ];
       extraOptions = [ "--pod=mediawiki" ];
 
-      # Finally, the mediawiki image and version
-      image = "docker.io/library/mediawiki:1.45.3-fpm-alpine";
-      cmd = [ "/bin/sh" "-c" "if ! php -m | grep -q '^redis$'; then apk add --no-cache autoconf gcc g++ make musl-dev openssl-dev && pecl install redis && docker-php-ext-enable redis; fi; exec docker-php-entrypoint php-fpm" ];
+      image = "mediawiki-redis:${mediawiki.version}";
+      imageFile = import ./mediawiki-docker.nix {
+        inherit pkgs;
+        version = mediawiki.version;
+        dockerImage = mediawiki.upgradeDockerImage;
+      };
     };
     "mediawiki-db" = {
       autoStart = true;

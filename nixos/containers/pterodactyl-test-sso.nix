@@ -42,6 +42,14 @@ let
 
     echo "pterodactyl-test-sso-configure: configuring Zitadel OIDC via Blueprint Social Login..."
 
+    private="$panel/.blueprint/extensions/blueprint/private"
+    install -d -m 0755 -o prestonh -g users "$private/debug" "$private/db"
+    if [ ! -f "$private/extensionfs.php" ] && [ -f "/pterodactyl/html/.blueprint/extensions/blueprint/private/extensionfs.php" ]; then
+      echo "pterodactyl-test-sso-configure: restoring Blueprint extensionfs.php from production..."
+      cp -a /pterodactyl/html/.blueprint/extensions/blueprint/private/extensionfs.php "$private/extensionfs.php"
+      chown prestonh:users "$private/extensionfs.php"
+    fi
+
     ${pkgs.podman}/bin/podman exec pterodactyl-test \
       php /var/www/pterodactyl/artisan migrate --force
 
