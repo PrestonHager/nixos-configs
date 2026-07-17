@@ -10,7 +10,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 4,
+  "version": 6,
   "refresh": "30s",
   "time": {
     "from": "now-24h",
@@ -89,7 +89,7 @@
             ]
           },
           "min": 0,
-          "displayName": "${ace_local_up}/${ace_local_total}"
+          "displayName": "${__value.raw}/${__field.labels.total}"
         }
       },
       "options": {
@@ -100,21 +100,22 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^up$/",
+          "fields": "",
           "values": false
         },
         "textMode": "name"
       },
       "targets": [
         {
-          "expr": "sum(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"})",
+          "expr": "sum(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"}) * on() group_left(total) count_values(\"total\", count(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"}))",
           "refId": "A",
-          "legendFormat": "up"
+          "legendFormat": "{{total}}"
         },
         {
           "expr": "count(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"})",
           "refId": "B",
-          "legendFormat": "total"
+          "legendFormat": "total",
+          "hide": true
         }
       ],
       "transformations": [
@@ -173,7 +174,7 @@
             ]
           },
           "min": 0,
-          "displayName": "${ace_lan_up}/${ace_lan_total}"
+          "displayName": "${__value.raw}/${__field.labels.total}"
         }
       },
       "options": {
@@ -184,21 +185,22 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^up$/",
+          "fields": "",
           "values": false
         },
         "textMode": "name"
       },
       "targets": [
         {
-          "expr": "sum(probe_success{probe_location=\"lan\",job=~\"blackbox-http-lan|blackbox-dns-lan\"})",
+          "expr": "sum(probe_success{probe_location=\"lan\",job=~\"blackbox-http-lan|blackbox-dns-lan\"}) * on() group_left(total) count_values(\"total\", count(probe_success{probe_location=\"lan\",job=~\"blackbox-http-lan|blackbox-dns-lan\"}))",
           "refId": "A",
-          "legendFormat": "up"
+          "legendFormat": "{{total}}"
         },
         {
           "expr": "count(probe_success{probe_location=\"lan\",job=~\"blackbox-http-lan|blackbox-dns-lan\"})",
           "refId": "B",
-          "legendFormat": "total"
+          "legendFormat": "total",
+          "hide": true
         }
       ],
       "transformations": [
@@ -257,7 +259,7 @@
             ]
           },
           "min": 0,
-          "displayName": "${ace_ext_up}/${ace_ext_total}"
+          "displayName": "${__value.raw}/${__field.labels.total}"
         }
       },
       "options": {
@@ -268,21 +270,22 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^up$/",
+          "fields": "",
           "values": false
         },
         "textMode": "name"
       },
       "targets": [
         {
-          "expr": "sum(probe_success{probe_location=\"external\"}) or vector(0)",
+          "expr": "(sum(probe_success{probe_location=\"external\"}) or vector(0)) * on() group_left(total) count_values(\"total\", (count(probe_success{probe_location=\"external\"}) or vector(0)))",
           "refId": "A",
-          "legendFormat": "up"
+          "legendFormat": "{{total}}"
         },
         {
-          "expr": "count(probe_success{probe_location=\"external\"})",
+          "expr": "(count(probe_success{probe_location=\"external\"}) or vector(0))",
           "refId": "B",
-          "legendFormat": "total"
+          "legendFormat": "total",
+          "hide": true
         }
       ],
       "transformations": [
@@ -341,7 +344,7 @@
             ]
           },
           "min": 0,
-          "displayName": "${all_bb_up}/${all_bb_total}"
+          "displayName": "${__value.raw}/${__field.labels.total}"
         }
       },
       "options": {
@@ -352,21 +355,22 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^up$/",
+          "fields": "",
           "values": false
         },
         "textMode": "name"
       },
       "targets": [
         {
-          "expr": "sum(probe_success{job=~\"blackbox-.*\"})",
+          "expr": "sum(probe_success{job=~\"blackbox-.*\"}) * on() group_left(total) count_values(\"total\", count(probe_success{job=~\"blackbox-.*\"}))",
           "refId": "A",
-          "legendFormat": "up"
+          "legendFormat": "{{total}}"
         },
         {
           "expr": "count(probe_success{job=~\"blackbox-.*\"})",
           "refId": "B",
-          "legendFormat": "total"
+          "legendFormat": "total",
+          "hide": true
         }
       ],
       "transformations": [
@@ -425,7 +429,7 @@
             ]
           },
           "min": 0,
-          "displayName": "${tcp_hosts_up}/${tcp_hosts_total}"
+          "displayName": "${__value.raw}/${__field.labels.total}"
         }
       },
       "options": {
@@ -436,21 +440,22 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^up$/",
+          "fields": "",
           "values": false
         },
         "textMode": "name"
       },
       "targets": [
         {
-          "expr": "sum(probe_success{job=\"blackbox-tcp-lan\"})",
+          "expr": "sum(probe_success{job=\"blackbox-tcp-lan\"}) * on() group_left(total) count_values(\"total\", count(probe_success{job=\"blackbox-tcp-lan\"}))",
           "refId": "A",
-          "legendFormat": "up"
+          "legendFormat": "{{total}}"
         },
         {
           "expr": "count(probe_success{job=\"blackbox-tcp-lan\"})",
           "refId": "B",
-          "legendFormat": "total"
+          "legendFormat": "total",
+          "hide": true
         }
       ],
       "transformations": [
@@ -1322,207 +1327,6 @@
     }
   ],
   "templating": {
-    "list": [
-      {
-        "name": "ace_local_up",
-        "type": "query",
-        "hide": 2,
-        "refresh": 2,
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "definition": "query_result(sum(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"}))",
-        "query": {
-          "query": "query_result(sum(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"}))",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
-        "includeAll": false,
-        "multi": false,
-        "skipUrlSync": true,
-        "current": {}
-      },
-      {
-        "name": "ace_local_total",
-        "type": "query",
-        "hide": 2,
-        "refresh": 2,
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "definition": "query_result(count(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"}))",
-        "query": {
-          "query": "query_result(count(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"}))",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
-        "includeAll": false,
-        "multi": false,
-        "skipUrlSync": true,
-        "current": {}
-      },
-      {
-        "name": "ace_lan_up",
-        "type": "query",
-        "hide": 2,
-        "refresh": 2,
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "definition": "query_result(sum(probe_success{probe_location=\"lan\",job=~\"blackbox-http-lan|blackbox-dns-lan\"}))",
-        "query": {
-          "query": "query_result(sum(probe_success{probe_location=\"lan\",job=~\"blackbox-http-lan|blackbox-dns-lan\"}))",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
-        "includeAll": false,
-        "multi": false,
-        "skipUrlSync": true,
-        "current": {}
-      },
-      {
-        "name": "ace_lan_total",
-        "type": "query",
-        "hide": 2,
-        "refresh": 2,
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "definition": "query_result(count(probe_success{probe_location=\"lan\",job=~\"blackbox-http-lan|blackbox-dns-lan\"}))",
-        "query": {
-          "query": "query_result(count(probe_success{probe_location=\"lan\",job=~\"blackbox-http-lan|blackbox-dns-lan\"}))",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
-        "includeAll": false,
-        "multi": false,
-        "skipUrlSync": true,
-        "current": {}
-      },
-      {
-        "name": "ace_ext_up",
-        "type": "query",
-        "hide": 2,
-        "refresh": 2,
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "definition": "query_result(sum(probe_success{probe_location=\"external\"}) or vector(0))",
-        "query": {
-          "query": "query_result(sum(probe_success{probe_location=\"external\"}) or vector(0))",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
-        "includeAll": false,
-        "multi": false,
-        "skipUrlSync": true,
-        "current": {}
-      },
-      {
-        "name": "ace_ext_total",
-        "type": "query",
-        "hide": 2,
-        "refresh": 2,
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "definition": "query_result(count(probe_success{probe_location=\"external\"}) or vector(0))",
-        "query": {
-          "query": "query_result(count(probe_success{probe_location=\"external\"}) or vector(0))",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
-        "includeAll": false,
-        "multi": false,
-        "skipUrlSync": true,
-        "current": {}
-      },
-      {
-        "name": "all_bb_up",
-        "type": "query",
-        "hide": 2,
-        "refresh": 2,
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus-crux"
-        },
-        "definition": "query_result(sum(probe_success{job=~\"blackbox-.*\"}))",
-        "query": {
-          "query": "query_result(sum(probe_success{job=~\"blackbox-.*\"}))",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
-        "includeAll": false,
-        "multi": false,
-        "skipUrlSync": true,
-        "current": {}
-      },
-      {
-        "name": "all_bb_total",
-        "type": "query",
-        "hide": 2,
-        "refresh": 2,
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus-crux"
-        },
-        "definition": "query_result(count(probe_success{job=~\"blackbox-.*\"}))",
-        "query": {
-          "query": "query_result(count(probe_success{job=~\"blackbox-.*\"}))",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
-        "includeAll": false,
-        "multi": false,
-        "skipUrlSync": true,
-        "current": {}
-      },
-      {
-        "name": "tcp_hosts_up",
-        "type": "query",
-        "hide": 2,
-        "refresh": 2,
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus-crux"
-        },
-        "definition": "query_result(sum(probe_success{job=\"blackbox-tcp-lan\"}))",
-        "query": {
-          "query": "query_result(sum(probe_success{job=\"blackbox-tcp-lan\"}))",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
-        "includeAll": false,
-        "multi": false,
-        "skipUrlSync": true,
-        "current": {}
-      },
-      {
-        "name": "tcp_hosts_total",
-        "type": "query",
-        "hide": 2,
-        "refresh": 2,
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus-crux"
-        },
-        "definition": "query_result(count(probe_success{job=\"blackbox-tcp-lan\"}))",
-        "query": {
-          "query": "query_result(count(probe_success{job=\"blackbox-tcp-lan\"}))",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
-        "includeAll": false,
-        "multi": false,
-        "skipUrlSync": true,
-        "current": {}
-      }
-    ]
+    "list": []
   }
 }
