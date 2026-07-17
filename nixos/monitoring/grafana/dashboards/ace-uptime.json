@@ -8,7 +8,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 5,
+  "version": 6,
   "refresh": "30s",
   "time": {
     "from": "now-24h",
@@ -211,7 +211,7 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "red",
@@ -219,15 +219,17 @@
               },
               {
                 "color": "yellow",
-                "value": 10
+                "value": 0.01
               },
               {
                 "color": "green",
-                "value": 12
+                "value": 100
               }
             ]
           },
-          "displayName": "/${local_total}"
+          "min": 0,
+          "max": "${local_total}",
+          "unit": "suffix:/${local_total}"
         }
       },
       "options": {
@@ -241,7 +243,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -275,7 +277,7 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "red",
@@ -283,15 +285,17 @@
               },
               {
                 "color": "yellow",
-                "value": 10
+                "value": 0.01
               },
               {
                 "color": "green",
-                "value": 12
+                "value": 100
               }
             ]
           },
-          "displayName": "/${lan_total}"
+          "min": 0,
+          "max": "${lan_total}",
+          "unit": "suffix:/${lan_total}"
         }
       },
       "options": {
@@ -305,7 +309,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -339,7 +343,7 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "red",
@@ -347,15 +351,17 @@
               },
               {
                 "color": "yellow",
-                "value": 5
+                "value": 0.01
               },
               {
                 "color": "green",
-                "value": 8
+                "value": 100
               }
             ]
           },
-          "displayName": "/${external_total}"
+          "min": 0,
+          "max": "${external_total}",
+          "unit": "suffix:/${external_total}"
         }
       },
       "options": {
@@ -369,7 +375,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -403,7 +409,7 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "red",
@@ -411,15 +417,17 @@
               },
               {
                 "color": "yellow",
-                "value": 5
+                "value": 0.01
               },
               {
                 "color": "green",
-                "value": 7
+                "value": 100
               }
             ]
           },
-          "displayName": "/${dns_total}"
+          "min": 0,
+          "max": "${dns_total}",
+          "unit": "suffix:/${dns_total}"
         }
       },
       "options": {
@@ -433,7 +441,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -626,10 +634,10 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "none",
+          "unit": "suffix:/${services_total}",
           "decimals": 0,
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "red",
@@ -637,15 +645,16 @@
               },
               {
                 "color": "yellow",
-                "value": 1
+                "value": 0.01
               },
               {
                 "color": "green",
-                "value": 22
+                "value": 100
               }
             ]
           },
-          "displayName": "/${services_total}"
+          "min": 0,
+          "max": "${services_total}"
         },
         "overrides": []
       },
@@ -660,7 +669,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -878,7 +887,7 @@
     {
       "id": 5,
       "title": "Worst Service Uptime (24h)",
-      "description": "Minimum per-service uptime — highlights the weakest essential service",
+      "description": "Minimum per-service uptime \u2014 highlights the weakest essential service",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -1112,7 +1121,7 @@
     },
     {
       "id": 9,
-      "title": "All Services — Status",
+      "title": "All Services \u2014 Status",
       "description": "Current up/down status, latency, HTTP code, and 24h uptime per target",
       "type": "table",
       "gridPos": {
@@ -1819,7 +1828,7 @@
       "fieldConfig": {
         "defaults": {
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "red",
@@ -1827,16 +1836,18 @@
               },
               {
                 "color": "yellow",
-                "value": 10
+                "value": 0.01
               },
               {
                 "color": "green",
-                "value": 12
+                "value": 100
               }
             ]
           },
           "decimals": 0,
-          "displayName": "/${lan_http_total}"
+          "min": 0,
+          "max": "${lan_http_total}",
+          "unit": "suffix:/${lan_http_total}"
         }
       },
       "options": {
@@ -1849,7 +1860,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name",
+        "textMode": "value",
         "justifyMode": "center"
       },
       "targets": [

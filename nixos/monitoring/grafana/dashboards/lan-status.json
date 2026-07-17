@@ -10,7 +10,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "refresh": "30s",
   "time": {
     "from": "now-24h",
@@ -72,7 +72,7 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "red",
@@ -80,15 +80,17 @@
               },
               {
                 "color": "yellow",
-                "value": 10
+                "value": 0.01
               },
               {
                 "color": "green",
-                "value": 12
+                "value": 100
               }
             ]
           },
-          "displayName": "/${ace_local_total}"
+          "min": 0,
+          "max": "${ace_local_total}",
+          "unit": "suffix:/${ace_local_total}"
         }
       },
       "options": {
@@ -102,7 +104,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -136,7 +138,7 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "red",
@@ -144,15 +146,17 @@
               },
               {
                 "color": "yellow",
-                "value": 4
+                "value": 0.01
               },
               {
                 "color": "green",
-                "value": 5
+                "value": 100
               }
             ]
           },
-          "displayName": "/${ace_lan_total}"
+          "min": 0,
+          "max": "${ace_lan_total}",
+          "unit": "suffix:/${ace_lan_total}"
         }
       },
       "options": {
@@ -166,7 +170,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -200,7 +204,7 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "red",
@@ -208,15 +212,17 @@
               },
               {
                 "color": "yellow",
-                "value": 5
+                "value": 0.01
               },
               {
                 "color": "green",
-                "value": 8
+                "value": 100
               }
             ]
           },
-          "displayName": "/${ace_ext_total}"
+          "min": 0,
+          "max": "${ace_ext_total}",
+          "unit": "suffix:/${ace_ext_total}"
         }
       },
       "options": {
@@ -230,7 +236,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -264,7 +270,7 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "red",
@@ -272,15 +278,17 @@
               },
               {
                 "color": "yellow",
-                "value": 8
+                "value": 0.01
               },
               {
                 "color": "green",
-                "value": 10
+                "value": 100
               }
             ]
           },
-          "displayName": "/${all_bb_total}"
+          "min": 0,
+          "max": "${all_bb_total}",
+          "unit": "suffix:/${all_bb_total}"
         }
       },
       "options": {
@@ -294,7 +302,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -322,7 +330,7 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "red",
@@ -330,15 +338,17 @@
               },
               {
                 "color": "yellow",
-                "value": 2
+                "value": 0.01
               },
               {
                 "color": "green",
-                "value": 3
+                "value": 100
               }
             ]
           },
-          "displayName": "/${tcp_hosts_total}"
+          "min": 0,
+          "max": "${tcp_hosts_total}",
+          "unit": "suffix:/${tcp_hosts_total}"
         }
       },
       "options": {
@@ -352,7 +362,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -747,7 +757,7 @@
     },
     {
       "id": 12,
-      "title": "Ace HTTP — local vs LAN vs external latency",
+      "title": "Ace HTTP \u2014 local vs LAN vs external latency",
       "type": "bargauge",
       "gridPos": {
         "h": 4,
@@ -1103,7 +1113,7 @@
     },
     {
       "id": 15,
-      "title": "Probe success — all perspectives",
+      "title": "Probe success \u2014 all perspectives",
       "type": "timeseries",
       "gridPos": {
         "h": 8,

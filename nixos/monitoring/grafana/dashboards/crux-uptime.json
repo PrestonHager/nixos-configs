@@ -9,7 +9,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "refresh": "30s",
   "time": {
     "from": "now-24h",
@@ -66,7 +66,7 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "red",
@@ -74,15 +74,17 @@
               },
               {
                 "color": "yellow",
-                "value": 4
+                "value": 0.01
               },
               {
                 "color": "green",
-                "value": 5
+                "value": 100
               }
             ]
           },
-          "displayName": "/${http_lan_total}"
+          "min": 0,
+          "max": "${http_lan_total}",
+          "unit": "suffix:/${http_lan_total}"
         }
       },
       "options": {
@@ -96,7 +98,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -130,19 +132,25 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "red",
                 "value": null
               },
               {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
                 "color": "green",
-                "value": 1
+                "value": 100
               }
             ]
           },
-          "displayName": "/${dns_lan_total}"
+          "min": 0,
+          "max": "${dns_lan_total}",
+          "unit": "suffix:/${dns_lan_total}"
         }
       },
       "options": {
@@ -156,7 +164,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -190,7 +198,7 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "red",
@@ -198,15 +206,17 @@
               },
               {
                 "color": "yellow",
-                "value": 2
+                "value": 0.01
               },
               {
                 "color": "green",
-                "value": 3
+                "value": 100
               }
             ]
           },
-          "displayName": "/${tcp_lan_total}"
+          "min": 0,
+          "max": "${tcp_lan_total}",
+          "unit": "suffix:/${tcp_lan_total}"
         }
       },
       "options": {
@@ -220,7 +230,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -321,7 +331,7 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "red",
@@ -329,15 +339,17 @@
               },
               {
                 "color": "yellow",
-                "value": 8
+                "value": 0.01
               },
               {
                 "color": "green",
-                "value": 10
+                "value": 100
               }
             ]
           },
-          "displayName": "/${all_probes_total}"
+          "min": 0,
+          "max": "${all_probes_total}",
+          "unit": "suffix:/${all_probes_total}"
         }
       },
       "options": {
@@ -351,7 +363,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "textMode": "value"
       },
       "targets": [
         {
