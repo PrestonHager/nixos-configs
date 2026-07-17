@@ -9,7 +9,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 3,
+  "version": 4,
   "refresh": "30s",
   "time": {
     "from": "now-24h",
@@ -83,8 +83,7 @@
             ]
           },
           "min": 0,
-          "max": "${http_lan_total}",
-          "unit": "suffix:/${http_lan_total}"
+          "displayName": "${http_lan_up}/${http_lan_total}"
         }
       },
       "options": {
@@ -95,21 +94,40 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
+          "fields": "/^up$/",
           "values": false
         },
-        "textMode": "value"
+        "textMode": "name"
       },
       "targets": [
         {
           "expr": "sum(probe_success{job=\"blackbox-http-lan\",module=\"http_2xx\"})",
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "up"
         },
         {
           "expr": "count(probe_success{job=\"blackbox-http-lan\",module=\"http_2xx\"})",
           "refId": "B",
-          "legendFormat": "total",
-          "hide": true
+          "legendFormat": "total"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "configFromData",
+          "options": {
+            "configRefId": "B",
+            "mappings": [
+              {
+                "fieldName": "total",
+                "handlerKey": "max",
+                "reducerId": "lastNotNull"
+              }
+            ],
+            "applyTo": {
+              "id": "byFrameRefID",
+              "options": "A"
+            }
+          }
         }
       ]
     },
@@ -149,8 +167,7 @@
             ]
           },
           "min": 0,
-          "max": "${dns_lan_total}",
-          "unit": "suffix:/${dns_lan_total}"
+          "displayName": "${dns_lan_up}/${dns_lan_total}"
         }
       },
       "options": {
@@ -161,21 +178,40 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
+          "fields": "/^up$/",
           "values": false
         },
-        "textMode": "value"
+        "textMode": "name"
       },
       "targets": [
         {
           "expr": "sum(probe_success{job=\"blackbox-dns-lan\"})",
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "up"
         },
         {
           "expr": "count(probe_success{job=\"blackbox-dns-lan\"})",
           "refId": "B",
-          "legendFormat": "total",
-          "hide": true
+          "legendFormat": "total"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "configFromData",
+          "options": {
+            "configRefId": "B",
+            "mappings": [
+              {
+                "fieldName": "total",
+                "handlerKey": "max",
+                "reducerId": "lastNotNull"
+              }
+            ],
+            "applyTo": {
+              "id": "byFrameRefID",
+              "options": "A"
+            }
+          }
         }
       ]
     },
@@ -215,8 +251,7 @@
             ]
           },
           "min": 0,
-          "max": "${tcp_lan_total}",
-          "unit": "suffix:/${tcp_lan_total}"
+          "displayName": "${tcp_lan_up}/${tcp_lan_total}"
         }
       },
       "options": {
@@ -227,21 +262,40 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
+          "fields": "/^up$/",
           "values": false
         },
-        "textMode": "value"
+        "textMode": "name"
       },
       "targets": [
         {
           "expr": "sum(probe_success{job=\"blackbox-tcp-lan\"})",
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "up"
         },
         {
           "expr": "count(probe_success{job=\"blackbox-tcp-lan\"})",
           "refId": "B",
-          "legendFormat": "total",
-          "hide": true
+          "legendFormat": "total"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "configFromData",
+          "options": {
+            "configRefId": "B",
+            "mappings": [
+              {
+                "fieldName": "total",
+                "handlerKey": "max",
+                "reducerId": "lastNotNull"
+              }
+            ],
+            "applyTo": {
+              "id": "byFrameRefID",
+              "options": "A"
+            }
+          }
         }
       ]
     },
@@ -348,8 +402,7 @@
             ]
           },
           "min": 0,
-          "max": "${all_probes_total}",
-          "unit": "suffix:/${all_probes_total}"
+          "displayName": "${all_probes_up}/${all_probes_total}"
         }
       },
       "options": {
@@ -360,21 +413,40 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
+          "fields": "/^up$/",
           "values": false
         },
-        "textMode": "value"
+        "textMode": "name"
       },
       "targets": [
         {
           "expr": "sum(probe_success{job=~\"blackbox-.*\"})",
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "up"
         },
         {
           "expr": "count(probe_success{job=~\"blackbox-.*\"})",
           "refId": "B",
-          "legendFormat": "total",
-          "hide": true
+          "legendFormat": "total"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "configFromData",
+          "options": {
+            "configRefId": "B",
+            "mappings": [
+              {
+                "fieldName": "total",
+                "handlerKey": "max",
+                "reducerId": "lastNotNull"
+              }
+            ],
+            "applyTo": {
+              "id": "byFrameRefID",
+              "options": "A"
+            }
+          }
         }
       ]
     },
@@ -810,6 +882,26 @@
   "templating": {
     "list": [
       {
+        "name": "http_lan_up",
+        "type": "query",
+        "hide": 2,
+        "refresh": 2,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus-crux"
+        },
+        "definition": "query_result(sum(probe_success{job=\"blackbox-http-lan\",module=\"http_2xx\"}))",
+        "query": {
+          "query": "query_result(sum(probe_success{job=\"blackbox-http-lan\",module=\"http_2xx\"}))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
+        "includeAll": false,
+        "multi": false,
+        "skipUrlSync": true,
+        "current": {}
+      },
+      {
         "name": "http_lan_total",
         "type": "query",
         "hide": 2,
@@ -821,6 +913,26 @@
         "definition": "query_result(count(probe_success{job=\"blackbox-http-lan\",module=\"http_2xx\"}))",
         "query": {
           "query": "query_result(count(probe_success{job=\"blackbox-http-lan\",module=\"http_2xx\"}))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
+        "includeAll": false,
+        "multi": false,
+        "skipUrlSync": true,
+        "current": {}
+      },
+      {
+        "name": "dns_lan_up",
+        "type": "query",
+        "hide": 2,
+        "refresh": 2,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus-crux"
+        },
+        "definition": "query_result(sum(probe_success{job=\"blackbox-dns-lan\"}))",
+        "query": {
+          "query": "query_result(sum(probe_success{job=\"blackbox-dns-lan\"}))",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
@@ -850,6 +962,26 @@
         "current": {}
       },
       {
+        "name": "tcp_lan_up",
+        "type": "query",
+        "hide": 2,
+        "refresh": 2,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus-crux"
+        },
+        "definition": "query_result(sum(probe_success{job=\"blackbox-tcp-lan\"}))",
+        "query": {
+          "query": "query_result(sum(probe_success{job=\"blackbox-tcp-lan\"}))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
+        "includeAll": false,
+        "multi": false,
+        "skipUrlSync": true,
+        "current": {}
+      },
+      {
         "name": "tcp_lan_total",
         "type": "query",
         "hide": 2,
@@ -861,6 +993,26 @@
         "definition": "query_result(count(probe_success{job=\"blackbox-tcp-lan\"}))",
         "query": {
           "query": "query_result(count(probe_success{job=\"blackbox-tcp-lan\"}))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
+        "includeAll": false,
+        "multi": false,
+        "skipUrlSync": true,
+        "current": {}
+      },
+      {
+        "name": "all_probes_up",
+        "type": "query",
+        "hide": 2,
+        "refresh": 2,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus-crux"
+        },
+        "definition": "query_result(sum(probe_success{job=~\"blackbox-.*\"}))",
+        "query": {
+          "query": "query_result(sum(probe_success{job=~\"blackbox-.*\"}))",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
