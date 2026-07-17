@@ -5,21 +5,26 @@ let
   cruxBlackbox = "192.168.5.6:9115";
   cruxBlackboxCfg = import ./crux-blackbox-config.nix { inherit lib; };
 
-  httpTargets = [
+  # Essential HTTP targets — included in Health Summary / overall uptime %.
+  httpTargetsEssential = [
     "https://panel.prestonhager.com/"
-    "https://test.panel.prestonhager.com/"
     "https://grafana.prestonhager.com/"
     "https://jellyfin.prestonhager.com/"
     "https://vault.prestonhager.com/"
     "https://wg.prestonhager.com/"
     "https://prometheus.prestonhager.com/"
     "https://loftiawiki.org/"
-    "https://upgrade.loftiawiki.org/"
     "https://matrix.prestonhager.com/_matrix/client/versions"
     "https://zitadel.prestonhager.com/"
     "https://cloud.prestonhager.com/"
     "https://dns.prestonhager.com/"
     "http://127.0.0.1/"
+  ];
+
+  # Non-essential — still probed and shown in downtime/status, but excluded from Health Summary %.
+  httpTargetsNonEssential = [
+    "https://test.panel.prestonhager.com/"
+    "https://upgrade.loftiawiki.org/"
   ];
 
   tcpTargets = [
@@ -88,6 +93,7 @@ let
         __param_module = "http_2xx";
         probe_location = "lan";
         probe_source = "crux";
+        service_tier = "essential";
       };
     }
     {
@@ -96,6 +102,7 @@ let
         __param_module = "http_local";
         probe_location = "lan";
         probe_source = "crux";
+        service_tier = "essential";
       };
     }
   ];
@@ -107,6 +114,7 @@ let
       instance = "dns://${lanIp}/${entry.host}";
       probe_location = "lan";
       probe_source = "crux";
+      service_tier = "essential";
       vhost = entry.host;
     };
   }) cruxBlackboxCfg.lanDnsChecks;
@@ -148,10 +156,22 @@ in {
         job_name = "blackbox-http";
         metrics_path = "/probe";
         params = { module = [ "http_2xx" ]; };
-        static_configs = [{
-          targets = httpTargets;
-          labels = { probe_location = "local"; };
-        }];
+        static_configs = [
+          {
+            targets = httpTargetsEssential;
+            labels = {
+              probe_location = "local";
+              service_tier = "essential";
+            };
+          }
+          {
+            targets = httpTargetsNonEssential;
+            labels = {
+              probe_location = "local";
+              service_tier = "non-essential";
+            };
+          }
+        ];
         relabel_configs = mkBlackboxRelabel [
           {
             target_label = "probe_location";
@@ -177,7 +197,10 @@ in {
         params = { module = [ "tcp_connect" ]; };
         static_configs = [{
           targets = tcpTargets;
-          labels = { probe_location = "local"; };
+          labels = {
+            probe_location = "local";
+            service_tier = "essential";
+          };
         }];
         relabel_configs = mkBlackboxRelabel [
           {

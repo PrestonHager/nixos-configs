@@ -8,7 +8,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "refresh": "30s",
   "time": {
     "from": "now-24h",
@@ -37,10 +37,130 @@
           "text": "All",
           "value": "$__all"
         }
+      },
+      {
+        "name": "local_total",
+        "type": "query",
+        "hide": 2,
+        "refresh": 2,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "query_result(count(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"}))",
+        "query": {
+          "query": "query_result(count(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"}))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
+        "includeAll": false,
+        "multi": false,
+        "skipUrlSync": true,
+        "current": {}
+      },
+      {
+        "name": "lan_total",
+        "type": "query",
+        "hide": 2,
+        "refresh": 2,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "query_result(count(probe_success{probe_location=\"lan\"}))",
+        "query": {
+          "query": "query_result(count(probe_success{probe_location=\"lan\"}))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
+        "includeAll": false,
+        "multi": false,
+        "skipUrlSync": true,
+        "current": {}
+      },
+      {
+        "name": "external_total",
+        "type": "query",
+        "hide": 2,
+        "refresh": 2,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "query_result(count(probe_success{probe_location=\"external\"}) or vector(0))",
+        "query": {
+          "query": "query_result(count(probe_success{probe_location=\"external\"}) or vector(0))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
+        "includeAll": false,
+        "multi": false,
+        "skipUrlSync": true,
+        "current": {}
+      },
+      {
+        "name": "dns_total",
+        "type": "query",
+        "hide": 2,
+        "refresh": 2,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "query_result(count(ace_dns_probe_success))",
+        "query": {
+          "query": "query_result(count(ace_dns_probe_success))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
+        "includeAll": false,
+        "multi": false,
+        "skipUrlSync": true,
+        "current": {}
+      },
+      {
+        "name": "services_total",
+        "type": "query",
+        "hide": 2,
+        "refresh": 2,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "query_result(count(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"}))",
+        "query": {
+          "query": "query_result(count(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"}))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
+        "includeAll": false,
+        "multi": false,
+        "skipUrlSync": true,
+        "current": {}
+      },
+      {
+        "name": "lan_http_total",
+        "type": "query",
+        "hide": 2,
+        "refresh": 2,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "query_result(count(probe_success{job=\"blackbox-http-lan\",probe_location=\"lan\"}))",
+        "query": {
+          "query": "query_result(count(probe_success{job=\"blackbox-http-lan\",probe_location=\"lan\"}))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "regex": "/.*?\\s+(\\d+(?:\\.\\d+)?)\\s+/",
+        "includeAll": false,
+        "multi": false,
+        "skipUrlSync": true,
+        "current": {}
       }
     ]
   },
-  "description": "Service health from local (ace) and LAN (crux blackbox) probes. External WAN probes are shown separately and do not affect Service Status.",
+  "description": "Service health from local (ace) and LAN (crux blackbox) probes. External WAN probes and non-essential services are shown in status/downtime but do not affect Health Summary percentage.",
   "links": [
     {
       "title": "HTTP Probes",
@@ -106,7 +226,8 @@
                 "value": 12
               }
             ]
-          }
+          },
+          "displayName": "/${local_total}"
         }
       },
       "options": {
@@ -120,12 +241,18 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value"
+        "textMode": "value_and_name"
       },
       "targets": [
         {
           "expr": "sum(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"})",
           "refId": "A"
+        },
+        {
+          "expr": "count(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"})",
+          "refId": "B",
+          "legendFormat": "total",
+          "hide": true
         }
       ]
     },
@@ -163,7 +290,8 @@
                 "value": 12
               }
             ]
-          }
+          },
+          "displayName": "/${lan_total}"
         }
       },
       "options": {
@@ -177,12 +305,18 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value"
+        "textMode": "value_and_name"
       },
       "targets": [
         {
           "expr": "sum(probe_success{probe_location=\"lan\"})",
           "refId": "A"
+        },
+        {
+          "expr": "count(probe_success{probe_location=\"lan\"})",
+          "refId": "B",
+          "legendFormat": "total",
+          "hide": true
         }
       ]
     },
@@ -220,7 +354,8 @@
                 "value": 8
               }
             ]
-          }
+          },
+          "displayName": "/${external_total}"
         }
       },
       "options": {
@@ -234,12 +369,18 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value"
+        "textMode": "value_and_name"
       },
       "targets": [
         {
           "expr": "sum(probe_success{probe_location=\"external\"}) or vector(0)",
           "refId": "A"
+        },
+        {
+          "expr": "count(probe_success{probe_location=\"external\"})",
+          "refId": "B",
+          "legendFormat": "total",
+          "hide": true
         }
       ]
     },
@@ -277,7 +418,8 @@
                 "value": 7
               }
             ]
-          }
+          },
+          "displayName": "/${dns_total}"
         }
       },
       "options": {
@@ -291,12 +433,18 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value"
+        "textMode": "value_and_name"
       },
       "targets": [
         {
           "expr": "sum(ace_dns_probe_success)",
           "refId": "A"
+        },
+        {
+          "expr": "count(ace_dns_probe_success)",
+          "refId": "B",
+          "legendFormat": "total",
+          "hide": true
         }
       ]
     },
@@ -464,7 +612,7 @@
     {
       "id": 1,
       "title": "Services Up",
-      "description": "Local + LAN probes reporting success (excludes external WAN perspective)",
+      "description": "Local + LAN probes reporting success (excludes external WAN). Includes non-essential services.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -496,7 +644,8 @@
                 "value": 22
               }
             ]
-          }
+          },
+          "displayName": "/${services_total}"
         },
         "overrides": []
       },
@@ -511,20 +660,26 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value"
+        "textMode": "value_and_name"
       },
       "targets": [
         {
           "expr": "sum(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"})",
           "legendFormat": "up",
           "refId": "A"
+        },
+        {
+          "expr": "count(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"})",
+          "refId": "B",
+          "legendFormat": "total",
+          "hide": true
         }
       ]
     },
     {
       "id": 2,
       "title": "Health Summary",
-      "description": "Local + LAN service availability (external WAN probes excluded)",
+      "description": "Local + LAN essential service availability (excludes external WAN and non-essential services)",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -587,7 +742,7 @@
       },
       "targets": [
         {
-          "expr": "sum(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"}) / count(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"}) * 100",
+          "expr": "sum(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\",service_tier!=\"non-essential\"}) / count(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\",service_tier!=\"non-essential\"}) * 100",
           "legendFormat": "current",
           "refId": "A"
         }
@@ -596,7 +751,7 @@
     {
       "id": 3,
       "title": "Combined Uptime (24h)",
-      "description": "Average probe success across all services over the last 24 hours",
+      "description": "Average probe success across all services over the last 24 hours (essential services only)",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -649,7 +804,7 @@
       },
       "targets": [
         {
-          "expr": "avg(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"}[24h])) * 100",
+          "expr": "avg(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\",service_tier!=\"non-essential\"}[24h])) * 100",
           "legendFormat": "24h avg",
           "refId": "A"
         }
@@ -658,7 +813,7 @@
     {
       "id": 4,
       "title": "Combined Uptime (7d)",
-      "description": "Average probe success across all services over the last 7 days",
+      "description": "Average probe success across all services over the last 7 days (essential services only)",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -711,7 +866,7 @@
       },
       "targets": [
         {
-          "expr": "avg(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"}[7d])) * 100",
+          "expr": "avg(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\",service_tier!=\"non-essential\"}[7d])) * 100",
           "legendFormat": "7d avg",
           "refId": "A"
         }
@@ -720,7 +875,7 @@
     {
       "id": 5,
       "title": "Worst Service Uptime (24h)",
-      "description": "Minimum per-service uptime \u00e2\u20ac\u201d highlights the weakest link",
+      "description": "Minimum per-service uptime — highlights the weakest essential service",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -773,7 +928,7 @@
       },
       "targets": [
         {
-          "expr": "min(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"}[24h])) * 100",
+          "expr": "min(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\",service_tier!=\"non-essential\"}[24h])) * 100",
           "legendFormat": "min 24h",
           "refId": "A"
         }
@@ -953,7 +1108,7 @@
     },
     {
       "id": 9,
-      "title": "All Services \u00e2\u20ac\u201d Status",
+      "title": "All Services — Status",
       "description": "Current up/down status, latency, HTTP code, and 24h uptime per target",
       "type": "table",
       "gridPos": {
@@ -1294,7 +1449,9 @@
               "Value #uptime7d": "Uptime 7d",
               "Value #httpcode": "HTTP Code",
               "instance": "Service",
-              "job": "Type"
+              "job": "Type",
+              "service_tier": "Tier",
+              "service_tier 1": "Tier"
             }
           }
         },
@@ -1673,7 +1830,9 @@
                 "value": 12
               }
             ]
-          }
+          },
+          "decimals": 0,
+          "displayName": "/${lan_http_total}"
         }
       },
       "options": {
@@ -1685,12 +1844,20 @@
           ],
           "fields": "",
           "values": false
-        }
+        },
+        "textMode": "value_and_name",
+        "justifyMode": "center"
       },
       "targets": [
         {
           "expr": "sum(probe_success{job=\"blackbox-http-lan\",probe_location=\"lan\"})",
           "refId": "A"
+        },
+        {
+          "expr": "count(probe_success{job=\"blackbox-http-lan\",probe_location=\"lan\"})",
+          "refId": "B",
+          "legendFormat": "total",
+          "hide": true
         }
       ]
     },
