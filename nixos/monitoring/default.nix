@@ -54,7 +54,8 @@ in {
         folder: Ace
         type: file
         disableDeletion: false
-        editable: true
+        updateIntervalSeconds: 30
+        allowUiUpdates: false
         options:
           path: /etc/grafana/dashboards/ace
   '';
@@ -67,7 +68,8 @@ in {
         folder: Crux
         type: file
         disableDeletion: false
-        editable: true
+        updateIntervalSeconds: 30
+        allowUiUpdates: false
         options:
           path: /etc/grafana/dashboards/crux
   '';
@@ -80,7 +82,8 @@ in {
         folder: LAN
         type: file
         disableDeletion: false
-        editable: true
+        updateIntervalSeconds: 30
+        allowUiUpdates: false
         options:
           path: /etc/grafana/dashboards/lan
   '';

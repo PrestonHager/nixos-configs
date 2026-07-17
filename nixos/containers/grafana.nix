@@ -104,12 +104,24 @@ in {
     };
   };
 
-  # Recreate containers when secrets change (podman does not reload --env-file).
+  # Recreate containers when secrets or provisioned dashboards change (podman bind-mounts store paths).
   systemd.services.podman-grafana.restartTriggers = [
     config.sops.secrets."grafana-oauth-env".path
     config.sops.secrets."nextcloud-environment".path
     (pkgs.writeText "grafana-alert-rules" (builtins.readFile ../monitoring/grafana/provisioning/alerting/alert-rules.yaml))
     (pkgs.writeText "grafana-notification-policies" (builtins.readFile ../monitoring/grafana/provisioning/alerting/notification-policies.yaml))
+    (etcPath "grafana/provisioning/dashboards/ace.yaml")
+    (etcPath "grafana/provisioning/dashboards/crux.yaml")
+    (etcPath "grafana/provisioning/dashboards/lan.yaml")
+    (etcPath "grafana/dashboards/ace/ace-uptime.json")
+    (etcPath "grafana/dashboards/ace/ace-overview.json")
+    (etcPath "grafana/dashboards/ace/ace-services.json")
+    (etcPath "grafana/dashboards/ace/ace-http-probes.json")
+    (etcPath "grafana/dashboards/ace/ace-tcp-probes.json")
+    (etcPath "grafana/dashboards/ace/ace-versions.json")
+    (etcPath "grafana/dashboards/crux/crux-uptime.json")
+    (etcPath "grafana/dashboards/crux/crux-http-probes.json")
+    (etcPath "grafana/dashboards/lan/lan-status.json")
   ];
   systemd.services.podman-grafana-image-renderer.restartTriggers = [
     config.sops.secrets."grafana-oauth-env".path

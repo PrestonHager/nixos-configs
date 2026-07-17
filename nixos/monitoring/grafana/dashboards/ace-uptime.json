@@ -8,7 +8,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 4,
+  "version": 5,
   "refresh": "30s",
   "time": {
     "from": "now-24h",
@@ -742,8 +742,9 @@
       },
       "targets": [
         {
-          "expr": "sum(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\",service_tier!=\"non-essential\",instance!~\"https://(test\\\\.panel\\\\.prestonhager\\\\.com|upgrade\\\\.loftiawiki\\\\.org)/.*\"}) / count(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\",service_tier!=\"non-essential\",instance!~\"https://(test\\\\.panel\\\\.prestonhager\\\\.com|upgrade\\\\.loftiawiki\\\\.org)/.*\"}) * 100",
+          "expr": "sum(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\",service_tier=\"essential\"}) / count(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\",service_tier=\"essential\"}) * 100",
           "legendFormat": "current",
+          "instant": true,
           "refId": "A"
         }
       ]
@@ -804,8 +805,9 @@
       },
       "targets": [
         {
-          "expr": "avg(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\",service_tier!=\"non-essential\",instance!~\"https://(test\\\\.panel\\\\.prestonhager\\\\.com|upgrade\\\\.loftiawiki\\\\.org)/.*\"}[24h])) * 100",
+          "expr": "avg(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\",service_tier=\"essential\"}[24h])) * 100",
           "legendFormat": "24h avg",
+          "instant": true,
           "refId": "A"
         }
       ]
@@ -866,8 +868,9 @@
       },
       "targets": [
         {
-          "expr": "avg(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\",service_tier!=\"non-essential\",instance!~\"https://(test\\\\.panel\\\\.prestonhager\\\\.com|upgrade\\\\.loftiawiki\\\\.org)/.*\"}[7d])) * 100",
+          "expr": "avg(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\",service_tier=\"essential\"}[7d])) * 100",
           "legendFormat": "7d avg",
+          "instant": true,
           "refId": "A"
         }
       ]
@@ -928,8 +931,9 @@
       },
       "targets": [
         {
-          "expr": "min(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\",service_tier!=\"non-essential\",instance!~\"https://(test\\\\.panel\\\\.prestonhager\\\\.com|upgrade\\\\.loftiawiki\\\\.org)/.*\"}[24h])) * 100",
+          "expr": "min(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\",service_tier=\"essential\"}[24h])) * 100",
           "legendFormat": "min 24h",
+          "instant": true,
           "refId": "A"
         }
       ]
