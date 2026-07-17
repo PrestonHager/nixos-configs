@@ -8,7 +8,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 6,
+  "version": 7,
   "refresh": "30s",
   "time": {
     "from": "now-24h",
@@ -180,7 +180,7 @@
   ],
   "panels": [
     {
-      "id": 15,
+      "id": 1,
       "type": "row",
       "title": "Probe perspectives",
       "gridPos": {
@@ -193,7 +193,7 @@
       "panels": []
     },
     {
-      "id": 16,
+      "id": 2,
       "title": "Local (ace) Up",
       "description": "Probes via loopback /etc/hosts",
       "type": "stat",
@@ -259,7 +259,7 @@
       ]
     },
     {
-      "id": 17,
+      "id": 3,
       "title": "LAN Up (crux)",
       "description": "HTTPS from crux via Technitium DNS; blackbox on 192.168.5.6:9115",
       "type": "stat",
@@ -325,7 +325,7 @@
       ]
     },
     {
-      "id": 18,
+      "id": 4,
       "title": "External Up",
       "description": "Pushgateway probes from crux via public DNS (1.1.1.1)",
       "type": "stat",
@@ -391,7 +391,7 @@
       ]
     },
     {
-      "id": 19,
+      "id": 5,
       "title": "LAN DNS OK",
       "description": "dig @192.168.5.5 returns expected LAN A records",
       "type": "stat",
@@ -457,7 +457,7 @@
       ]
     },
     {
-      "id": 20,
+      "id": 6,
       "title": "External vs LAN latency",
       "description": "Compare mean HTTP probe duration by perspective",
       "type": "bargauge",
@@ -530,7 +530,7 @@
       ]
     },
     {
-      "id": 21,
+      "id": 7,
       "title": "LAN DNS split-horizon",
       "description": "Per-hostname Technitium DNS resolution checks",
       "type": "table",
@@ -618,7 +618,7 @@
       ]
     },
     {
-      "id": 1,
+      "id": 8,
       "title": "Services Up",
       "description": "Local + LAN probes reporting success (excludes external WAN). Includes non-essential services.",
       "type": "stat",
@@ -686,7 +686,7 @@
       ]
     },
     {
-      "id": 2,
+      "id": 9,
       "title": "Health Summary",
       "description": "Local + LAN essential service availability (excludes external WAN and non-essential services)",
       "type": "stat",
@@ -759,7 +759,7 @@
       ]
     },
     {
-      "id": 3,
+      "id": 10,
       "title": "Combined Uptime (24h)",
       "description": "Average probe success across all services over the last 24 hours (essential services only)",
       "type": "stat",
@@ -822,7 +822,7 @@
       ]
     },
     {
-      "id": 4,
+      "id": 11,
       "title": "Combined Uptime (7d)",
       "description": "Average probe success across all services over the last 7 days (essential services only)",
       "type": "stat",
@@ -885,7 +885,7 @@
       ]
     },
     {
-      "id": 5,
+      "id": 12,
       "title": "Worst Service Uptime (24h)",
       "description": "Minimum per-service uptime \u2014 highlights the weakest essential service",
       "type": "stat",
@@ -948,7 +948,7 @@
       ]
     },
     {
-      "id": 6,
+      "id": 13,
       "title": "HTTP Services Down",
       "description": "Count of HTTP probes currently failing",
       "type": "stat",
@@ -1004,7 +1004,7 @@
       ]
     },
     {
-      "id": 7,
+      "id": 14,
       "title": "TCP Ports Down",
       "description": "Count of TCP probes currently failing",
       "type": "stat",
@@ -1060,7 +1060,7 @@
       ]
     },
     {
-      "id": 8,
+      "id": 15,
       "title": "Avg Latency (all HTTP)",
       "description": "Mean HTTP probe duration across all services",
       "type": "stat",
@@ -1120,7 +1120,7 @@
       ]
     },
     {
-      "id": 9,
+      "id": 16,
       "title": "All Services \u2014 Status",
       "description": "Current up/down status, latency, HTTP code, and 24h uptime per target",
       "type": "table",
@@ -1489,7 +1489,7 @@
       ]
     },
     {
-      "id": 10,
+      "id": 17,
       "title": "HTTP Latency by Service",
       "description": "Current probe duration for each HTTP endpoint",
       "type": "bargauge",
@@ -1557,7 +1557,7 @@
       ]
     },
     {
-      "id": 11,
+      "id": 18,
       "title": "TCP Connect Latency",
       "description": "Current TCP connect duration for local ports",
       "type": "bargauge",
@@ -1621,7 +1621,7 @@
       ]
     },
     {
-      "id": 12,
+      "id": 19,
       "title": "HTTP Latency Over Time",
       "type": "timeseries",
       "gridPos": {
@@ -1673,7 +1673,7 @@
       ]
     },
     {
-      "id": 13,
+      "id": 20,
       "title": "Probe Success Over Time",
       "description": "1 = up, 0 = down for each monitored target",
       "type": "timeseries",
@@ -1740,7 +1740,7 @@
       ]
     },
     {
-      "id": 14,
+      "id": 21,
       "title": "Per-Service Uptime (24h)",
       "type": "timeseries",
       "gridPos": {
@@ -1811,7 +1811,7 @@
       ]
     },
     {
-      "id": 15,
+      "id": 22,
       "title": "LAN HTTP Up (crux)",
       "description": "Services reachable via 192.168.5.5 with LAN vhost Host headers",
       "type": "stat",
@@ -1877,7 +1877,7 @@
       ]
     },
     {
-      "id": 16,
+      "id": 23,
       "title": "External HTTP Up",
       "description": "Public-path probes via Pushgateway (5 min interval)",
       "type": "stat",
@@ -1927,7 +1927,7 @@
       ]
     },
     {
-      "id": 17,
+      "id": 24,
       "title": "Technitium DNS OK",
       "description": "Split-horizon A records via dig @192.168.5.5",
       "type": "stat",
@@ -1981,7 +1981,7 @@
       ]
     },
     {
-      "id": 18,
+      "id": 25,
       "title": "Latency by Probe Location",
       "description": "Compare local (loopback), LAN (crux blackbox), and external (pushgateway) paths",
       "type": "timeseries",
@@ -2031,7 +2031,7 @@
       ]
     },
     {
-      "id": 19,
+      "id": 26,
       "title": "Technitium DNS Records",
       "type": "table",
       "gridPos": {
