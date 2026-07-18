@@ -8,7 +8,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 12,
+  "version": 13,
   "refresh": "30s",
   "time": {
     "from": "now-24h",
@@ -129,7 +129,11 @@
         {
           "expr": "100 * sum(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"}) / count(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"})) * on() group_left(total) count_values(\"total\", count(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"})))",
           "refId": "A",
-          "legendFormat": "__auto"
+          "legendFormat": "__auto",
+          "instant": true,
+          "queryType": "instant",
+          "range": false,
+          "exemplar": false
         }
       ],
       "transformations": []
@@ -191,7 +195,11 @@
         {
           "expr": "100 * sum(probe_success{probe_location=\"lan\"}) / count(probe_success{probe_location=\"lan\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{probe_location=\"lan\"})) * on() group_left(total) count_values(\"total\", count(probe_success{probe_location=\"lan\"})))",
           "refId": "A",
-          "legendFormat": "__auto"
+          "legendFormat": "__auto",
+          "instant": true,
+          "queryType": "instant",
+          "range": false,
+          "exemplar": false
         }
       ],
       "transformations": []
@@ -253,7 +261,11 @@
         {
           "expr": "100 * (sum(probe_success{probe_location=\"external\"}) or vector(0)) / (count(probe_success{probe_location=\"external\"}) or vector(0)) * on() group_left(up, total) (count_values(\"up\", (sum(probe_success{probe_location=\"external\"}) or vector(0))) * on() group_left(total) count_values(\"total\", (count(probe_success{probe_location=\"external\"}) or vector(0))))",
           "refId": "A",
-          "legendFormat": "__auto"
+          "legendFormat": "__auto",
+          "instant": true,
+          "queryType": "instant",
+          "range": false,
+          "exemplar": false
         }
       ],
       "transformations": []
@@ -315,7 +327,11 @@
         {
           "expr": "100 * sum(ace_dns_probe_success) / count(ace_dns_probe_success) * on() group_left(up, total) (count_values(\"up\", sum(ace_dns_probe_success)) * on() group_left(total) count_values(\"total\", count(ace_dns_probe_success)))",
           "refId": "A",
-          "legendFormat": "__auto"
+          "legendFormat": "__auto",
+          "instant": true,
+          "queryType": "instant",
+          "range": false,
+          "exemplar": false
         }
       ],
       "transformations": []
@@ -539,7 +555,11 @@
         {
           "expr": "100 * sum(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"}) / count(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"})) * on() group_left(total) count_values(\"total\", count(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"})))",
           "refId": "A",
-          "legendFormat": "__auto"
+          "legendFormat": "__auto",
+          "instant": true,
+          "queryType": "instant",
+          "range": false,
+          "exemplar": false
         }
       ],
       "transformations": []
@@ -1726,7 +1746,11 @@
         {
           "expr": "100 * sum(probe_success{job=\"blackbox-http-lan\",probe_location=\"lan\"}) / count(probe_success{job=\"blackbox-http-lan\",probe_location=\"lan\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{job=\"blackbox-http-lan\",probe_location=\"lan\"})) * on() group_left(total) count_values(\"total\", count(probe_success{job=\"blackbox-http-lan\",probe_location=\"lan\"})))",
           "refId": "A",
-          "legendFormat": "__auto"
+          "legendFormat": "__auto",
+          "instant": true,
+          "queryType": "instant",
+          "range": false,
+          "exemplar": false
         }
       ],
       "transformations": []
