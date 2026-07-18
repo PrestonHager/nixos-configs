@@ -8,7 +8,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 11,
+  "version": 12,
   "refresh": "30s",
   "time": {
     "from": "now-24h",
@@ -91,7 +91,7 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "percentage",
+            "mode": "absolute",
             "steps": [
               {
                 "color": "red",
@@ -108,7 +108,8 @@
             ]
           },
           "min": 0,
-          "displayName": "${__field.labels.up}/${__field.labels.total}"
+          "displayName": "${__field.labels.up}/${__field.labels.total}",
+          "max": 100
         }
       },
       "options": {
@@ -119,49 +120,19 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^up$/",
+          "fields": "",
           "values": false
         },
         "textMode": "name"
       },
       "targets": [
         {
-          "expr": "sum(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"})) * on() group_left(total) count_values(\"total\", count(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"})))",
+          "expr": "100 * sum(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"}) / count(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"})) * on() group_left(total) count_values(\"total\", count(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"})))",
           "refId": "A",
-          "legendFormat": "up"
-        },
-        {
-          "expr": "count(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"})",
-          "refId": "B",
-          "legendFormat": "total",
-          "hide": true
+          "legendFormat": "__auto"
         }
       ],
-      "transformations": [
-        {
-          "id": "configFromData",
-          "options": {
-            "configRefId": "B",
-            "mappings": [
-              {
-                "fieldName": "total",
-                "handlerKey": "max",
-                "reducerId": "lastNotNull"
-              }
-            ],
-            "applyTo": {
-              "id": "byFrameRefID",
-              "options": "A"
-            }
-          }
-        },
-        {
-          "id": "filterByRefId",
-          "options": {
-            "include": "A"
-          }
-        }
-      ]
+      "transformations": []
     },
     {
       "id": 3,
@@ -182,7 +153,7 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "percentage",
+            "mode": "absolute",
             "steps": [
               {
                 "color": "red",
@@ -199,7 +170,8 @@
             ]
           },
           "min": 0,
-          "displayName": "${__field.labels.up}/${__field.labels.total}"
+          "displayName": "${__field.labels.up}/${__field.labels.total}",
+          "max": 100
         }
       },
       "options": {
@@ -210,49 +182,19 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^up$/",
+          "fields": "",
           "values": false
         },
         "textMode": "name"
       },
       "targets": [
         {
-          "expr": "sum(probe_success{probe_location=\"lan\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{probe_location=\"lan\"})) * on() group_left(total) count_values(\"total\", count(probe_success{probe_location=\"lan\"})))",
+          "expr": "100 * sum(probe_success{probe_location=\"lan\"}) / count(probe_success{probe_location=\"lan\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{probe_location=\"lan\"})) * on() group_left(total) count_values(\"total\", count(probe_success{probe_location=\"lan\"})))",
           "refId": "A",
-          "legendFormat": "up"
-        },
-        {
-          "expr": "count(probe_success{probe_location=\"lan\"})",
-          "refId": "B",
-          "legendFormat": "total",
-          "hide": true
+          "legendFormat": "__auto"
         }
       ],
-      "transformations": [
-        {
-          "id": "configFromData",
-          "options": {
-            "configRefId": "B",
-            "mappings": [
-              {
-                "fieldName": "total",
-                "handlerKey": "max",
-                "reducerId": "lastNotNull"
-              }
-            ],
-            "applyTo": {
-              "id": "byFrameRefID",
-              "options": "A"
-            }
-          }
-        },
-        {
-          "id": "filterByRefId",
-          "options": {
-            "include": "A"
-          }
-        }
-      ]
+      "transformations": []
     },
     {
       "id": 4,
@@ -273,7 +215,7 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "percentage",
+            "mode": "absolute",
             "steps": [
               {
                 "color": "red",
@@ -290,7 +232,8 @@
             ]
           },
           "min": 0,
-          "displayName": "${__field.labels.up}/${__field.labels.total}"
+          "displayName": "${__field.labels.up}/${__field.labels.total}",
+          "max": 100
         }
       },
       "options": {
@@ -301,49 +244,19 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^up$/",
+          "fields": "",
           "values": false
         },
         "textMode": "name"
       },
       "targets": [
         {
-          "expr": "(sum(probe_success{probe_location=\"external\"}) or vector(0)) * on() group_left(up, total) (count_values(\"up\", (sum(probe_success{probe_location=\"external\"}) or vector(0))) * on() group_left(total) count_values(\"total\", (count(probe_success{probe_location=\"external\"}) or vector(0))))",
+          "expr": "100 * (sum(probe_success{probe_location=\"external\"}) or vector(0)) / (count(probe_success{probe_location=\"external\"}) or vector(0)) * on() group_left(up, total) (count_values(\"up\", (sum(probe_success{probe_location=\"external\"}) or vector(0))) * on() group_left(total) count_values(\"total\", (count(probe_success{probe_location=\"external\"}) or vector(0))))",
           "refId": "A",
-          "legendFormat": "up"
-        },
-        {
-          "expr": "(count(probe_success{probe_location=\"external\"}) or vector(0))",
-          "refId": "B",
-          "legendFormat": "total",
-          "hide": true
+          "legendFormat": "__auto"
         }
       ],
-      "transformations": [
-        {
-          "id": "configFromData",
-          "options": {
-            "configRefId": "B",
-            "mappings": [
-              {
-                "fieldName": "total",
-                "handlerKey": "max",
-                "reducerId": "lastNotNull"
-              }
-            ],
-            "applyTo": {
-              "id": "byFrameRefID",
-              "options": "A"
-            }
-          }
-        },
-        {
-          "id": "filterByRefId",
-          "options": {
-            "include": "A"
-          }
-        }
-      ]
+      "transformations": []
     },
     {
       "id": 5,
@@ -364,7 +277,7 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "percentage",
+            "mode": "absolute",
             "steps": [
               {
                 "color": "red",
@@ -381,7 +294,8 @@
             ]
           },
           "min": 0,
-          "displayName": "${__field.labels.up}/${__field.labels.total}"
+          "displayName": "${__field.labels.up}/${__field.labels.total}",
+          "max": 100
         }
       },
       "options": {
@@ -392,49 +306,19 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^up$/",
+          "fields": "",
           "values": false
         },
         "textMode": "name"
       },
       "targets": [
         {
-          "expr": "sum(ace_dns_probe_success) * on() group_left(up, total) (count_values(\"up\", sum(ace_dns_probe_success)) * on() group_left(total) count_values(\"total\", count(ace_dns_probe_success)))",
+          "expr": "100 * sum(ace_dns_probe_success) / count(ace_dns_probe_success) * on() group_left(up, total) (count_values(\"up\", sum(ace_dns_probe_success)) * on() group_left(total) count_values(\"total\", count(ace_dns_probe_success)))",
           "refId": "A",
-          "legendFormat": "up"
-        },
-        {
-          "expr": "count(ace_dns_probe_success)",
-          "refId": "B",
-          "legendFormat": "total",
-          "hide": true
+          "legendFormat": "__auto"
         }
       ],
-      "transformations": [
-        {
-          "id": "configFromData",
-          "options": {
-            "configRefId": "B",
-            "mappings": [
-              {
-                "fieldName": "total",
-                "handlerKey": "max",
-                "reducerId": "lastNotNull"
-              }
-            ],
-            "applyTo": {
-              "id": "byFrameRefID",
-              "options": "A"
-            }
-          }
-        },
-        {
-          "id": "filterByRefId",
-          "options": {
-            "include": "A"
-          }
-        }
-      ]
+      "transformations": []
     },
     {
       "id": 6,
@@ -616,7 +500,7 @@
         "defaults": {
           "decimals": 0,
           "thresholds": {
-            "mode": "percentage",
+            "mode": "absolute",
             "steps": [
               {
                 "color": "red",
@@ -633,7 +517,8 @@
             ]
           },
           "min": 0,
-          "displayName": "${__field.labels.up}/${__field.labels.total}"
+          "displayName": "${__field.labels.up}/${__field.labels.total}",
+          "max": 100
         },
         "overrides": []
       },
@@ -645,49 +530,19 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^up$/",
+          "fields": "",
           "values": false
         },
         "textMode": "name"
       },
       "targets": [
         {
-          "expr": "sum(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"})) * on() group_left(total) count_values(\"total\", count(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"})))",
+          "expr": "100 * sum(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"}) / count(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"})) * on() group_left(total) count_values(\"total\", count(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"})))",
           "refId": "A",
-          "legendFormat": "up"
-        },
-        {
-          "expr": "count(probe_success{job=~\"blackbox-http|blackbox-http-lan|blackbox-tcp\",probe_location=~\"local|lan\"})",
-          "refId": "B",
-          "legendFormat": "total",
-          "hide": true
+          "legendFormat": "__auto"
         }
       ],
-      "transformations": [
-        {
-          "id": "configFromData",
-          "options": {
-            "configRefId": "B",
-            "mappings": [
-              {
-                "fieldName": "total",
-                "handlerKey": "max",
-                "reducerId": "lastNotNull"
-              }
-            ],
-            "applyTo": {
-              "id": "byFrameRefID",
-              "options": "A"
-            }
-          }
-        },
-        {
-          "id": "filterByRefId",
-          "options": {
-            "include": "A"
-          }
-        }
-      ]
+      "transformations": []
     },
     {
       "id": 9,
@@ -1832,7 +1687,7 @@
       "fieldConfig": {
         "defaults": {
           "thresholds": {
-            "mode": "percentage",
+            "mode": "absolute",
             "steps": [
               {
                 "color": "red",
@@ -1850,7 +1705,8 @@
           },
           "decimals": 0,
           "min": 0,
-          "displayName": "${__field.labels.up}/${__field.labels.total}"
+          "displayName": "${__field.labels.up}/${__field.labels.total}",
+          "max": 100
         }
       },
       "options": {
@@ -1860,7 +1716,7 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^up$/",
+          "fields": "",
           "values": false
         },
         "textMode": "name",
@@ -1868,42 +1724,12 @@
       },
       "targets": [
         {
-          "expr": "sum(probe_success{job=\"blackbox-http-lan\",probe_location=\"lan\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{job=\"blackbox-http-lan\",probe_location=\"lan\"})) * on() group_left(total) count_values(\"total\", count(probe_success{job=\"blackbox-http-lan\",probe_location=\"lan\"})))",
+          "expr": "100 * sum(probe_success{job=\"blackbox-http-lan\",probe_location=\"lan\"}) / count(probe_success{job=\"blackbox-http-lan\",probe_location=\"lan\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{job=\"blackbox-http-lan\",probe_location=\"lan\"})) * on() group_left(total) count_values(\"total\", count(probe_success{job=\"blackbox-http-lan\",probe_location=\"lan\"})))",
           "refId": "A",
-          "legendFormat": "up"
-        },
-        {
-          "expr": "count(probe_success{job=\"blackbox-http-lan\",probe_location=\"lan\"})",
-          "refId": "B",
-          "legendFormat": "total",
-          "hide": true
+          "legendFormat": "__auto"
         }
       ],
-      "transformations": [
-        {
-          "id": "configFromData",
-          "options": {
-            "configRefId": "B",
-            "mappings": [
-              {
-                "fieldName": "total",
-                "handlerKey": "max",
-                "reducerId": "lastNotNull"
-              }
-            ],
-            "applyTo": {
-              "id": "byFrameRefID",
-              "options": "A"
-            }
-          }
-        },
-        {
-          "id": "filterByRefId",
-          "options": {
-            "include": "A"
-          }
-        }
-      ]
+      "transformations": []
     },
     {
       "id": 23,
