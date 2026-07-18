@@ -30,6 +30,12 @@ ssh root@192.168.5.6
 
 Wings reads Let's Encrypt certificates from ace via NFS mount (`hosts/pterodactyl-nodes/nfs.nix`). TLS domain: **`crux.lc1.nm.us.prestonhager.com`** (`nixos/nfs/default.nix`, `nixos/caddy/pterodactyl.nix`).
 
+## Ports and monitoring
+
+Open ports, Astracap NAT, and Grafana probes: [Crux ports & NAT](crux-ports.md).
+
+Dashboards: [Crux Service Uptime](https://grafana.prestonhager.com/d/crux-uptime), [Network Topology & Ports](https://grafana.prestonhager.com/d/network-topology).
+
 ## Verify Wings
 
 ```bash

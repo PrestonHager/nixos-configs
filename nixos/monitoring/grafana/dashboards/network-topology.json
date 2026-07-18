@@ -1,33 +1,44 @@
 {
-  "uid": "crux-uptime",
-  "title": "Crux Service Uptime",
-  "tags": ["crux", "uptime", "blackbox", "wings"],
+  "uid": "network-topology",
+  "title": "Network Topology & Ports",
+  "tags": ["lan", "network", "ports", "topology", "blackbox"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 10,
+  "version": 1,
   "refresh": "30s",
-  "time": { "from": "now-24h", "to": "now" },
-  "description": "Crux host service health from ace blackbox probes: Wings HTTPS/API, SFTP file transfer, SSH, and monitoring exporters. Dynamic game ports are not statically probed.",
+  "time": { "from": "now-6h", "to": "now" },
+  "description": "LAN topology, Crux open ports, Astracap WAN forwards, and live up/down from ace blackbox probes. See docs/crux-ports.md for the inventory table.",
   "links": [
-    { "title": "Network Topology", "type": "dashboard", "url": "/d/network-topology" },
-    { "title": "LAN Status", "type": "dashboard", "url": "/d/lan-status" },
-    { "title": "Ace Uptime", "type": "dashboard", "url": "/d/ace-uptime" }
+    { "title": "Crux Uptime", "type": "dashboard", "url": "/d/crux-uptime" },
+    { "title": "Ace Uptime", "type": "dashboard", "url": "/d/ace-uptime" },
+    { "title": "LAN Status", "type": "dashboard", "url": "/d/lan-status" }
   ],
   "panels": [
     {
       "id": 1,
       "type": "row",
-      "title": "Health summary",
+      "title": "Topology",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "collapsed": false,
       "panels": []
     },
     {
       "id": 2,
-      "title": "Services Up",
-      "description": "Essential Crux probes currently succeeding (from ace)",
+      "title": "Network diagram",
+      "description": "Logical LAN path and static WAN NAT (live inventory Jul 2026)",
+      "type": "text",
+      "gridPos": { "h": 10, "w": 14, "x": 0, "y": 1 },
+      "options": {
+        "mode": "markdown",
+        "content": "```\nInternet / ISP  (73.26.67.25 → modem 10.0.0.x)\n        |\n   Astracap .1  Gi0/0 WAN  +  Gi0/2 LAN\n   WAN NAT: TCP 80/443 → ace .5 only\n   (no static NAT to crux/nova today)\n        |\n  Astraquasar .3  (L2 switch)\n     |----------+----------+----------|\n   ace .5     crux .6    nova .7    clients\n  Caddy/DNS   Wings      Wings      DHCP .21+\n  Grafana     SFTP:2022  :443\n  Panel       SSH:22\n```\n\n**Crux firewall (Nix):** TCP **22**, **443**, **2022** public on LAN; **9090**/**9115** ace-only.\n\n**Not probed from ace:** MariaDB `:3306` (localhost), Alloy `:12345` (localhost), node_exporter `:9100` (firewalled), dynamic Docker game ports."
+      }
+    },
+    {
+      "id": 3,
+      "title": "Hosts Up (HTTPS/SSH)",
+      "description": "LAN host TCP probes from ace",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "gridPos": { "h": 5, "w": 5, "x": 14, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -54,7 +65,7 @@
       },
       "targets": [
         {
-          "expr": "100 * sum(probe_success{job=~\"blackbox-http-crux|blackbox-tcp-crux\",service_tier=\"essential\"}) / count(probe_success{job=~\"blackbox-http-crux|blackbox-tcp-crux\",service_tier=\"essential\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{job=~\"blackbox-http-crux|blackbox-tcp-crux\",service_tier=\"essential\"})) * on() group_left(total) count_values(\"total\", count(probe_success{job=~\"blackbox-http-crux|blackbox-tcp-crux\",service_tier=\"essential\"})))",
+          "expr": "100 * sum(probe_success{job=~\"blackbox-tcp-lan-hosts|blackbox-tcp-crux\",service=~\"wings|caddy|ssh\",service_role=~\"https|management\"}) / count(probe_success{job=~\"blackbox-tcp-lan-hosts|blackbox-tcp-crux\",service=~\"wings|caddy|ssh\",service_role=~\"https|management\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{job=~\"blackbox-tcp-lan-hosts|blackbox-tcp-crux\",service=~\"wings|caddy|ssh\",service_role=~\"https|management\"})) * on() group_left(total) count_values(\"total\", count(probe_success{job=~\"blackbox-tcp-lan-hosts|blackbox-tcp-crux\",service=~\"wings|caddy|ssh\",service_role=~\"https|management\"})))",
           "refId": "A",
           "legendFormat": "__auto",
           "instant": true,
@@ -65,124 +76,10 @@
       ]
     },
     {
-      "id": 3,
-      "title": "Health Summary",
-      "description": "Current essential Crux probe success rate",
-      "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 4, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "min": 0,
-          "max": 100,
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 80 },
-              { "color": "green", "value": 95 }
-            ]
-          }
-        }
-      },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "textMode": "value_and_name"
-      },
-      "targets": [
-        {
-          "expr": "sum(probe_success{job=~\"blackbox-http-crux|blackbox-tcp-crux\",service_tier=\"essential\"}) / count(probe_success{job=~\"blackbox-http-crux|blackbox-tcp-crux\",service_tier=\"essential\"}) * 100",
-          "legendFormat": "current",
-          "instant": true,
-          "refId": "A"
-        }
-      ]
-    },
-    {
       "id": 4,
-      "title": "Uptime (24h)",
+      "title": "Crux ports down",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "decimals": 2,
-          "min": 0,
-          "max": 100,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 95 },
-              { "color": "green", "value": 99 }
-            ]
-          }
-        }
-      },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "textMode": "value"
-      },
-      "targets": [
-        {
-          "expr": "avg(avg_over_time(probe_success{job=~\"blackbox-http-crux|blackbox-tcp-crux\",service_tier=\"essential\"}[24h])) * 100",
-          "legendFormat": "24h avg",
-          "instant": true,
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 5,
-      "title": "Uptime (7d)",
-      "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 14, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "decimals": 2,
-          "min": 0,
-          "max": 100,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 95 },
-              { "color": "green", "value": 99 }
-            ]
-          }
-        }
-      },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "textMode": "value"
-      },
-      "targets": [
-        {
-          "expr": "avg(avg_over_time(probe_success{job=~\"blackbox-http-crux|blackbox-tcp-crux\",service_tier=\"essential\"}[7d])) * 100",
-          "legendFormat": "7d avg",
-          "instant": true,
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 6,
-      "title": "Services Down",
-      "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 1 },
+      "gridPos": { "h": 5, "w": 5, "x": 19, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -212,19 +109,45 @@
       ]
     },
     {
-      "id": 7,
-      "type": "row",
-      "title": "Core services",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
-      "collapsed": false,
-      "panels": []
+      "id": 5,
+      "title": "ace :443",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 5, "x": 14, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "probe_success{job=\"blackbox-tcp-lan-hosts\",host=\"ace\"}",
+          "instant": true,
+          "refId": "A"
+        }
+      ]
     },
     {
-      "id": 8,
-      "title": "Wings HTTPS",
-      "description": "TCP :443 on 192.168.5.6",
+      "id": 6,
+      "title": "crux :443",
       "type": "stat",
-      "gridPos": { "h": 3, "w": 4, "x": 0, "y": 6 },
+      "gridPos": { "h": 5, "w": 5, "x": 19, "y": 6 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -256,11 +179,18 @@
       ]
     },
     {
-      "id": 9,
-      "title": "Wings API (HTTP)",
-      "description": "HTTPS to crux.lc1… (401 without token = healthy)",
+      "id": 7,
+      "type": "row",
+      "title": "Host & port status",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 11 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 8,
+      "title": "nova :443",
       "type": "stat",
-      "gridPos": { "h": 3, "w": 4, "x": 4, "y": 6 },
+      "gridPos": { "h": 3, "w": 4, "x": 0, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -285,7 +215,42 @@
       },
       "targets": [
         {
-          "expr": "probe_success{job=\"blackbox-http-crux\",service=\"wings\"}",
+          "expr": "probe_success{job=\"blackbox-tcp-lan-hosts\",host=\"nova\"}",
+          "instant": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Astracap SSH",
+      "type": "stat",
+      "gridPos": { "h": 3, "w": 4, "x": 4, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "probe_success{job=\"blackbox-tcp-lan-hosts\",host=\"astracap\"}",
           "instant": true,
           "refId": "A"
         }
@@ -293,10 +258,44 @@
     },
     {
       "id": 10,
-      "title": "File Transfer (SFTP)",
-      "description": "Wings SFTP on TCP :2022",
+      "title": "Astraquasar SSH",
       "type": "stat",
-      "gridPos": { "h": 3, "w": 4, "x": 8, "y": 6 },
+      "gridPos": { "h": 3, "w": 4, "x": 8, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "probe_success{job=\"blackbox-tcp-lan-hosts\",host=\"astraquasar\"}",
+          "instant": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Crux SFTP :2022",
+      "type": "stat",
+      "gridPos": { "h": 3, "w": 4, "x": 12, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -328,11 +327,10 @@
       ]
     },
     {
-      "id": 11,
-      "title": "SSH",
-      "description": "TCP :22",
+      "id": 12,
+      "title": "Crux SSH :22",
       "type": "stat",
-      "gridPos": { "h": 3, "w": 4, "x": 12, "y": 6 },
+      "gridPos": { "h": 3, "w": 4, "x": 16, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -364,52 +362,16 @@
       ]
     },
     {
-      "id": 12,
-      "title": "Blackbox exporter",
-      "description": "TCP :9115 (ace-only firewall)",
-      "type": "stat",
-      "gridPos": { "h": 3, "w": 4, "x": 16, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
-            ]
-          }
-        }
-      },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "textMode": "value"
-      },
-      "targets": [
-        {
-          "expr": "probe_success{job=\"blackbox-tcp-crux\",service=\"blackbox\"}",
-          "instant": true,
-          "refId": "A"
-        }
-      ]
-    },
-    {
       "id": 13,
-      "title": "Prometheus",
-      "description": "TCP :9090 (ace-only firewall)",
+      "title": "WAN → ace :443",
+      "description": "Public HTTPS path ends on ace (static NAT). Not a direct WAN probe.",
       "type": "stat",
-      "gridPos": { "h": 3, "w": 4, "x": 20, "y": 6 },
+      "gridPos": { "h": 3, "w": 4, "x": 20, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "NAT OK", "color": "green" } } }
           ],
           "thresholds": {
             "mode": "absolute",
@@ -429,7 +391,7 @@
       },
       "targets": [
         {
-          "expr": "probe_success{job=\"blackbox-tcp-crux\",service=\"prometheus\"}",
+          "expr": "probe_success{job=\"blackbox-http\",instance=\"https://grafana.prestonhager.com/\",probe_location=\"local\"}",
           "instant": true,
           "refId": "A"
         }
@@ -437,15 +399,13 @@
     },
     {
       "id": 14,
-      "title": "All Crux Services — Status",
-      "description": "Current up/down, latency, and 24h/7d uptime per probe",
+      "title": "Probed ports — live status",
       "type": "table",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 9 },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 15 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
-          "custom": { "align": "auto", "inspect": false },
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+          "custom": { "align": "auto" }
         },
         "overrides": [
           {
@@ -463,87 +423,35 @@
                   }
                 ]
               },
-              { "id": "custom.cellOptions", "value": { "type": "color-background" } },
-              { "id": "custom.width", "value": 90 }
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } }
             ]
           },
           {
             "matcher": { "id": "byName", "options": "Latency" },
             "properties": [
               { "id": "unit", "value": "s" },
-              { "id": "decimals", "value": 3 },
-              { "id": "custom.width", "value": 100 }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Uptime 24h" },
-            "properties": [
-              { "id": "unit", "value": "percent" },
-              { "id": "decimals", "value": 2 },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    { "color": "red", "value": null },
-                    { "color": "yellow", "value": 95 },
-                    { "color": "green", "value": 99 }
-                  ]
-                }
-              },
-              { "id": "custom.cellOptions", "value": { "type": "color-background" } }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Uptime 7d" },
-            "properties": [
-              { "id": "unit", "value": "percent" },
-              { "id": "decimals", "value": 2 },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    { "color": "red", "value": null },
-                    { "color": "yellow", "value": 95 },
-                    { "color": "green", "value": 99 }
-                  ]
-                }
-              },
-              { "id": "custom.cellOptions", "value": { "type": "color-background" } }
+              { "id": "decimals", "value": 3 }
             ]
           }
         ]
       },
       "options": {
-        "cellHeight": "sm",
         "showHeader": true,
+        "cellHeight": "sm",
         "sortBy": [{ "displayName": "Status", "desc": false }]
       },
       "targets": [
         {
-          "expr": "probe_success{job=~\"blackbox-http-crux|blackbox-tcp-crux\"}",
+          "expr": "probe_success{job=~\"blackbox-http-crux|blackbox-tcp-crux|blackbox-tcp-lan-hosts\"}",
           "format": "table",
           "instant": true,
           "refId": "status"
         },
         {
-          "expr": "probe_duration_seconds{job=~\"blackbox-http-crux|blackbox-tcp-crux\"}",
+          "expr": "probe_duration_seconds{job=~\"blackbox-http-crux|blackbox-tcp-crux|blackbox-tcp-lan-hosts\"}",
           "format": "table",
           "instant": true,
           "refId": "latency"
-        },
-        {
-          "expr": "avg_over_time(probe_success{job=~\"blackbox-http-crux|blackbox-tcp-crux\"}[24h]) * 100",
-          "format": "table",
-          "instant": true,
-          "refId": "uptime24h"
-        },
-        {
-          "expr": "avg_over_time(probe_success{job=~\"blackbox-http-crux|blackbox-tcp-crux\"}[7d]) * 100",
-          "format": "table",
-          "instant": true,
-          "refId": "uptime7d"
         }
       ],
       "transformations": [
@@ -554,39 +462,22 @@
             "excludeByName": {
               "Time": true,
               "Time 1": true,
-              "Time 2": true,
-              "Time 3": true,
               "__name__": true,
               "__name__ 1": true,
-              "__name__ 2": true,
-              "__name__ 3": true,
               "job": true,
               "job 1": true,
-              "job 2": true,
-              "job 3": true,
               "module": true,
               "module 1": true,
-              "module 2": true,
-              "module 3": true,
               "probe_location": true,
               "probe_location 1": true,
-              "probe_location 2": true,
-              "probe_location 3": true,
               "service_tier": true,
-              "service_tier 1": true,
-              "service_tier 2": true,
-              "service_tier 3": true,
-              "host": true,
-              "host 1": true,
-              "host 2": true,
-              "host 3": true
+              "service_tier 1": true
             },
             "renameByName": {
               "Value #status": "Status",
               "Value #latency": "Latency",
-              "Value #uptime24h": "Uptime 24h",
-              "Value #uptime7d": "Uptime 7d",
               "instance": "Target",
+              "host": "Host",
               "service": "Service",
               "service_role": "Role"
             }
@@ -596,52 +487,13 @@
     },
     {
       "id": 15,
-      "title": "Probe success (24h)",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "min": 0,
-          "max": 1,
-          "custom": { "fillOpacity": 10, "spanNulls": true }
-        }
-      },
+      "title": "WAN port forwards (documented)",
+      "type": "text",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 27 },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
-      },
-      "targets": [
-        {
-          "expr": "probe_success{job=~\"blackbox-http-crux|blackbox-tcp-crux\"}",
-          "legendFormat": "{{service}} {{service_role}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 16,
-      "title": "Probe latency",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 19 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": { "fillOpacity": 10, "spanNulls": true }
-        }
-      },
-      "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
-      },
-      "targets": [
-        {
-          "expr": "probe_duration_seconds{job=~\"blackbox-http-crux|blackbox-tcp-crux\"}",
-          "legendFormat": "{{service}} {{service_role}}",
-          "refId": "A"
-        }
-      ]
+        "mode": "markdown",
+        "content": "| WAN (Astracap Gi0/0) | Inside | Purpose | Probed? |\n|----------------------|--------|---------|---------|\n| TCP **80** | `192.168.5.5:80` | HTTP → ace / Caddy | via local HTTP probes |\n| TCP **443** | `192.168.5.5:443` | HTTPS → ace | yes (ace services + grafana) |\n| *(none)* | crux `.6` | No static NAT to crux | — |\n| *(none)* | nova `.7` | No static NAT to nova | — |\n| dynamic PAT | all LAN | Outbound internet | n/a |\n\nGame / Wings allocation ports on crux are **LAN-only** unless the Pterodactyl port-forward extension adds NAT. Re-check: `ssh astracap` → `show ip nat translations`."
+      }
     }
   ]
 }

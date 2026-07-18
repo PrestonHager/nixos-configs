@@ -97,4 +97,5 @@ in {
   environment.etc."grafana/dashboards/crux/crux-uptime.json".source = "${grafanaDashboards}/crux-uptime.json";
   environment.etc."grafana/dashboards/crux/crux-http-probes.json".source = "${grafanaDashboards}/crux-http-probes.json";
   environment.etc."grafana/dashboards/lan/lan-status.json".source = "${grafanaDashboards}/lan-status.json";
+  environment.etc."grafana/dashboards/lan/network-topology.json".source = "${grafanaDashboards}/network-topology.json";
 }

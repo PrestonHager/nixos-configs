@@ -27,6 +27,7 @@
 
 - [Overview](pterodactyl-nodes/index.md)
 - [Crux (192.168.5.6)](pterodactyl-nodes/crux.md)
+- [Crux ports & NAT](pterodactyl-nodes/crux-ports.md)
 - [Nova (192.168.5.7)](pterodactyl-nodes/nova.md)
 
 # ph-nixos

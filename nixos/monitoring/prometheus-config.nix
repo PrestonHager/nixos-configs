@@ -34,6 +34,118 @@ let
     "127.0.0.1:443"
   ];
 
+  # Crux host services probed from ace (LAN). Labels drive Crux Service Uptime.
+  cruxHttpStaticConfigs = [
+    {
+      targets = [ "https://crux.lc1.nm.us.prestonhager.com/" ];
+      labels = {
+        __param_module = "http_wings";
+        host = "crux";
+        service = "wings";
+        service_role = "api";
+        probe_location = "local";
+        service_tier = "essential";
+      };
+    }
+  ];
+
+  cruxTcpStaticConfigs = [
+    {
+      targets = [ "192.168.5.6:443" ];
+      labels = {
+        host = "crux";
+        service = "wings";
+        service_role = "https";
+        probe_location = "local";
+        service_tier = "essential";
+      };
+    }
+    {
+      targets = [ "192.168.5.6:2022" ];
+      labels = {
+        host = "crux";
+        service = "wings-sftp";
+        service_role = "file-transfer";
+        probe_location = "local";
+        service_tier = "essential";
+      };
+    }
+    {
+      targets = [ "192.168.5.6:22" ];
+      labels = {
+        host = "crux";
+        service = "ssh";
+        service_role = "management";
+        probe_location = "local";
+        service_tier = "essential";
+      };
+    }
+    {
+      targets = [ "192.168.5.6:9115" ];
+      labels = {
+        host = "crux";
+        service = "blackbox";
+        service_role = "monitoring";
+        probe_location = "local";
+        service_tier = "essential";
+      };
+    }
+    {
+      targets = [ "192.168.5.6:9090" ];
+      labels = {
+        host = "crux";
+        service = "prometheus";
+        service_role = "monitoring";
+        probe_location = "local";
+        service_tier = "essential";
+      };
+    }
+  ];
+
+  # LAN host TCP reachability from ace (network topology dashboard).
+  lanHostTcpStaticConfigs = [
+    {
+      targets = [ "192.168.5.5:443" ];
+      labels = {
+        host = "ace";
+        service = "caddy";
+        service_role = "https";
+        probe_location = "local";
+        service_tier = "essential";
+      };
+    }
+    {
+      targets = [ "192.168.5.7:443" ];
+      labels = {
+        host = "nova";
+        service = "wings";
+        service_role = "https";
+        probe_location = "local";
+        service_tier = "essential";
+      };
+    }
+    {
+      targets = [ "192.168.5.1:22" ];
+      labels = {
+        host = "astracap";
+        service = "ssh";
+        service_role = "management";
+        probe_location = "local";
+        service_tier = "essential";
+      };
+    }
+    {
+      targets = [ "192.168.5.3:22" ];
+      labels = {
+        host = "astraquasar";
+        service = "ssh";
+        service_role = "management";
+        probe_location = "local";
+        service_tier = "essential";
+      };
+    }
+  ];
+
   lanHttpsTargets = cruxBlackboxCfg.lanHttpTargets;
 
   mkBlackboxRelabel = extra: [
@@ -202,6 +314,49 @@ in {
             service_tier = "essential";
           };
         }];
+        relabel_configs = mkBlackboxRelabel [
+          {
+            target_label = "probe_location";
+            replacement = "local";
+          }
+        ];
+      }
+      {
+        job_name = "blackbox-http-crux";
+        metrics_path = "/probe";
+        static_configs = cruxHttpStaticConfigs;
+        relabel_configs = mkBlackboxRelabel [
+          {
+            target_label = "probe_location";
+            replacement = "local";
+          }
+          {
+            target_label = "host";
+            replacement = "crux";
+          }
+        ];
+      }
+      {
+        job_name = "blackbox-tcp-crux";
+        metrics_path = "/probe";
+        params = { module = [ "tcp_connect" ]; };
+        static_configs = cruxTcpStaticConfigs;
+        relabel_configs = mkBlackboxRelabel [
+          {
+            target_label = "probe_location";
+            replacement = "local";
+          }
+          {
+            target_label = "host";
+            replacement = "crux";
+          }
+        ];
+      }
+      {
+        job_name = "blackbox-tcp-lan-hosts";
+        metrics_path = "/probe";
+        params = { module = [ "tcp_connect" ]; };
+        static_configs = lanHostTcpStaticConfigs;
         relabel_configs = mkBlackboxRelabel [
           {
             target_label = "probe_location";

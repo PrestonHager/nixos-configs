@@ -86,6 +86,8 @@ Details: [DNS on ace](dns-ace.md).
 | TCP 443 | `192.168.5.5:443` | HTTPS to ace |
 | Other outbound | PAT via Gi0/0 | All LAN hosts |
 
+No static WAN NAT to **crux** or **nova** as of Jul 2026. Crux listening ports and probe coverage: [crux-ports.md](crux-ports.md). Grafana: [Network Topology & Ports](https://grafana.prestonhager.com/d/network-topology).
+
 ## SSH and documentation index
 
 | Topic | Document |
