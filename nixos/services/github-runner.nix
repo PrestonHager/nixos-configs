@@ -10,7 +10,7 @@ let
 
   # Tools GitHub-hosted Ubuntu runners commonly provide that CI scripts expect.
   # Used only for backend = "native". Container backend uses an Ubuntu image
-  # plus a shared tools volume (rustup bootstrap + pkgs.zig symlink).
+  # plus a shared tools volume (rustup bootstrap + pkgs.zig/ffmpeg symlinks).
   defaultParityPackages = with pkgs; [
     curl
     wget
@@ -32,6 +32,7 @@ let
     pkg-config
     openssl
     zig
+    ffmpeg
   ];
 
   defaultBaseImage = "docker.io/myoung34/github-runner:ubuntu-noble";
@@ -55,7 +56,7 @@ let
       mkdir -p "$TOOLS" "$TOOLS/bin"
       export DEBIAN_FRONTEND=noninteractive
       # Bootstrap only: rustup installs toolchain binaries under the shared tools volume.
-      # pkgs.zig is symlinked into $TOOLS/bin on the host (needs /nix/store mounted).
+      # pkgs.zig / pkgs.ffmpeg are symlinked into $TOOLS/bin on the host (needs /nix/store mounted).
       export CARGO_HOME="$TOOLS_CARGO"
       export RUSTUP_HOME="$TOOLS/rustup"
       export PATH="$TOOLS/bin:$TOOLS_CARGO/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -635,7 +636,7 @@ in {
     );
 
     # Render ACCESS_TOKEN=… env files from sops/tokenFile for myoung34 image.
-    # Also provision pkgs.zig (and future Nix toolchains) into the shared tools volume.
+    # Also provision pkgs.zig / pkgs.ffmpeg (and future Nix toolchains) into the shared tools volume.
     # Build baked runner image; optional ghost-watch timer.
     environment.systemPackages = lib.mkIf (cfg.backend == "container") [
       recoverGhostScript
@@ -723,7 +724,7 @@ in {
       # Symlink nixpkgs toolchains into the shared volume (survives ephemeral restarts).
       ++ (lib.optionals (cfg.backend == "container") [{
         github-runner-tools-bin = {
-          description = "Provision shared GitHub runner toolchain bins (zig)";
+          description = "Provision shared GitHub runner toolchain bins (zig, ffmpeg)";
           wantedBy = [ "multi-user.target" ];
           before = map ({ cname, ... }: "${containerUnitName cname}.service")
             containerInstances;
@@ -731,12 +732,14 @@ in {
             Type = "oneshot";
             RemainAfterExit = true;
           };
-          # Keep zig's nix store path alive across GC.
+          # Keep zig/ffmpeg nix store paths alive across GC.
           path = [ pkgs.coreutils ];
           script = ''
             set -euo pipefail
             install -d -m 0755 ${toolsDir}/bin
             ln -sfn ${lib.escapeShellArg "${pkgs.zig}/bin/zig"} ${toolsDir}/bin/zig
+            ln -sfn ${lib.escapeShellArg "${pkgs.ffmpeg}/bin/ffmpeg"} ${toolsDir}/bin/ffmpeg
+            ln -sfn ${lib.escapeShellArg "${pkgs.ffmpeg}/bin/ffprobe"} ${toolsDir}/bin/ffprobe
           '';
         };
       }])
@@ -927,8 +930,8 @@ in {
               [
                 "${containerEntrypoint}:/bootstrap/homelab-entrypoint.sh:ro"
                 "${toolsDir}:${toolsDir}"
-                # pkgs.zig (and any other Nix-linked tools under ${toolsDir}/bin)
-                # need store paths resolvable inside the Ubuntu container.
+                # pkgs.zig / pkgs.ffmpeg (and any other Nix-linked tools under
+                # ${toolsDir}/bin) need store paths resolvable inside the Ubuntu container.
                 "/nix/store:/nix/store:ro"
                 "${workDir name i}:${workDir name i}"
               ]

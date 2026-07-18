@@ -114,6 +114,7 @@ systemctl restart github-runner-image.service
 | FHS / libs | Ubuntu glibc + apt (`build-essential`, openssl, …) baked into local image | Nix store PATH + `parityPackages` |
 | Rust | Bootstrap installs rustup + `x86_64` + `aarch64-unknown-linux-gnu` into `/var/lib/github-runner-tools` | Must add toolchain yourself; cross `core`/`std` often missing |
 | Zig | Host symlinks `pkgs.zig` → `/var/lib/github-runner-tools/bin/zig` (+ `/nix/store` RO mount) | Included in `parityPackages` |
+| ffmpeg / ffprobe | Host symlinks `pkgs.ffmpeg` → `…/bin/ffmpeg` and `…/bin/ffprobe` (same tools volume + store mount) | Included in `parityPackages` |
 | Job `container:` | Host Podman socket mounted at `/var/run/docker.sock` | Opt-in `docker.enable` (Docker) |
 | Node externals | Image provides Actions node | Module ships `node20`+`node24` externals |
 
@@ -218,10 +219,10 @@ NIX_BUILD_CORES=12 nixos-rebuild switch --flake .#ace -j 4 --option max-jobs 4 -
 systemctl status podman-github-runner-ace-{1,2,3,4}
 podman logs --tail 30 github-runner-ace-1   # expect "Listening for Jobs"
 podman exec github-runner-ace-1 bash -lc \
-  'rustup show; rustup target list --installed; rustc --print target-libdir --target aarch64-unknown-linux-gnu; which zig; zig version'
+  'rustup show; rustup target list --installed; rustc --print target-libdir --target aarch64-unknown-linux-gnu; which zig; zig version; which ffmpeg ffprobe; ffmpeg -version | head -n1'
 ```
 
-Expect installed targets including `aarch64-unknown-linux-gnu` (so `core`/`std` resolve), and `zig` on `PATH` from `/var/lib/github-runner-tools/bin`. Cold start should **not** re-download apt cross packages when using the baked image (`homelab-ci: apt/cross toolchain present`). Rustup still bootstraps once into `/var/lib/github-runner-tools` (shared; flocked). Zig is provisioned by `github-runner-tools-bin.service` on each rebuild.
+Expect installed targets including `aarch64-unknown-linux-gnu` (so `core`/`std` resolve), and `zig` / `ffmpeg` / `ffprobe` on `PATH` from `/var/lib/github-runner-tools/bin`. Cold start should **not** re-download apt cross packages when using the baked image (`homelab-ci: apt/cross toolchain present`). Rustup still bootstraps once into `/var/lib/github-runner-tools` (shared; flocked). Zig and ffmpeg are provisioned by `github-runner-tools-bin.service` on each rebuild.
 
 ## Options (summary)
 
@@ -254,11 +255,12 @@ On first start of a **stock** base image, each Ubuntu runner would apt-install b
 
 - **rustup** stable with targets `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` (binaries under the tools volume; on `PATH`)
 - **zig** from nixpkgs (`pkgs.zig`), symlinked to `/var/lib/github-runner-tools/bin/zig` by `github-runner-tools-bin` (containers mount `/nix/store` read-only so the Nix-linked binary runs)
+- **ffmpeg** / **ffprobe** from nixpkgs (`pkgs.ffmpeg`), same symlink pattern (`…/bin/ffmpeg`, `…/bin/ffprobe`) for media seed jobs (e.g. soundbytes-app)
 - Env: `RUSTUP_HOME=/var/lib/github-runner-tools/rustup`, `CARGO_HOME=/root/.cargo`, cross-linker vars; `PATH` includes `$TOOLS/bin` then `$TOOLS/cargo/bin`
 
 Each start also clears the runner **workdir** and per-container cargo/npm caches (not the shared toolchains).
 
-This fixes CI errors like `can't find crate for core` / `std` for `aarch64-unknown-linux-gnu`, and lets workflows skip downloading Zig when they detect it on `PATH` (or drop `setup-zig` on Ace-labeled jobs).
+This fixes CI errors like `can't find crate for core` / `std` for `aarch64-unknown-linux-gnu`, lets workflows skip downloading Zig when they detect it on `PATH` (or drop `setup-zig` on Ace-labeled jobs), and makes `ffmpeg` available for seed steps that previously failed with “no ffmpeg on Ace runners”.
 
 **Not shared across jobs:** Cargo registry/git and npm caches. Each ephemeral container start wipes `/root/.cargo/{registry,git}` and `/root/.npm`. Restore them with **GitHub Actions cache** in the workflow (below) — not host bind-mounts.
 
