@@ -3,11 +3,13 @@
 Reusable NixOS module: `nixos/services/github-runner.nix`  
 Option namespace: `homelab.github-runners`
 
-Enabled on **ace** (`hosts/ace/default.nix`) with **container backend** (Ubuntu Noble OCI via Podman) and **4 parallel runners**, all registered to **soundbytes-app**:
+Enabled on **ace** (`hosts/ace/default.nix`) with **container backend** (Amazon Linux 2023 OCI via Podman, glibc **2.34**) and **4 parallel runners**, all registered to **soundbytes-app**:
 
 | Runner name(s) | Register URL | systemd / Podman unit(s) | Custom label |
 |----------------|--------------|--------------------------|--------------|
-| `ace-1` … `ace-4` | `https://github.com/PrestonHager/soundbytes-app` | `podman-github-runner-ace-1` … `-4` | `ace-ubuntu-x64-4` |
+| `ace-1` … `ace-4` | `https://github.com/PrestonHager/soundbytes-app` | `podman-github-runner-ace-1` … `-4` | `ace-al2023-x64-4` |
+
+**Why AL2023:** AWS Lambda `provided.al2023` ships glibc **2.34**. Ubuntu Noble runners have glibc **2.39**, so native `bootstrap` binaries linked on Noble fail on Lambda with `requires GLIBC_2.39`. Ace runners use a baked `localhost/homelab-github-runner:al2023` image so default native builds link against ≤2.34.
 
 **Org / user-wide runners:** not available. `PrestonHager` is a personal GitHub user (not an Organization). `GET /orgs/PrestonHager/actions/runners` returns **404**. GitHub only supports org-scoped shared runners on Organizations. Personal accounts must register runners **per repository**. Ace therefore points all four at `soundbytes-app` (the primary CI consumer). To also serve `nixos-configs`, you would need a second set of repo-scoped runners (more CPU/RAM) or a GitHub Organization.
 
@@ -18,25 +20,27 @@ Verify Online: **soundbytes-app → Settings → Actions → Runners**. On ace:
 ```bash
 systemctl status podman-github-runner-ace-{1,2,3,4}
 podman ps --filter name=github-runner
+podman exec github-runner-ace-1 ldd --version   # expect GLIBC 2.34
 ```
 
 ## Targeting workflows (`runs-on`)
 
-Use the single custom label:
+Use the single custom label for Lambda-compatible / AL2023 builds:
 
 ```yaml
 jobs:
   build:
-    runs-on: ace-ubuntu-x64-4
+    runs-on: ace-al2023-x64-4
     steps:
       - uses: actions/checkout@v4
       # …
 ```
 
-GitHub **always** also attaches read-only labels `self-hosted`, `Linux`, and `X64` (cannot be removed). Workflows may still match with `runs-on: [self-hosted, linux, x64]` style lists, but prefer **`ace-ubuntu-x64-4` alone** so jobs land only on these Ace Ubuntu 4-vCPU runners.
+GitHub **always** also attaches read-only labels `self-hosted`, `Linux`, and `X64` (cannot be removed). Prefer **`ace-al2023-x64-4` alone** so jobs land only on these Ace AL2023 4-vCPU runners.
 
-**Migration:** older Ace labels (`ace`, `soundbytes-app`, `ubuntu-noble`, `nixos`, …) are no longer registered. Update any workflow still using those custom labels to `ace-ubuntu-x64-4`.
+**Migration:** update soundbytes (and any other) workflows from `ace-ubuntu-x64-4` to `ace-al2023-x64-4`. Older custom labels (`ace`, `soundbytes-app`, `ubuntu-noble`, `nixos`, …) are no longer registered.
 
+**Optional Ubuntu runners:** the module still defaults to Ubuntu Noble (`Containerfile` + `ace-ubuntu-x64-4`). To run a mix (e.g. 2× AL2023 for Lambda + 2× Ubuntu for general CI), define two runner attrs with distinct `extraLabels`, point each at the matching `container.image`, and extend `github-runner-image` / stamps so both tags are baked.
 ## Capacity / sizing (ace)
 
 Live profile (2026-07-12):
@@ -66,7 +70,7 @@ Ephemeral runners exit after each job and re-register. Past failure mode: proces
 
 Mitigations in this module:
 
-1. **Baked image** — `github-runner-image.service` builds `localhost/homelab-github-runner:ubuntu-noble` from `nixos/services/github-runner/Containerfile` (base `myoung34/github-runner:ubuntu-noble` + apt build/cross packages). Ephemeral restarts should log `homelab-ci: apt/cross toolchain present (baked image)` instead of downloading ~74 MB of debs.
+1. **Baked image** — `github-runner-image.service` builds the configured tag from `homelab.github-runners.containerfile`. Ace uses `Containerfile.al2023` → `localhost/homelab-github-runner:al2023` (base `amazonlinux:2023` + dnf toolchain + official Actions runner; myoung34 scripts for register/deregister). Ephemeral restarts should log `homelab-ci: toolchain present (baked image)` instead of downloading packages every time. Ubuntu Noble remains available via the default `Containerfile` / `ubuntu-noble` tag.
 2. **Deregister order** — `DISABLE_AUTOMATIC_DEREGISTRATION=true`; homelab entrypoint deregisters with `config.sh remove` **while** `.runner` exists, else deletes the runner by name via the GitHub API.
 3. **Workdir wipe** — each start clears `$RUNNER_WORKDIR` contents (bind-mounted `/var/lib/github-runner/<name>-<i>/work`).
 4. **Ghost recovery** — timer `github-runner-ghost-watch.timer` (every ~5 min) cancels stuck jobs and restarts offline+busy units; ops script `scripts/github-runner-recover-ghost.sh` (also `github-runner-recover-ghost` on PATH on ace).
@@ -92,12 +96,15 @@ systemctl start github-runner-ghost-watch.service
 
 | Item | Value |
 |------|--------|
-| Containerfile | `nixos/services/github-runner/Containerfile` |
+| Containerfile (Ubuntu) | `nixos/services/github-runner/Containerfile` |
+| Containerfile (AL2023) | `nixos/services/github-runner/Containerfile.al2023` |
 | Build unit | `github-runner-image.service` |
-| Image tag | `localhost/homelab-github-runner:ubuntu-noble` (Podman local store) |
+| Image tag (ace) | `localhost/homelab-github-runner:al2023` |
+| Image tag (module default) | `localhost/homelab-github-runner:ubuntu-noble` |
 | Stamp | `/var/lib/github-runner-tools/image.stamp` (Containerfile sha256 + base image id) |
 | Base option | `homelab.github-runners.containerBaseImage` |
 | Image option | `homelab.github-runners.containerImage` |
+| File option | `homelab.github-runners.containerfile` |
 
 Rebuild the image after Containerfile or base digest changes (automatic on next `github-runner-image.service` start / nixos-rebuild). Force:
 
@@ -110,14 +117,13 @@ systemctl restart github-runner-image.service
 
 | | `backend = "container"` (ace default) | `backend = "native"` |
 |--|----------------------------------------|----------------------|
-| Runtime | Podman OCI (`localhost/homelab-github-runner:ubuntu-noble`, from myoung34) | NixOS `services.github-runners` |
-| FHS / libs | Ubuntu glibc + apt (`build-essential`, openssl, …) baked into local image | Nix store PATH + `parityPackages` |
+| Runtime | Podman OCI (`al2023` on ace; Ubuntu Noble available) | NixOS `services.github-runners` |
+| FHS / libs | Distro glibc + baked toolchain (AL2023 = 2.34; Noble = 2.39) | Nix store PATH + `parityPackages` |
 | Rust | Bootstrap installs rustup + `x86_64` + `aarch64-unknown-linux-gnu` into `/var/lib/github-runner-tools` | Must add toolchain yourself; cross `core`/`std` often missing |
 | Zig | Host symlinks `pkgs.zig` → `/var/lib/github-runner-tools/bin/zig` (+ `/nix/store` RO mount) | Included in `parityPackages` |
 | ffmpeg / ffprobe | Host symlinks `pkgs.ffmpeg` → `…/bin/ffmpeg` and `…/bin/ffprobe` (same tools volume + store mount) | Included in `parityPackages` |
 | Job `container:` | Host Podman socket mounted at `/var/run/docker.sock` | Opt-in `docker.enable` (Docker) |
 | Node externals | Image provides Actions node | Module ships `node20`+`node24` externals |
-
 Workflows do **not** need a job-level `container:` for Ubuntu parity — the **runner itself** is Ubuntu. Optional job `container:` still works via the mounted Podman socket.
 
 ## Few steps to join GitHub
@@ -180,7 +186,8 @@ Ace already does this (`hosts/ace/default.nix`). Pattern:
         url = "https://github.com/PrestonHager/soundbytes-app";
         instances = 4;
         # Single custom label; GitHub still adds self-hosted / Linux / X64
-        extraLabels = [ "ace-ubuntu-x64-4" ];
+        extraLabels = [ "ace-al2023-x64-4" ];
+        # Ace also sets containerImage/containerBaseImage/containerfile to AL2023
       };
     };
   };
@@ -212,17 +219,17 @@ NIX_BUILD_CORES=12 nixos-rebuild switch --flake .#ace -j 4 --option max-jobs 4 -
 
 ### 5. Verify
 
-1. GitHub → **soundbytes-app** → **Settings → Actions → Runners** → four runners **Online** (`ace-1`…`ace-4`)
+1. GitHub → **soundbytes-app** → **Settings → Actions → Runners** → four runners **Online** (`ace-1`…`ace-4`) with label `ace-al2023-x64-4`
 2. On the host:
 
 ```bash
 systemctl status podman-github-runner-ace-{1,2,3,4}
 podman logs --tail 30 github-runner-ace-1   # expect "Listening for Jobs"
 podman exec github-runner-ace-1 bash -lc \
-  'rustup show; rustup target list --installed; rustc --print target-libdir --target aarch64-unknown-linux-gnu; which zig; zig version; which ffmpeg ffprobe; ffmpeg -version | head -n1'
+  'ldd --version; rustup show; rustup target list --installed; which zig; zig version; which ffmpeg ffprobe; ffmpeg -version | head -n1'
 ```
 
-Expect installed targets including `aarch64-unknown-linux-gnu` (so `core`/`std` resolve), and `zig` / `ffmpeg` / `ffprobe` on `PATH` from `/var/lib/github-runner-tools/bin`. Cold start should **not** re-download apt cross packages when using the baked image (`homelab-ci: apt/cross toolchain present`). Rustup still bootstraps once into `/var/lib/github-runner-tools` (shared; flocked). Zig and ffmpeg are provisioned by `github-runner-tools-bin.service` on each rebuild.
+Expect **GLIBC 2.34**, installed Rust targets including `aarch64-unknown-linux-gnu`, and `zig` / `ffmpeg` / `ffprobe` on `PATH` from `/var/lib/github-runner-tools/bin`. Cold start should **not** re-download packages when using the baked image (`homelab-ci: toolchain present (baked image)`). Rustup still bootstraps once into `/var/lib/github-runner-tools` (shared; flocked). Zig and ffmpeg are provisioned by `github-runner-tools-bin.service` on each rebuild.
 
 ## Options (summary)
 
@@ -230,8 +237,9 @@ Expect installed targets including `aarch64-unknown-linux-gnu` (so `core`/`std` 
 |--------|---------|--------|
 | `enable` | `false` | Master switch |
 | `backend` | `"container"` | `"container"` or `"native"` |
-| `containerImage` | `localhost/homelab-github-runner:ubuntu-noble` | Baked local image (see Hardening) |
-| `containerBaseImage` | `myoung34/github-runner:ubuntu-noble` | FROM for `github-runner-image.service` |
+| `containerImage` | `localhost/homelab-github-runner:ubuntu-noble` | Ace overrides to `:al2023` |
+| `containerBaseImage` | `myoung34/github-runner:ubuntu-noble` | Ace: `amazonlinux:2023` |
+| `containerfile` | `…/Containerfile` | Ace: `…/Containerfile.al2023` |
 | `containerMemory` / `containerCpus` | `4096m` / `4` | Defaults when per-runner `container.*` is null |
 | `runners.<name>.url` | required | Org or repo URL |
 | `runners.<name>.name` | attr key | Base name in GitHub UI |
@@ -241,7 +249,7 @@ Expect installed targets including `aarch64-unknown-linux-gnu` (so `core`/`std` 
 | `runners.<name>.sopsKey` | `token` | YAML key |
 | `runners.<name>.tokenFile` | `null` | Bypass sops (tests only) |
 | `runners.<name>.ephemeral` | `true` | Prefer PAT |
-| `runners.<name>.extraLabels` | `[ "ace-ubuntu-x64-4" ]` | Custom only; GH adds self-hosted/OS/arch |
+| `runners.<name>.extraLabels` | `[ "ace-ubuntu-x64-4" ]` | Ace uses `ace-al2023-x64-4`; GH adds self-hosted/OS/arch |
 | `runners.<name>.container.memory` / `.cpus` | `null` | Inherit top-level defaults |
 | `runners.<name>.extraPackages` | `[]` | Native only |
 | `runners.<name>.docker.enable` | `false` | Native only; needs `user` + `group` |
@@ -251,8 +259,7 @@ Expect installed targets including `aarch64-unknown-linux-gnu` (so `core`/`std` 
 
 ### Tooling parity (container backend)
 
-On first start of a **stock** base image, each Ubuntu runner would apt-install build/cross packages. Ace uses the **baked** local image so that step is skipped. Shared volume `/var/lib/github-runner-tools` still gets:
-
+On first start of a **stock** base image, runners may install build packages via apt (Ubuntu) or dnf (AL2023). Ace uses the **baked** local image so that step is skipped. Shared volume `/var/lib/github-runner-tools` still gets:
 - **rustup** stable with targets `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` (binaries under the tools volume; on `PATH`)
 - **zig** from nixpkgs (`pkgs.zig`), symlinked to `/var/lib/github-runner-tools/bin/zig` by `github-runner-tools-bin` (containers mount `/nix/store` read-only so the Nix-linked binary runs)
 - **ffmpeg** / **ffprobe** from nixpkgs (`pkgs.ffmpeg`), same symlink pattern (`…/bin/ffmpeg`, `…/bin/ffprobe`) for media seed jobs (e.g. soundbytes-app)

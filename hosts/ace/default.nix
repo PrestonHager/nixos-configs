@@ -15,7 +15,7 @@
     ../../nixos/nfs
     # matrix home server (Synapse)
     ../../nixos/matrix.nix
-    # GitHub Actions self-hosted runners â€” docs/github-runner.md
+    # GitHub Actions self-hosted runners — docs/github-runner.md
     ../../nixos/services/github-runner.nix
     # hardware configuration for the MSI Summit E16 Flip
     ../../hardware/dell-poweredge-730xd/hardware-configuration.nix
@@ -24,14 +24,14 @@
     # include any users
     ../../users/prestonh
     ../../users/dylanh
-    # K80 GPU stack (Tesla K80 / legacy 470) â€” docs/ace-k80-gpu.md
+    # K80 GPU stack (Tesla K80 / legacy 470) — docs/ace-k80-gpu.md
     inputs.ace-k80-stack.nixosModules.k80-gpu
   ];
 
-  # 32 GiB swap file on root (sdb2, ~2.9T free) â€” safety net for rebuild memory
+  # 32 GiB swap file on root (sdb2, ~2.9T free) — safety net for rebuild memory
   # pressure. Chosen over zram: disk-backed swap does not compete with the
   # compressed-RAM budget on a 31 GiB host. Created on activation when size is set.
-  # Pending constrained rebuild â€” do not apply unconstrained. See docs/ace-rebuild-freeze-rca.md.
+  # Pending constrained rebuild — do not apply unconstrained. See docs/ace-rebuild-freeze-rca.md.
   swapDevices = [{
     device = "/var/lib/swapfile";
     size = 32 * 1024; # MiB
@@ -101,8 +101,8 @@
 
   # --- K80 GPU stack (Tesla K80 / legacy 470) ---
   # See docs/ace-k80-gpu.md and https://github.com/PrestonHager/ace-k80-stack
-  # Insecure packages required on ace (literal names â€” avoid pkgs.*.version here).
-  # - openclaw: LLM gateway for ai.prestonhager.com (TEMPORARILY DISABLED â€” re-add when re-enabling)
+  # Insecure packages required on ace (literal names — avoid pkgs.*.version here).
+  # - openclaw: LLM gateway for ai.prestonhager.com (TEMPORARILY DISABLED — re-add when re-enabling)
   # - nodejs 20 / slim: GitHub Actions runner externals/node20 + parityPackages
   nixpkgs.config.permittedInsecurePackages = [
     # "openclaw-2026.6.5"  # TEMPORARILY DISABLED with OpenClaw / ai.prestonhager.com
@@ -112,31 +112,37 @@
   services.aceK80 = {
     enable = true;
     enableOllama = true;
-    # TEMPORARILY DISABLED â€” reopen ai.prestonhager.com later (docs/ace-openclaw-sso.md)
+    # TEMPORARILY DISABLED — reopen ai.prestonhager.com later (docs/ace-openclaw-sso.md)
     enableOpenClaw = false;
     # openclaw.package = pkgs.openclaw;
   };
 
-  # GitHub Actions runners ? Ubuntu Noble OCI via baked local image
-  # (localhost/homelab-github-runner:ubuntu-noble from myoung34 + apt/cross).
+  # GitHub Actions runners -- Amazon Linux 2023 OCI (glibc 2.34) via baked local
+  # image (localhost/homelab-github-runner:al2023). Matches AWS Lambda
+  # provided.al2023 so soundbytes-api bootstrap binaries link correctly.
   # Profiling 2026-07-12 on ace: 48 CPUs, 31 GiB RAM + 32 GiB swap; ~7 GiB steady
-  # for web stacks. N=4 × 4096m × 4 CPUs ? 16 GiB / 16 CPUs peak CI; rest for
+  # for web stacks. N=4 x 4096m x 4 CPUs => 16 GiB / 16 CPUs peak CI; rest for
   # Nextcloud/Pterodactyl/Matrix/Grafana/Caddy and nix max-jobs=4.
   # PrestonHager is a personal account (not an org): no user/org-wide runners
   # (GitHub API 404). All four register to soundbytes-app (primary CI consumer).
-  # Token: nix-secrets secrets/github-runner.yaml ? token
-  # Workflows: runs-on: ace-ubuntu-x64-4  (GitHub also adds self-hosted/Linux/X64)
+  # Token: nix-secrets secrets/github-runner.yaml -> token
+  # Workflows: runs-on: ace-al2023-x64-4  (GitHub also adds self-hosted/Linux/X64)
   # Ops: docs/github-runner.md (ghost recovery, image bake, workdir wipe)
+  # Ubuntu Noble image/label (ace-ubuntu-x64-4) remains available via module defaults
+  # if a second runner set is needed for general Ubuntu CI.
   homelab.github-runners = {
     enable = true;
     backend = "container";
+    containerImage = "localhost/homelab-github-runner:al2023";
+    containerBaseImage = "docker.io/amazonlinux:2023";
+    containerfile = ../../nixos/services/github-runner/Containerfile.al2023;
     containerMemory = "4096m";
     containerCpus = "4";
     runners = {
       ace = {
         url = "https://github.com/PrestonHager/soundbytes-app";
         instances = 4;
-        extraLabels = [ "ace-ubuntu-x64-4" ];
+        extraLabels = [ "ace-al2023-x64-4" ];
       };
     };
   };

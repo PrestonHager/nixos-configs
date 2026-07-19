@@ -1,0 +1,61 @@
+# Homelab GitHub Actions runner: Amazon Linux 2023 (glibc 2.34).
+# Native builds link against GLIBC ≤2.34 — compatible with AWS Lambda provided.al2023.
+#
+# Registration/entrypoint scripts come from myoung34 (same env contract as the
+# Ubuntu Noble image). Toolchain is baked via dnf so ephemeral restarts skip installs.
+#
+# Built on the host by github-runner-image.service (Podman).
+# Tag: localhost/homelab-github-runner:al2023
+ARG BASE_IMAGE=docker.io/amazonlinux:2023
+ARG MYOUNG34_IMAGE=docker.io/myoung34/github-runner:ubuntu-noble
+ARG GH_RUNNER_VERSION=2.335.1
+
+FROM ${MYOUNG34_IMAGE} AS myoung34
+
+FROM ${BASE_IMAGE}
+
+ARG GH_RUNNER_VERSION=2.335.1
+
+USER root
+
+# Core build + runner runtime deps. Split optional packages so a missing name
+# does not fail the whole bake.
+RUN dnf install -y --setopt=install_weak_deps=0 \
+      gcc gcc-c++ make cmake \
+      openssl-devel libffi-devel zlib-devel \
+      ca-certificates curl wget jq unzip zip rsync \
+      gnupg2 openssh-clients git python3 \
+      libicu krb5-libs \
+      tar gzip findutils which hostname procps-ng \
+      shadow-utils \
+ && (dnf install -y --setopt=install_weak_deps=0 pkgconf-pkg-config || dnf install -y pkgconf || true) \
+ && (dnf install -y --setopt=install_weak_deps=0 lttng-ust || true) \
+ && dnf clean all \
+ && rm -rf /var/cache/dnf /var/cache/libdnf5
+
+# Best-effort aarch64 cross (may be absent on some AL2023 repos); zig remains on PATH via tools volume.
+RUN dnf install -y --setopt=install_weak_deps=0 \
+      gcc-aarch64-linux-gnu gcc-c++-aarch64-linux-gnu \
+      binutils-aarch64-linux-gnu \
+    || echo "homelab-ci: aarch64 cross packages unavailable on this base; use zig for cross"
+
+# myoung34 entrypoint shebang: #!/usr/bin/dumb-init /bin/bash
+RUN curl -fsSL -o /usr/bin/dumb-init \
+      https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_x86_64 \
+ && chmod +x /usr/bin/dumb-init
+
+ENV AGENT_TOOLSDIRECTORY=/opt/hostedtoolcache
+RUN mkdir -p /opt/hostedtoolcache /_work /actions-runner
+
+WORKDIR /actions-runner
+RUN curl -fsSL -o /tmp/actions-runner.tgz \
+      "https://github.com/actions/runner/releases/download/v${GH_RUNNER_VERSION}/actions-runner-linux-x64-${GH_RUNNER_VERSION}.tar.gz" \
+ && tar xzf /tmp/actions-runner.tgz -C /actions-runner \
+ && rm -f /tmp/actions-runner.tgz
+
+COPY --from=myoung34 /token.sh /app_token.sh /entrypoint.sh /
+RUN chmod +x /token.sh /app_token.sh /entrypoint.sh \
+ && touch /etc/homelab-ci-baked
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["./bin/Runner.Listener", "run", "--startuptype", "service"]

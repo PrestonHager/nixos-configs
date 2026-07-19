@@ -37,7 +37,7 @@ let
 
   defaultBaseImage = "docker.io/myoung34/github-runner:ubuntu-noble";
   defaultContainerImage = "localhost/homelab-github-runner:ubuntu-noble";
-  containerfileSrc = ./github-runner/Containerfile;
+  defaultContainerfile = ./github-runner/Containerfile;
   imageStampPath = "/var/lib/github-runner-tools/image.stamp";
 
   # Bootstrap once into a shared volume: rustup (+ apt fallback if image lacks
@@ -61,8 +61,10 @@ let
       export RUSTUP_HOME="$TOOLS/rustup"
       export PATH="$TOOLS/bin:$TOOLS_CARGO/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-      # Prefer baked image packages; keep apt as fallback for stock base images.
-      if ! command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
+      # Prefer baked image packages (/etc/homelab-ci-baked); apt/dnf fallback for stock bases.
+      if [ -f /etc/homelab-ci-baked ]; then
+        echo "homelab-ci: toolchain present (baked image)"
+      elif command -v apt-get >/dev/null 2>&1; then
         echo "homelab-ci: installing apt build/cross packages (image missing toolchain) ..."
         apt-get update -qq
         apt-get install -y --no-install-recommends \
@@ -71,8 +73,21 @@ let
           git cmake python3 \
           gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
           libc6-dev-arm64-cross binutils-aarch64-linux-gnu
+      elif command -v dnf >/dev/null 2>&1; then
+        echo "homelab-ci: installing dnf build packages (image missing toolchain) ..."
+        dnf install -y --setopt=install_weak_deps=0 \
+          gcc gcc-c++ make cmake pkgconf-pkg-config \
+          openssl-devel libffi-devel zlib-devel \
+          ca-certificates curl wget jq unzip zip rsync \
+          gnupg2 openssh-clients git python3 libicu \
+          tar gzip findutils which \
+          || true
+        dnf install -y --setopt=install_weak_deps=0 \
+          gcc-aarch64-linux-gnu gcc-c++-aarch64-linux-gnu \
+          binutils-aarch64-linux-gnu \
+          || echo "homelab-ci: aarch64 cross unavailable via dnf"
       else
-        echo "homelab-ci: apt/cross toolchain present (baked image)"
+        echo "homelab-ci: WARNING no apt/dnf and no baked marker — toolchain may be incomplete"
       fi
 
       if [ ! -x "$TOOLS_CARGO/bin/rustup" ]; then
@@ -104,10 +119,12 @@ let
           x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu >/dev/null 2>&1 || true
       fi
 
-      # Cross-link defaults for cargo/rustc (matches GitHub ubuntu runners + apt cross gcc).
-      export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER="''${CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER:-aarch64-linux-gnu-gcc}"
-      export CC_aarch64_unknown_linux_gnu="''${CC_aarch64_unknown_linux_gnu:-aarch64-linux-gnu-gcc}"
-      export CXX_aarch64_unknown_linux_gnu="''${CXX_aarch64_unknown_linux_gnu:-aarch64-linux-gnu-g++}"
+      # Cross-link defaults when aarch64 cross gcc exists (Ubuntu bake / optional AL2023).
+      if command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
+        export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER="''${CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER:-aarch64-linux-gnu-gcc}"
+        export CC_aarch64_unknown_linux_gnu="''${CC_aarch64_unknown_linux_gnu:-aarch64-linux-gnu-gcc}"
+        export CXX_aarch64_unknown_linux_gnu="''${CXX_aarch64_unknown_linux_gnu:-aarch64-linux-gnu-g++}"
+      fi
 
       # Job caches must NOT live on the shared tools volume (cross-job/PR/repo leak).
       # Use GitHub actions/cache (Swatinem/rust-cache, actions/setup-node cache) instead.
@@ -451,8 +468,8 @@ in {
       type = lib.types.enum [ "native" "container" ];
       default = "container";
       description = ''
-        `container` (default): Ubuntu OCI runners via Podman (GitHub-hosted FHS
-        parity, rustup aarch64 target, apt libs). `native`: NixOS
+        `container` (default): OCI runners via Podman (Ubuntu Noble or AL2023
+        baked images + shared tools volume). `native`: NixOS
         services.github-runners with parityPackages on PATH.
       '';
     };
@@ -462,8 +479,9 @@ in {
       default = defaultContainerImage;
       description = ''
         OCI image for container-backend runners. Default is the locally built
-        `localhost/homelab-github-runner:ubuntu-noble` (base + apt/cross toolchain).
-        Built by `github-runner-image.service` from nixos/services/github-runner/Containerfile.
+        Ubuntu Noble image. Ace uses `localhost/homelab-github-runner:al2023`
+        (glibc 2.34) for Lambda-compatible native builds. Built by
+        `github-runner-image.service` from `containerfile`.
       '';
     };
 
@@ -472,7 +490,19 @@ in {
       default = defaultBaseImage;
       description = ''
         Upstream image used as FROM when building `containerImage`.
-        Default: myoung34/github-runner:ubuntu-noble.
+        Ubuntu: myoung34/github-runner:ubuntu-noble.
+        AL2023 (Lambda glibc 2.34): amazonlinux:2023 (see Containerfile.al2023).
+      '';
+    };
+
+    containerfile = lib.mkOption {
+      type = lib.types.path;
+      default = defaultContainerfile;
+      defaultText = "nixos/services/github-runner/Containerfile";
+      description = ''
+        Containerfile for `github-runner-image.service`.
+        Use `./github-runner/Containerfile` (Ubuntu Noble) or
+        `./github-runner/Containerfile.al2023` (Amazon Linux 2023 / Lambda).
       '';
     };
 
@@ -687,11 +717,16 @@ in {
             install -d -m 0755 ${toolsDir}
             base=${lib.escapeShellArg cfg.containerBaseImage}
             tag=${lib.escapeShellArg cfg.containerImage}
-            cf=${lib.escapeShellArg "${containerfileSrc}"}
+            cf=${lib.escapeShellArg "${cfg.containerfile}"}
             stamp=${lib.escapeShellArg imageStampPath}
 
             echo "homelab-ci: ensuring base image $base"
             podman pull "$base"
+            # AL2023 Containerfile also FROM myoung34 for entrypoint/token scripts.
+            if grep -q 'myoung34/github-runner' "$cf" 2>/dev/null; then
+              echo "homelab-ci: ensuring myoung34 image for runner scripts"
+              podman pull docker.io/myoung34/github-runner:ubuntu-noble || true
+            fi
 
             base_id="$(podman image inspect "$base" --format '{{.Id}}')"
             cf_hash="$(sha256sum "$cf" | cut -d' ' -f1)"

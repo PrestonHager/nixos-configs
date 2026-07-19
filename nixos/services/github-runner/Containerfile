@@ -32,7 +32,8 @@ RUN apt-get update -qq \
       g++-aarch64-linux-gnu \
       libc6-dev-arm64-cross \
       binutils-aarch64-linux-gnu \
- && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/* \
+ && touch /etc/homelab-ci-baked
 
 # Keep image entrypoint/cmd from base (myoung34). Homelab overrides entrypoint
 # via the NixOS module to run bootstrap + deregister-safe wrapper.
