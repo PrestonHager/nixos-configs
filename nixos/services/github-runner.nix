@@ -459,6 +459,28 @@ let
   envFilePath = name: "/run/github-runner/${name}.env";
   toolsDir = "/var/lib/github-runner-tools";
   workDir = name: i: "/var/lib/github-runner/${name}-${toString i}/work";
+
+  # Official musl release — runs on AL2023 (glibc 2.34). Do NOT cargo-install into
+  # the shared tools volume from Ubuntu/NixOS hosts (those binaries need GLIBC 2.38+).
+  cargoLambdaMusl = pkgs.stdenvNoCC.mkDerivation {
+    pname = "cargo-lambda-musl";
+    version = "1.6.3";
+    src = pkgs.fetchurl {
+      url = "https://github.com/cargo-lambda/cargo-lambda/releases/download/v1.6.3/cargo-lambda-v1.6.3.x86_64-unknown-linux-musl.tar.gz";
+      hash = "sha256-Zwoc8cosAdMMjdBqt/quNhWK3QOw6bL78NG7+Ljt+Og=";
+    };
+    dontUnpack = true;
+    nativeBuildInputs = [ pkgs.gnutar pkgs.gzip ];
+    installPhase = ''
+      runHook preInstall
+      mkdir -p $out/bin
+      tar -xzf $src -C $out/bin
+      chmod +x $out/bin/cargo-lambda
+      runHook postInstall
+    '';
+    dontPatchELF = true;
+    dontStrip = true;
+  };
 in {
   options.homelab.github-runners = {
     enable = lib.mkEnableOption ''
@@ -761,7 +783,7 @@ in {
       # Symlink nixpkgs toolchains into the shared volume (survives ephemeral restarts).
       ++ (lib.optionals (cfg.backend == "container") [{
         github-runner-tools-bin = {
-          description = "Provision shared GitHub runner toolchain bins (zig, ffmpeg)";
+          description = "Provision shared GitHub runner toolchain bins (zig, ffmpeg, cargo-lambda)";
           wantedBy = [ "multi-user.target" ];
           before = map ({ cname, ... }: "${containerUnitName cname}.service")
             containerInstances;
@@ -769,14 +791,18 @@ in {
             Type = "oneshot";
             RemainAfterExit = true;
           };
-          # Keep zig/ffmpeg nix store paths alive across GC.
+          # Keep zig/ffmpeg/cargo-lambda nix store paths alive across GC.
           path = [ pkgs.coreutils ];
           script = ''
             set -euo pipefail
-            install -d -m 0755 ${toolsDir}/bin
+            install -d -m 0755 ${toolsDir}/bin ${toolsDir}/cargo/bin
             ln -sfn ${lib.escapeShellArg "${pkgs.zig}/bin/zig"} ${toolsDir}/bin/zig
             ln -sfn ${lib.escapeShellArg "${pkgs.ffmpeg}/bin/ffmpeg"} ${toolsDir}/bin/ffmpeg
             ln -sfn ${lib.escapeShellArg "${pkgs.ffmpeg}/bin/ffprobe"} ${toolsDir}/bin/ffprobe
+            # Musl static binary (glibc-independent). Replaces any cargo-install
+            # artifact that required GLIBC 2.38+ and broke AL2023 runners.
+            ln -sfn ${lib.escapeShellArg "${cargoLambdaMusl}/bin/cargo-lambda"} \
+              ${toolsDir}/cargo/bin/cargo-lambda
           '';
         };
       }])

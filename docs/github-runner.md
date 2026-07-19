@@ -120,7 +120,8 @@ systemctl restart github-runner-image.service
 | Runtime | Podman OCI (`al2023` on ace; Ubuntu Noble available) | NixOS `services.github-runners` |
 | FHS / libs | Distro glibc + baked toolchain (AL2023 = 2.34; Noble = 2.39) | Nix store PATH + `parityPackages` |
 | Rust | Bootstrap installs rustup + `x86_64` + `aarch64-unknown-linux-gnu` into `/var/lib/github-runner-tools` | Must add toolchain yourself; cross `core`/`std` often missing |
-| Zig | Host symlinks `pkgs.zig` → `/var/lib/github-runner-tools/bin/zig` (+ `/nix/store` RO mount) | Included in `parityPackages` |
+| cargo-lambda | Host symlinks official **musl** release (`v1.6.3`) → `/var/lib/github-runner-tools/cargo/bin/cargo-lambda` (static; works on AL2023 glibc 2.34) | Include yourself; avoid `cargo install` from a newer-glibc host into a shared volume |
+| Zig | Host symlinks `pkgs.zig` → `/var/lib/github-runner-tools/bin/zig` (+ `/nix/store` RO mount); provides `aarch64-linux-gnu.2.34` for Lambda cross-links | Included in `parityPackages` |
 | ffmpeg / ffprobe | Host symlinks `pkgs.ffmpeg` → `…/bin/ffmpeg` and `…/bin/ffprobe` (same tools volume + store mount) | Included in `parityPackages` |
 | Job `container:` | Host Podman socket mounted at `/var/run/docker.sock` | Opt-in `docker.enable` (Docker) |
 | Node (PATH) | AL2023 bakes Node 20 (`node`/`npm`/`npx` in `/usr/local`); entrypoint also prepends Actions `externals/node20/bin` as fallback | Included in `parityPackages` (`nodejs_20`) |
@@ -231,7 +232,7 @@ podman exec github-runner-ace-1 bash -lc \
   'ldd --version; rustup show; rustup target list --installed; which zig; zig version; which ffmpeg ffprobe; ffmpeg -version | head -n1'
 ```
 
-Expect **GLIBC 2.34**, installed Rust targets including `aarch64-unknown-linux-gnu`, and `zig` / `ffmpeg` / `ffprobe` on `PATH` from `/var/lib/github-runner-tools/bin`. Cold start should **not** re-download packages when using the baked image (`homelab-ci: toolchain present (baked image)`). Rustup still bootstraps once into `/var/lib/github-runner-tools` (shared; flocked). Zig and ffmpeg are provisioned by `github-runner-tools-bin.service` on each rebuild.
+Expect **GLIBC 2.34**, installed Rust targets including `aarch64-unknown-linux-gnu`, `cargo lambda --version` (musl binary on the tools volume), and `zig` / `ffmpeg` / `ffprobe` on `PATH` from `/var/lib/github-runner-tools/{bin,cargo/bin}`. Cold start should **not** re-download packages when using the baked image (`homelab-ci: toolchain present (baked image)`). Rustup still bootstraps once into `/var/lib/github-runner-tools` (shared; flocked). Zig, ffmpeg, and cargo-lambda are provisioned by `github-runner-tools-bin.service` on each rebuild.
 
 ## Options (summary)
 
@@ -263,9 +264,12 @@ Expect **GLIBC 2.34**, installed Rust targets including `aarch64-unknown-linux-g
 
 On first start of a **stock** base image, runners may install build packages via apt (Ubuntu) or dnf (AL2023). Ace uses the **baked** local image so that step is skipped. Shared volume `/var/lib/github-runner-tools` still gets:
 - **rustup** stable with targets `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` (binaries under the tools volume; on `PATH`)
-- **zig** from nixpkgs (`pkgs.zig`), symlinked to `/var/lib/github-runner-tools/bin/zig` by `github-runner-tools-bin` (containers mount `/nix/store` read-only so the Nix-linked binary runs)
+- **cargo-lambda** official `x86_64-unknown-linux-musl` release (static), symlinked to `/var/lib/github-runner-tools/cargo/bin/cargo-lambda` by `github-runner-tools-bin`. Verify with `cargo lambda --version` inside an AL2023 runner (not `cargo-lambda --version` — it is a cargo subcommand binary). **Do not** `cargo install cargo-lambda` into this volume from Ubuntu Noble / NixOS glibc 2.38+ hosts — those builds need `GLIBC_2.38`/`2.39` and fail on AL2023 with exit 127.
+- **zig** from nixpkgs (`pkgs.zig`), symlinked to `/var/lib/github-runner-tools/bin/zig` by `github-runner-tools-bin` (containers mount `/nix/store` read-only so the Nix-linked binary runs). Confirmed usable as `zig cc -target aarch64-linux-gnu.2.34` for Graviton/Lambda links.
 - **ffmpeg** / **ffprobe** from nixpkgs (`pkgs.ffmpeg`), same symlink pattern (`…/bin/ffmpeg`, `…/bin/ffprobe`) for media seed jobs (e.g. soundbytes-app)
 - Env: `RUSTUP_HOME=/var/lib/github-runner-tools/rustup`, `CARGO_HOME=/root/.cargo`, cross-linker vars; `PATH` includes `$TOOLS/bin` then `$TOOLS/cargo/bin`
+
+**GLIBC audit (tools volume):** rustup’s own `rustup`/`rustc`/`cargo` proxies target ≤2.17 and are fine on AL2023. Only extra `cargo install` artifacts under `$TOOLS/cargo/bin` are risky — prefer musl release binaries or install inside an AL2023 container.
 
 Each start also clears the runner **workdir** and per-container cargo/npm caches (not the shared toolchains).
 
