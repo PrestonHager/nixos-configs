@@ -21,6 +21,7 @@ Verify Online: **soundbytes-app → Settings → Actions → Runners**. On ace:
 systemctl status podman-github-runner-ace-{1,2,3,4}
 podman ps --filter name=github-runner
 podman exec github-runner-ace-1 ldd --version   # expect GLIBC 2.34
+podman exec github-runner-ace-1 which aarch64-linux-gnu-gcc   # Zig wrapper or real cross GCC
 ```
 
 ## Targeting workflows (`runs-on`)
@@ -266,6 +267,7 @@ On first start of a **stock** base image, runners may install build packages via
 - **rustup** stable with targets `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` (binaries under the tools volume; on `PATH`)
 - **cargo-lambda** official `x86_64-unknown-linux-musl` release (static), symlinked to `/var/lib/github-runner-tools/cargo/bin/cargo-lambda` by `github-runner-tools-bin`. Verify with `cargo lambda --version` inside an AL2023 runner (not `cargo-lambda --version` — it is a cargo subcommand binary). **Do not** `cargo install cargo-lambda` into this volume from Ubuntu Noble / NixOS glibc 2.38+ hosts — those builds need `GLIBC_2.38`/`2.39` and fail on AL2023 with exit 127.
 - **zig** from nixpkgs (`pkgs.zig`), symlinked to `/var/lib/github-runner-tools/bin/zig` by `github-runner-tools-bin` (containers mount `/nix/store` read-only so the Nix-linked binary runs). Confirmed usable as `zig cc -target aarch64-linux-gnu.2.34` for Graviton/Lambda links.
+- **aarch64 cross C toolchain (AL2023):** Amazon Linux 2023 does not ship `gcc-aarch64-linux-gnu`. The AL2023 Containerfile installs `/usr/local/bin/aarch64-linux-gnu-{gcc,g++,ar,ranlib}` wrappers that invoke Zig with `-target aarch64-linux-gnu.2.34`, so `CC_aarch64_unknown_linux_gnu` / cc-rs (e.g. aws-lc-sys) work without workflow changes. Ubuntu Noble images still use real apt cross packages.
 - **ffmpeg** / **ffprobe** from nixpkgs (`pkgs.ffmpeg`), same symlink pattern (`…/bin/ffmpeg`, `…/bin/ffprobe`) for media seed jobs (e.g. soundbytes-app)
 - Env: `RUSTUP_HOME=/var/lib/github-runner-tools/rustup`, `CARGO_HOME=/root/.cargo`, cross-linker vars; `PATH` includes `$TOOLS/bin` then `$TOOLS/cargo/bin`
 

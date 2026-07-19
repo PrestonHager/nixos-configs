@@ -84,10 +84,11 @@ let
           gnupg2 openssh-clients git python3 libicu \
           tar gzip findutils which \
           || true
+        # AL2023 does not ship these RPMs; baked image installs Zig wrappers instead.
         dnf install -y --setopt=install_weak_deps=0 \
           gcc-aarch64-linux-gnu gcc-c++-aarch64-linux-gnu \
           binutils-aarch64-linux-gnu \
-          || echo "homelab-ci: aarch64 cross unavailable via dnf"
+          || echo "homelab-ci: aarch64 cross unavailable via dnf (use AL2023 Zig wrappers)"
       else
         echo "homelab-ci: WARNING no apt/dnf and no baked marker — toolchain may be incomplete"
       fi

@@ -35,11 +35,45 @@ RUN dnf install -y --setopt=install_weak_deps=0 --allowerasing \
  && dnf clean all \
  && rm -rf /var/cache/dnf /var/cache/libdnf5
 
-# Best-effort aarch64 cross (may be absent on some AL2023 repos); zig remains on PATH via tools volume.
+# aarch64 GNU cross packages (Fedora-style names) are not shipped on AL2023.
+# Try dnf anyway in case Amazon adds them; otherwise install Zig cc wrappers so
+# cc-rs / aws-lc-sys find `aarch64-linux-gnu-gcc` on PATH (same names Ubuntu
+# apt provides). Runtime Zig comes from /var/lib/github-runner-tools/bin (Nix).
 RUN dnf install -y --setopt=install_weak_deps=0 \
       gcc-aarch64-linux-gnu gcc-c++-aarch64-linux-gnu \
       binutils-aarch64-linux-gnu \
-    || echo "homelab-ci: aarch64 cross packages unavailable on this base; use zig for cross"
+    || echo "homelab-ci: aarch64 cross RPMs unavailable on AL2023; installing zig wrappers" \
+ && if ! command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then \
+      mkdir -p /usr/local/bin; \
+      printf '%s\n' \
+        '#!/bin/sh' \
+        '# Homelab AL2023: Zig stands in for missing aarch64-linux-gnu-* (Lambda glibc 2.34).' \
+        'ZIG="${HOMELAB_ZIG:-}"' \
+        'if [ -z "$ZIG" ]; then' \
+        '  if [ -x /var/lib/github-runner-tools/bin/zig ]; then' \
+        '    ZIG=/var/lib/github-runner-tools/bin/zig' \
+        '  elif command -v zig >/dev/null 2>&1; then' \
+        '    ZIG="$(command -v zig)"' \
+        '  else' \
+        '    echo "aarch64-linux-gnu-*: zig not found (expected /var/lib/github-runner-tools/bin/zig)" >&2' \
+        '    exit 127' \
+        '  fi' \
+        'fi' \
+        'case "$(basename "$0")" in' \
+        '  aarch64-linux-gnu-g++|aarch64-linux-gnu-c++) exec "$ZIG" c++ -target aarch64-linux-gnu.2.34 "$@" ;;' \
+        '  aarch64-linux-gnu-ar) exec "$ZIG" ar "$@" ;;' \
+        '  aarch64-linux-gnu-ranlib) exec "$ZIG" ranlib "$@" ;;' \
+        '  *) exec "$ZIG" cc -target aarch64-linux-gnu.2.34 "$@" ;;' \
+        'esac' \
+        > /usr/local/bin/aarch64-linux-gnu-gcc; \
+      chmod 0755 /usr/local/bin/aarch64-linux-gnu-gcc; \
+      ln -sf aarch64-linux-gnu-gcc /usr/local/bin/aarch64-linux-gnu-g++; \
+      ln -sf aarch64-linux-gnu-gcc /usr/local/bin/aarch64-linux-gnu-ar; \
+      ln -sf aarch64-linux-gnu-gcc /usr/local/bin/aarch64-linux-gnu-ranlib; \
+      echo "homelab-ci: installed Zig-backed aarch64-linux-gnu-{gcc,g++,ar,ranlib}"; \
+    fi \
+ && command -v aarch64-linux-gnu-gcc \
+ && command -v aarch64-linux-gnu-g++
 
 # Node 20 LTS on PATH for shell jobs (build-lambdas.sh, setup scripts).
 # Official linux-x64 tarball links against system glibc 2.34 (Lambda-safe).
