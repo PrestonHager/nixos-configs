@@ -57,9 +57,11 @@ let
       export DEBIAN_FRONTEND=noninteractive
       # Bootstrap only: rustup installs toolchain binaries under the shared tools volume.
       # pkgs.zig / pkgs.ffmpeg are symlinked into $TOOLS/bin on the host (needs /nix/store mounted).
+      # Node: AL2023 image bakes Node 20 into /usr/local; Actions externals/node20 is a fallback
+      # so shell jobs (build-lambdas.sh) find `node` even before a re-bake.
       export CARGO_HOME="$TOOLS_CARGO"
       export RUSTUP_HOME="$TOOLS/rustup"
-      export PATH="$TOOLS/bin:$TOOLS_CARGO/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      export PATH="$TOOLS/bin:$TOOLS_CARGO/bin:/usr/local/sbin:/usr/local/bin:/actions-runner/externals/node20/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
       # Prefer baked image packages (/etc/homelab-ci-baked); apt/dnf fallback for stock bases.
       if [ -f /etc/homelab-ci-baked ]; then
@@ -129,7 +131,7 @@ let
       # Job caches must NOT live on the shared tools volume (cross-job/PR/repo leak).
       # Use GitHub actions/cache (Swatinem/rust-cache, actions/setup-node cache) instead.
       # Keep toolchain binaries on PATH; point CARGO_HOME at a per-container home path.
-      export PATH="$TOOLS/bin:$TOOLS_CARGO/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      export PATH="$TOOLS/bin:$TOOLS_CARGO/bin:/usr/local/sbin:/usr/local/bin:/actions-runner/externals/node20/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       export CARGO_HOME="''${HOMELAB_JOB_CARGO_HOME:-/root/.cargo}"
       mkdir -p "$CARGO_HOME"
       # Ephemeral runners restart after each job — wipe local dependency caches so the

@@ -21,13 +21,14 @@ USER root
 # Core build + runner runtime deps. Use --allowerasing so full curl/gnupg2 can
 # replace the *-minimal packages shipped in amazonlinux:2023.
 # Split optional packages so a missing name does not fail the whole bake.
+# openssl (CLI) is separate from openssl-devel — CI scripts often call `openssl`.
 RUN dnf install -y --setopt=install_weak_deps=0 --allowerasing \
       gcc gcc-c++ make cmake \
-      openssl-devel libffi-devel zlib-devel \
+      openssl openssl-devel libffi-devel zlib-devel \
       ca-certificates curl wget jq unzip zip rsync \
       gnupg2 openssh-clients git python3 \
       libicu krb5-libs \
-      tar gzip findutils which hostname procps-ng \
+      tar gzip xz findutils which hostname procps-ng \
       shadow-utils \
  && (dnf install -y --setopt=install_weak_deps=0 pkgconf-pkg-config || dnf install -y pkgconf || true) \
  && (dnf install -y --setopt=install_weak_deps=0 lttng-ust || true) \
@@ -39,6 +40,19 @@ RUN dnf install -y --setopt=install_weak_deps=0 \
       gcc-aarch64-linux-gnu gcc-c++-aarch64-linux-gnu \
       binutils-aarch64-linux-gnu \
     || echo "homelab-ci: aarch64 cross packages unavailable on this base; use zig for cross"
+
+# Node 20 LTS on PATH for shell jobs (build-lambdas.sh, setup scripts).
+# Official linux-x64 tarball links against system glibc 2.34 (Lambda-safe).
+# Do NOT use nixpkgs nodejs here — keeps the bake self-contained and avoids
+# host-side nodejs rebuilds on ace (see docs/ace-rebuild-freeze-rca.md).
+ARG NODE_VERSION=20.20.2
+RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+      -o /tmp/node.tar.xz \
+ && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
+ && rm -f /tmp/node.tar.xz \
+ && node -v \
+ && npm -v \
+ && corepack enable || true
 
 # myoung34 entrypoint shebang: #!/usr/bin/dumb-init /bin/bash
 RUN curl -fsSL -o /usr/bin/dumb-init \

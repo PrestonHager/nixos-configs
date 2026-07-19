@@ -70,7 +70,7 @@ Ephemeral runners exit after each job and re-register. Past failure mode: proces
 
 Mitigations in this module:
 
-1. **Baked image** — `github-runner-image.service` builds the configured tag from `homelab.github-runners.containerfile`. Ace uses `Containerfile.al2023` → `localhost/homelab-github-runner:al2023` (base `amazonlinux:2023` + dnf toolchain + official Actions runner; myoung34 scripts for register/deregister). Ephemeral restarts should log `homelab-ci: toolchain present (baked image)` instead of downloading packages every time. Ubuntu Noble remains available via the default `Containerfile` / `ubuntu-noble` tag.
+1. **Baked image** — `github-runner-image.service` builds the configured tag from `homelab.github-runners.containerfile`. Ace uses `Containerfile.al2023` → `localhost/homelab-github-runner:al2023` (base `amazonlinux:2023` + dnf toolchain + **Node 20 LTS** from the official linux-x64 tarball into `/usr/local` + official Actions runner; myoung34 scripts for register/deregister). Ephemeral restarts should log `homelab-ci: toolchain present (baked image)` instead of downloading packages every time. Ubuntu Noble remains available via the default `Containerfile` / `ubuntu-noble` tag.
 2. **Deregister order** — `DISABLE_AUTOMATIC_DEREGISTRATION=true`; homelab entrypoint deregisters with `config.sh remove` **while** `.runner` exists, else deletes the runner by name via the GitHub API.
 3. **Workdir wipe** — each start clears `$RUNNER_WORKDIR` contents (bind-mounted `/var/lib/github-runner/<name>-<i>/work`).
 4. **Ghost recovery** — timer `github-runner-ghost-watch.timer` (every ~5 min) cancels stuck jobs and restarts offline+busy units; ops script `scripts/github-runner-recover-ghost.sh` (also `github-runner-recover-ghost` on PATH on ace).
@@ -123,7 +123,9 @@ systemctl restart github-runner-image.service
 | Zig | Host symlinks `pkgs.zig` → `/var/lib/github-runner-tools/bin/zig` (+ `/nix/store` RO mount) | Included in `parityPackages` |
 | ffmpeg / ffprobe | Host symlinks `pkgs.ffmpeg` → `…/bin/ffmpeg` and `…/bin/ffprobe` (same tools volume + store mount) | Included in `parityPackages` |
 | Job `container:` | Host Podman socket mounted at `/var/run/docker.sock` | Opt-in `docker.enable` (Docker) |
-| Node externals | Image provides Actions node | Module ships `node20`+`node24` externals |
+| Node (PATH) | AL2023 bakes Node 20 (`node`/`npm`/`npx` in `/usr/local`); entrypoint also prepends Actions `externals/node20/bin` as fallback | Included in `parityPackages` (`nodejs_20`) |
+| Node externals | Actions runner ships `externals/node20` + `node24` (hashFiles / JS actions) | Module ships `node20`+`node24` externals |
+| openssl CLI | AL2023 bake installs `openssl` (+ devel) | Via `parityPackages` / system |
 Workflows do **not** need a job-level `container:` for Ubuntu parity — the **runner itself** is Ubuntu. Optional job `container:` still works via the mounted Podman socket.
 
 ## Few steps to join GitHub
