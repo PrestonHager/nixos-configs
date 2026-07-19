@@ -48,6 +48,8 @@ RUN dnf install -y --setopt=install_weak_deps=0 \
       printf '%s\n' \
         '#!/bin/sh' \
         '# Homelab AL2023: Zig stands in for missing aarch64-linux-gnu-* (Lambda glibc 2.34).' \
+        '# Always use -target aarch64-linux-gnu.2.34. Strip caller --target/-target' \
+        '# (cc-rs passes aarch64-unknown-linux-gnu; Zig rejects "unknown" OS).' \
         'ZIG="${HOMELAB_ZIG:-}"' \
         'if [ -z "$ZIG" ]; then' \
         '  if [ -x /var/lib/github-runner-tools/bin/zig ]; then' \
@@ -59,6 +61,23 @@ RUN dnf install -y --setopt=install_weak_deps=0 \
         '    exit 127' \
         '  fi' \
         'fi' \
+        '# Filter --target=* / -target[=]* / -target <triple> from caller argv.' \
+        '_n=0' \
+        'while [ $# -gt 0 ]; do' \
+        '  case "$1" in' \
+        '    --target=*|-target=*) shift; continue ;;' \
+        '    --target|-target) shift; [ $# -gt 0 ] && shift; continue ;;' \
+        '  esac' \
+        '  _n=$((_n + 1))' \
+        '  eval "_a_${_n}=\"\$1\""' \
+        '  shift' \
+        'done' \
+        'set --' \
+        '_i=1' \
+        'while [ "$_i" -le "$_n" ]; do' \
+        '  eval "set -- \"\$@\" \"\$_a_${_i}\""' \
+        '  _i=$((_i + 1))' \
+        'done' \
         'case "$(basename "$0")" in' \
         '  aarch64-linux-gnu-g++|aarch64-linux-gnu-c++) exec "$ZIG" c++ -target aarch64-linux-gnu.2.34 "$@" ;;' \
         '  aarch64-linux-gnu-ar) exec "$ZIG" ar "$@" ;;' \
