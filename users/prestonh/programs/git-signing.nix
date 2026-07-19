@@ -52,7 +52,8 @@ in
           exit 1
         fi
         if [[ "$status" == "locked" && -z "''${BW_SESSION:-}" ]]; then
-          export BW_SESSION="$(bw unlock --raw)"
+          BW_SESSION="$(bw unlock --raw)"
+          export BW_SESSION
         fi
 
         bw sync >/dev/null
