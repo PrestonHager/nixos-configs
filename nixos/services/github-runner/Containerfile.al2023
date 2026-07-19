@@ -18,9 +18,10 @@ ARG GH_RUNNER_VERSION=2.335.1
 
 USER root
 
-# Core build + runner runtime deps. Split optional packages so a missing name
-# does not fail the whole bake.
-RUN dnf install -y --setopt=install_weak_deps=0 \
+# Core build + runner runtime deps. Use --allowerasing so full curl/gnupg2 can
+# replace the *-minimal packages shipped in amazonlinux:2023.
+# Split optional packages so a missing name does not fail the whole bake.
+RUN dnf install -y --setopt=install_weak_deps=0 --allowerasing \
       gcc gcc-c++ make cmake \
       openssl-devel libffi-devel zlib-devel \
       ca-certificates curl wget jq unzip zip rsync \
