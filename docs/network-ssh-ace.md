@@ -92,6 +92,7 @@ SSH private keys for Cisco LAN devices live in **Vaultwarden** (not nix-secrets 
 | Item | Type | Use |
 |------|------|-----|
 | **`id_rsa_astracap`** | SSH key | Private key for `ssh astracap` and `ssh astraquasar` (2048-bit RSA) |
+| **`git-signing-ed25519`** | SSH key | Git commit signing (`gpg.format=ssh`); see [git-commit-signing.md](./git-commit-signing.md) |
 | **Astracap Router Info** | Login | Cisco enable password (console / scripts; not SSH key) |
 
 Store the astracap key as a Bitwarden **SSH key** item named **`id_rsa_astracap`**. The public half must still be on the router/switch (`ip ssh pubkey-chain`); see [Authorize SSH pubkey](#authorize-ssh-pubkey-serial-console).
