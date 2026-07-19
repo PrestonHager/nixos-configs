@@ -126,10 +126,10 @@
   # PrestonHager is a personal account (not an org): no user/org-wide runners
   # (GitHub API 404). All four register to soundbytes-app (primary CI consumer).
   # Token: nix-secrets secrets/github-runner.yaml -> token
-  # Workflows: runs-on: ace-al2023-x64-4  (GitHub also adds self-hosted/Linux/X64)
+  # Preferred workflow label: ace-al2023-x64-4 (GitHub also adds self-hosted/Linux/X64).
+  # Also advertise ace-ubuntu-x64-4 until soundbytes workflows finish migrating --
+  # otherwise online AL2023 runners stay idle while jobs queue on the old label.
   # Ops: docs/github-runner.md (ghost recovery, image bake, workdir wipe)
-  # Ubuntu Noble image/label (ace-ubuntu-x64-4) remains available via module defaults
-  # if a second runner set is needed for general Ubuntu CI.
   homelab.github-runners = {
     enable = true;
     backend = "container";
@@ -142,7 +142,7 @@
       ace = {
         url = "https://github.com/PrestonHager/soundbytes-app";
         instances = 4;
-        extraLabels = [ "ace-al2023-x64-4" ];
+        extraLabels = [ "ace-al2023-x64-4" "ace-ubuntu-x64-4" ];
       };
     };
   };

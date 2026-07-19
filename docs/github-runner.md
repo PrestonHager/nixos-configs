@@ -7,7 +7,7 @@ Enabled on **ace** (`hosts/ace/default.nix`) with **container backend** (Amazon 
 
 | Runner name(s) | Register URL | systemd / Podman unit(s) | Custom label |
 |----------------|--------------|--------------------------|--------------|
-| `ace-1` … `ace-4` | `https://github.com/PrestonHager/soundbytes-app` | `podman-github-runner-ace-1` … `-4` | `ace-al2023-x64-4` |
+| `ace-1` … `ace-4` | `https://github.com/PrestonHager/soundbytes-app` | `podman-github-runner-ace-1` … `-4` | `ace-al2023-x64-4` (+ `ace-ubuntu-x64-4` during migration) |
 
 **Why AL2023:** AWS Lambda `provided.al2023` ships glibc **2.34**. Ubuntu Noble runners have glibc **2.39**, so native `bootstrap` binaries linked on Noble fail on Lambda with `requires GLIBC_2.39`. Ace runners use a baked `localhost/homelab-github-runner:al2023` image so default native builds link against ≤2.34.
 
@@ -38,7 +38,7 @@ jobs:
 
 GitHub **always** also attaches read-only labels `self-hosted`, `Linux`, and `X64` (cannot be removed). Prefer **`ace-al2023-x64-4` alone** so jobs land only on these Ace AL2023 4-vCPU runners.
 
-**Migration:** update soundbytes (and any other) workflows from `ace-ubuntu-x64-4` to `ace-al2023-x64-4`. Older custom labels (`ace`, `soundbytes-app`, `ubuntu-noble`, `nixos`, …) are no longer registered.
+**Migration:** update soundbytes (and any other) workflows from `ace-ubuntu-x64-4` to `ace-al2023-x64-4`. Ace currently advertises **both** labels so queued jobs still match during the cutover; drop `ace-ubuntu-x64-4` from `extraLabels` once workflows only use the AL2023 label. Older custom labels (`ace`, `soundbytes-app`, `ubuntu-noble`, `nixos`, …) are no longer registered.
 
 **Optional Ubuntu runners:** the module still defaults to Ubuntu Noble (`Containerfile` + `ace-ubuntu-x64-4`). To run a mix (e.g. 2× AL2023 for Lambda + 2× Ubuntu for general CI), define two runner attrs with distinct `extraLabels`, point each at the matching `container.image`, and extend `github-runner-image` / stamps so both tags are baked.
 ## Capacity / sizing (ace)
@@ -188,8 +188,8 @@ Ace already does this (`hosts/ace/default.nix`). Pattern:
       ace = {
         url = "https://github.com/PrestonHager/soundbytes-app";
         instances = 4;
-        # Single custom label; GitHub still adds self-hosted / Linux / X64
-        extraLabels = [ "ace-al2023-x64-4" ];
+        # Prefer ace-al2023-x64-4; keep ace-ubuntu-x64-4 during workflow migration
+        extraLabels = [ "ace-al2023-x64-4" "ace-ubuntu-x64-4" ];
         # Ace also sets containerImage/containerBaseImage/containerfile to AL2023
       };
     };
@@ -222,7 +222,7 @@ NIX_BUILD_CORES=12 nixos-rebuild switch --flake .#ace -j 4 --option max-jobs 4 -
 
 ### 5. Verify
 
-1. GitHub → **soundbytes-app** → **Settings → Actions → Runners** → four runners **Online** (`ace-1`…`ace-4`) with label `ace-al2023-x64-4`
+1. GitHub → **soundbytes-app** → **Settings → Actions → Runners** → four runners **Online** (`ace-1`…`ace-4`) with labels `ace-al2023-x64-4` and `ace-ubuntu-x64-4` (drop the Ubuntu label after workflow cutover)
 2. On the host:
 
 ```bash
@@ -252,7 +252,7 @@ Expect **GLIBC 2.34**, installed Rust targets including `aarch64-unknown-linux-g
 | `runners.<name>.sopsKey` | `token` | YAML key |
 | `runners.<name>.tokenFile` | `null` | Bypass sops (tests only) |
 | `runners.<name>.ephemeral` | `true` | Prefer PAT |
-| `runners.<name>.extraLabels` | `[ "ace-ubuntu-x64-4" ]` | Ace uses `ace-al2023-x64-4`; GH adds self-hosted/OS/arch |
+| `runners.<name>.extraLabels` | `[ "ace-ubuntu-x64-4" ]` | Ace: both `ace-al2023-x64-4` + `ace-ubuntu-x64-4` during migration; GH adds self-hosted/OS/arch |
 | `runners.<name>.container.memory` / `.cpus` | `null` | Inherit top-level defaults |
 | `runners.<name>.extraPackages` | `[]` | Native only |
 | `runners.<name>.docker.enable` | `false` | Native only; needs `user` + `group` |
