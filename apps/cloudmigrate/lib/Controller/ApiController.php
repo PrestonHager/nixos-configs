@@ -318,7 +318,7 @@ class ApiController extends BaseApiController {
 			'updatedAt' => $m->getUpdatedAt(),
 			'canCancel' => $active,
 			'canPause' => $status === 'running',
-			'canResume' => $status === 'paused',
+			'canResume' => $status === 'paused' || $status === 'failed',
 			'isActive' => $active,
 		];
 	}

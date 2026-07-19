@@ -181,12 +181,13 @@ class MigrationService {
 
 	public function resumeMigration(int $migrationId, string $userId): MigrationEntity {
 		$entity = $this->requireOwned($migrationId, $userId);
-		if ($entity->getStatus() !== 'paused') {
-			throw new \RuntimeException('Only paused migrations can be resumed');
+		if (!in_array($entity->getStatus(), ['paused', 'failed'], true)) {
+			throw new \RuntimeException('Only paused or failed migrations can be resumed');
 		}
 		$entity->setStatus('queued');
 		$entity->setPhase('queued');
 		$entity->setStatusText('Queued to resume…');
+		$entity->setErrorMessage(null);
 		$entity->setUpdatedAt(time());
 		$this->mapper->update($entity);
 		$this->jobControl->resumeRclone($migrationId);
@@ -250,13 +251,25 @@ class MigrationService {
 		}
 
 		$userFolder = $this->rootFolder->getUserFolder($userId);
-		$copied = (int)$entity->getCopiedFiles();
+		$copied = 0;
 		foreach ($files as $file) {
 			$this->assertActive($entity);
 			$rel = $file['relativePath'];
 			if (!$afterCheckpoint) {
+				$copied++;
 				if ($rel === $checkpoint) {
 					$afterCheckpoint = true;
+					$entity->setCopiedFiles($copied);
+					$entity->setProgress($total > 0 ? (int)round(($copied / $total) * 100) : 100);
+					$entity->setStatusText('Resuming after ' . $copied . '/' . $total . ': ' . $rel);
+					$entity->setUpdatedAt(time());
+					$this->mapper->update($entity);
+				} elseif ($copied % 100 === 0) {
+					$entity->setCopiedFiles($copied);
+					$entity->setProgress($total > 0 ? (int)round(($copied / $total) * 100) : 100);
+					$entity->setStatusText('Resuming… catching up ' . $copied . '/' . $total);
+					$entity->setUpdatedAt(time());
+					$this->mapper->update($entity);
 				}
 				continue;
 			}
@@ -275,13 +288,28 @@ class MigrationService {
 					continue;
 				}
 			}
-			$content = $this->graphClient->downloadItemContent($userId, $file['id']);
+			$content = $this->graphClient->downloadItemContent(
+				$userId,
+				$file['id'],
+				function (int $attempt, int $maxAttempts, int $statusCode, int $delayMs) use ($entity, $copied, $total, $rel): void {
+					$this->assertActive($entity);
+					$waitSec = max(1, (int)ceil($delayMs / 1000));
+					$entity->setStatusText(
+						'Retrying download ' . ($copied + 1) . '/' . $total . ': ' . $rel
+						. ' (HTTP ' . $statusCode . ', attempt ' . $attempt . '/' . $maxAttempts
+						. ', waiting ' . $waitSec . 's)'
+					);
+					$entity->setUpdatedAt(time());
+					$this->mapper->update($entity);
+				},
+			);
 			$this->writeFile($userFolder, $targetPath, $content);
 			$copied++;
 			$entity->setCheckpoint($rel);
 			$entity->setCopiedFiles($copied);
 			$entity->setProgress($total > 0 ? (int)round(($copied / $total) * 100) : 100);
 			$entity->setStatusText('Copying ' . $copied . '/' . $total . ': ' . $rel);
+			$entity->setErrorMessage(null);
 			$entity->setUpdatedAt(time());
 			$this->mapper->update($entity);
 		}

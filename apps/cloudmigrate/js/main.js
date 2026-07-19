@@ -181,7 +181,7 @@
 				actions.push('<button type="button" class="migration-action migration-pause" data-id="' + m.id + '" data-action="pause">' + t('cloudmigrate', 'Pause') + '</button>');
 			}
 			if (m.canResume) {
-				actions.push('<button type="button" class="migration-action migration-resume" data-id="' + m.id + '" data-action="resume">' + t('cloudmigrate', 'Resume') + '</button>');
+				actions.push('<button type="button" class="migration-action migration-resume" data-id="' + m.id + '" data-action="resume">' + t('cloudmigrate', m.status === 'failed' ? 'Retry' : 'Resume') + '</button>');
 			}
 			const actionBar = actions.length
 				? '<div class="migration-actions">' + actions.join(' ') + '</div>'
