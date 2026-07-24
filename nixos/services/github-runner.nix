@@ -808,35 +808,31 @@ in {
         };
       }])
       # Ghost offline+busy auto-recovery (uses PAT from env file; no secrets logged).
+      # Multi-repo: one row per instance — owner/repo, GitHub name, systemd unit, env file.
       ++ (lib.optionals (cfg.backend == "container" && enabledRunners != { }) (
         let
-          # Prefer first enabled runner definition for token + repo URL.
-          primaryName = builtins.head (lib.attrNames enabledRunners);
-          primary = enabledRunners.${primaryName};
-          ownerRepo =
-            let
-              u = primary.url;
-              stripped = lib.removeSuffix "/" (lib.removeSuffix ".git" (
-                lib.removePrefix "https://github.com/" (
-                  lib.removePrefix "http://github.com/" u
-                )
-              ));
-            in stripped;
-          runnerNames = lib.concatStringsSep " " (
-            lib.concatLists (
-              lib.mapAttrsToList (name: r:
-                map (i: instanceName (if r.name != null then r.name else name) r i)
-                  (instanceRange r)
-              ) enabledRunners
-            )
+          ownerRepoFromUrl = u:
+            lib.removeSuffix "/" (lib.removeSuffix ".git" (
+              lib.removePrefix "https://github.com/" (
+                lib.removePrefix "http://github.com/" u
+              )
+            ));
+          ghostRows = lib.concatLists (
+            lib.mapAttrsToList (name: r:
+              map (i:
+                let
+                  githubName = instanceName (if r.name != null then r.name else name) r i;
+                  unitSuffix = instanceName name r i;
+                in "${ownerRepoFromUrl r.url}|${githubName}|podman-github-runner-${unitSuffix}|${envFilePath name}"
+              ) (instanceRange r)
+            ) enabledRunners
           );
+          ghostRowsText = lib.concatStringsSep "\n" ghostRows;
+          envAfter = map (n: "github-runner-env-${n}.service") (lib.attrNames enabledRunners);
         in [{
           github-runner-ghost-watch = {
             description = "Recover GitHub runners stuck offline+busy";
-            after = [
-              "network-online.target"
-              "github-runner-env-${primaryName}.service"
-            ];
+            after = [ "network-online.target" ] ++ envAfter;
             wants = [ "network-online.target" ];
             path = [ pkgs.curl pkgs.jq pkgs.systemd pkgs.coreutils pkgs.gnugrep ];
             serviceConfig = {
@@ -844,52 +840,70 @@ in {
             };
             script = ''
               set -euo pipefail
-              envf=${lib.escapeShellArg (envFilePath primaryName)}
-              if [ ! -f "$envf" ]; then
-                echo "homelab-ci: ghost-watch skip (no env file)"
-                exit 0
-              fi
-              # shellcheck disable=SC1090
-              set -a
-              # Only ACCESS_TOKEN=... ; do not echo
-              token="$(sed -n 's/^ACCESS_TOKEN=//p' "$envf" | tr -d '\r\n')"
-              set +a
-              if [ -z "$token" ]; then
-                echo "homelab-ci: ghost-watch skip (empty token)"
-                exit 0
-              fi
-              repo=${lib.escapeShellArg ownerRepo}
-              known=${lib.escapeShellArg runnerNames}
-              api() {
-                curl -fsS -H "Authorization: Bearer ''${token}" \
+              rows=${lib.escapeShellArg ghostRowsText}
+              declare -A TOKENS=()
+              declare -A RUNNER_JSON=()
+              token_for() {
+                local envf="$1" t
+                if [ -n "''${TOKENS[$envf]+x}" ]; then
+                  printf '%s' "''${TOKENS[$envf]}"
+                  return 0
+                fi
+                t=""
+                if [ -f "$envf" ]; then
+                  t="$(sed -n 's/^ACCESS_TOKEN=//p' "$envf" | tr -d '\r\n')"
+                fi
+                TOKENS[$envf]="$t"
+                printf '%s' "$t"
+              }
+              runners_json_for() {
+                local repo="$1" token="$2" cache_key="$3" json
+                if [ -n "''${RUNNER_JSON[$cache_key]+x}" ]; then
+                  printf '%s' "''${RUNNER_JSON[$cache_key]}"
+                  return 0
+                fi
+                json="$(curl -fsS -H "Authorization: Bearer ''${token}" \
                   -H "Accept: application/vnd.github+json" \
                   -H "X-GitHub-Api-Version: 2022-11-28" \
-                  "$@"
+                  "https://api.github.com/repos/''${repo}/actions/runners" || true)"
+                RUNNER_JSON[$cache_key]="$json"
+                printf '%s' "$json"
               }
-              json="$(api "https://api.github.com/repos/''${repo}/actions/runners" || true)"
-              if [ -z "$json" ]; then
-                echo "homelab-ci: ghost-watch: runners API unavailable"
-                exit 0
-              fi
-              echo "$json" | jq -r --arg known "$known" '
-                ($known | split(" ")) as $k
-                | .runners[]?
-                | select(.status=="offline" and .busy==true)
-                | select(.name as $n | $k | index($n) != null)
-                | .name
-              ' | while read -r name; do
-                [ -z "$name" ] && continue
-                echo "homelab-ci: ghost-watch recovering $name"
-                # Cancel in-progress runs that have jobs on this runner
-                runs="$(api "https://api.github.com/repos/''${repo}/actions/runs?status=in_progress&per_page=20" \
+              # Prefer here-string so associative caches stay in this shell (not a pipe subshell).
+              while IFS='|' read -r repo gname unit envf; do
+                [ -z "''${repo:-}" ] && continue
+                token="$(token_for "$envf")"
+                if [ -z "$token" ]; then
+                  echo "homelab-ci: ghost-watch skip $gname (no token)"
+                  continue
+                fi
+                json="$(runners_json_for "$repo" "$token" "''${repo}|''${envf}")"
+                if [ -z "$json" ]; then
+                  echo "homelab-ci: ghost-watch: runners API unavailable for $repo"
+                  continue
+                fi
+                ghost="$(printf '%s' "$json" | jq -r --arg n "$gname" '
+                  .runners[]?
+                  | select(.name==$n and .status=="offline" and .busy==true)
+                  | .name
+                ' | head -n1 || true)"
+                [ -z "$ghost" ] && continue
+                echo "homelab-ci: ghost-watch recovering $gname ($unit) repo=$repo"
+                runs="$(curl -fsS -H "Authorization: Bearer ''${token}" \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  "https://api.github.com/repos/''${repo}/actions/runs?status=in_progress&per_page=20" \
                   | jq -r '.workflow_runs[]?.id' || true)"
                 for run_id in $runs; do
                   [ -z "$run_id" ] && continue
-                  hit="$(api "https://api.github.com/repos/''${repo}/actions/runs/''${run_id}/jobs" \
-                    | jq -r --arg n "$name" \
+                  hit="$(curl -fsS -H "Authorization: Bearer ''${token}" \
+                    -H "Accept: application/vnd.github+json" \
+                    -H "X-GitHub-Api-Version: 2022-11-28" \
+                    "https://api.github.com/repos/''${repo}/actions/runs/''${run_id}/jobs" \
+                    | jq -r --arg n "$gname" \
                       '[.jobs[]? | select(.runner_name==$n and .status=="in_progress")] | length' || echo 0)"
                   if [ "''${hit:-0}" != "0" ]; then
-                    echo "homelab-ci: cancelling run $run_id for $name"
+                    echo "homelab-ci: cancelling run $run_id for $gname"
                     curl -fsS -X POST \
                       -H "Authorization: Bearer ''${token}" \
                       -H "Accept: application/vnd.github+json" \
@@ -897,8 +911,8 @@ in {
                       "https://api.github.com/repos/''${repo}/actions/runs/''${run_id}/cancel" >/dev/null || true
                   fi
                 done
-                systemctl restart "podman-github-runner-''${name}.service" || true
-              done
+                systemctl restart "''${unit}.service" || true
+              done <<< "$rows"
             '';
           };
         }]

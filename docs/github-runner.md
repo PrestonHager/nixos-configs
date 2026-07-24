@@ -3,24 +3,29 @@
 Reusable NixOS module: `nixos/services/github-runner.nix`  
 Option namespace: `homelab.github-runners`
 
-Enabled on **ace** (`hosts/ace/default.nix`) with **container backend** (Amazon Linux 2023 OCI via Podman, glibc **2.34**) and **4 parallel runners**, all registered to **soundbytes-app**:
+Enabled on **ace** (`hosts/ace/default.nix`) with **container backend** (Amazon Linux 2023 OCI via Podman, glibc **2.34**) and **8 parallel runners** across two repos:
 
 | Runner name(s) | Register URL | systemd / Podman unit(s) | Custom label |
 |----------------|--------------|--------------------------|--------------|
 | `ace-1` … `ace-4` | `https://github.com/PrestonHager/soundbytes-app` | `podman-github-runner-ace-1` … `-4` | `ace-al2023-x64-4` (+ `ace-ubuntu-x64-4` during migration) |
+| `ace-ep-1` … `ace-ep-4` | `https://github.com/PrestonHager/EverPuzzle` | `podman-github-runner-ace-ep-1` … `-4` | same labels (parity `runs-on`) |
+
+**Naming:** GitHub scopes runners per repo, but **systemd/Podman unit names must be unique on the host**. Soundbytes keeps attr/GitHub names `ace-N`. EverPuzzle uses attr `ace-ep` → GitHub + units `ace-ep-N` (similar pattern, distinct host ids). Workflows target **labels**, not display names.
 
 **Why AL2023:** AWS Lambda `provided.al2023` ships glibc **2.34**. Ubuntu Noble runners have glibc **2.39**, so native `bootstrap` binaries linked on Noble fail on Lambda with `requires GLIBC_2.39`. Ace runners use a baked `localhost/homelab-github-runner:al2023` image so default native builds link against ≤2.34.
 
-**Org / user-wide runners:** not available. `PrestonHager` is a personal GitHub user (not an Organization). `GET /orgs/PrestonHager/actions/runners` returns **404**. GitHub only supports org-scoped shared runners on Organizations. Personal accounts must register runners **per repository**. Ace therefore points all four at `soundbytes-app` (the primary CI consumer). To also serve `nixos-configs`, you would need a second set of repo-scoped runners (more CPU/RAM) or a GitHub Organization.
+**Org / user-wide runners:** not available. `PrestonHager` is a personal GitHub user (not an Organization). `GET /orgs/PrestonHager/actions/runners` returns **404**. GitHub only supports org-scoped shared runners on Organizations. Personal accounts must register runners **per repository**. Ace therefore runs separate repo-scoped sets (`soundbytes-app` + `EverPuzzle`). To also serve `nixos-configs`, add another set (more CPU/RAM) or use a GitHub Organization.
 
-Token: nix-secrets `secrets/github-runner.yaml` key `token` (shared by all; rendered to `/run/github-runner/<name>.env` as `ACCESS_TOKEN=`).
+Token: nix-secrets `secrets/github-runner.yaml` key `token` (shared PAT for both repos; rendered to `/run/github-runner/<attr>.env` as `ACCESS_TOKEN=`). Fine-grained PAT needs **Self-hosted runners: Read and write** on each registered repo.
 
-Verify Online: **soundbytes-app → Settings → Actions → Runners**. On ace:
+Verify Online: **soundbytes-app** / **EverPuzzle** → **Settings → Actions → Runners**. On ace:
 
 ```bash
 systemctl status podman-github-runner-ace-{1,2,3,4}
+systemctl status podman-github-runner-ace-ep-{1,2,3,4}
 podman ps --filter name=github-runner
 podman exec github-runner-ace-1 ldd --version   # expect GLIBC 2.34
+podman exec github-runner-ace-ep-1 ldd --version
 podman exec github-runner-ace-1 which aarch64-linux-gnu-gcc   # Zig wrapper or real cross GCC
 ```
 
@@ -54,16 +59,16 @@ Live profile (2026-07-12):
 | Other load | Nextcloud, Pterodactyl, MediaWiki, Grafana/Loki/Alloy, Matrix, Zitadel, Caddy, Samba, Technitium, … |
 | Nix caps | `max-jobs=4`, `cores=12` (do not raise for CI) |
 
-**Chosen N = 4** (all on `soundbytes-app`):
+**Chosen N = 8** (4× `soundbytes-app` + 4× `EverPuzzle`), same per-runner caps:
 
 | Budget | Amount | Rationale |
 |--------|--------|-----------|
 | Reserved for web/OS | ~14 GiB | Steady ~7 GiB + spike headroom |
 | Per-runner memory cap | `4096m` | Rust/npm jobs; hard cap so one runaway cannot eat the host |
-| Peak CI RAM | ~16 GiB | 4 × 4096m; swap available if contended |
-| Per-runner CPUs | `4` | 4 × 4 = 16 of 48; ~32 left for services |
+| Peak CI RAM | ~32 GiB | 8 × 4096m — **tight** vs 31 GiB RAM; 32 GiB swap absorbs contention |
+| Per-runner CPUs | `4` | 8 × 4 = 32 of 48; ~16 left for services |
 
-Raise `instances` only after re-checking `free -h` / `systemd-cgtop` under load. Prefer more runner *containers* over job concurrency tricks (each GitHub runner is one job).
+If the host OOMs or swap thrashes under concurrent CI + web load, lower EverPuzzle (or both) to e.g. `container.memory = "3072m"` before cutting `instances`. Prefer more runner *containers* over job concurrency tricks (each GitHub runner is one job). Re-check `free -h` / `systemd-cgtop` under load after deploy.
 
 ## Hardening (ephemeral + ghosts)
 
@@ -134,7 +139,7 @@ Workflows do **not** need a job-level `container:` for Ubuntu parity — the **r
 
 ### 1. Create a token
 
-**Recommended (ephemeral runners):** a fine-grained PAT with **Read and Write** on **repository** *Self-hosted runners* for each repo you register against (here: `soundbytes-app`).
+**Recommended (ephemeral runners):** a fine-grained PAT with **Read and Write** on **repository** *Self-hosted runners* for each repo you register against (here: `soundbytes-app` and `EverPuzzle`).
 
 - Fine-grained: [GitHub → Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens?type=beta)
 - Classic PAT: `repo` scope (single-repo registration)
@@ -193,6 +198,11 @@ Ace already does this (`hosts/ace/default.nix`). Pattern:
         extraLabels = [ "ace-al2023-x64-4" "ace-ubuntu-x64-4" ];
         # Ace also sets containerImage/containerBaseImage/containerfile to AL2023
       };
+      ace-ep = {
+        url = "https://github.com/PrestonHager/EverPuzzle";
+        instances = 4;
+        extraLabels = [ "ace-al2023-x64-4" "ace-ubuntu-x64-4" ];
+      };
     };
   };
 }
@@ -224,13 +234,22 @@ NIX_BUILD_CORES=12 nixos-rebuild switch --flake .#ace -j 4 --option max-jobs 4 -
 ### 5. Verify
 
 1. GitHub → **soundbytes-app** → **Settings → Actions → Runners** → four runners **Online** (`ace-1`…`ace-4`) with labels `ace-al2023-x64-4` and `ace-ubuntu-x64-4` (drop the Ubuntu label after workflow cutover)
-2. On the host:
+2. GitHub → **EverPuzzle** → **Settings → Actions → Runners** → four runners **Online** (`ace-ep-1`…`ace-ep-4`) with the same labels
+3. On the host:
 
 ```bash
 systemctl status podman-github-runner-ace-{1,2,3,4}
-podman logs --tail 30 github-runner-ace-1   # expect "Listening for Jobs"
+systemctl status podman-github-runner-ace-ep-{1,2,3,4}
+podman logs --tail 30 github-runner-ace-1      # expect "Listening for Jobs"
+podman logs --tail 30 github-runner-ace-ep-1   # expect "Listening for Jobs"
 podman exec github-runner-ace-1 bash -lc \
   'ldd --version; rustup show; rustup target list --installed; which zig; zig version; which ffmpeg ffprobe; ffmpeg -version | head -n1'
+```
+
+EverPuzzle workflows use the same label:
+
+```yaml
+runs-on: ace-al2023-x64-4
 ```
 
 Expect **GLIBC 2.34**, installed Rust targets including `aarch64-unknown-linux-gnu`, `cargo lambda --version` (musl binary on the tools volume), and `zig` / `ffmpeg` / `ffprobe` on `PATH` from `/var/lib/github-runner-tools/{bin,cargo/bin}`. Cold start should **not** re-download packages when using the baked image (`homelab-ci: toolchain present (baked image)`). Rustup still bootstraps once into `/var/lib/github-runner-tools` (shared; flocked). Zig, ffmpeg, and cargo-lambda are provisioned by `github-runner-tools-bin.service` on each rebuild.

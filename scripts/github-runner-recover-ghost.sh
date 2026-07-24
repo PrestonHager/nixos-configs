@@ -13,9 +13,14 @@
 #   github-runner-recover-ghost --local all   # if installed via NixOS
 #
 # Env:
-#   GITHUB_REPO   owner/repo (default: PrestonHager/soundbytes-app)
+#   GITHUB_REPO   owner/repo (default: PrestonHager/soundbytes-app;
+#                 use PrestonHager/EverPuzzle for ace-ep-* runners)
 #   RUNNER_HOST   SSH target when not --local (default: root@192.168.5.5)
 #   UNIT_PREFIX   systemd unit prefix (default: podman-github-runner-)
+#
+# Examples (EverPuzzle):
+#   GITHUB_REPO=PrestonHager/EverPuzzle ./scripts/github-runner-recover-ghost.sh ace-ep-1
+#   ./scripts/github-runner-recover-ghost.sh --repo PrestonHager/EverPuzzle ace-ep-2
 #
 # Does not print tokens.
 set -euo pipefail
