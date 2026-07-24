@@ -90,11 +90,23 @@ if [[ "$(cat "$path")" == "$(cat "$tmp")" ]]; then
     fi
   done < <(jq -c --arg s "$SERVICE" '.[$s].bumpRules[]?' "$ACE_REGISTRY")
   if [[ "$already_at_target" -eq 1 ]]; then
-    if nixos-rebuild switch --flake "${ACE_NIXOS_DIR}#ace"; then
+    rebuild_lock="/run/ace-service-update-rebuild.lock"
+    rebuild_log="$(mktemp)"
+    if flock -w 3600 "$rebuild_lock" \
+      env NIX_BUILD_CORES=12 \
+      nixos-rebuild switch \
+        --flake "${ACE_NIXOS_DIR}#ace" \
+        -j 4 \
+        --option max-jobs 4 \
+        --option cores 12 \
+        >"$rebuild_log" 2>&1; then
+      rm -f "$rebuild_log"
       printf 'Already at %s in %s; ran nixos-rebuild switch --flake %s#ace\n' \
         "$TARGET" "$NIX_FILE" "$ACE_NIXOS_DIR"
       exit 0
     fi
+    cat "$rebuild_log" >&2
+    rm -f "$rebuild_log"
     echo "nixos-rebuild switch failed while ${NIX_FILE} already targets ${TARGET}" >&2
     exit 1
   fi
@@ -121,10 +133,24 @@ if ! git push origin HEAD; then
   exit 1
 fi
 
-if ! nixos-rebuild switch --flake "${ACE_NIXOS_DIR}#ace"; then
+# Constrained rebuild: avoid unconstrained nix memory spikes on ace (31 GiB).
+# Serialize with flock so concurrent service bumps cannot collide (nixos-rebuild exit 4).
+rebuild_lock="/run/ace-service-update-rebuild.lock"
+rebuild_log="$(mktemp)"
+if ! flock -w 3600 "$rebuild_lock" \
+  env NIX_BUILD_CORES=12 \
+  nixos-rebuild switch \
+    --flake "${ACE_NIXOS_DIR}#ace" \
+    -j 4 \
+    --option max-jobs 4 \
+    --option cores 12 \
+    >"$rebuild_log" 2>&1; then
+  cat "$rebuild_log" >&2
+  rm -f "$rebuild_log"
   echo "nixos-rebuild switch failed after bumping ${SERVICE} to ${TARGET}" >&2
   exit 1
 fi
+rm -f "$rebuild_log"
 
 printf 'Updated %s in %s to %s and ran nixos-rebuild switch --flake %s#ace\n' \
   "$SERVICE" "$NIX_FILE" "$TARGET" "$ACE_NIXOS_DIR"

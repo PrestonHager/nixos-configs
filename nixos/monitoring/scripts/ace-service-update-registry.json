@@ -79,10 +79,12 @@
   },
   "jellyfin": {
     "enabled": true,
-    "strategy": "podman-pull",
-    "containerName": "jellyfin",
-    "image": "docker.io/jellyfin/jellyfin:latest",
-    "postUpgradeUnits": ["podman-jellyfin.service"],
+    "strategy": "nix-bump",
+    "nixFile": "nixos/containers/jellyfin.nix",
+    "bumpRules": [
+      { "match": "jellyfinVersion = \"", "suffix": "\"", "prefix": "" }
+    ],
+    "postUpgradeUnits": ["podman-jellyfin.service", "jellyfin-sso-setup.service"],
     "majorWarnings": [
       "Major Jellyfin releases may require client updates or plugin reinstallation.",
       "Review https://jellyfin.org/docs/general/installation/ before approving."
@@ -90,9 +92,11 @@
   },
   "prometheus": {
     "enabled": true,
-    "strategy": "podman-pull",
-    "containerName": "prometheus",
-    "image": "docker.io/prom/prometheus:latest",
+    "strategy": "nix-bump",
+    "nixFile": "nixos/containers/prometheus.nix",
+    "bumpRules": [
+      { "match": "prometheusVersion = \"", "suffix": "\"", "prefix": "" }
+    ],
     "postUpgradeUnits": ["podman-prometheus.service"],
     "majorWarnings": [
       "Major Prometheus releases may deprecate PromQL features or change scrape behavior.",

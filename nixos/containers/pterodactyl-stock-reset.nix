@@ -12,9 +12,22 @@ let
     set -euo pipefail
     panel="${panelRoot}"
     marker="${resetMarker}"
+    blueprint_marker="${stateDir}/blueprint-installed"
 
     if [ ! -d "$panel/app" ]; then
       echo "pterodactyl-stock-reset: panel not installed at $panel, skipping" >&2
+      exit 0
+    fi
+
+    # Production panel is Blueprint-managed. Once Blueprint is installed, do not
+    # wipe the tree on every boot (that fought composer.lock + Blueprint and
+    # left pterodactyl-stock-reset.service failed). Version bumps that need a
+    # clean stock base should clear blueprint-installed first.
+    if [ -f "$blueprint_marker" ] && [ -f "$panel/blueprint.sh" ]; then
+      echo "pterodactyl-stock-reset: Blueprint installed; skipping stock reset"
+      install -d -m 0750 -o pterodactyl -g pterodactyl "${stateDir}"
+      echo "skipped-blueprint-${officialBranch}" > "$marker"
+      chown pterodactyl:pterodactyl "$marker"
       exit 0
     fi
 
@@ -68,8 +81,10 @@ let
     fi
 
     $GIT fetch --depth=1 origin "${officialBranch}"
-    $GIT checkout -B "${officialBranch}" "origin/${officialBranch}"
+    # -f: dirty composer.lock / Blueprint leftovers must not abort checkout
+    $GIT checkout -f -B "${officialBranch}" "origin/${officialBranch}"
     $GIT reset --hard "origin/${officialBranch}"
+    $GIT clean -fd -e .env -e .setup_done
 
     cp -a "$env_backup" "$panel/.env" 2>/dev/null || true
     cp -a "$setup_backup" "$panel/.setup_done" 2>/dev/null || true

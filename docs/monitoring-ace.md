@@ -145,12 +145,21 @@ Provisioned rules appear under **Alerting → Alert rules** in folder **Ace Aler
 | Behavior | Detail |
 |----------|--------|
 | **Trigger** | After each `ace-version-check` run, `ace-service-update-dispatch` starts `ace-service-auto-update@SERVICE` for each enabled, out-of-date service |
-| **Patch / minor** | Bumps pinned versions in `/etc/nixos`, commits, pushes, runs `nixos-rebuild switch --flake /etc/nixos#ace`, or pulls `:latest` images where configured |
+| **Patch / minor** | Bumps pinned versions in `/etc/nixos` nix modules, commits, pushes to the deployment branch, then runs a **constrained** `nixos-rebuild switch --flake /etc/nixos#ace` (`-j 4`, `max-jobs 4`, `cores 12`, serialized with flock) |
 | **Major** | Sends an approval email (same SMTP + recipients as Grafana alerts) with breaking-change notes and **Approve** / **Deny** links at https://update.prestonhager.com |
 | **Result email** | Success or failure notification after each attempted update |
 | **Registry** | `/etc/ace-service-update/registry.json` — enable/disable services and bump rules |
+| **Persistence** | All enabled services use `nix-bump` (or `occ-app` for Nextcloud apps). Image tags live in nix expressions; the next rebuild reproduces the same versions. **Do not** use floating `:latest` `podman-pull` updates — those diverge from nix and are wiped on rebuild. |
 
-Enabled auto-update services include Grafana, Technitium, Nextcloud, Zitadel, Vaultwarden, Matrix Synapse, Jellyfin, **Prometheus** (`podman-pull` on `docker.io/prom/prometheus:latest`), Pterodactyl panel, and notify_push. Sidecar databases and Redis instances are version-tracked in Grafana but updated with their parent stack.
+Enabled auto-update services (all `nix-bump` unless noted): Grafana, Technitium, Nextcloud, Zitadel, Vaultwarden, Matrix Synapse, Jellyfin, Prometheus, Pterodactyl panel, and notify_push (`occ-app`). Sidecar databases and Redis instances are version-tracked in Grafana dashboards but are **not** alerted and are updated with their parent stack.
+
+### Persistence contract
+
+1. Version check writes `ace_service_version_*` metrics.
+2. Auto-update selects an enabled registry service that is behind.
+3. `ace-service-update-bump` edits the pinned version in the service’s nix file under `/etc/nixos`, commits (`ace: bump SERVICE to VERSION`), and pushes `origin/<branch>`.
+4. Constrained `nixos-rebuild switch --flake /etc/nixos#ace` applies the new pin.
+5. After rebuild, container tags match the nix pins — no ephemeral drift.
 
 Manual run for one service:
 
@@ -201,9 +210,9 @@ nix shell nixpkgs#sqlite -c sqlite3 /grafana/data/grafana.db \
 | Direct (on ace) | http://127.0.0.1:9090 |
 | Auth | **Network restriction only** — no OAuth or basic auth |
 | UI | Enabled (default Prometheus web UI) |
-| Version source | Podman image tag (`docker.io/prom/prometheus:latest`); falls back to `GET /api/v1/status/buildinfo` when tag is `latest` |
+| Version source | Podman image tag from nix pin (`prometheusVersion` in `nixos/containers/prometheus.nix`); falls back to `GET /api/v1/status/buildinfo` when needed |
 | Version metrics | `ace_service_version_*{service="prometheus"}` from `ace-version-check` |
-| Auto-update | Enabled via `ace-service-auto-update@prometheus.service` (`podman-pull`) |
+| Auto-update | Enabled via `ace-service-auto-update@prometheus.service` (`nix-bump` → commit + constrained rebuild) |
 
 ### Access requirements
 

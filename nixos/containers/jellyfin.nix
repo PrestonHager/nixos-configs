@@ -2,6 +2,8 @@
 
 let
   sops-path = builtins.toString inputs.nix-secrets;
+  # Pinned for ace-service-auto-update nix-bump (do not use :latest pulls).
+  jellyfinVersion = "10.11.11";
   jellyfinPublicUrl = "https://jellyfin.prestonhager.com";
   zitadelDomain = "zitadel.prestonhager.com";
   zitadelDiscoveryUri = "https://${zitadelDomain}/.well-known/openid-configuration";
@@ -213,6 +215,6 @@ in
       "--add-host=host.containers.internal:host-gateway"
     ];
 
-    image = "docker.io/jellyfin/jellyfin:10.11.11";
+    image = "docker.io/jellyfin/jellyfin:${jellyfinVersion}";
   };
 }

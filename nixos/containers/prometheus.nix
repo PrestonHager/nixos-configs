@@ -2,6 +2,8 @@
 
 let
   sops-path = builtins.toString inputs.nix-secrets;
+  # Pinned for ace-service-auto-update nix-bump (do not use :latest pulls).
+  prometheusVersion = "3.13.1";
 in
 {
   #sops.secrets = {
@@ -55,7 +57,7 @@ in
     };
 
     # Finally, the prometheus image and version
-    image = "docker.io/prom/prometheus:v3.13.0";
+    image = "docker.io/prom/prometheus:v${prometheusVersion}";
   };
 }
 

@@ -79,19 +79,9 @@ run_update() {
       fi
       ;;
     podman-pull)
-      local container image
-      container="$(jq -r --arg s "$service" '.[$s].containerName' "$ACE_REGISTRY")"
-      image="$(jq -r --arg s "$service" '.[$s].image' "$ACE_REGISTRY")"
-      if ! detail="$(podman pull "$image" 2>&1)"; then
-        write_result_email "$service" "FAILED" "$current" "$latest" "$detail"
-        exit 1
-      fi
-      if ! systemctl restart "podman-${container}.service" 2>&1; then
-        detail="podman pull succeeded but restart of podman-${container}.service failed"
-        write_result_email "$service" "FAILED" "$current" "$latest" "$detail"
-        exit 1
-      fi
-      detail="Pulled ${image} and restarted podman-${container}.service"
+      detail="strategy podman-pull is disabled: ephemeral pulls diverge from nix pins. Convert the service to nix-bump in ace-service-update-registry.json"
+      write_result_email "$service" "FAILED" "$current" "$latest" "$detail"
+      exit 1
       ;;
     occ-app)
       local container app

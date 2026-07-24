@@ -18,7 +18,7 @@ groups:
             datasourceUid: prometheus
             model:
               editorMode: code
-              expr: probe_success{probe_location=~"local|lan",job=~"blackbox.*"} == 0
+              expr: probe_success{probe_location=~"local|lan",job=~"blackbox.*",service_tier="essential"} == 0
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
@@ -80,7 +80,7 @@ groups:
             datasourceUid: prometheus
             model:
               editorMode: code
-              expr: ace_service_version_behind == 3
+              expr: ace_service_version_behind{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 3
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
@@ -137,7 +137,7 @@ groups:
             datasourceUid: prometheus
             model:
               editorMode: code
-              expr: ace_service_version_behind == 1 or ace_service_version_behind == 2
+              expr: ace_service_version_behind{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 1 or ace_service_version_behind{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 2
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200

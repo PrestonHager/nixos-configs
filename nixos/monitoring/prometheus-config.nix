@@ -121,7 +121,8 @@ let
         service = "wings";
         service_role = "https";
         probe_location = "local";
-        service_tier = "essential";
+        # Nova is currently offline / not a required Ace dependency.
+        service_tier = "non-essential";
       };
     }
     {

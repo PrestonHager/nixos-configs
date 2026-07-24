@@ -111,7 +111,9 @@
   ];
   services.aceK80 = {
     enable = true;
-    enableOllama = true;
+    # Ollama needs a loaded NVIDIA driver + CDI. Driver is not currently loaded
+    # on ace (nvidia-smi / CDI fail), so keep Ollama off to avoid failed units.
+    enableOllama = false;
     # TEMPORARILY DISABLED — reopen ai.prestonhager.com later (docs/ace-openclaw-sso.md)
     enableOpenClaw = false;
     # openclaw.package = pkgs.openclaw;
