@@ -3,7 +3,7 @@
 let
   sops-path = builtins.toString inputs.nix-secrets;
   # Pinned for ace-service-auto-update nix-bump (do not use :latest pulls).
-  prometheusVersion = "3.13.1";
+  prometheusVersion = "3.13.2";
 in
 {
   #sops.secrets = {
