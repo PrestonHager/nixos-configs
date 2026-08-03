@@ -1,7 +1,7 @@
 { pkgs, ... }:
 
 let
-  version = "1.14.1";
+  version = "1.15.0";
   pterodactyPanelSrc = "https://github.com/pterodactyl/panel.git";
   forkPanelSrc = "https://github.com/PrestonHager/panel.git";
 
