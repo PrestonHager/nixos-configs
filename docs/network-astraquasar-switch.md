@@ -24,14 +24,15 @@ flowchart TB
   AP["Gi2/0/2 Astraspring_AP"]
   Po["Po1 Ace_Bond"]
   Ace["ace 192.168.5.5"]
-  P25["Gi2/0/25 access"]
+  P25["Gi2/0/25 Crux"]
+  Crux["crux 192.168.5.6"]
   P47["Gi2/0/47 Ace_iDRAC"]
-  Host["iDRAC OOB"]
+  Host["iDRAC OOB 192.168.5.10"]
 
   R --- U --> SW
   SW --> AP
   SW --> Po --> Ace
-  SW --> P25
+  SW --> P25 --> Crux
   SW --> P47 --> Host
 ```
 ## VLANs
@@ -52,13 +53,13 @@ All documented access ports use **`switchport mode access`** (no 802.1Q trunks i
 | `Gi2/0/4`–`12`, `17`–`24`, `26`, `28`–`46`, `48` | — | shutdown or disabled | Intentionally unused |
 | `Gi2/0/13`–`16` | Server_Ace → **Po1** LACP active, portfast | 14 connected; 13 suspended; 15–16 notconnect | ace bond members |
 | `Po1` | Ace_Bond | connected (via active member) | Aggregates ace NICs |
-| `Gi2/0/25` | access | connected | Host present (dynamic MAC); **crux/nova not confirmed by label** |
-| `Gi2/0/27` | access | notconnect | Spare |
+| `Gi2/0/25` | **Crux** | connected (Aug 2026) | **crux** `192.168.5.6` — NIC MAC `b8:85:84:a8:6d:b4`; switch `description Crux` set Aug 2026 |
+| `Gi2/0/27` | **Spare_Nova_candidate** | notconnect | Spare — candidate port when reattaching **nova** (`192.168.5.7`); switch `description` set Aug 2026 |
 | `Gi2/0/47` | **Ace_iDRAC** — access VLAN 1, portfast (**no** port-security) | connected (Jul 2026) | Dedicated Dell iDRAC OOB NIC — MAC `18:66:DA:82:52:D6`, static **`192.168.5.10`**. Sticky port-security cleared 2026-07-12. Runbook: [ace-idrac.md](ace-idrac.md). |
 | `Te2/1/4` | Uplink_to_Astracap (routed, no IP) | shutdown | Alternate uplink not in use |
 | `Gi2/1/1`, `Gi2/1/2`, `Te2/1/3` | default | — | Unused uplink capacity |
 
-**crux** (`192.168.5.6`) and **nova** (`192.168.5.7`) are documented NixOS nodes in repo SSH config but **no switch port descriptions** name them; they may use `Gi2/0/25`, another switch, or were offline during documentation. Confirm with `show mac address-table` and host NIC labels.
+**crux** is confirmed on **`Gi2/0/25`** (Aug 2026). **nova** (`192.168.5.7`) is offline with no switch MAC; prefer a spare access port (e.g. `Gi2/0/27`) and update this table when it returns. Label ports with `description` after attaching new devices.
 
 ## Spanning tree
 
