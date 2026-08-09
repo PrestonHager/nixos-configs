@@ -45,21 +45,24 @@ All documented access ports use **`switchport mode access`** (no 802.1Q trunks i
 
 ## Port assignments (labeled / notable)
 
-| Port | Description / config | Status (June 2026) | Notes |
-|------|----------------------|--------------------|-------|
+| Port | Description / config | Status (Aug 2026) | Notes |
+|------|----------------------|-------------------|-------|
 | `Gi2/0/1` | Uplink_to_Astracap | connected | Primary router uplink |
 | `Gi2/0/2` | Astraspring_AP, portfast | connected | AP + wireless clients (multiple MACs) |
 | `Gi2/0/3` | access | notconnect | Spare |
-| `Gi2/0/4`–`12`, `17`–`24`, `26`, `28`–`46`, `48` | — | shutdown or disabled | Intentionally unused |
+| `Gi2/0/4`–`12`, `18`–`24`, `26`, `28`–`46` | — | shutdown or disabled | Intentionally unused |
 | `Gi2/0/13`–`16` | Server_Ace → **Po1** LACP active, portfast | 14 connected; 13 suspended; 15–16 notconnect | ace bond members |
+| `Gi2/0/17` | Server_Ace (label only) | up / protocol down | Labeled like bond members but **not** in Po1; treat as leftover label / investigate before reuse |
 | `Po1` | Ace_Bond | connected (via active member) | Aggregates ace NICs |
-| `Gi2/0/25` | **Crux** | connected (Aug 2026) | **crux** `192.168.5.6` — NIC MAC `b8:85:84:a8:6d:b4`; switch `description Crux` set Aug 2026 |
-| `Gi2/0/27` | **Spare_Nova_candidate** | notconnect | Spare — candidate port when reattaching **nova** (`192.168.5.7`); switch `description` set Aug 2026 |
-| `Gi2/0/47` | **Ace_iDRAC** — access VLAN 1, portfast (**no** port-security) | connected (Jul 2026) | Dedicated Dell iDRAC OOB NIC — MAC `18:66:DA:82:52:D6`, static **`192.168.5.10`**. Sticky port-security cleared 2026-07-12. Runbook: [ace-idrac.md](ace-idrac.md). |
+| `Gi2/0/25` | **Crux** | connected | **crux** `192.168.5.6` — NIC MAC `b8:85:84:a8:6d:b4`; `description Crux` |
+| `Gi2/0/27` | **Spare_Nova_candidate** | notconnect | Candidate when reattaching **nova** (`192.168.5.7`); `description Spare_Nova_candidate` |
+| `Gi2/0/47` | **Ace_iDRAC** — access VLAN 1, portfast (**no** port-security) | connected | Dedicated Dell iDRAC OOB NIC — MAC `18:66:DA:82:52:D6`, static **`192.168.5.10`**. Sticky port-security cleared 2026-07-12. Runbook: [ace-idrac.md](ace-idrac.md). |
+| `Gi2/0/48` | Ace_iDRAC (label) | up / up | Also labeled Ace_iDRAC; confirm whether a second OOB link or a stale label before assigning elsewhere |
 | `Te2/1/4` | Uplink_to_Astracap (routed, no IP) | shutdown | Alternate uplink not in use |
 | `Gi2/1/1`, `Gi2/1/2`, `Te2/1/3` | default | — | Unused uplink capacity |
 
-**crux** is confirmed on **`Gi2/0/25`** (Aug 2026). **nova** (`192.168.5.7`) is offline with no switch MAC; prefer a spare access port (e.g. `Gi2/0/27`) and update this table when it returns. Label ports with `description` after attaching new devices.
+**crux** is on **`Gi2/0/25`** (labeled Aug 2026). **nova** (`192.168.5.7`) is offline with no switch MAC; prefer **`Gi2/0/27`** (`Spare_Nova_candidate`) when it returns. Keep switch `description` in sync with this table after attaching new devices.
+
 
 ## Spanning tree
 
