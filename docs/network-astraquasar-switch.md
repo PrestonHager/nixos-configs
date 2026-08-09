@@ -27,13 +27,16 @@ flowchart TB
   P25["Gi2/0/25 Crux"]
   Crux["crux 192.168.5.6"]
   P47["Gi2/0/47 Ace_iDRAC"]
-  Host["iDRAC OOB 192.168.5.10"]
+  AceId["ace iDRAC 192.168.5.10"]
+  P48["Gi2/0/48 Mars_iDRAC"]
+  MarsId["mars iDRAC 192.168.5.11"]
 
   R --- U --> SW
   SW --> AP
   SW --> Po --> Ace
   SW --> P25 --> Crux
-  SW --> P47 --> Host
+  SW --> P47 --> AceId
+  SW --> P48 --> MarsId
 ```
 ## VLANs
 
@@ -50,18 +53,18 @@ All documented access ports use **`switchport mode access`** (no 802.1Q trunks i
 | `Gi2/0/1` | Uplink_to_Astracap | connected | Primary router uplink |
 | `Gi2/0/2` | Astraspring_AP, portfast | connected | AP + wireless clients (multiple MACs) |
 | `Gi2/0/3` | access | notconnect | Spare |
-| `Gi2/0/4`–`12`, `18`–`24`, `26`, `28`–`46` | — | shutdown or disabled | Intentionally unused |
+| `Gi2/0/4`–`12`, `18`–`24`, `26`, `28`–`46` | — | shutdown or disabled | Intentionally unused — candidates for elara / zenith / mars OS / sally when cabled |
 | `Gi2/0/13`–`16` | Server_Ace → **Po1** LACP active, portfast | 14 connected; 13 suspended; 15–16 notconnect | ace bond members |
 | `Gi2/0/17` | Server_Ace (label only) | up / protocol down | Labeled like bond members but **not** in Po1; treat as leftover label / investigate before reuse |
 | `Po1` | Ace_Bond | connected (via active member) | Aggregates ace NICs |
 | `Gi2/0/25` | **Crux** | connected | **crux** `192.168.5.6` — NIC MAC `b8:85:84:a8:6d:b4`; `description Crux` |
 | `Gi2/0/27` | **Spare_Nova_candidate** | notconnect | Candidate when reattaching **nova** (`192.168.5.7`); `description Spare_Nova_candidate` |
 | `Gi2/0/47` | **Ace_iDRAC** — access VLAN 1, portfast (**no** port-security) | connected | Dedicated Dell iDRAC OOB NIC — MAC `18:66:DA:82:52:D6`, static **`192.168.5.10`**. Sticky port-security cleared 2026-07-12. Runbook: [ace-idrac.md](ace-idrac.md). |
-| `Gi2/0/48` | Ace_iDRAC (label) | up / up | Also labeled Ace_iDRAC; confirm whether a second OOB link or a stale label before assigning elsewhere |
+| `Gi2/0/48` | **Mars_iDRAC** | connected | **mars** iDRAC 6 — MAC `d4:ae:52:92:c5:a2`, static **`192.168.5.11`**. `description Mars_iDRAC` set Aug 2026. Runbook: [mars-idrac.md](mars-idrac.md). |
 | `Te2/1/4` | Uplink_to_Astracap (routed, no IP) | shutdown | Alternate uplink not in use |
 | `Gi2/1/1`, `Gi2/1/2`, `Te2/1/3` | default | — | Unused uplink capacity |
 
-**crux** is on **`Gi2/0/25`** (labeled Aug 2026). **nova** (`192.168.5.7`) is offline with no switch MAC; prefer **`Gi2/0/27`** (`Spare_Nova_candidate`) when it returns. Keep switch `description` in sync with this table after attaching new devices.
+**Online infra (Aug 2026):** crux on **`Gi2/0/25`**, ace iDRAC on **`Gi2/0/47`**, mars iDRAC on **`Gi2/0/48`**. Reserved / not cabled: nova `.7`, elara `.8`, zenith `.9`, sally iDRAC `.12`, mars OS `.15`, sally OS `.16`. Prefer **`Gi2/0/27`** for nova; label new ports when attaching.
 
 
 ## Spanning tree

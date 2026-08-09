@@ -202,8 +202,14 @@ Remove-Item Env:CISCO_ENABLE_PASSWORD
 |-----------|-----|------|
 | ace | 192.168.5.5 | root |
 | ace iDRAC | 192.168.5.10 | `root` (Vaultwarden item **`iDRAC`**; HTTPS/Redfish, not SSH key) |
+| mars iDRAC | 192.168.5.11 | iDRAC 6 web UI (LAN); see [mars-idrac.md](mars-idrac.md) |
+| sally iDRAC | 192.168.5.12 | reserved / not connected; [sally-idrac.md](sally-idrac.md) |
+| mars | 192.168.5.15 | reserved / not connected |
+| sally | 192.168.5.16 | reserved / not connected |
 | crux | 192.168.5.6 | root |
 | nova | 192.168.5.7 | root |
+| elara | 192.168.5.8 | reserved / not connected |
+| zenith | 192.168.5.9 | reserved / not connected |
 
 ## Security monitoring (planned)
 

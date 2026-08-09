@@ -8,8 +8,14 @@ Homelab documentation for the [nixos-configs](https://github.com/PrestonHager/ni
 |------|-----|--------------|-----------------|------|
 | **ace** | 192.168.5.5 | `#ace` | LAN + WAN `:80`/`:443` | Main server — Caddy, Podman stacks, DNS, monitoring |
 | **ace iDRAC** | 192.168.5.10 | — | LAN OOB only | OOB management ([iDRAC](ace/idrac.md)) |
+| **mars iDRAC** | 192.168.5.11 | — | LAN OOB only (`Gi2/0/48`) | PowerEdge R410 iDRAC 6 ([mars iDRAC](poweredge/mars-idrac.md)) — **online** |
+| **mars** | 192.168.5.15 | — | Reserved / not connected | PowerEdge R410 host ([mars](poweredge/mars.md)) |
+| **sally iDRAC** | 192.168.5.12 | — | Reserved / not connected | PowerEdge R320 OOB ([sally iDRAC](poweredge/sally-idrac.md)) |
+| **sally** | 192.168.5.16 | — | Reserved / not connected | PowerEdge R320 host ([sally](poweredge/sally.md)) |
 | **crux** | 192.168.5.6 | `#crux` | LAN only (`Gi2/0/25`) | Pterodactyl Wings node |
 | **nova** | 192.168.5.7 | `#nova` | Reserved / offline | Pterodactyl Wings node |
+| **elara** | 192.168.5.8 | — | Reserved / not connected | OptiPlex Wings node ([elara](pterodactyl-nodes/elara.md)) |
+| **zenith** | 192.168.5.9 | — | Reserved / not connected | OptiPlex Wings node ([zenith](pterodactyl-nodes/zenith.md)) |
 | **ph-nixos** | DHCP | `#ph-nixos` | LAN | Laptop/desktop (GNOME) |
 
 Full map (IPs, switch ports, WAN vs LAN): [Network topology](shared/network-topology.md).

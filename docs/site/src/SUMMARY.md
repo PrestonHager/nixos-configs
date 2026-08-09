@@ -23,12 +23,21 @@
 - [Pterodactyl Port Forward Plan](ace/pterodactyl-plugin-port-forward-plan.md)
 - [Zitadel](ace/zitadel.md)
 
+# PowerEdge hosts
+
+- [Mars iDRAC (192.168.5.11)](poweredge/mars-idrac.md)
+- [Mars (192.168.5.15)](poweredge/mars.md)
+- [Sally iDRAC (192.168.5.12)](poweredge/sally-idrac.md)
+- [Sally (192.168.5.16)](poweredge/sally.md)
+
 # Pterodactyl Nodes
 
 - [Overview](pterodactyl-nodes/index.md)
 - [Crux (192.168.5.6)](pterodactyl-nodes/crux.md)
 - [Crux ports & NAT](pterodactyl-nodes/crux-ports.md)
 - [Nova (192.168.5.7)](pterodactyl-nodes/nova.md)
+- [Elara (192.168.5.8)](pterodactyl-nodes/elara.md)
+- [Zenith (192.168.5.9)](pterodactyl-nodes/zenith.md)
 
 # ph-nixos
 

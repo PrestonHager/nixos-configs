@@ -61,7 +61,7 @@ Default route: **`0.0.0.0/0` via DHCP** on WAN (learned gateway `10.0.0.1`).
 | DNS servers | `192.168.5.5`, `1.1.1.1` |
 | Lease | 7 days |
 
-Static examples in the excluded range: ace `.5`, crux `.6`, nova `.7`, **ace iDRAC `.10`** ([ace-idrac.md](ace-idrac.md)).
+Static examples in the excluded range: ace `.5`, crux `.6`, nova `.7`, elara `.8`, zenith `.9`, **ace iDRAC `.10`**, **mars iDRAC `.11`**, sally iDRAC `.12`, mars `.15`, sally `.16` (see [network-topology.md](network-topology.md)).
 
 Clients should use **Technitium on ace** (`192.168.5.5`) as primary DNS; see [DNS on ace](dns-ace.md).
 
