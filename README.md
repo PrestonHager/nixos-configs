@@ -2,6 +2,17 @@
 
 Configurations for NixOS and Nix Package Manager
 
+## Bootstrap (nixos-anywhere stage0)
+
+From a NixOS installer USB/ISO, you can install a tiny networked stage0 system
+(DHCP on any ethernet NIC + SSH), then finish with nixos-anywhere:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/PrestonHager/nixos-configs/main/scripts/bootstrap-minimal.sh | sudo bash
+```
+
+See [scripts/README.md](scripts/README.md) for flags and the nixos-anywhere follow-up.
+
 ## Setup
 
 Setup by cloning the repository into `/etc/nixos`.
