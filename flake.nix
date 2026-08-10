@@ -50,6 +50,7 @@
         pkgs = nixpkgs.legacyPackages.${system};
         siteSrc = ./docs/site;
         includesSrc = ./docs;
+        bootstrapPubkey = ./docs/bootstrap/ssh-ed25519.pub;
       };
     in {
     packages.${system} = let

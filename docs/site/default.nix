@@ -1,4 +1,4 @@
-{ lib, pkgs, siteSrc, includesSrc }:
+{ lib, pkgs, siteSrc, includesSrc, bootstrapPubkey ? null }:
 
 pkgs.runCommand "nixos-configs-serverdocs"
   {
@@ -18,4 +18,10 @@ pkgs.runCommand "nixos-configs-serverdocs"
     fi
 
     cp -r book $out
+
+    # LAN bootstrap assets (plain text; not mdBook chapters)
+    mkdir -p $out/ssh
+    ${lib.optionalString (bootstrapPubkey != null) ''
+      cp ${bootstrapPubkey} $out/ssh/id_ed25519.pub
+    ''}
   ''

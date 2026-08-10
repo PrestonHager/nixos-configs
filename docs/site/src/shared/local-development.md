@@ -50,7 +50,29 @@ The site is built during `nixos-rebuild switch --flake /etc/nixos#ace` and serve
 
 **https://serverdocs.prestonhager.com** (LAN / RFC1918 clients only)
 
-After editing `docs/*.md` or `docs/site/`:
+### Bootstrap SSH public key (LAN-only)
+
+Installers can fetch the homelab admin pubkey without pasting it by hand:
+
+```text
+https://serverdocs.prestonhager.com/ssh/id_ed25519.pub
+```
+
+Source file: `docs/bootstrap/ssh-ed25519.pub` (copied into the docs derivation at build time).
+
+Example:
+
+```bash
+curl -fsSL https://serverdocs.prestonhager.com/ssh/id_ed25519.pub
+# use with bootstrap:
+curl -fsSL https://raw.githubusercontent.com/PrestonHager/nixos-configs/main/scripts/bootstrap-minimal.sh \
+  | sudo bash -s -- -y -d /dev/nvme0n1 \
+      -k "$(curl -fsSL https://serverdocs.prestonhager.com/ssh/id_ed25519.pub)"
+```
+
+Non-LAN clients get **403** (same as the rest of serverdocs).
+
+After editing `docs/*.md`, `docs/bootstrap/`, or `docs/site/`:
 
 ```bash
 git pull
@@ -62,6 +84,7 @@ sudo nixos-rebuild switch --flake /etc/nixos#ace
 | Path | Purpose |
 |------|---------|
 | `docs/*.md` | Canonical service runbooks (edit these) |
+| `docs/bootstrap/ssh-ed25519.pub` | LAN-served bootstrap admin SSH public key |
 | `docs/site/SUMMARY.md` | mdBook navigation |
 | `docs/site/src/**` | Thin wrappers with `{{#include ../_includes/...}}` (path relative to chapter) |
 | `nixos/caddy/serverdocs.nix` | Caddy vhost (LAN-only) |

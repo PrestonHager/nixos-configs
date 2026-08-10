@@ -211,6 +211,16 @@ Remove-Item Env:CISCO_ENABLE_PASSWORD
 | elara | 192.168.5.8 | reserved / not connected |
 | zenith | 192.168.5.9 | reserved / not connected |
 
+### Bootstrap admin public key (LAN)
+
+Homelab install pubkey (plain text, LAN-only via serverdocs):
+
+```text
+https://serverdocs.prestonhager.com/ssh/id_ed25519.pub
+```
+
+Source of truth: `docs/bootstrap/ssh-ed25519.pub` in the flake (served under the docs site root as `/ssh/id_ed25519.pub`).
+
 ## Security monitoring (planned)
 
 Cisco syslog, config backup/diff, and incident response playbooks for Astracap and Astraquasar are outlined in `docs/security-ids-plan.md` (detection tiers, SPAN/IDS placement, rollback steps).
