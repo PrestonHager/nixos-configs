@@ -19,5 +19,5 @@ Planned **Pterodactyl Wings** node (Dell OptiPlex) at **192.168.5.8**.
 
 ## Related
 
-- [Network topology](network-topology.md)
-- Existing Wings nodes: crux (`192.168.5.6`), nova (`192.168.5.7`)
+- [Network topology](../shared/network-topology.md)
+- Existing Wings nodes: [crux](crux.md) (`192.168.5.6`), [nova](nova.md) (`192.168.5.7`)

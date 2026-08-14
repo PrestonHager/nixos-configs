@@ -19,4 +19,4 @@ Dell PowerEdge **R320** host. Paired with a dedicated iDRAC OOB interface.
 | iDRAC | Not connected |
 | Host NIC / OS | Not connected |
 
-When cabling, label Astraquasar ports (e.g. `Sally_iDRAC` / `Sally`) and update [network-astraquasar-switch.md](network-astraquasar-switch.md) + [network-topology.md](network-topology.md).
+When cabling, label Astraquasar ports (e.g. `Sally_iDRAC` / `Sally`) and update [network-astraquasar-switch.md](../shared/network-astraquasar.md) + [network-topology.md](../shared/network-topology.md).

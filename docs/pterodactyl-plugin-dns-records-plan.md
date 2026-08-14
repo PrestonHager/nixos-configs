@@ -3,7 +3,7 @@
 **Status:** Planning (partial implementation exists)  
 **Updated:** 2026-06-26  
 **Branch:** `dell-poweredge-r730xd`  
-**Related:** [DNS on ace](./dns-ace.md), [Pterodactyl Test Blueprint](./pterodactyl-test-blueprint.md), [Pterodactyl on ace](./pterodactyl-ace.md), [Port Forward plan](./pterodactyl-plugin-port-forward-plan.md)
+**Related:** [DNS on ace](../shared/dns.md), [Pterodactyl Test Blueprint](./pterodactyl-test-blueprint.md), [Pterodactyl on ace](./pterodactyl.md), [Port Forward plan](./pterodactyl-plugin-port-forward-plan.md)
 
 ---
 
@@ -107,7 +107,7 @@ flowchart LR
   Tech --> Nova
 ```
 
-Preferred Wings/node hostnames remain **`crux.lc1.nm.us.prestonhager.com`** and **`nova.lc1.nm.us.prestonhager.com`** (see [DNS on ace](./dns-ace.md)). SRV targets should reference these names or shorter LAN aliases (`crux.prestonhager.com`) depending on provider scope.
+Preferred Wings/node hostnames remain **`crux.lc1.nm.us.prestonhager.com`** and **`nova.lc1.nm.us.prestonhager.com`** (see [DNS on ace](../shared/dns.md)). SRV targets should reference these names or shorter LAN aliases (`crux.prestonhager.com`) depending on provider scope.
 
 ### 3.3 Blueprint extension layout
 
@@ -189,7 +189,7 @@ Toast notifications for async job completion; errors show provider response (red
 | List/create/update/delete records | `GET/POST/PATCH/DELETE /zones/{zone_id}/dns_records` | Existing client |
 | SRV content format | `{weight} {port} {target}` | Trailing dot on FQDN target |
 
-**Constraints from [dns-ace.md](./dns-ace.md):**
+**Constraints from [dns-ace.md](../shared/dns.md):**
 
 - Ace Caddy apps: **DNS only (grey cloud)** — never orange-cloud to private LAN IPs.
 - Game/node A records: Cloudflare A → node IP (currently `192.168.5.6` / `.7` for crux/nova lc1 names).
@@ -336,7 +336,7 @@ Install order (unchanged):
 
 | Doc / path | Content |
 |------------|---------|
-| [dns-ace.md](./dns-ace.md) | Technitium zones, Cloudflare patterns, lc1 hostnames |
+| [dns-ace.md](../shared/dns.md) | Technitium zones, Cloudflare patterns, lc1 hostnames |
 | [pterodactyl-test-blueprint.md](./pterodactyl-test-blueprint.md) | Test panel Blueprint install |
 | `plugins/pterodactyl-dns-blueprint/` | Extension source |
 | `nixos/containers/technitium-zones.nix` | Authoritative infra records |

@@ -177,6 +177,6 @@ Admin credentials (if fresh setup): `/var/lib/pterodactyl-test/admin-credentials
 
 ## Related docs
 
-- [pterodactyl-ace.md](./pterodactyl-ace.md) — production panel
+- [pterodactyl-ace.md](./pterodactyl.md) — production panel
 - [pterodactyl-extensions-user-guide.md](./pterodactyl-extensions-user-guide.md) — extension usage
-- [dns-ace.md](./dns-ace.md) — Technitium DNS on ace
+- [dns-ace.md](../shared/dns.md) — Technitium DNS on ace

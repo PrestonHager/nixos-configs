@@ -55,6 +55,6 @@ Optional game NAT is managed by the Pterodactyl **portforward** extension when e
 
 ## Related docs
 
-- [Network topology](network-topology.md)
-- [Astracap router](network-astracap-router.md)
-- [Pterodactyl port forward](pterodactyl-plugin-port-forward.md)
+- [Network topology](../shared/network-topology.md)
+- [Astracap router](../shared/network-astracap.md)
+- [Pterodactyl port forward](../ace/pterodactyl-plugin-port-forward.md)

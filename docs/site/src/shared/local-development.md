@@ -83,9 +83,9 @@ sudo nixos-rebuild switch --flake /etc/nixos#ace
 
 | Path | Purpose |
 |------|---------|
-| `docs/*.md` | Canonical service runbooks (edit these) |
+| `docs/*.md` | Canonical service runbooks (edit these). Inter-page links must be relative to the **including chapter** under `docs/site/src/`, not to the flat `docs/` folder. |
 | `docs/bootstrap/ssh-ed25519.pub` | LAN-served bootstrap admin SSH public key |
-| `docs/site/SUMMARY.md` | mdBook navigation |
+| `docs/site/src/SUMMARY.md` | mdBook navigation |
 | `docs/site/src/**` | Thin wrappers with `{{#include ../_includes/...}}` (path relative to chapter) |
 | `nixos/caddy/serverdocs.nix` | Caddy vhost (LAN-only) |
-| `docs/site/default.nix` | Nix derivation for `mdbook build` |
+| `docs/site/check-docs-links.js` | `node docs/site/check-docs-links.js` — verify internal chapter links |

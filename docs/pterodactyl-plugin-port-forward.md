@@ -216,6 +216,6 @@ sudo podman exec pterodactyl php artisan tinker --execute="DB::table('portforwar
 
 ## References
 
-- [network-astracap-router.md](./network-astracap-router.md)
-- [network-ssh-ace.md](./network-ssh-ace.md)
+- [network-astracap-router.md](../shared/network-astracap.md)
+- [network-ssh-ace.md](../shared/network-ssh.md)
 - [pterodactyl-plugin-dns-records.md](./pterodactyl-plugin-dns-records.md)

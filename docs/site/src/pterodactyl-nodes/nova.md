@@ -34,3 +34,8 @@ sudo nixos-rebuild switch --flake /etc/nixos#nova
 systemctl status wings docker
 dig @192.168.5.5 nova.lc1.nm.us.prestonhager.com +short   # expect 192.168.5.7
 ```
+
+## Related
+
+- [Network topology](../shared/network-topology.md)
+- [Crux](crux.md) (same module tree)

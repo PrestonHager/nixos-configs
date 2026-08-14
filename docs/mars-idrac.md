@@ -31,10 +31,10 @@ DHCP on Astracap excludes **`192.168.5.1`–`.20`**; `.11` is in the static infr
 
 - Prefer the browser UI at `https://192.168.5.11` from a LAN client (TLS certs on iDRAC 6 are often self-signed).
 - Virtual console may require a Java / ActiveX-era client depending on firmware — expect older tooling than ace’s HTML5 iDRAC.
-- Power actions: use the iDRAC **Power** / **Server** menus (or `racadm` if installed), not Redfish `ForceRestart` as documented for [ace iDRAC](ace-idrac.md).
+- Power actions: use the iDRAC **Power** / **Server** menus (or `racadm` if installed), not Redfish `ForceRestart` as documented for [ace iDRAC](../ace/idrac.md).
 
 ## Related docs
 
 - [mars](mars.md) — host OS IP and role
-- [Network topology](network-topology.md)
-- [Astraquasar switch](network-astraquasar-switch.md) — port 48
+- [Network topology](../shared/network-topology.md)
+- [Astraquasar switch](../shared/network-astraquasar.md) — port 48

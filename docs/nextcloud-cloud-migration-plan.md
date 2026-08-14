@@ -3,7 +3,7 @@
 **Status:** Planning only (implementation is separate agents)  
 **Updated:** 2026-06-27  
 **Branch:** `dell-poweredge-r730xd`  
-**Related:** [Nextcloud on ace](./nextcloud-ace.md), [Nextcloud Action Plan](./nextcloud-action-plan.md), `nixos/containers/nextcloud.nix`
+**Related:** [Nextcloud on ace](./nextcloud.md), [Nextcloud Action Plan](./nextcloud-action-plan.md), `nixos/containers/nextcloud.nix`
 
 ---
 

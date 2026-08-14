@@ -19,4 +19,4 @@ Dell PowerEdge **R410** host. Paired with a dedicated iDRAC 6 OOB interface.
 | iDRAC | Online — `https://192.168.5.11`, switch **`Gi2/0/48`** |
 | Host NIC / OS | Not connected |
 
-When cabling the host NIC, pick a free Astraquasar access port, set `description Mars`, and update [network-astraquasar-switch.md](network-astraquasar-switch.md) + [network-topology.md](network-topology.md).
+When cabling the host NIC, pick a free Astraquasar access port, set `description Mars`, and update [network-astraquasar-switch.md](../shared/network-astraquasar.md) + [network-topology.md](../shared/network-topology.md).

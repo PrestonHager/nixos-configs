@@ -208,5 +208,5 @@ sudo podman exec pterodactyl ssh -F /pterodactyl/secrets/portforward-ssh-config 
 
 - [pterodactyl-plugin-dns-records.md](./pterodactyl-plugin-dns-records.md) — implementation and test cases
 - [pterodactyl-plugin-port-forward.md](./pterodactyl-plugin-port-forward.md) — NAT deploy and router SSH
-- [pterodactyl-ace.md](./pterodactyl-ace.md) — ace panel overview
+- [pterodactyl-ace.md](./pterodactyl.md) — ace panel overview
 - [pterodactyl-test-blueprint.md](./pterodactyl-test-blueprint.md) — test panel architecture

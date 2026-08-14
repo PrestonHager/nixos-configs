@@ -193,8 +193,8 @@ Remove-Item Env:CISCO_ENABLE_PASSWORD
 | Document | Content |
 |----------|---------|
 | [Network topology](network-topology.md) | Full homelab diagram, DNS flow, addressing |
-| [Astracap router](network-astracap-router.md) | WAN/LAN, NAT, DHCP, ACLs |
-| [Astraquasar switch](network-astraquasar-switch.md) | VLANs, ports, uplinks |
+| [Astracap router](./network-astracap.md) | WAN/LAN, NAT, DHCP, ACLs |
+| [Astraquasar switch](./network-astraquasar.md) | VLANs, ports, uplinks |
 
 ## Related LAN hosts
 
@@ -202,8 +202,8 @@ Remove-Item Env:CISCO_ENABLE_PASSWORD
 |-----------|-----|------|
 | ace | 192.168.5.5 | root |
 | ace iDRAC | 192.168.5.10 | `root` (Vaultwarden item **`iDRAC`**; HTTPS/Redfish, not SSH key) |
-| mars iDRAC | 192.168.5.11 | iDRAC 6 web UI (LAN); see [mars-idrac.md](mars-idrac.md) |
-| sally iDRAC | 192.168.5.12 | reserved / not connected; [sally-idrac.md](sally-idrac.md) |
+| mars iDRAC | 192.168.5.11 | iDRAC 6 web UI (LAN); see [mars-idrac.md](../poweredge/mars-idrac.md) |
+| sally iDRAC | 192.168.5.12 | reserved / not connected; [sally-idrac.md](../poweredge/sally-idrac.md) |
 | mars | 192.168.5.15 | reserved / not connected |
 | sally | 192.168.5.16 | reserved / not connected |
 | crux | 192.168.5.6 | root |

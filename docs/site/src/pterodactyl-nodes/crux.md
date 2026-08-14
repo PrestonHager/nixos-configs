@@ -32,7 +32,7 @@ Wings reads Let's Encrypt certificates from ace via NFS mount (`hosts/pterodacty
 
 ## Ports and monitoring
 
-Open ports, Astracap NAT, and Grafana probes: [Crux ports & NAT](crux-ports.md).
+Open ports, Astracap NAT, and Grafana probes: [Crux ports & NAT](crux-ports.md). LAN map: [Network topology](../shared/network-topology.md).
 
 Dashboards: [Crux Service Uptime](https://grafana.prestonhager.com/d/crux-uptime), [Network Topology & Ports](https://grafana.prestonhager.com/d/network-topology).
 

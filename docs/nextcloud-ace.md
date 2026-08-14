@@ -256,4 +256,4 @@ podman exec -u www-data nextcloud php /var/www/html/occ group:listadmin
 
 After logging in via Zitadel as `admin@prestonhager.com`, the user should appear in `group:listadmin` and have access to **Settings → Administration**.
 
-See also [zitadel-ace.md](./zitadel-ace.md) for Zitadel console access and [monitoring-ace.md](./monitoring-ace.md) for the Grafana OAuth pattern.
+See also [zitadel-ace.md](./zitadel.md) for Zitadel console access and [monitoring-ace.md](./monitoring.md) for the Grafana OAuth pattern.

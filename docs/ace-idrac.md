@@ -13,7 +13,7 @@ Dell **iDRAC** on the PowerEdge R730xd (`ace`). Used when the OS is hung (SSH ac
 | Chassis SKU / service tag (Redfish) | `3F3FHB2` |
 | Switch port | Astraquasar **`Gi2/0/47`** (access VLAN 1, portfast, no port-security) |
 | Web / Redfish | `https://192.168.5.10` |
-| Credentials | Vaultwarden item **`iDRAC`** (username `root`) — see [Network & SSH / Bitwarden](network-ssh-ace.md) |
+| Credentials | Vaultwarden item **`iDRAC`** (username `root`) — see [Network & SSH / Bitwarden](../shared/network-ssh.md) |
 
 DHCP on Astracap excludes **`192.168.5.1`–`.20`**; the dynamic pool starts at **`.21`**. `.10` is in the static infrastructure range and is reserved for this iDRAC.
 
@@ -48,6 +48,6 @@ NIC path (for IP changes):
 
 ## Related docs
 
-- [Astraquasar switch](network-astraquasar-switch.md) — port 47
-- [Astracap router](network-astracap-router.md) — DHCP exclusions / pool floor
-- [Network topology](network-topology.md) — addressing summary
+- [Astraquasar switch](../shared/network-astraquasar.md) — port 47
+- [Astracap router](../shared/network-astracap.md) — DHCP exclusions / pool floor
+- [Network topology](../shared/network-topology.md) — addressing summary

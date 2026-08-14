@@ -2,7 +2,7 @@
 
 Layer-2 access switch for the homelab LAN (`192.168.5.0/24`). Documented from live IOS-XE **16.12.7** on **WS-C3650-48PD** (`show running-config`, VLAN/interface/STP/CDP output via SSH, June 2026). Secrets omitted.
 
-SSH: [Network & SSH / Bitwarden](network-ssh-ace.md). Router: [Astracap](network-astracap-router.md). Full map: [Network topology](network-topology.md).
+SSH: [Network & SSH / Bitwarden](./network-ssh.md). Router: [Astracap](./network-astracap.md). Full map: [Network topology](network-topology.md).
 
 ## Role
 
@@ -59,8 +59,8 @@ All documented access ports use **`switchport mode access`** (no 802.1Q trunks i
 | `Po1` | Ace_Bond | connected (via active member) | Aggregates ace NICs |
 | `Gi2/0/25` | **Crux** | connected | **crux** `192.168.5.6` — NIC MAC `b8:85:84:a8:6d:b4`; `description Crux` |
 | `Gi2/0/27` | **Spare_Nova_candidate** | notconnect | Candidate when reattaching **nova** (`192.168.5.7`); `description Spare_Nova_candidate` |
-| `Gi2/0/47` | **Ace_iDRAC** — access VLAN 1, portfast (**no** port-security) | connected | Dedicated Dell iDRAC OOB NIC — MAC `18:66:DA:82:52:D6`, static **`192.168.5.10`**. Sticky port-security cleared 2026-07-12. Runbook: [ace-idrac.md](ace-idrac.md). |
-| `Gi2/0/48` | **Mars_iDRAC** | connected | **mars** iDRAC 6 — MAC `d4:ae:52:92:c5:a2`, static **`192.168.5.11`**. `description Mars_iDRAC` set Aug 2026. Runbook: [mars-idrac.md](mars-idrac.md). |
+| `Gi2/0/47` | **Ace_iDRAC** — access VLAN 1, portfast (**no** port-security) | connected | Dedicated Dell iDRAC OOB NIC — MAC `18:66:DA:82:52:D6`, static **`192.168.5.10`**. Sticky port-security cleared 2026-07-12. Runbook: [ace-idrac.md](../ace/idrac.md). |
+| `Gi2/0/48` | **Mars_iDRAC** | connected | **mars** iDRAC 6 — MAC `d4:ae:52:92:c5:a2`, static **`192.168.5.11`**. `description Mars_iDRAC` set Aug 2026. Runbook: [mars-idrac.md](../poweredge/mars-idrac.md). |
 | `Te2/1/4` | Uplink_to_Astracap (routed, no IP) | shutdown | Alternate uplink not in use |
 | `Gi2/1/1`, `Gi2/1/2`, `Te2/1/3` | default | — | Unused uplink capacity |
 

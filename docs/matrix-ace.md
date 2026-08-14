@@ -137,4 +137,4 @@ podman exec matrix-db psql -U synapse -d synapse -c \
 | Token/userinfo errors from Synapse | Container cannot reach Zitadel — check `--add-host=zitadel.prestonhager.com:host-gateway` |
 | `ImportError: zitadel_oidc_mapper` | `PYTHONPATH=/oidc` and volume mount of `nixos/containers/matrix/` |
 
-See also [zitadel-ace.md](./zitadel-ace.md) and [monitoring-ace.md](./monitoring-ace.md) for shared Zitadel patterns.
+See also [zitadel-ace.md](./zitadel.md) and [monitoring-ace.md](./monitoring.md) for shared Zitadel patterns.

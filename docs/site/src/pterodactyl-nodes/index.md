@@ -38,4 +38,4 @@ Deploy an existing node:
 sudo nixos-rebuild switch --flake /etc/nixos#crux   # or #nova
 ```
 
-Untrusted workload surface — log forwarding, fail2ban, and isolation playbooks for these nodes are in `docs/security-ids-plan.md` (§8).
+Untrusted workload surface — log forwarding, fail2ban, and isolation playbooks for these nodes are in the [IDS & Security Monitoring Plan](../shared/security-ids-plan.md) (§8). Addressing and switch ports: [Network topology](../shared/network-topology.md).

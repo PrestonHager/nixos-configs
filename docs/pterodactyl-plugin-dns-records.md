@@ -118,6 +118,6 @@ Same as TC-DNS-1 with provider mode `both`. Verify Cloudflare dashboard **and** 
 
 ## References
 
-- [dns-ace.md](./dns-ace.md)
+- [dns-ace.md](../shared/dns.md)
 - [pterodactyl-test-blueprint.md](./pterodactyl-test-blueprint.md)
 - [pterodactyl-plugin-port-forward.md](./pterodactyl-plugin-port-forward.md)

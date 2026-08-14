@@ -2,7 +2,7 @@
 
 LAN gateway and edge router for `192.168.5.0/24`. Documented from live IOS **15.7(3)M8** (`show running-config`, interface/route/NAT/DHCP/CDP output via SSH, June 2026). Secrets are omitted; only configuration intent is recorded.
 
-SSH access: [Network & SSH / Bitwarden](network-ssh-ace.md). Homelab overview: [Network topology](network-topology.md).
+SSH access: [Network & SSH / Bitwarden](./network-ssh.md). Homelab overview: [Network topology](network-topology.md).
 
 ## Role
 
@@ -63,7 +63,7 @@ Default route: **`0.0.0.0/0` via DHCP** on WAN (learned gateway `10.0.0.1`).
 
 Static examples in the excluded range: ace `.5`, crux `.6`, nova `.7`, elara `.8`, zenith `.9`, **ace iDRAC `.10`**, **mars iDRAC `.11`**, sally iDRAC `.12`, mars `.15`, sally `.16` (see [network-topology.md](network-topology.md)).
 
-Clients should use **Technitium on ace** (`192.168.5.5`) as primary DNS; see [DNS on ace](dns-ace.md).
+Clients should use **Technitium on ace** (`192.168.5.5`) as primary DNS; see [DNS on ace](./dns.md).
 
 Router IOS also has **`ip name-server 192.168.5.2`** and **`192.168.5.5`** and **`ip dns server`** enabled (router can answer/cache DNS for its own lookups).
 
@@ -106,4 +106,4 @@ Console/AUX lines use default-style settings; no remote telnet on VTY.
 
 - WAN address is **DHCP**; public services rely on ISP forwarding or CNAME to **`ip1.lc1.nm.us.prestonhager.com`** (`73.26.67.25`) hitting static NAT on ace.
 - Re-fetch config: `ssh astracap` then `enable` → `show running-config` (do not paste secrets into git).
-- Switch documentation: [Astraquasar](network-astraquasar-switch.md).
+- Switch documentation: [Astraquasar](./network-astraquasar.md).

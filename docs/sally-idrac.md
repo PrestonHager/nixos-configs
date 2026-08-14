@@ -26,5 +26,5 @@ Host OS IP (not connected yet): **`192.168.5.16`** — see [sally](sally.md).
 ## Related docs
 
 - [sally](sally.md)
-- [Network topology](network-topology.md)
-- [Astraquasar switch](network-astraquasar-switch.md)
+- [Network topology](../shared/network-topology.md)
+- [Astraquasar switch](../shared/network-astraquasar.md)

@@ -19,7 +19,9 @@
 - [Pterodactyl Panel](ace/pterodactyl.md)
 - [Pterodactyl Extensions User Guide](ace/pterodactyl-extensions-user-guide.md)
 - [Pterodactyl Test Blueprint](ace/pterodactyl-test-blueprint.md)
+- [Pterodactyl DNS Records](ace/pterodactyl-plugin-dns-records.md)
 - [Pterodactyl DNS Plugin Plan](ace/pterodactyl-plugin-dns-records-plan.md)
+- [Pterodactyl Port Forward](ace/pterodactyl-plugin-port-forward.md)
 - [Pterodactyl Port Forward Plan](ace/pterodactyl-plugin-port-forward-plan.md)
 - [Zitadel](ace/zitadel.md)
 

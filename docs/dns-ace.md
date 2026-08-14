@@ -285,7 +285,7 @@ Technitium already forwards unknown names to 1.1.1.1; `_acme-challenge` subdomai
 
 ## DHCP (house / game LAN)
 
-Astracap already advertises **192.168.5.5** (Technitium) as primary DNS and **1.1.1.1** as secondary — see [Astracap router](network-astracap-router.md). Desktops and servers that honor DHCP resolve ace services to LAN IPs. **iOS often does not** (see below).
+Astracap already advertises **192.168.5.5** (Technitium) as primary DNS and **1.1.1.1** as secondary — see [Astracap router](./network-astracap.md). Desktops and servers that honor DHCP resolve ace services to LAN IPs. **iOS often does not** (see below).
 
 ## iPhone / iOS (split-horizon and NAT hairpin)
 
@@ -354,7 +354,7 @@ Enabling **NAT hairpin / NAT loopback** on Astracap would let LAN clients use pu
 
 ### Related
 
-- Nextcloud: [nextcloud-action-plan.md](nextcloud-action-plan.md)  
+- Nextcloud: [nextcloud-action-plan.md](../ace/nextcloud-action-plan.md)  
 - Empty Cloudflare proxy body (orange cloud): [Ace Caddy apps](#ace-caddy-apps-grafana-vault-cloud-panel-) above — distinct from hairpin; public curl should show non-zero body and `Via: Caddy`, not `Server: cloudflare` with `Content-Length: 0`.
 
 ## Technitium first run

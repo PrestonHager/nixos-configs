@@ -3,7 +3,7 @@
 **Status:** Planning only (not implemented)  
 **Updated:** 2026-06-26  
 **Branch:** `dell-poweredge-r730xd`  
-**Related:** [Astracap router](./network-astracap-router.md), [Network & SSH](./network-ssh-ace.md), [DNS Records plan](./pterodactyl-plugin-dns-records-plan.md), [Pterodactyl nodes](../docs/site/src/pterodactyl-nodes/index.md)
+**Related:** [Astracap router](../shared/network-astracap.md), [Network & SSH](../shared/network-ssh.md), [DNS Records plan](./pterodactyl-plugin-dns-records-plan.md), [Pterodactyl nodes](../pterodactyl-nodes/index.md)
 
 ---
 
@@ -39,7 +39,7 @@ This complements the [DNS Records extension plan](./pterodactyl-plugin-dns-recor
 
 ## 3. Environment context
 
-From [network-astracap-router.md](./network-astracap-router.md) and [dns-ace.md](./dns-ace.md):
+From [network-astracap-router.md](../shared/network-astracap.md) and [dns-ace.md](../shared/dns.md):
 
 | Item | Value |
 |------|-------|
@@ -48,7 +48,7 @@ From [network-astracap-router.md](./network-astracap-router.md) and [dns-ace.md]
 | WAN | `GigabitEthernet0/0` DHCP (outside NAT) |
 | Existing static NAT | TCP **80**, **443** → **192.168.5.5** (ace Caddy) |
 | Dynamic NAT | `ip nat inside source list 1 interface Gi0/0 overload` (PAT for LAN) |
-| SSH | User **`prestonh`**, publickey-only ([network-ssh-ace.md](./network-ssh-ace.md)) |
+| SSH | User **`prestonh`**, publickey-only ([network-ssh-ace.md](../shared/network-ssh.md)) |
 | Wings nodes | crux `.6`, nova `.7`; FQDN `*.lc1.nm.us.prestonhager.com` |
 | Public WAN | `ip1.lc1.nm.us.prestonhager.com` → `73.26.67.25` |
 
@@ -129,7 +129,7 @@ New directory: `plugins/pterodactyl-portforward-blueprint/`
 
 ## 5. Cisco IOS NAT patterns
 
-Reference existing config from [network-astracap-router.md](./network-astracap-router.md).
+Reference existing config from [network-astracap-router.md](../shared/network-astracap.md).
 
 ### 5.1 Static port forward (TCP)
 
@@ -229,7 +229,7 @@ Panel runs in Podman on ace. SSH to `192.168.5.1` requires:
 | Network path | ace → LAN → router (same subnet) |
 | Host key verification | Pin Astracap host key in settings or `known_hosts` baked at deploy |
 | Key material | **Not** in git — sops secret mounted into container or env injected by Nix |
-| Legacy algorithms | IOS 15.7 needs `ssh-rsa`, `diffie-hellman-group14-sha1` (see [network-ssh-ace.md](./network-ssh-ace.md)) |
+| Legacy algorithms | IOS 15.7 needs `ssh-rsa`, `diffie-hellman-group14-sha1` (see [network-ssh-ace.md](../shared/network-ssh.md)) |
 
 PHP options: `phpseclib/phpseclib` (pure PHP, algorithm control) or `symfony/process` invoking `ssh` binary with Match block config.
 
@@ -409,7 +409,7 @@ Cross-check DNS: SRV port matches NAT external port.
 | Q4 | Port range allocations | Pterodactyl may assign non-primary ports — forward all allocations or primary only? |
 | Q5 | SSH key in container | Generate dedicated `pterodactyl-portforward` key vs reuse `id_rsa_astracap` |
 | Q6 | ACL on WAN interface | If extended ACL added later, extension must manage permit lines |
-| Q7 | Integration with IDS plan | [security-ids-plan.md](./security-ids-plan.md) — alert on unexpected NAT changes |
+| Q7 | Integration with IDS plan | [security-ids-plan.md](../shared/security-ids-plan.md) — alert on unexpected NAT changes |
 | Q8 | crux/nova Cloudflare A to RFC1918 | Public DNS points to LAN IPs; NAT still required for WAN clients unless ISP routes public IPs to nodes |
 
 ---
@@ -418,9 +418,9 @@ Cross-check DNS: SRV port matches NAT external port.
 
 | Doc / path | Content |
 |------------|---------|
-| [network-astracap-router.md](./network-astracap-router.md) | NAT, interfaces, DHCP |
-| [network-ssh-ace.md](./network-ssh-ace.md) | SSH user, key, legacy KEX |
-| [dns-ace.md](./dns-ace.md) | lc1 hostnames, WAN IP |
+| [network-astracap-router.md](../shared/network-astracap.md) | NAT, interfaces, DHCP |
+| [network-ssh-ace.md](../shared/network-ssh.md) | SSH user, key, legacy KEX |
+| [dns-ace.md](../shared/dns.md) | lc1 hostnames, WAN IP |
 | [pterodactyl-plugin-dns-records-plan.md](./pterodactyl-plugin-dns-records-plan.md) | SRV / hostname companion |
-| [security-ids-plan.md](./security-ids-plan.md) | Router change detection |
+| [security-ids-plan.md](../shared/security-ids-plan.md) | Router change detection |
 | `plugins/pterodactyl-dns-blueprint/` | Blueprint extension reference implementation |

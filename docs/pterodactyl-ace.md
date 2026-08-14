@@ -149,4 +149,4 @@ podman exec pterodactyl-db mariadb -upterodactyl -p"$DB_PASS" panel \
   -e "SELECT email, root_admin FROM users WHERE email='admin@prestonhager.com';"
 ```
 
-See also [zitadel-ace.md](./zitadel-ace.md) and [nextcloud-ace.md](./nextcloud-ace.md).
+See also [Zitadel](./zitadel.md), [Nextcloud](./nextcloud.md), [Wings nodes](../pterodactyl-nodes/index.md), and [Network topology](../shared/network-topology.md).

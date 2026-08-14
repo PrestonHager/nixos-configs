@@ -190,5 +190,5 @@ occ app:enable cloudmigrate
 ## References
 
 - [Nextcloud Cloud Migration Plan](./nextcloud-cloud-migration-plan.md) — overall strategy
-- [App README](../apps/cloudmigrate/README.md) — developer notes
+- [App README](https://github.com/PrestonHager/nixos-configs/blob/dell-poweredge-r730xd/apps/cloudmigrate/README.md) — developer notes
 - [Microsoft Graph files API](https://learn.microsoft.com/en-us/graph/api/resources/onedrive)

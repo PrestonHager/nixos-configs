@@ -16,7 +16,7 @@ SSH signing key for **Preston Hager** (`preston@hagerfamily.com`), using Git `gp
 
 ## Design
 
-- **Private key** lives in Vaultwarden (same pattern as Cisco SSH keys in [network-ssh-ace.md](./network-ssh-ace.md)).
+- **Private key** lives in Vaultwarden (same pattern as Cisco SSH keys in [network-ssh-ace.md](./network-ssh.md)).
 - **Public key** is in nixos-configs for `allowed_signers` and home-manager git config.
 - Hosts do **not** get the private key via sops by default. Sync from Bitwarden after unlock (below). Optional sops deploy is documented under [Optional: sops](#optional-sops-private-key-on-hosts).
 
@@ -83,6 +83,6 @@ Do not put the private key in nixos-configs.
 
 ## Related
 
-- [Network & SSH / Bitwarden](./network-ssh-ace.md) — `bw` server, unlock, SSH agent
+- [Network & SSH / Bitwarden](./network-ssh.md) — `bw` server, unlock, SSH agent
 - Module: `users/prestonh/programs/git-signing.nix`
 - Scripts: `scripts/sync-git-signing-key.sh`, `scripts/sync-git-signing-key.ps1`
