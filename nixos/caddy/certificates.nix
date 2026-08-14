@@ -29,6 +29,8 @@ in {
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "oneshot";
+      # Inactive after success so path/timer units can start a later copy when
+      # Caddy issues a cert after the first (empty) run.
       ExecStart = pkgs.writeShellScript "copy-caddy-certs" ''
         set -euo pipefail
         src_root="${caddyCertDir}"
@@ -45,13 +47,15 @@ in {
           else
             mkdir -p "$dest"
             ${pkgs.rsync}/bin/rsync -a --delete "$src/" "$dest/"
+            # Panel-default Wings config.yml uses Let's Encrypt names; Caddy uses .crt/.key.
+            ln -sfn "$domain.crt" "$dest/fullchain.pem"
+            ln -sfn "$domain.key" "$dest/privkey.pem"
           fi
         '') nodeNames)}
         chown -R root:users /stor/shares/private/nodes
         find /stor/shares/private/nodes -type d -exec chmod 775 {} \;
         find /stor/shares/private/nodes -type f -exec chmod 664 {} \;
       '';
-      RemainAfterExit = true;
     };
   };
 

@@ -21,12 +21,11 @@ in {
       ExecStart = pkgs.writeShellScript "link-letsencrypt" ''
         set -euo pipefail
         cert_dir="/mnt/pterodactyl-share/${domain}"
-        if [ ! -d "$cert_dir" ]; then
-          echo "Certificate directory not ready yet: $cert_dir" >&2
-          exit 0
-        fi
         mkdir -p /etc/letsencrypt
         ln -sfn /mnt/pterodactyl-share /etc/letsencrypt/live
+        if [ ! -d "$cert_dir" ]; then
+          echo "Certificate directory not ready yet: $cert_dir (live symlink still created)" >&2
+        fi
       '';
       RemainAfterExit = true;
     };
