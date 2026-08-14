@@ -101,15 +101,6 @@
           ./hosts/ace
         ];
       };
-      #crux = nixpkgs.lib.nixosSystem {
-      #  specialArgs = {inherit inputs;};
-      #  modules = defaultModules ++ [
-      #    ./hosts/pterodactyl-nodes
-      #    {
-      #      networking.hostName = "crux";
-      #    }
-      #  ];
-      #};
     } // builtins.mapAttrs (name: value: nixpkgs.lib.nixosSystem {
       specialArgs = {inherit inputs;};
       modules = defaultModules ++ [
