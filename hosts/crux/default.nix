@@ -28,6 +28,7 @@
   };
 
   imports = [
+    ../../hardware/dell-optiplex-7050/hardware-configuration.nix
     ../../nixos/monitoring/crux-probes.nix
     ../../nixos/monitoring/crux-prometheus.nix
     ../../nixos/monitoring/promtail.nix

@@ -35,6 +35,11 @@
       flake = false;
     };
 
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Tesla K80 stack (470 driver, CUDA 11.4, Ollama/OpenClaw) — enable in hosts/ace after GPU install
     ace-k80-stack = {
       url = "github:PrestonHager/ace-k80-stack";
@@ -77,6 +82,8 @@
         nodes = {
           crux = ./hosts/pterodactyl-nodes;
           nova = ./hosts/pterodactyl-nodes;
+          elara = ./hosts/pterodactyl-nodes;
+          zenith = ./hosts/pterodactyl-nodes;
         };
       in {
       # Different configuration are selected by adding #config after the nixos

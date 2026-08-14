@@ -1,10 +1,12 @@
 { config, pkgs, lib ? pkgs.lib, ... }:
 
-# TLS certificates for Pterodactyl Wings nodes (crux and nova only).
+# TLS certificates for Pterodactyl Wings nodes.
 let
   nodes = {
     crux = "crux.lc1.nm.us.prestonhager.com";
     nova = "nova.lc1.nm.us.prestonhager.com";
+    elara = "elara.lc1.nm.us.prestonhager.com";
+    zenith = "zenith.lc1.nm.us.prestonhager.com";
   };
   domains = builtins.attrValues nodes;
   caddyCertDir =
@@ -39,11 +41,11 @@ in {
           src="$src_root/$domain"
           dest="/stor/shares/private/nodes/${name}/letsencrypt/$domain"
           if [ ! -d "$src" ]; then
-            echo "Missing certificate directory for ${name}: $src" >&2
-            exit 1
+            echo "Missing certificate directory for ${name}: $src (skip until Caddy issues the cert)" >&2
+          else
+            mkdir -p "$dest"
+            ${pkgs.rsync}/bin/rsync -a --delete "$src/" "$dest/"
           fi
-          mkdir -p "$dest"
-          ${pkgs.rsync}/bin/rsync -a --delete "$src/" "$dest/"
         '') nodeNames)}
         chown -R root:users /stor/shares/private/nodes
         find /stor/shares/private/nodes -type d -exec chmod 775 {} \;

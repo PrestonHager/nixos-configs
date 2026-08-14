@@ -8,14 +8,16 @@ let
   internalZone = "internal.prestonhager.com";
   publicZone = "prestonhager.com";
 
-  internalSerial = "2026060687";
-  publicSerial = "2026062611";
+  internalSerial = "2026081401";
+  publicSerial = "2026081401";
 
   # Authoritative LAN names under internal.prestonhager.com (edit here, then nixos-rebuild switch on ace).
   internalHosts = {
     ace = "192.168.5.5";
     crux = "192.168.5.6";
     nova = "192.168.5.7";
+    elara = "192.168.5.8";
+    zenith = "192.168.5.9";
     grafana = "192.168.5.5";
     cloud = "192.168.5.5";
     dns = "192.168.5.5";
@@ -61,11 +63,15 @@ let
       ace = cnameInternal "ace";
       crux = cnameInternal "crux";
       nova = cnameInternal "nova";
+      elara = cnameInternal "elara";
+      zenith = cnameInternal "zenith";
       grafana = cnameInternal "grafana";
       cloud = cnameInternal "cloud";
       dns = cnameInternal "dns";
       "crux.lc1.nm.us" = cnameInternal "crux";
       "nova.lc1.nm.us" = cnameInternal "nova";
+      "elara.lc1.nm.us" = cnameInternal "elara";
+      "zenith.lc1.nm.us" = cnameInternal "zenith";
     }
     // lib.genAttrs aceHosted (_: viaAce)
     // lib.mapAttrs (_: target: cname target) {

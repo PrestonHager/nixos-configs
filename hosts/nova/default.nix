@@ -9,6 +9,7 @@
   networking.hosts."192.168.5.7" = [ "nova.internal.prestonhager.com" ];
 
   imports = [
+    ../../hardware/dell-optiplex-7050/hardware-configuration.nix
     ../../nixos/monitoring/promtail.nix
   ];
 }

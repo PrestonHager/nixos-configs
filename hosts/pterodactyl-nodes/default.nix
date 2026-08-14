@@ -1,7 +1,10 @@
-{ config, inputs, pkgs, ... }:
+{ config, inputs, pkgs, lib, ... }:
 
 let
   sops-path = builtins.toString inputs.nix-secrets;
+  host = config.networking.hostName;
+  bootstrapPubkey =
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAZG4s8GtqKZoahIUsFwbXsMnuUrrlSDmN2nzt39pDiS bootstrap@homelab";
 in
 {
   imports = [
@@ -10,7 +13,6 @@ in
     ../../nixos
     ../../nixos/security
     # Ace headless imports podman/containers/monitoring — incompatible with Wings (Docker).
-    ../../hardware/dell-optiplex-7050/hardware-configuration.nix
     ../../users/prestonh
   ];
 
@@ -19,17 +21,22 @@ in
     settings = {
       PasswordAuthentication = true;
       KbdInteractiveAuthentication = false;
+      PermitRootLogin = "prohibit-password";
     };
   };
 
+  users.users.root.openssh.authorizedKeys.keys = [ bootstrapPubkey ];
+  users.users.prestonh.openssh.authorizedKeys.keys = [ bootstrapPubkey ];
+
   sops.secrets = {
-    "crux-samba" = {
-      sopsFile = "${sops-path}/secrets/crux.yaml";
-      mode = "0640";
-    };
     "pterodactyl-db-password" = {
       sopsFile = "${sops-path}/secrets/pterodactyl.yaml";
       mode = "0400";
+    };
+  } // lib.optionalAttrs (host == "crux") {
+    "crux-samba" = {
+      sopsFile = "${sops-path}/secrets/crux.yaml";
+      mode = "0640";
     };
   };
 

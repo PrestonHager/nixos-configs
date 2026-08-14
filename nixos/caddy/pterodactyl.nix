@@ -6,6 +6,14 @@ let
       ip = "192.168.5.7";
       port = "443";
     };
+    "elara.lc1.nm.us.prestonhager.com" = {
+      ip = "192.168.5.8";
+      port = "443";
+    };
+    "zenith.lc1.nm.us.prestonhager.com" = {
+      ip = "192.168.5.9";
+      port = "443";
+    };
     "crux.lc1.nm.us.prestonhager.com" = {
       ip = "192.168.5.6";
       port = "443";
