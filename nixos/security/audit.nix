@@ -6,6 +6,8 @@ in {
   config = lib.mkIf cfg.enable {
     security.audit.enable = true;
 
+    security.audit.backlogLimit = 16384;
+
     security.audit.rules = [
       "-a always,exit -F arch=b64 -S execve -F euid=0 -k root-exec"
       "-w /etc/passwd -p wa -k identity"
