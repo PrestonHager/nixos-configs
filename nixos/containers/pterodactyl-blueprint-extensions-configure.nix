@@ -94,7 +94,7 @@ let
       "allowed_port_min" => 1024,
       "allowed_port_max" => 65535,
       "blocked_ports" => [22, 80, 443, 3380],
-      "node_ip_map" => ["1" => "192.168.5.6", "2" => "192.168.5.7"],
+      "node_ip_map" => ["1" => "192.168.5.6", "2" => "192.168.5.7", "3" => "192.168.5.8", "4" => "192.168.5.9"],
       "max_mappings_per_server" => 8,
     ];
     foreach ($portforward as $key => $value) {
@@ -126,12 +126,16 @@ let
     ];
     dnsDefault("srv_profiles", $srvProfiles);
     dnsDefault("primary_domains", []);
-    dnsDefault("node_fqdn_map", [
+    DnsExtensionSetting::query()->updateOrCreate(["key" => "node_fqdn_map"], ["value" => [
       "1" => "crux.lc1.nm.us.prestonhager.com",
       "2" => "nova.lc1.nm.us.prestonhager.com",
+      "3" => "elara.lc1.nm.us.prestonhager.com",
+      "4" => "zenith.lc1.nm.us.prestonhager.com",
       "default_crux" => "crux.lc1.nm.us.prestonhager.com",
       "default_nova" => "nova.lc1.nm.us.prestonhager.com",
-    ]);
+      "default_elara" => "elara.lc1.nm.us.prestonhager.com",
+      "default_zenith" => "zenith.lc1.nm.us.prestonhager.com",
+    ]]);
 
     $zoneId = resolveCloudflareZoneId();
     if ($zoneId !== "") {

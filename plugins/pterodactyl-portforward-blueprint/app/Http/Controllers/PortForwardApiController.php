@@ -52,10 +52,19 @@ class PortForwardApiController extends Controller
         }
     }
 
-    public function forwardPrimary(int $server): JsonResponse
+    public function forwardPrimary(Request $request, int $server): JsonResponse
     {
+        $validated = $request->validate([
+            'protocol' => 'nullable|in:tcp,udp',
+            'external_port' => 'nullable|integer|min:1|max:65535',
+        ]);
+
         try {
-            $mapping = Services::routerNat(PluginContext::make())->forwardPrimaryAllocation($server);
+            $mapping = Services::routerNat(PluginContext::make())->forwardPrimaryAllocation(
+                $server,
+                isset($validated['external_port']) ? (int) $validated['external_port'] : null,
+                $validated['protocol'] ?? 'tcp',
+            );
             if (is_null($mapping)) {
                 return response()->json(['error' => 'No primary allocation found.'], 422);
             }
@@ -66,10 +75,20 @@ class PortForwardApiController extends Controller
         }
     }
 
-    public function forwardAllocation(int $server, int $allocationId): JsonResponse
+    public function forwardAllocation(Request $request, int $server, int $allocationId): JsonResponse
     {
+        $validated = $request->validate([
+            'protocol' => 'nullable|in:tcp,udp',
+            'external_port' => 'nullable|integer|min:1|max:65535',
+        ]);
+
         try {
-            $mapping = Services::routerNat(PluginContext::make())->forwardAllocation($server, $allocationId);
+            $mapping = Services::routerNat(PluginContext::make())->forwardAllocation(
+                $server,
+                $allocationId,
+                isset($validated['external_port']) ? (int) $validated['external_port'] : null,
+                $validated['protocol'] ?? 'tcp',
+            );
 
             return response()->json(['mapping' => $mapping], 201);
         } catch (PluginException $e) {

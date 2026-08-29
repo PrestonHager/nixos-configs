@@ -78,22 +78,38 @@ class Config
     {
         $raw = $this->context->config()->get('node_ip_map', []);
         if (!is_array($raw) || $raw === []) {
-            return [
-                'default_crux' => '192.168.5.6',
-                'default_nova' => '192.168.5.7',
-            ];
+            return self::defaultNodeIpMap();
         }
 
         $map = [];
         foreach ($raw as $key => $value) {
             if (is_array($value) && isset($value['node_id'], $value['ip'])) {
                 $map[(string) $value['node_id']] = (string) $value['ip'];
-            } elseif (is_string($key) && (is_string($value) || is_numeric($value))) {
+            } elseif ((is_string($key) || is_int($key)) && (is_string($value) || is_numeric($value))) {
+                // json_decode turns numeric-string keys like {"1": "..."} into ints;
+                // coerce back so node-ID lookups survive a decode/encode round-trip.
                 $map[(string) $key] = (string) $value;
             }
         }
 
-        return $map;
+        return $map === [] ? self::defaultNodeIpMap() : $map;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function defaultNodeIpMap(): array
+    {
+        return [
+            '1' => '192.168.5.6',
+            '2' => '192.168.5.7',
+            '3' => '192.168.5.8',
+            '4' => '192.168.5.9',
+            'default_crux' => '192.168.5.6',
+            'default_nova' => '192.168.5.7',
+            'default_elara' => '192.168.5.8',
+            'default_zenith' => '192.168.5.9',
+        ];
     }
 
     public function sshKeyPath(): string

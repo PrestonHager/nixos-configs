@@ -90,6 +90,14 @@ class SrvRecordMatcher
                 continue;
             }
 
+            // Cloudflare's SRV "data" omits service/proto, so we cannot confirm
+            // identity from port+target alone. Only adopt a record whose
+            // service/proto are BOTH present and match the profile exactly;
+            // otherwise skip it to avoid cross-profile hijacking (_tcp vs _udp).
+            if (!$this->matchesProfileService($record, $profile)) {
+                continue;
+            }
+
             $recordPort = (int) ($data['port'] ?? 0);
             if ($recordPort !== $port) {
                 continue;
@@ -97,12 +105,6 @@ class SrvRecordMatcher
 
             $recordTarget = strtolower(rtrim((string) ($data['target'] ?? ''), '.'));
             if (!in_array($recordTarget, $normalizedTargets, true)) {
-                continue;
-            }
-
-            $service = (string) ($data['service'] ?? '');
-            $proto = (string) ($data['proto'] ?? '');
-            if ($service !== '' && $proto !== '' && !$this->matchesProfileService($record, $profile)) {
                 continue;
             }
 
@@ -119,11 +121,14 @@ class SrvRecordMatcher
             return false;
         }
 
-        $service = (string) ($data['service'] ?? '');
-        $proto = (string) ($data['proto'] ?? '');
+        $service = strtolower(ltrim((string) ($data['service'] ?? ''), '_'));
+        $proto = strtolower(ltrim((string) ($data['proto'] ?? ''), '_'));
+        if ($service === '' || $proto === '') {
+            return false;
+        }
 
-        return strcasecmp($service, $profile->service) === 0
-            && strcasecmp($proto, $profile->proto) === 0;
+        return $service === strtolower(ltrim($profile->service, '_'))
+            && $proto === strtolower(ltrim($profile->proto, '_'));
     }
 
     /**

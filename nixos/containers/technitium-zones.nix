@@ -23,6 +23,18 @@ let
     dns = "192.168.5.5";
   };
 
+  reverseHosts = {
+    "1" = "astracap.internal.prestonhager.com.";
+    "5" = "ace.internal.prestonhager.com.";
+    "6" = "crux.internal.prestonhager.com.";
+    "7" = "nova.internal.prestonhager.com.";
+    "8" = "elara.internal.prestonhager.com.";
+    "9" = "zenith.internal.prestonhager.com.";
+    "10" = "ace-iDRAC.internal.prestonhager.com.";
+    "15" = "mars-iDRAC.internal.prestonhager.com.";
+    "16" = "sally-iDRAC.internal.prestonhager.com.";
+  };
+
   cname = target: {
     type = "CNAME";
     value = target;
@@ -158,6 +170,13 @@ let
     extraLines = publicZoneExtraLines;
   };
 
+reverseZoneFile = mkZoneFile {
+    zone = "5.168.192.in-addr.arpa";
+    serial = internalSerial;
+    hosts = lib.mapAttrs (octet: { type = "PTR"; value = "${octet}.internal.prestonhager.com."; }) reverseHosts;
+    ns = [ "ace.${internalZone}." ];
+  };
+
   zoneHashFile = zone: "${dataRoot}/.${lib.replaceStrings [ "." ] [ "-" ] zone}-zone.sha256";
 
   syncScript = pkgs.writeShellScript "technitium-sync-zones" ''
@@ -209,6 +228,7 @@ let
 
     sync_one "${internalZone}" "${internalZoneFile}" "${zoneHashFile internalZone}"
     sync_one "${publicZone}" "${publicZoneFile}" "${zoneHashFile publicZone}"
+    sync_one "5.168.192.in-addr.arpa" "${dataRoot}/zones/5.168.192.in-addr.arpa.zone" "${dataRoot}/.5-168-192-in-addr-arpa-zone.sha256"
   '';
 in
 {
@@ -227,7 +247,7 @@ in
   };
 
   systemd.services.technitium-sync-zones = {
-    description = "Sync Technitium primary zones (internal + prestonhager.com)";
+    description = "Sync Technitium primary zones (internal + prestonhager.com + reverse)";
     after = [ "podman-technitium.service" "technitium-ensure-admin-password.service" "network-online.target" ];
     wants = [ "podman-technitium.service" "technitium-ensure-admin-password.service" "network-online.target" ];
     wantedBy = [ "multi-user.target" ];

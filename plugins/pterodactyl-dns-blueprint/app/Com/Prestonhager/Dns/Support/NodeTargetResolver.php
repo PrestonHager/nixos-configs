@@ -37,6 +37,10 @@ class NodeTargetResolver
         }
 
         $name = strtolower((string) $node->name);
+        $genericDefault = "default_{$name}";
+        if (isset($map[$genericDefault]) && is_string($map[$genericDefault]) && $map[$genericDefault] !== '') {
+            return strtolower(rtrim($map[$genericDefault], '.'));
+        }
         if (str_contains($name, 'crux') || str_contains($name, 'nova')) {
             $key = str_contains($name, 'nova') ? 'default_nova' : 'default_crux';
             if (isset($map[$key]) && is_string($map[$key]) && $map[$key] !== '') {

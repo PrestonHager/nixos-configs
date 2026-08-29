@@ -80,10 +80,12 @@ class Config
 
         $map = [];
         foreach ($raw as $key => $value) {
-            if (!is_string($key) || !is_string($value)) {
+            if ((!is_string($key) && !is_int($key)) || !is_string($value)) {
                 continue;
             }
 
+            // json_decode turns numeric-string keys like {"3": "..."} into ints;
+            // coerce back so node-ID lookups survive a decode/encode round-trip.
             $fqdn = strtolower(rtrim(trim($value), '.'));
             if ($fqdn !== '') {
                 $map[(string) $key] = $fqdn;
@@ -101,8 +103,12 @@ class Config
         return [
             '1' => 'crux.lc1.nm.us.prestonhager.com',
             '2' => 'nova.lc1.nm.us.prestonhager.com',
+            '3' => 'elara.lc1.nm.us.prestonhager.com',
+            '4' => 'zenith.lc1.nm.us.prestonhager.com',
             'default_crux' => 'crux.lc1.nm.us.prestonhager.com',
             'default_nova' => 'nova.lc1.nm.us.prestonhager.com',
+            'default_elara' => 'elara.lc1.nm.us.prestonhager.com',
+            'default_zenith' => 'zenith.lc1.nm.us.prestonhager.com',
         ];
     }
 

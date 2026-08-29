@@ -72,16 +72,24 @@
             var external = row.mapping ? row.mapping.external_port : row.suggested_external_port;
             var primary = row.is_primary ? ' <span class="label label-info">primary</span>' : '';
             var canForward = row.forward_status === 'pending';
+            var proto = (row.protocol || 'tcp').toLowerCase();
+            var mapped = !!(row.mapping && row.mapping.id);
 
             html += '<tr><td><strong>' + row.port + '</strong>' + primary + '</td>';
-            html += '<td><code>' + external + '</code></td>';
+            html += '<td><input type="number" class="form-control input-sm pf-external-port" ' +
+                'id="pf-ext-' + row.allocation_id + '" value="' + external + '" min="1" max="65535" ' +
+                (mapped ? 'disabled' : '') + ' style="width:110px"></td>';
             html += '<td><code>' + target + '</code></td>';
-            html += '<td>' + (row.protocol || 'tcp').toUpperCase() + '</td>';
+            html += '<td><select class="form-control input-sm pf-protocol" id="pf-proto-' + row.allocation_id + '"' +
+                (mapped ? ' disabled' : '') + ' style="width:90px">' +
+                '<option value="tcp"' + (proto === 'tcp' ? ' selected' : '') + '>TCP</option>' +
+                '<option value="udp"' + (proto === 'udp' ? ' selected' : '') + '>UDP</option>' +
+                '</select></td>';
             html += '<td>' + statusLabel(row.forward_status) + '</td>';
             html += '<td>';
             if (canForward) {
                 html += '<button class="btn btn-xs btn-primary pf-forward-allocation" data-id="' + row.allocation_id + '">Forward</button>';
-            } else if (row.mapping && row.mapping.id) {
+            } else if (mapped) {
                 html += '<span class="text-muted">Mapped</span>';
             } else {
                 html += '<span class="text-muted">—</span>';
@@ -141,9 +149,29 @@
     }
 
     function forwardAllocation(allocationId) {
-        setStatus('Applying forward for allocation ' + allocationId + '...');
-        fetch(ctx.apiBase + '/mappings/forward-allocation/' + allocationId, { method: 'POST', headers: headers() })
-            .then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
+        var extInput = document.getElementById('pf-ext-' + allocationId);
+        var protoSelect = document.getElementById('pf-proto-' + allocationId);
+        var externalPort = extInput ? parseInt(extInput.value, 10) : NaN;
+        var protocol = protoSelect ? protoSelect.value : 'tcp';
+
+        if (isNaN(externalPort) || externalPort < 1 || externalPort > 65535) {
+            setStatus('External port must be between 1 and 65535.', true);
+            return;
+        }
+
+        var body = JSON.stringify({
+            protocol: protocol,
+            external_port: externalPort,
+            internal_port: null,
+        });
+
+        setStatus('Applying forward for allocation ' + allocationId + ' (external ' + externalPort + '/' + protocol + ')...');
+        fetch(ctx.apiBase + '/mappings/forward-allocation/' + allocationId, {
+            method: 'POST',
+            headers: headers(),
+            body: body,
+        })
+            .then(function (r) { return r.json().then(function (body2) { return { ok: r.ok, body: body2 }; }); })
             .then(function (result) {
                 if (!result.ok) {
                     setStatus(result.body.error || 'Forward failed.', true);
@@ -182,10 +210,20 @@
                 setStatus('Forwarding ' + pending.length + ' allocation(s)...');
                 var chain = Promise.resolve();
                 pending.forEach(function (row) {
+                    var extInput = document.getElementById('pf-ext-' + row.allocation_id);
+                    var protoSelect = document.getElementById('pf-proto-' + row.allocation_id);
+                    var payload = {};
+                    if (extInput && !extInput.disabled) {
+                        payload.external_port = parseInt(extInput.value, 10);
+                    }
+                    if (protoSelect && !protoSelect.disabled) {
+                        payload.protocol = protoSelect.value;
+                    }
                     chain = chain.then(function () {
                         return fetch(ctx.apiBase + '/mappings/forward-allocation/' + row.allocation_id, {
                             method: 'POST',
                             headers: headers(),
+                            body: JSON.stringify(payload),
                         }).then(function (r) { return r.json(); });
                     });
                 });

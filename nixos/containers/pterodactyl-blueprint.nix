@@ -4,7 +4,8 @@ let
   panelRoot = "/pterodactyl/html";
   stateDir = "/var/lib/pterodactyl";
   blueprintMarker = "${stateDir}/blueprint-installed";
-  blueprintReleaseUrl = "https://github.com/BlueprintFramework/framework/releases/latest/download/release.zip";
+  blueprintReleaseUrl = "https://github.com/BlueprintFramework/framework/releases/download/beta-2026-08/release.zip";
+  blueprintReleaseHash = "sha256:38bcee33b19abcbb3460578236ead74668ec39a7861200bbc6902a9152ac118d";
   socialloginBlueprintUrl = "https://github.com/blueprint-community/extension-sociallogin/releases/download/1.2.0/sociallogin.blueprint";
   dnsExtensionSrc = "/etc/nixos/plugins/pterodactyl-dns-blueprint";
   portforwardExtensionSrc = "/etc/nixos/plugins/pterodactyl-portforward-blueprint";
@@ -16,6 +17,7 @@ let
     pkgs.gawk
     pkgs.gnused
     pkgs.gnugrep
+    pkgs.diffutils
     pkgs.ncurses
     pkgs.nodejs_22
     pkgs.yarn
@@ -365,6 +367,18 @@ let
       done
     }
 
+    ensure_extension_default_icons() {
+      default_icon="$panel/.blueprint/extensions/blueprint/assets/byte.png"
+      for ext in sociallogin dnsrecords portforward; do
+        assets_dir="$panel/.blueprint/extensions/$ext/assets"
+        [ -d "$assets_dir" ] || continue
+        if [ ! -f "$assets_dir/icon.jpg" ] && [ -f "$default_icon" ]; then
+          ${pkgs.coreutils}/bin/install -m 0755 "$default_icon" "$assets_dir/icon.jpg"
+          chown pterodactyl:pterodactyl "$assets_dir/icon.jpg"
+        fi
+      done
+    }
+
     extension_admin_view_ok() {
       ext="$1"
       view="$panel/resources/views/admin/extensions/$ext/index.blade.php"
@@ -395,10 +409,13 @@ let
       [ -f "$panel/app/Models/SocialProvider.php" ] \
         && grep -q 'Providers\\Blueprint\\RouteServiceProvider' "$panel/app/Providers/AppServiceProvider.php" \
         && grep -q "'blueprint'" "$panel/app/Http/Kernel.php" \
-        && [ -f "$panel/routes/blueprint/web/sociallogin.php" ] \
-        && ${pkgs.podman}/bin/podman exec pterodactyl \
-          php /var/www/pterodactyl/artisan route:list 2>/dev/null \
-          | ${pkgs.gnugrep}/bin/grep -q 'extensions/sociallogin'
+        && [ -f "$panel/routes/blueprint/web/sociallogin.php" ] || return 1
+      routes=$(${pkgs.podman}/bin/podman exec pterodactyl \
+        php /var/www/pterodactyl/artisan route:list 2>/dev/null || true)
+      case "$routes" in
+        *'extensions/sociallogin'*) return 0 ;;
+        *) return 1 ;;
+      esac
     }
 
     blueprint_backend_integrated() {
@@ -479,7 +496,15 @@ let
     }
 
     ensure_blueprint_placeholder_version() {
-      if blueprint_placeholder_integrated; then
+      placeholder="$panel/app/BlueprintFramework/Services/PlaceholderService/BlueprintPlaceholderService.php"
+      needs_fix=0
+      if grep -q '::v' "$placeholder" 2>/dev/null; then
+        needs_fix=1
+      fi
+      if grep -q 'NOTINSTALLED' "$placeholder" 2>/dev/null; then
+        needs_fix=1
+      fi
+      if [ "$needs_fix" -eq 0 ]; then
         return 0
       fi
       version=$(blueprint_framework_version || echo "unknown")
@@ -487,17 +512,16 @@ let
         echo "pterodactyl-blueprint-install: could not determine Blueprint version from blueprint.sh" >&2
         return 1
       fi
-      echo "pterodactyl-blueprint-install: fixing Blueprint version placeholder ($version)..."
+      echo "pterodactyl-blueprint-install: fixing Blueprint placeholders (version $version, installed state)..."
       rm -f "$panel/.blueprint/extensions/blueprint/private/db/version"
-      ${pkgs.gnused}/bin/sed -E -i "s*::v*$version*g" \
-        "$panel/app/BlueprintFramework/Services/PlaceholderService/BlueprintPlaceholderService.php"
+      ${pkgs.gnused}/bin/sed -E -i "s*::v*$version*g" "$placeholder"
+      ${pkgs.gnused}/bin/sed -i "s~NOTINSTALLED~INSTALLED~g" "$placeholder"
       if [ -f "$panel/.blueprint/extensions/blueprint/public/index.html" ]; then
         ${pkgs.gnused}/bin/sed -E -i "s*::v*$version*g" \
           "$panel/.blueprint/extensions/blueprint/public/index.html"
       fi
       touch "$panel/.blueprint/extensions/blueprint/private/db/version"
-      chown pterodactyl:pterodactyl \
-        "$panel/app/BlueprintFramework/Services/PlaceholderService/BlueprintPlaceholderService.php" \
+      chown pterodactyl:pterodactyl "$placeholder" \
         "$panel/.blueprint/extensions/blueprint/private/db/version"
     }
 
@@ -707,6 +731,7 @@ let
       ensure_blueprint_admin_extension_theme
       ensure_extension_backend_sync
       ensure_extension_public_permissions
+      ensure_extension_default_icons
       ensure_extension_admin_files
       ensure_extension_migrations
       ensure_blueprint_admin_layout_patches
@@ -759,9 +784,24 @@ let
       && [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
       && [ -d "$panel/.blueprint/extensions/portforward" ] \
       && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
-      ensure_extension_public_permissions
+      pre_version=$(blueprint_framework_version 2>/dev/null || echo unknown)
+      refresh_blueprint_framework_release
+      ensure_blueprint_placeholder_version
+      post_version=$(blueprint_framework_version 2>/dev/null || echo unknown)
+      if [ "$pre_version" = "$post_version" ]; then
+        ensure_extension_public_permissions
+        write_marker
+        echo "pterodactyl-blueprint-install: Blueprint, Social Login, DNS Records, and Port Forward ready"
+        exit 0
+      fi
+      echo "pterodactyl-blueprint-install: Blueprint release changed ($pre_version -> $post_version), completing upgrade..."
+      ensure_blueprint_core_patches
+      ensure_blueprint_admin_layout_patches
+      ensure_blueprint_placeholder_version
+      ensure_blueprint_frontend_patches
+      post_install_hooks
       write_marker
-      echo "pterodactyl-blueprint-install: Blueprint, Social Login, DNS Records, and Port Forward ready"
+      echo "pterodactyl-blueprint-install: Blueprint $post_version, Social Login, DNS Records, and Port Forward ready"
       exit 0
     fi
 
@@ -776,6 +816,7 @@ let
         ensure_storage_extension_symlinks
         ensure_public_assets_extension_symlinks
         ensure_extension_admin_files
+        ensure_extension_default_icons
         ensure_extension_migrations
         post_install_hooks
         write_marker
@@ -798,6 +839,7 @@ let
         ensure_storage_extension_symlinks
         ensure_public_assets_extension_symlinks
         ensure_extension_admin_files
+        ensure_extension_default_icons
         ensure_extension_migrations
         rerun_blueprint_framework
         post_install_hooks

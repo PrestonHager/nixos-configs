@@ -172,6 +172,8 @@ class SrvProvisioner
             $existing = $this->state->findRecord($serverId, $existingId);
             if (!is_null($existing)) {
                 if (($existing['type'] ?? '') === 'CNAME' && strtolower(rtrim((string) ($existing['content'] ?? ''), '.')) === strtolower($nodeFqdn)) {
+                    $this->ensureAliasMirrors($serverId, $payload, $zoneId);
+
                     return;
                 }
 
@@ -202,6 +204,50 @@ class SrvProvisioner
             if ($id !== '') {
                 $this->state->setARecord($serverId, $id, $fqdn);
                 $this->state->upsertRecord($serverId, $record);
+            }
+        }
+    }
+
+    /**
+     * When the alias already exists on its owning provider, make sure every
+     * other enabled provider also has it (mode "both" keeps providers in sync).
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function ensureAliasMirrors(int $serverId, array $payload, string $zoneId): void
+    {
+        $records = $this->state->dnsRecords($serverId);
+        $expectedTarget = strtolower(rtrim((string) ($payload['content'] ?? ''), '.'));
+        $expectedName = strtolower(rtrim((string) ($payload['name'] ?? ''), '.'));
+
+        foreach ($this->providers->providersFor() as $provider) {
+            $covered = false;
+            foreach ($records as $record) {
+                if (($record['type'] ?? '') !== 'CNAME'
+                    || ($record['provider'] ?? 'cloudflare') !== $provider->name()) {
+                    continue;
+                }
+                if (strtolower(rtrim((string) ($record['name'] ?? ''), '.')) === $expectedName
+                    && strtolower(rtrim((string) ($record['content'] ?? ''), '.')) === $expectedTarget) {
+                    $covered = true;
+                    break;
+                }
+            }
+            if ($covered) {
+                continue;
+            }
+
+            try {
+                $created = $provider->createRecord($payload, $provider->name() === 'technitium'
+                    ? $this->config->technitiumDefaultZone()
+                    : $zoneId);
+                $this->state->upsertRecord($serverId, $created);
+                $id = $this->state->recordKey($created);
+                if ($id !== '') {
+                    $this->state->setARecord($serverId, $id, (string) ($payload['name'] ?? ''));
+                }
+            } catch (\Throwable) {
+                continue;
             }
         }
     }

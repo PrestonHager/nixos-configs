@@ -35,6 +35,9 @@ in
       "127.0.0.1:${toString technitiumDnsPort}:53/udp"
       "127.0.0.1:${toString technitiumDnsPort}:53/tcp"
       "127.0.0.1:5380:5380/tcp"
+      # Admin API reachable from podman containers via host.containers.internal
+      # (pterodactyl dnsrecords extension). Gateway IP only — not exposed on LAN.
+      "10.88.0.1:5380:5380/tcp"
       # DNS-over-HTTP backend for Caddy-terminated DoH (RFC 8484 /dns-query).
       "127.0.0.1:${toString dohBackendPort}:${toString dohBackendPort}/tcp"
       # Native DNS-over-TLS (Caddy LE cert exported to PKCS#12).

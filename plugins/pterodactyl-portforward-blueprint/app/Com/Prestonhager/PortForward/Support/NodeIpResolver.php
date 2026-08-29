@@ -30,17 +30,21 @@ class NodeIpResolver
 
         $fqdn = strtolower((string) $node->fqdn);
         $name = strtolower((string) $node->name);
+        $genericDefault = "default_{$name}";
+        if (isset($map[$genericDefault])) {
+            return $map[$genericDefault];
+        }
         if (str_contains($fqdn, 'crux') || $name === 'crux') {
             return $map['default_crux'] ?? '192.168.5.6';
         }
         if (str_contains($fqdn, 'nova') || $name === 'nova') {
             return $map['default_nova'] ?? '192.168.5.7';
         }
-
-        foreach ($map as $key => $ip) {
-            if (str_contains($key, 'default_')) {
-                continue;
-            }
+        if (str_contains($fqdn, 'elara') || $name === 'elara') {
+            return $map['default_elara'] ?? '192.168.5.8';
+        }
+        if (str_contains($fqdn, 'zenith') || $name === 'zenith') {
+            return $map['default_zenith'] ?? '192.168.5.9';
         }
 
         throw new PluginException(sprintf('No LAN IP mapping configured for node "%s" (ID %d).', $node->name, $node->id));

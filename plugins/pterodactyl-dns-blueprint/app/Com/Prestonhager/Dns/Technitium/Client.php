@@ -19,7 +19,9 @@ class Client
      */
     public function listZones(): array
     {
-        $response = $this->request('GET', '/api/zones/list');
+        $response = $this->request('GET', '/api/zones/list?' . http_build_query([
+            'token' => $this->config->technitiumApiToken(),
+        ]));
         $zones = $response['response']['zones'] ?? [];
 
         return is_array($zones) ? $zones : [];

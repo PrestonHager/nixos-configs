@@ -99,27 +99,64 @@ class ProviderManager
      */
     public function updateRecord(string $recordId, array $payload, string $zoneId, array $existing, ?int $serverId = null): array
     {
-        $providerName = (string) ($existing['provider'] ?? 'cloudflare');
-        $provider = $this->resolveProvider($providerName);
-        $effectiveZone = $provider->name() === 'technitium'
-            ? $this->config->technitiumDefaultZone()
-            : $zoneId;
+        $ownerName = (string) ($existing['provider'] ?? 'cloudflare');
+        $owner = $this->resolveProvider($ownerName);
+
+        // Update the owning record, then mirror the change onto every other
+        // enabled provider so "both" mode keeps Cloudflare and Technitium in
+        // sync (mirroring uses createRecord; Technitium addRecord overwrites,
+        // making repeated syncs idempotent).
+        $targets = [];
+        foreach ($this->providersFor() as $provider) {
+            $targets[$provider->name()] = $provider;
+        }
+        $targets[$ownerName] = $owner;
 
         if ($this->config->dryRunEnabled()) {
-            $this->audit->log('dry_run', $provider->name(), (string) ($payload['name'] ?? $existing['name'] ?? ''), [
+            $this->audit->log('dry_run', $ownerName, (string) ($payload['name'] ?? $existing['name'] ?? ''), [
                 'action' => 'update',
                 'record_id' => $recordId,
+                'providers' => array_keys($targets),
             ], $serverId);
 
             return [$existing];
         }
 
-        $record = $provider->updateRecord($recordId, $payload, $effectiveZone);
-        $this->audit->log('update', $provider->name(), (string) ($record['name'] ?? ''), [
-            'record_id' => $recordId,
-        ], $serverId);
+        $records = [];
+        foreach ($targets as $name => $provider) {
+            $effectiveZone = $name === 'technitium'
+                ? $this->config->technitiumDefaultZone()
+                : $zoneId;
+            $isOwner = $name === $ownerName;
 
-        return [$record];
+            try {
+                if ($isOwner) {
+                    $record = $provider->updateRecord($recordId, $payload, $effectiveZone);
+                    $this->audit->log('update', $name, (string) ($record['name'] ?? ''), [
+                        'record_id' => $recordId,
+                        'zone' => $effectiveZone,
+                    ], $serverId);
+                } else {
+                    $record = $provider->createRecord($payload, $effectiveZone);
+                    $this->audit->log('create', $name, (string) ($record['name'] ?? ''), [
+                        'action' => 'mirror_update',
+                        'zone' => $effectiveZone,
+                    ], $serverId);
+                }
+                $records[] = $record;
+            } catch (PluginException $e) {
+                $this->audit->log('error', $name, (string) ($payload['name'] ?? $existing['name'] ?? ''), [
+                    'action' => $isOwner ? 'update' : 'mirror_update',
+                    'message' => $e->getMessage(),
+                ], $serverId);
+
+                if ($isOwner) {
+                    throw $e;
+                }
+            }
+        }
+
+        return $records !== [] ? $records : [$existing];
     }
 
     public function deleteRecord(array $existing, ?int $serverId = null): void
