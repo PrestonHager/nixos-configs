@@ -47,7 +47,7 @@ in
     initLua = ''
       -- Enable treesitter highlighting
       package.path = package.path ..
-        ";${pkgs.vimPlugins.nvim-treesitter}/lua;${pkgs.vimPlugins.nvim-treesitter}/lua/?.lua"
+        ";${pkgs.vimPlugins.nvim-treesitter}/lua/?/init.lua;${pkgs.vimPlugins.nvim-treesitter}/lua/?.lua"
       require('nvim-treesitter.configs').setup({
         highlight = {
           enable = true,
