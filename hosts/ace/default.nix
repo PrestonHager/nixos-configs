@@ -57,7 +57,6 @@ in {
 
   # Configure networking for the host
   networking = {
-    networkmanager.waitOnline.enable = false;
     defaultGateway = "192.168.5.1";
     # Technitium on ace (192.168.5.5:53); avoid looping through external resolvers first.
     nameservers = [ "192.168.5.5" "1.1.1.1" ];
