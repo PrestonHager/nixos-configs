@@ -1,6 +1,8 @@
 { config, inputs, pkgs, lib ? pkgs.lib, ... }:
 
-{
+let
+  sops-path = builtins.toString inputs.nix-secrets;
+in {
   networking.hostName = "ace";
 
   imports = [
@@ -24,9 +26,11 @@
     # include any users
     ../../users/prestonh
     ../../users/dylanh
-    # K80 GPU stack (Tesla K80 / legacy 470) — docs/ace-k80-gpu.md
-    inputs.ace-k80-stack.nixosModules.k80-gpu
   ];
+
+  sops.secrets."tailscale-auth-key" = {
+    sopsFile = "${sops-path}/secrets/ace.yaml";
+  };
 
   # 32 GiB swap file on root (sdb2, ~2.9T free) — safety net for rebuild memory
   # pressure. Chosen over zram: disk-backed swap does not compete with the
@@ -53,6 +57,7 @@
 
   # Configure networking for the host
   networking = {
+    networkmanager.waitOnline.enable = false;
     defaultGateway = "192.168.5.1";
     # Technitium on ace (192.168.5.5:53); avoid looping through external resolvers first.
     nameservers = [ "192.168.5.5" "1.1.1.1" ];
@@ -64,7 +69,7 @@
       } ];
     };
     bonds.bond0 = {
-      interfaces = [ "eno1" "eno2" ];
+      interfaces = [ "eno1" "eno3" ];
       driverOptions = {
         mode = "802.3ad";
         lacp_rate = "fast";
@@ -97,26 +102,6 @@
   homelab.caddy.cloudflareAcme = {
     enable = true;
     accountId = "12f5428fd594b9e9c2eaadfdd0fdc857";
-  };
-
-  # --- K80 GPU stack (Tesla K80 / legacy 470) ---
-  # See docs/ace-k80-gpu.md and https://github.com/PrestonHager/ace-k80-stack
-  # Insecure packages required on ace (literal names — avoid pkgs.*.version here).
-  # - openclaw: LLM gateway for ai.prestonhager.com (TEMPORARILY DISABLED — re-add when re-enabling)
-  # - nodejs 20 / slim: GitHub Actions runner externals/node20 + parityPackages
-  nixpkgs.config.permittedInsecurePackages = [
-    # "openclaw-2026.6.5"  # TEMPORARILY DISABLED with OpenClaw / ai.prestonhager.com
-    "nodejs-20.20.2"
-    "nodejs-slim-20.20.2"
-  ];
-  services.aceK80 = {
-    enable = true;
-    # Ollama needs a loaded NVIDIA driver + CDI. Driver is not currently loaded
-    # on ace (nvidia-smi / CDI fail), so keep Ollama off to avoid failed units.
-    enableOllama = false;
-    # TEMPORARILY DISABLED — reopen ai.prestonhager.com later (docs/ace-openclaw-sso.md)
-    enableOpenClaw = false;
-    # openclaw.package = pkgs.openclaw;
   };
 
   # GitHub Actions runners -- Amazon Linux 2023 OCI (glibc 2.34) via baked local
@@ -156,5 +141,13 @@
         extraLabels = [ "ace-al2023-x64-4" "ace-ubuntu-x64-4" ];
       };
     };
+  };
+
+  services.tailscale = {
+    enable = true;
+    authKeyFile = config.sops.secrets."tailscale-auth-key".path;
+    openFirewall = true;
+    useRoutingFeatures = "server";
+    extraUpFlags = [ "--advertise-exit-node" ];
   };
 }
