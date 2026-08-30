@@ -11,7 +11,7 @@
 
 | Component | Path | Notes |
 |-----------|------|-------|
-| Blueprint extension | `plugins/pterodactyl-portforward-blueprint/` | Identifier `portforward` |
+| Blueprint extension | `plugins/pterodactyl-blueprint-port-forward/` | Identifier `portforward` |
 | IOS NAT builder | `.../Cisco/NatRule.php` | Static NAT line generation |
 | SSH client | `.../Ssh/SshClient.php` | OpenSSH in panel container; legacy KEX for IOS 15.7 |
 | Router service | `.../RouterNatService.php` | Validate, apply, audit |

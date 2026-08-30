@@ -275,7 +275,16 @@ EOF
     pkgs.openssh
     pkgs.curl
     pkgs.gnutar
-    pkgs.uutils-findutils
+    # Blueprint framework build tools
+    pkgs.nodejs_22
+    pkgs.yarn
+    pkgs.zip
+    pkgs.unzip
+    pkgs.ncurses
+    pkgs.gawk
+    pkgs.diffutils
+    pkgs.findutils
+    pkgs.gzip
     pkgs.cron
     pkgs.systemd
     pkgs.nettools

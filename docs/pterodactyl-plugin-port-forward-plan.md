@@ -113,7 +113,7 @@ sequenceDiagram
 
 ### 4.3 Blueprint extension layout (proposed)
 
-New directory: `plugins/pterodactyl-portforward-blueprint/`
+New directory: `plugins/pterodactyl-blueprint-port-forward/`
 
 | Path | Role |
 |------|------|

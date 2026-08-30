@@ -83,11 +83,15 @@ let
       fi
     done
 
-    ${pkgs.podman}/bin/podman exec \
-      -e HOME=/var/www/pterodactyl \
-      -e COMPOSER_HOME=/tmp/composer \
-      pterodactyl-test \
-      sh -c 'cd /var/www/pterodactyl && composer install --no-dev --optimize-autoloader'
+    if ${pkgs.podman}/bin/podman container exists pterodactyl-test 2>/dev/null; then
+      ${pkgs.podman}/bin/podman exec \
+        -e HOME=/var/www/pterodactyl \
+        -e COMPOSER_HOME=/tmp/composer \
+        pterodactyl-test \
+        sh -c 'cd /var/www/pterodactyl && composer install --no-dev --optimize-autoloader'
+    else
+      echo "pterodactyl-test-stock-reset: test container not running, skipping composer install" >&2
+    fi
 
     rm -f "${stateDir}/blueprint-fork-installed" "${stateDir}/blueprint-installed"
     echo "stock-${officialBranch}" > "$marker"

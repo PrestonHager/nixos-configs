@@ -6,6 +6,7 @@ in {
   networking.hostName = "ace";
 
   imports = [
+    ../../nixos/containers/blueprint-plugins.nix
     ../../nixos/local-service-hosts.nix
     ../../nixos
     ../../nixos/headless
@@ -17,7 +18,7 @@ in {
     ../../nixos/nfs
     # matrix home server (Synapse)
     ../../nixos/matrix.nix
-    # GitHub Actions self-hosted runners — docs/github-runner.md
+    # GitHub Actions self-hosted runners ï¿½ docs/github-runner.md
     ../../nixos/services/github-runner.nix
     # hardware configuration for the MSI Summit E16 Flip
     ../../hardware/dell-poweredge-730xd/hardware-configuration.nix
@@ -32,10 +33,10 @@ in {
     sopsFile = "${sops-path}/secrets/ace.yaml";
   };
 
-  # 32 GiB swap file on root (sdb2, ~2.9T free) — safety net for rebuild memory
+  # 32 GiB swap file on root (sdb2, ~2.9T free) ï¿½ safety net for rebuild memory
   # pressure. Chosen over zram: disk-backed swap does not compete with the
   # compressed-RAM budget on a 31 GiB host. Created on activation when size is set.
-  # Pending constrained rebuild — do not apply unconstrained. See docs/ace-rebuild-freeze-rca.md.
+  # Pending constrained rebuild ï¿½ do not apply unconstrained. See docs/ace-rebuild-freeze-rca.md.
   swapDevices = [{
     device = "/var/lib/swapfile";
     size = 32 * 1024; # MiB
@@ -84,6 +85,12 @@ in {
     };
   };
 
+  # NetworkManager-wait-online times out on this host every boot/switch and
+  # makes nixos-rebuild switch return non-zero. Disable the wait entirely.
+  systemd.services.NetworkManager-wait-online = {
+    enable = lib.mkForce false;
+  };
+
   homelab.security = {
     enable = true;
     hostName = "ace";
@@ -108,11 +115,11 @@ in {
   # provided.al2023 so soundbytes-api bootstrap binaries link correctly.
   # Profiling 2026-07-12 on ace: 48 CPUs, 31 GiB RAM + 32 GiB swap; ~7 GiB steady
   # for web stacks. Originally N=4 x 4096m x 4 CPUs => 16 GiB / 16 CPUs peak CI.
-  # With EverPuzzle: N=8 same caps => 32 GiB / 32 CPUs peak — tight vs web
+  # With EverPuzzle: N=8 same caps => 32 GiB / 32 CPUs peak ï¿½ tight vs web
   # services; rely on swap and hard memory caps. Prefer same caps unless OOM.
   # PrestonHager is a personal account (not an org): no user/org-wide runners
-  # (GitHub API 404). Repo-scoped sets: soundbytes-app (ace-1…4) + EverPuzzle
-  # (ace-ep-1…4). systemd/podman unit names must be unique on the host, so
+  # (GitHub API 404). Repo-scoped sets: soundbytes-app (ace-1ï¿½4) + EverPuzzle
+  # (ace-ep-1ï¿½4). systemd/podman unit names must be unique on the host, so
   # EverPuzzle uses the ace-ep-* attr (GitHub UI names match units).
   # Token: nix-secrets secrets/github-runner.yaml -> token (shared PAT).
   # Preferred workflow label: ace-al2023-x64-4 (GitHub also adds self-hosted/Linux/X64).
@@ -133,7 +140,7 @@ in {
         instances = 4;
         extraLabels = [ "ace-al2023-x64-4" "ace-ubuntu-x64-4" ];
       };
-      # GitHub + systemd: ace-ep-1 … ace-ep-4 (unique host units; labels match soundbytes)
+      # GitHub + systemd: ace-ep-1 ï¿½ ace-ep-4 (unique host units; labels match soundbytes)
       ace-ep = {
         url = "https://github.com/PrestonHager/EverPuzzle";
         instances = 4;

@@ -187,11 +187,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1787736819,
-        "narHash": "sha256-cV5xEJJK3BvhU8rEd4mC9UsmDi5qscv/kzGPhBRC5WA=",
+        "lastModified": 1787900134,
+        "narHash": "sha256-VYXO0XZlgj06dxJZRhrD3WoSsvq/c7+/Akyoa22pefw=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "9fbb54b33e91ee4ca368e35a78e0613c720600b3",
+        "rev": "83199d0d373dd3ac2b9a1996b1d0263f76ab7a4c",
         "type": "github"
       },
       "original": {
@@ -214,6 +214,54 @@
         "owner": "NixOS",
         "ref": "nixpkgs-unstable",
         "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "pterodactyl-dns-records": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1788051311,
+        "narHash": "sha256-sYa+CDPQv+W2XNbXXEuoEkl6aIVYbRnRts+N1IoKVrM=",
+        "owner": "PrestonHager",
+        "repo": "pterodactyl-blueprint-dns-records",
+        "rev": "7e84fdc72bf1bd331a0eb8f7e4e2618409ca9481",
+        "type": "github"
+      },
+      "original": {
+        "owner": "PrestonHager",
+        "repo": "pterodactyl-blueprint-dns-records",
+        "type": "github"
+      }
+    },
+    "pterodactyl-minecraft-tools": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1788055623,
+        "narHash": "sha256-MNNj5MFc8+AUSgANbK6bH6rwmi/YVfAdpCh07lWLYkY=",
+        "owner": "PrestonHager",
+        "repo": "pterodactyl-blueprint-minecraft-tools",
+        "rev": "2ffb896d7553fe4f5cde1a93de69ec8b19f8b7ca",
+        "type": "github"
+      },
+      "original": {
+        "owner": "PrestonHager",
+        "repo": "pterodactyl-blueprint-minecraft-tools",
+        "type": "github"
+      }
+    },
+    "pterodactyl-port-forward": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1788057154,
+        "narHash": "sha256-YEhDEJPOQK8ua2/kI++OYbvP3UTyDMYcGGbaue6+mhI=",
+        "owner": "PrestonHager",
+        "repo": "pterodactyl-blueprint-port-forward",
+        "rev": "451da7ba9887d9cb19c1a7644630bf03ae924801",
+        "type": "github"
+      },
+      "original": {
+        "owner": "PrestonHager",
+        "repo": "pterodactyl-blueprint-port-forward",
         "type": "github"
       }
     },
@@ -246,6 +294,9 @@
         "home-manager": "home-manager",
         "nix-secrets": "nix-secrets",
         "nixpkgs": "nixpkgs_2",
+        "pterodactyl-dns-records": "pterodactyl-dns-records",
+        "pterodactyl-minecraft-tools": "pterodactyl-minecraft-tools",
+        "pterodactyl-port-forward": "pterodactyl-port-forward",
         "pterodactyl-wings": "pterodactyl-wings",
         "sops-nix": "sops-nix",
         "tree-sitter-parsers": "tree-sitter-parsers"

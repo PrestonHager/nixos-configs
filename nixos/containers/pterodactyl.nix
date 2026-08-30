@@ -134,13 +134,16 @@ in
         fi
 
         echo "pterodactyl-pod-network-check: redis unreachable from panel; recreating pod" >&2
-        systemctl stop podman-pterodactyl.service podman-pterodactyl-db.service podman-pterodactyl-redis.service
-        $podman pod stop -t 30 pterodactyl || true
-        $podman pod rm -f pterodactyl
-        systemctl start pod-pterodactyl.service podman-pterodactyl-redis.service podman-pterodactyl-db.service podman-pterodactyl.service
+        systemctl stop podman-pterodactyl.service podman-pterodactyl-db.service podman-pterodactyl-redis.service 2>/dev/null || true
+        systemctl stop pod-pterodactyl.service 2>/dev/null || true
+        $podman pod stop -t 30 pterodactyl 2>/dev/null || true
+        $podman pod rm -f pterodactyl 2>/dev/null || true
+        systemctl start pod-pterodactyl.service
+        systemctl start podman-pterodactyl-db.service podman-pterodactyl-redis.service
+        sleep 2
+        systemctl start podman-pterodactyl.service
         sleep 5
         $podman exec pterodactyl redis-cli -h 127.0.0.1 ping | grep -q PONG
-        systemctl restart podman-pterodactyl.service
         $podman exec pterodactyl php /var/www/pterodactyl/artisan config:clear
         $podman exec pterodactyl php /var/www/pterodactyl/artisan cache:clear
       '';

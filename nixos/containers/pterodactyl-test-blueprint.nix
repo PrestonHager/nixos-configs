@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, inputs, ... }:
 
 let
   testPanelDir = "/home/prestonh/Projects/panel";
@@ -7,8 +7,8 @@ let
   blueprintMarker = "${stateDir}/blueprint-installed";
   blueprintReleaseUrl = "https://github.com/BlueprintFramework/framework/releases/latest/download/release.zip";
   socialloginBlueprintUrl = "https://github.com/blueprint-community/extension-sociallogin/releases/download/1.2.0/sociallogin.blueprint";
-  dnsExtensionSrc = "/etc/nixos/plugins/pterodactyl-dns-blueprint";
-  portforwardExtensionSrc = "/etc/nixos/plugins/pterodactyl-portforward-blueprint";
+  dnsExtensionSrc = inputs.pterodactyl-dns-records;
+  portforwardExtensionSrc = inputs.pterodactyl-port-forward;
   blueprintExtensionsThemeSrc = "/etc/nixos/plugins/pterodactyl-blueprint-extensions/public/admin-extension-theme.css";
 
   toolPath = pkgs.lib.makeBinPath [

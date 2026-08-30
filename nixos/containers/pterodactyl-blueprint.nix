@@ -1,15 +1,29 @@
-{ config, pkgs, ... }:
+{ config, pkgs, lib, inputs, ... }:
 
 let
-  panelRoot = "/pterodactyl/html";
+    # Import central blueprint plugins configuration
+  blueprintCfg = config.homelab.blueprint;
+  plugins = builtins.sort (a: b: a.order < b.order) blueprintCfg.plugins;
+  framework = blueprintCfg.framework;
+  extensionsThemeSrc = blueprintCfg.extensionsThemeSrc;
+
+  # Build plugin sources from flake inputs
+  pluginSources = builtins.listToAttrs (builtins.map (plugin:
+    { name = plugin.name; value = builtins.getAttr plugin.repo inputs; }
+  ) plugins);
+
+  blueprintExtensionsThemeSrc = extensionsThemeSrc;
+  dnsExtensionSrc = pluginSources.dnsrecords;
+  portforwardExtensionSrc = pluginSources.portforward;
+  blueprintReleaseUrl = framework.releaseUrl;
+  blueprintReleaseHash = framework.releaseHash;
+  socialloginBlueprintUrl = framework.socialloginBlueprintUrl;
+
+  # Add imports attribute to the returned set
+
+panelRoot = "/pterodactyl/html";
   stateDir = "/var/lib/pterodactyl";
   blueprintMarker = "${stateDir}/blueprint-installed";
-  blueprintReleaseUrl = "https://github.com/BlueprintFramework/framework/releases/download/beta-2026-08/release.zip";
-  blueprintReleaseHash = "sha256:38bcee33b19abcbb3460578236ead74668ec39a7861200bbc6902a9152ac118d";
-  socialloginBlueprintUrl = "https://github.com/blueprint-community/extension-sociallogin/releases/download/1.2.0/sociallogin.blueprint";
-  dnsExtensionSrc = "/etc/nixos/plugins/pterodactyl-dns-blueprint";
-  portforwardExtensionSrc = "/etc/nixos/plugins/pterodactyl-portforward-blueprint";
-  blueprintExtensionsThemeSrc = "/etc/nixos/plugins/pterodactyl-blueprint-extensions/public/admin-extension-theme.css";
 
   toolPath = pkgs.lib.makeBinPath [
     pkgs.bash
@@ -684,15 +698,29 @@ let
         echo "pterodactyl-blueprint-install: Port Forward extension source missing at ${portforwardExtensionSrc}" >&2
         return 1
       fi
-      if [ -d "$panel/.blueprint/extensions/portforward" ]; then
+      if [ -d "$panel/.blueprint/extensions/portforward/private/.store" ]; then
         echo "pterodactyl-blueprint-install: Port Forward extension already present"
         return 0
+      fi
+      if [ -e "$panel/.blueprint/extensions/portforward" ] \
+         || [ -e "$panel/public/extensions/portforward" ] \
+         || [ -e "$panel/app/BlueprintFramework/Extensions/portforward" ] \
+         || [ -e "$panel/storage/extensions/portforward" ]; then
+        echo "pterodactyl-blueprint-install: stale Port Forward install detected, clearing for fresh install" >&2
+        rm -rf "$panel/.blueprint/extensions/portforward"
+        rm -f "$panel/public/extensions/portforward" "$panel/storage/extensions/portforward"
+        rm -rf "$panel/app/BlueprintFramework/Extensions/portforward"
       fi
       echo "pterodactyl-blueprint-install: installing portforward extension from dev tree..."
       install -d -m 0755 -o pterodactyl -g pterodactyl "$panel/.blueprint/dev"
       rm -rf "$panel/.blueprint/dev/"*
       cp -a "${portforwardExtensionSrc}/." "$panel/.blueprint/dev/"
       chown -R pterodactyl:pterodactyl "$panel/.blueprint/dev"
+      regfile="$panel/.blueprint/extensions/blueprint/private/db/installed_extensions"
+      if [ -f "$regfile" ]; then
+        echo "pterodactyl-blueprint-install: clearing Port Forward registry entry for fresh install" >&2
+        ${pkgs.gnused}/bin/sed -i 's/|portforward,//g' "$regfile"
+      fi
       if ! blueprint_cli -info 2>/dev/null | grep -qi portforward; then
         rm -f "$panel/.blueprint/lock"
         blueprint_cli -install '[developer-build]' \
@@ -705,15 +733,29 @@ let
         echo "pterodactyl-blueprint-install: DNS extension source missing at ${dnsExtensionSrc}" >&2
         return 1
       fi
-      if [ -d "$panel/.blueprint/extensions/dnsrecords" ]; then
+      if [ -d "$panel/.blueprint/extensions/dnsrecords/private/.store" ]; then
         echo "pterodactyl-blueprint-install: DNS Records extension already present"
         return 0
+      fi
+      if [ -e "$panel/.blueprint/extensions/dnsrecords" ] \
+         || [ -e "$panel/public/extensions/dnsrecords" ] \
+         || [ -e "$panel/app/BlueprintFramework/Extensions/dnsrecords" ] \
+         || [ -e "$panel/storage/extensions/dnsrecords" ]; then
+        echo "pterodactyl-blueprint-install: stale DNS Records install detected, clearing for fresh install" >&2
+        rm -rf "$panel/.blueprint/extensions/dnsrecords"
+        rm -f "$panel/public/extensions/dnsrecords" "$panel/storage/extensions/dnsrecords"
+        rm -rf "$panel/app/BlueprintFramework/Extensions/dnsrecords"
       fi
       echo "pterodactyl-blueprint-install: installing dnsrecords extension from dev tree..."
       install -d -m 0755 -o pterodactyl -g pterodactyl "$panel/.blueprint/dev"
       rm -rf "$panel/.blueprint/dev/"*
       cp -a "${dnsExtensionSrc}/." "$panel/.blueprint/dev/"
       chown -R pterodactyl:pterodactyl "$panel/.blueprint/dev"
+      regfile="$panel/.blueprint/extensions/blueprint/private/db/installed_extensions"
+      if [ -f "$regfile" ]; then
+        echo "pterodactyl-blueprint-install: clearing DNS Records registry entry for fresh install" >&2
+        ${pkgs.gnused}/bin/sed -i 's/|dnsrecords,//g' "$regfile"
+      fi
       if ! blueprint_cli -info 2>/dev/null | grep -qi dnsrecords; then
         rm -f "$panel/.blueprint/lock"
         blueprint_cli -install '[developer-build]' \

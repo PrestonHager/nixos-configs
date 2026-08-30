@@ -5,7 +5,7 @@ let
   pterodactylImages = import ./pterodactyl-docker.nix {
     inherit pkgs sops-path;
   };
-  inherit (pterodactylImages) panelUpdateEnvStock;
+  inherit (pterodactylImages) panelUpdateEnvStock version;
   officialPanelSrc = "https://github.com/pterodactyl/panel.git";
   testEnvFile = "/var/lib/pterodactyl-test/pterodactyl.env";
   testPanelDir = "/home/prestonh/Projects/panel";
@@ -470,13 +470,16 @@ EOF
         fi
 
         echo "pterodactyl-test-pod-network-check: redis unreachable from panel; recreating pod" >&2
-        systemctl stop podman-pterodactyl-test.service podman-pterodactyl-test-db.service podman-pterodactyl-test-redis.service
-        $podman pod stop -t 30 pterodactyl-test || true
-        $podman pod rm -f pterodactyl-test
-        systemctl start pod-pterodactyl-test.service podman-pterodactyl-test-redis.service podman-pterodactyl-test-db.service podman-pterodactyl-test.service
+        systemctl stop podman-pterodactyl-test.service podman-pterodactyl-test-db.service podman-pterodactyl-test-redis.service 2>/dev/null || true
+        systemctl stop pod-pterodactyl-test.service 2>/dev/null || true
+        $podman pod stop -t 30 pterodactyl-test 2>/dev/null || true
+        $podman pod rm -f pterodactyl-test 2>/dev/null || true
+        systemctl start pod-pterodactyl-test.service
+        systemctl start podman-pterodactyl-test-db.service podman-pterodactyl-test-redis.service
+        sleep 2
+        systemctl start podman-pterodactyl-test.service
         sleep 5
         $podman exec pterodactyl-test redis-cli -h 127.0.0.1 ping | grep -q PONG
-        systemctl restart podman-pterodactyl-test.service
         $podman exec pterodactyl-test php /var/www/pterodactyl/artisan config:clear
         $podman exec pterodactyl-test php /var/www/pterodactyl/artisan cache:clear
       '';
@@ -503,7 +506,7 @@ EOF
         "--env-file=${testEnvFile}"
         "--env-file=/pterodactyl/secrets/blueprint-extensions.env"
       ];
-      image = "pterodactyl-runtime:v1.14.1";
+      image = "pterodactyl-runtime:v${version}";
       imageFile = pterodactylImages.runtimeImage;
     };
 

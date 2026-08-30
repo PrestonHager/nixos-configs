@@ -29,6 +29,20 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Blueprint plugins
+    pterodactyl-dns-records = {
+      url = "github:PrestonHager/pterodactyl-blueprint-dns-records";
+      flake = false;
+    };
+    pterodactyl-port-forward = {
+      url = "github:PrestonHager/pterodactyl-blueprint-port-forward";
+      flake = false;
+    };
+    pterodactyl-minecraft-tools = {
+      url = "github:PrestonHager/pterodactyl-blueprint-minecraft-tools";
+      flake = false;
+    };
+
     # Upstream Blueprint framework (test.panel; tracked for rev pinning)
     blueprint-framework = {
       url = "github:BlueprintFramework/framework";
@@ -40,7 +54,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Tesla K80 stack (470 driver, CUDA 11.4, Ollama/OpenClaw) â€” enable in hosts/ace after GPU install
+    # Tesla K80 stack (470 driver, CUDA 11.4, Ollama/OpenClaw) — enable in hosts/ace after GPU install
     ace-k80-stack = {
       url = "github:PrestonHager/ace-k80-stack";
       inputs.nixpkgs.follows = "nixpkgs";
