@@ -236,11 +236,11 @@
     "pterodactyl-minecraft-tools": {
       "flake": false,
       "locked": {
-        "lastModified": 1788055623,
-        "narHash": "sha256-MNNj5MFc8+AUSgANbK6bH6rwmi/YVfAdpCh07lWLYkY=",
+        "lastModified": 1788207709,
+        "narHash": "sha256-HX8UmMUgtiCbOlgOZE+3TyMUh0ZwZ145c65+5ZpoGv8=",
         "owner": "PrestonHager",
         "repo": "pterodactyl-blueprint-minecraft-tools",
-        "rev": "2ffb896d7553fe4f5cde1a93de69ec8b19f8b7ca",
+        "rev": "f2aebd0db9eeedf756ac134c43528109909a5b40",
         "type": "github"
       },
       "original": {
