@@ -38,18 +38,18 @@ let
       routes = [ "web" "application" "client" ];
       migrations = [ "database/migrations" ];
     }
-    #{
-      #name = "minecraft-tools";
-      #repo = "pterodactyl-minecraft-tools";
-      #installMethod = "copy";
-      #order = 30;
-      #adminView = "admin/view.blade.php";
-      #adminController = "admin/controller.php";
-      #adminPartials = "admin/partials";
-      #adminWrapper = "admin/wrapper.blade.php";
-      #routes = [ "web" "application" "client" ];
-      #migrations = [ "database/migrations" ];
-    #}
+    {
+      name = "minecraft-tools";
+      repo = "pterodactyl-minecraft-tools";
+      installMethod = "copy";
+      order = 30;
+      adminView = "admin/view.blade.php";
+      adminController = "admin/controller.php";
+      adminPartials = "admin/partials";
+      adminWrapper = "admin/wrapper.blade.php";
+      routes = [ "web" "application" "client" ];
+      migrations = [ "database/migrations" ];
+    }
   ];
 
   defaultFramework = {

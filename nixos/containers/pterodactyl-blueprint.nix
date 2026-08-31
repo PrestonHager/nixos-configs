@@ -15,6 +15,8 @@ let
   blueprintExtensionsThemeSrc = extensionsThemeSrc;
   dnsExtensionSrc = pluginSources.dnsrecords;
   portforwardExtensionSrc = pluginSources.portforward;
+  minecraftToolsSrc = pluginSources."minecraft-tools";
+  minecraftToolsPort = ./mc-tools-port;
   blueprintReleaseUrl = framework.releaseUrl;
   blueprintReleaseHash = framework.releaseHash;
   socialloginBlueprintUrl = framework.socialloginBlueprintUrl;
@@ -101,7 +103,7 @@ panelRoot = "/pterodactyl/html";
     ensure_extension_app_symlinks() {
       ext_root="$panel/app/BlueprintFramework/Extensions"
       install -d -m 0755 -o pterodactyl -g pterodactyl "$ext_root"
-      for ext in sociallogin dnsrecords portforward; do
+      for ext in sociallogin dnsrecords portforward minecraft-tools; do
         if [ ! -d "$panel/.blueprint/extensions/$ext/app" ]; then
           continue
         fi
@@ -117,7 +119,7 @@ panelRoot = "/pterodactyl/html";
     ensure_storage_extension_symlinks() {
       storage_ext="$panel/storage/extensions"
       install -d -m 2775 -o pterodactyl -g pterodactyl "$storage_ext"
-      for ext in sociallogin dnsrecords portforward; do
+      for ext in sociallogin dnsrecords portforward minecraft-tools; do
         if [ ! -d "$panel/.blueprint/extensions/$ext/fs" ]; then
           continue
         fi
@@ -151,7 +153,7 @@ panelRoot = "/pterodactyl/html";
     ensure_public_assets_extension_symlinks() {
       assets_ext="$panel/public/assets/extensions"
       install -d -m 2775 -o pterodactyl -g pterodactyl "$assets_ext"
-      for ext in blueprint sociallogin dnsrecords portforward; do
+      for ext in blueprint sociallogin dnsrecords portforward minecraft-tools; do
         target="$panel/.blueprint/extensions/$ext/assets"
         if [ ! -d "$target" ]; then
           continue
@@ -184,7 +186,7 @@ panelRoot = "/pterodactyl/html";
     }
 
     extension_public_assets_integrated() {
-      for ext in blueprint sociallogin dnsrecords portforward; do
+      for ext in blueprint sociallogin dnsrecords portforward minecraft-tools; do
         asset=$(extension_public_asset_file "$ext")
         [ -f "$asset" ] || return 1
       done
@@ -197,6 +199,7 @@ panelRoot = "/pterodactyl/html";
       case "$ext" in
         dnsrecords) echo "${dnsExtensionSrc}/admin/view.blade.php" ;;
         portforward) echo "${portforwardExtensionSrc}/admin/view.blade.php" ;;
+        minecraft-tools) echo "${minecraftToolsSrc}/blueprint/dev/resources/views/admin/view.blade.php" ;;
         *) return 1 ;;
       esac
     }
@@ -219,7 +222,7 @@ panelRoot = "/pterodactyl/html";
     }
 
     ensure_extension_admin_files() {
-      for ext in sociallogin dnsrecords portforward; do
+      for ext in sociallogin dnsrecords portforward minecraft-tools; do
         ctrl="$panel/app/Http/Controllers/Admin/Extensions/$ext/''${ext}ExtensionController.php"
         view="$panel/resources/views/admin/extensions/$ext/index.blade.php"
         src_ctrl=""
@@ -254,7 +257,7 @@ panelRoot = "/pterodactyl/html";
           view_needs_sync=0
           if [ ! -f "$view" ] || extension_admin_view_corrupted "$ext"; then
             view_needs_sync=1
-          elif ! cmp -s "$src_view" "$view"; then
+          elif [ "$ext" != "minecraft-tools" ] && ! cmp -s "$src_view" "$view"; then
             view_needs_sync=1
           fi
           if [ "$view_needs_sync" -eq 1 ]; then
@@ -338,14 +341,17 @@ panelRoot = "/pterodactyl/html";
       }
       sync_extension_backend dnsrecords "${dnsExtensionSrc}"
       sync_extension_backend portforward "${portforwardExtensionSrc}"
+      sync_extension_backend minecraft-tools "${minecraftToolsSrc}/blueprint/dev"
       sync_extension_wrapper dnsrecords "${dnsExtensionSrc}"
       sync_extension_wrapper portforward "${portforwardExtensionSrc}"
+      sync_extension_wrapper minecraft-tools "${minecraftToolsSrc}/blueprint/dev"
       sync_extension_panel_routes dnsrecords "${dnsExtensionSrc}"
       sync_extension_panel_routes portforward "${portforwardExtensionSrc}"
+      sync_extension_panel_routes minecraft-tools "${minecraftToolsSrc}/blueprint/dev"
     }
 
     ensure_extension_public_permissions() {
-      for ext in blueprint sociallogin dnsrecords portforward; do
+      for ext in blueprint sociallogin dnsrecords portforward minecraft-tools; do
         public_dir="$panel/.blueprint/extensions/$ext/public"
         [ -d "$public_dir" ] || continue
         chmod 755 "$public_dir" 2>/dev/null || true
@@ -355,7 +361,7 @@ panelRoot = "/pterodactyl/html";
     }
 
     extension_public_permissions_ok() {
-      for ext in blueprint sociallogin dnsrecords portforward; do
+      for ext in blueprint sociallogin dnsrecords portforward minecraft-tools; do
         public_dir="$panel/.blueprint/extensions/$ext/public"
         [ -d "$public_dir" ] || continue
         perms=$(${pkgs.coreutils}/bin/stat -c '%a' "$public_dir" 2>/dev/null || echo 0)
@@ -367,7 +373,7 @@ panelRoot = "/pterodactyl/html";
     }
 
     ensure_extension_migrations() {
-      for src_dir in "${dnsExtensionSrc}/database/migrations" "${portforwardExtensionSrc}/database/migrations"; do
+      for src_dir in "${dnsExtensionSrc}/database/migrations" "${portforwardExtensionSrc}/database/migrations" "${minecraftToolsSrc}/src/Extensions/MinecraftTools/Database/Migrations"; do
         [ -d "$src_dir" ] || continue
         for migration in "$src_dir"/*.php; do
           [ -f "$migration" ] || continue
@@ -383,7 +389,7 @@ panelRoot = "/pterodactyl/html";
 
     ensure_extension_default_icons() {
       default_icon="$panel/.blueprint/extensions/blueprint/assets/byte.png"
-      for ext in sociallogin dnsrecords portforward; do
+      for ext in sociallogin dnsrecords portforward minecraft-tools; do
         assets_dir="$panel/.blueprint/extensions/$ext/assets"
         [ -d "$assets_dir" ] || continue
         if [ ! -f "$assets_dir/icon.jpg" ] && [ -f "$default_icon" ]; then
@@ -763,9 +769,263 @@ panelRoot = "/pterodactyl/html";
       fi
     }
 
+    MinecraftToolsMigration="2024_01_01_000000_create_minecraft_tools_tables.php"
+
+    minecraft_tools_migration_present() {
+      [ -f "$panel/database/migrations/$MinecraftToolsMigration" ]
+    }
+
+    minecraft_tools_integrated() {
+      [ -d "$panel/.blueprint/extensions/minecraft-tools/private/.store" ] \
+        && [ -f "$panel/resources/views/admin/extensions/minecraft-tools/index.blade.php" ] \
+        && minecraft_tools_migration_present
+    }
+
+    ensure_identifier_validator_patch() {
+      vfile="$panel/scripts/helpers/validate-identifier.js"
+      if [ -f "$vfile" ] && grep -q '\[^a-z\]' "$vfile" && ! grep -q '\[^a-z-\]' "$vfile"; then
+        echo "pterodactyl-blueprint-install: relaxing extension identifier validator to allow hyphens..."
+        ${pkgs.gnused}/bin/sed -i 's/\[^a-z\]/\[^a-z-]/g' "$vfile"
+        chown pterodactyl:pterodactyl "$vfile"
+      fi
+    }
+
+    install_minecraft_tools_extension() {
+      if [ ! -d "${minecraftToolsSrc}/blueprint/dev" ]; then
+        echo "pterodactyl-blueprint-install: Minecraft Tools extension source missing at ${minecraftToolsSrc}/blueprint/dev" >&2
+        return 1
+      fi
+      ensure_identifier_validator_patch
+      if [ -d "$panel/.blueprint/extensions/minecraft-tools/private/.store" ]; then
+        echo "pterodactyl-blueprint-install: Minecraft Tools extension already present"
+        return 0
+      fi
+      if [ -e "$panel/.blueprint/extensions/minecraft-tools" ] \
+         || [ -e "$panel/public/extensions/minecraft-tools" ] \
+         || [ -e "$panel/app/BlueprintFramework/Extensions/minecraft-tools" ] \
+         || [ -e "$panel/storage/extensions/minecraft-tools" ]; then
+        echo "pterodactyl-blueprint-install: stale Minecraft Tools install detected, clearing for fresh install" >&2
+        rm -rf "$panel/.blueprint/extensions/minecraft-tools"
+        rm -f "$panel/public/extensions/minecraft-tools" "$panel/storage/extensions/minecraft-tools"
+        rm -rf "$panel/app/BlueprintFramework/Extensions/minecraft-tools"
+      fi
+      echo "pterodactyl-blueprint-install: installing minecraft-tools extension from dev tree..."
+      install -d -m 0755 -o pterodactyl -g pterodactyl "$panel/.blueprint/dev"
+      rm -rf "$panel/.blueprint/dev/"*
+      cp -a "${minecraftToolsSrc}/blueprint/dev/." "$panel/.blueprint/dev/"
+      chown -R pterodactyl:pterodactyl "$panel/.blueprint/dev"
+      cat > "$panel/.blueprint/dev/conf.yml" <<'MC_CONF_EOF'
+info:
+  name: 'Minecraft Tools'
+  identifier: 'minecraft-tools'
+  description: 'A Pterodactyl extension for Minecraft server utilities'
+  version: '1.0.0'
+  target: 'beta-2025-09'
+  author: 'Preston Hager'
+  website: 'https://github.com/PrestonHager/nixos-configs'
+
+admin:
+  view: 'resources/views/admin/view.blade.php'
+
+dashboard:
+  components: 'dashboard/components'
+MC_CONF_EOF
+      chown pterodactyl:pterodactyl "$panel/.blueprint/dev/conf.yml"
+      regfile="$panel/.blueprint/extensions/blueprint/private/db/installed_extensions"
+      if [ -f "$regfile" ]; then
+        echo "pterodactyl-blueprint-install: clearing Minecraft Tools registry entry for fresh install" >&2
+        ${pkgs.gnused}/bin/sed -i 's/|minecraft-tools,//g' "$regfile"
+      fi
+      if ! blueprint_cli -info 2>/dev/null | grep -qi minecraft-tools; then
+        rm -f "$panel/.blueprint/lock"
+        blueprint_cli -install '[developer-build]' \
+          || blueprint_cli -i '[developer-build]'
+      fi
+    }
+
+    ensure_minecraft_tools_migration() {
+      cat > "$panel/database/migrations/$MinecraftToolsMigration" <<'MC_MIG_EOF'
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::dropIfExists('minecraft_tools_plugin_configs');
+        Schema::dropIfExists('minecraft_tools_modpack_configs');
+        Schema::dropIfExists('minecraft_tools_icon_history');
+        Schema::dropIfExists('minecraft_tools_config_backups');
+        Schema::dropIfExists('minecraft_tools_player_notes');
+
+        Schema::create('minecraft_tools_plugin_configs', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('server_id');
+            $table->string('plugin_name');
+            $table->json('config')->nullable();
+            $table->timestamps();
+
+            $table->unique(['server_id', 'plugin_name']);
+            $table->foreign('server_id')->references('id')->on('servers')->onDelete('cascade');
+        });
+
+        Schema::create('minecraft_tools_modpack_configs', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('server_id');
+            $table->string('modpack_name');
+            $table->json('config')->nullable();
+            $table->timestamps();
+
+            $table->unique(['server_id', 'modpack_name']);
+            $table->foreign('server_id')->references('id')->on('servers')->onDelete('cascade');
+        });
+
+        Schema::create('minecraft_tools_icon_history', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('server_id');
+            $table->string('url');
+            $table->unsignedBigInteger('size')->default(0);
+            $table->timestamps();
+
+            $table->foreign('server_id')->references('id')->on('servers')->onDelete('cascade');
+        });
+
+        Schema::create('minecraft_tools_config_backups', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('server_id');
+            $table->string('file');
+            $table->text('content');
+            $table->unsignedBigInteger('size')->default(0);
+            $table->timestamps();
+
+            $table->foreign('server_id')->references('id')->on('servers')->onDelete('cascade');
+        });
+
+        Schema::create('minecraft_tools_player_notes', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('server_id');
+            $table->string('username');
+            $table->string('uuid')->nullable();
+            $table->text('notes')->nullable();
+            $table->string('display_name')->nullable();
+            $table->timestamps();
+
+            $table->unique(['server_id', 'username']);
+            $table->foreign('server_id')->references('id')->on('servers')->onDelete('cascade');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('minecraft_tools_player_notes');
+        Schema::dropIfExists('minecraft_tools_config_backups');
+        Schema::dropIfExists('minecraft_tools_icon_history');
+        Schema::dropIfExists('minecraft_tools_modpack_configs');
+        Schema::dropIfExists('minecraft_tools_plugin_configs');
+    }
+};
+MC_MIG_EOF
+      chown pterodactyl:pterodactyl "$panel/database/migrations/$MinecraftToolsMigration"
+    }
+
+    ensure_minecraft_tools_legacy_wiring() {
+      port="${minecraftToolsPort}"
+      if [ ! -d "$port" ]; then
+        echo "pterodactyl-blueprint-install: Minecraft Tools legacy port tree missing at $port" >&2
+        return 1
+      fi
+
+      echo "pterodactyl-blueprint-install: wiring Minecraft Tools legacy ABI..."
+
+      ctrl_src="$port/app/Http/Controllers/Admin/Extensions/MinecraftTools/MinecraftToolsExtensionController.php"
+      ctrl_dest="$panel/app/Http/Controllers/Admin/Extensions/MinecraftTools/MinecraftToolsExtensionController.php"
+      rm -rf "$panel/app/Http/Controllers/Admin/Extensions/minecraft-tools"
+      install -d -m 0755 -o pterodactyl -g pterodactyl "$(dirname "$ctrl_dest")"
+      if [ ! -f "$ctrl_dest" ] || ! cmp -s "$ctrl_src" "$ctrl_dest"; then
+        cp -a "$ctrl_src" "$ctrl_dest"
+        chown pterodactyl:pterodactyl "$ctrl_dest"
+      fi
+
+      classes_src="$port/app/BlueprintFramework/Extensions/MinecraftTools"
+      classes_dest="$panel/app/BlueprintFramework/Extensions/MinecraftTools"
+      if [ ! -d "$classes_dest" ] || ! ${pkgs.diffutils}/bin/diff -qr "$classes_src" "$classes_dest" >/dev/null 2>&1; then
+        rm -rf "$classes_dest"
+        install -d -m 0755 -o pterodactyl -g pterodactyl "$(dirname "$classes_dest")"
+        cp -a "$classes_src" "$classes_dest"
+        chown -R pterodactyl:pterodactyl "$classes_dest"
+      fi
+
+      routes_src="$port/routes/blueprint/web/minecraft-tools.php"
+      routes_dest="$panel/routes/blueprint/web/minecraft-tools.php"
+      install -d -m 0755 -o pterodactyl -g pterodactyl "$(dirname "$routes_dest")"
+      if [ ! -f "$routes_dest" ] || ! cmp -s "$routes_src" "$routes_dest"; then
+        cp -a "$routes_src" "$routes_dest"
+        chown pterodactyl:pterodactyl "$routes_dest"
+      fi
+
+      cfg_src="$port/config/minecraft-tools.php"
+      cfg_dest="$panel/config/minecraft-tools.php"
+      install -d -m 0755 -o pterodactyl -g pterodactyl "$(dirname "$cfg_dest")"
+      if [ ! -f "$cfg_dest" ] || ! cmp -s "$cfg_src" "$cfg_dest"; then
+        cp -a "$cfg_src" "$cfg_dest"
+        chown pterodactyl:pterodactyl "$cfg_dest"
+      fi
+
+      view_src_root="${minecraftToolsSrc}/blueprint/dev/resources/views/admin"
+      view_dest_root="$panel/resources/views/admin/extensions/minecraft-tools"
+      install -d -m 0755 -o pterodactyl -g pterodactyl "$view_dest_root"
+      if [ -d "$view_src_root" ]; then
+        for blade in view plugins versions players modpacks config icon; do
+          name="index"
+          [ "$blade" != "view" ] && name="$blade"
+          src_blade="$view_src_root/$blade.blade.php"
+          [ -f "$src_blade" ] || continue
+          dest_blade="$view_dest_root/$name.blade.php"
+          ${pkgs.gnused}/bin/sed \
+            -e "s|@extends('admin.layouts.default')|@extends('layouts.admin')|" \
+            -e 's|/api/extensions/minecraft-tools|/minecraft-tools/api|g' \
+            "$src_blade" > "$dest_blade"
+          chown pterodactyl:pterodactyl "$dest_blade"
+        done
+      fi
+
+      blueprint_routes="$panel/routes/blueprint.php"
+      echo "pterodactyl-blueprint-install: checking blueprint.php admin controller resolution for hyphen identifiers..."
+      ${pkgs.gnused}/bin/sed -i '/classSafe = preg_replace/d' "$blueprint_routes"
+      ${pkgs.gnused}/bin/sed -i \
+        "/\$controllerName = \$identifier . 'ExtensionController';/a\  \$classSafe = preg_replace(\"/-/\", \"\", \$identifier);" \
+        "$blueprint_routes"
+      ${pkgs.gnused}/bin/sed -i \
+        's|{\$identifier}\\\\{$controllerName}"|{\$classSafe}\\\\{$classSafe}ExtensionController"|' \
+        "$blueprint_routes"
+      ${pkgs.gnused}/bin/sed -i \
+        's|use ($identifier, $controllerName)|use ($identifier, $controllerName, $classSafe)|' \
+        "$blueprint_routes"
+      chown pterodactyl:pterodactyl "$blueprint_routes"
+
+      ${pkgs.podman}/bin/podman exec \
+        -e HOME=/var/www/pterodactyl \
+        -e COMPOSER_HOME=/tmp/composer \
+        pterodactyl \
+        sh -c 'cd /var/www/pterodactyl && composer dump-autoload -o'
+      ${pkgs.podman}/bin/podman exec pterodactyl php /var/www/pterodactyl/artisan route:clear
+      ${pkgs.podman}/bin/podman exec pterodactyl php /var/www/pterodactyl/artisan config:clear
+      ${pkgs.podman}/bin/podman exec pterodactyl php /var/www/pterodactyl/artisan view:clear
+
+      routes=$( ${pkgs.podman}/bin/podman exec pterodactyl php /var/www/pterodactyl/artisan route:list 2>/dev/null || true)
+      case "$routes" in
+        *'minecraft-tools'*) echo "pterodactyl-blueprint-install: minecraft-tools routes registered" ;;
+        *) echo "pterodactyl-blueprint-install: WARNING minecraft-tools routes not present in route:list" ;;
+      esac
+    }
+
     post_install_hooks() {
       ensure_blueprint_assets
       ensure_blueprint_core_patches
+      ensure_identifier_validator_patch
       ensure_sociallogin_models
       ensure_extension_app_symlinks
       ensure_storage_extension_symlinks
@@ -776,6 +1036,8 @@ panelRoot = "/pterodactyl/html";
       ensure_extension_default_icons
       ensure_extension_admin_files
       ensure_extension_migrations
+      ensure_minecraft_tools_migration
+      ensure_minecraft_tools_legacy_wiring
       ensure_blueprint_admin_layout_patches
       ensure_blueprint_placeholder_version
       ensure_blueprint_frontend_patches
@@ -813,7 +1075,7 @@ panelRoot = "/pterodactyl/html";
     }
 
     write_marker() {
-      echo "blueprint+sociallogin+dnsrecords+portforward" > "$marker"
+      echo "blueprint+sociallogin+dnsrecords+portforward+minecraft-tools" > "$marker"
       chown pterodactyl:pterodactyl "$marker"
     }
 
@@ -825,10 +1087,12 @@ panelRoot = "/pterodactyl/html";
       && [ -d "$panel/.blueprint/extensions/sociallogin" ] \
       && [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
       && [ -d "$panel/.blueprint/extensions/portforward" ] \
+      && [ -d "$panel/.blueprint/extensions/minecraft-tools" ] \
       && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
       pre_version=$(blueprint_framework_version 2>/dev/null || echo unknown)
       refresh_blueprint_framework_release
       ensure_blueprint_placeholder_version
+      ensure_minecraft_tools_legacy_wiring
       post_version=$(blueprint_framework_version 2>/dev/null || echo unknown)
       if [ "$pre_version" = "$post_version" ]; then
         ensure_extension_public_permissions
@@ -851,6 +1115,10 @@ panelRoot = "/pterodactyl/html";
       && [ -d "$panel/.blueprint/extensions/dnsrecords" ] \
       && [ -d "$panel/.blueprint/extensions/portforward" ] \
       && [ -f "$panel/blueprint.sh" ] && [ -d "$panel/.blueprint/blueprint" ]; then
+      if ! minecraft_tools_integrated; then
+        echo "pterodactyl-blueprint-install: Minecraft Tools missing, installing before repairs..."
+        install_minecraft_tools_extension
+      fi
       if ! extension_backend_integrated; then
         echo "pterodactyl-blueprint-install: extension symlinks, views, or migrations incomplete, repairing..."
         ensure_blueprint_assets
@@ -921,6 +1189,9 @@ panelRoot = "/pterodactyl/html";
       fi
       install_dnsrecords_extension
       install_portforward_extension
+      if ! minecraft_tools_integrated; then
+        install_minecraft_tools_extension
+      fi
       post_install_hooks
       write_marker
       echo "pterodactyl-blueprint-install: DNS Records extension ready on production panel"
@@ -1003,9 +1274,12 @@ panelRoot = "/pterodactyl/html";
     rm -f "$panel/sociallogin.blueprint"
     install_dnsrecords_extension
     install_portforward_extension
+    if ! minecraft_tools_integrated; then
+      install_minecraft_tools_extension
+    fi
     post_install_hooks
     write_marker
-    echo "pterodactyl-blueprint-install: Blueprint, Social Login, DNS Records, and Port Forward ready"
+    echo "pterodactyl-blueprint-install: Blueprint, Social Login, DNS Records, Port Forward, and Minecraft Tools ready"
   '';
 in
 {
