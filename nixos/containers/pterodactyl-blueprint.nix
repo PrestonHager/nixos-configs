@@ -940,9 +940,10 @@ MC_MIG_EOF
 
       echo "pterodactyl-blueprint-install: wiring Minecraft Tools legacy ABI..."
 
-      ctrl_src="$port/app/Http/Controllers/Admin/Extensions/MinecraftTools/MinecraftToolsExtensionController.php"
-      ctrl_dest="$panel/app/Http/Controllers/Admin/Extensions/MinecraftTools/MinecraftToolsExtensionController.php"
+      ctrl_src="$port/app/Http/Controllers/Admin/Extensions/minecrafttools/minecrafttoolsExtensionController.php"
+      ctrl_dest="$panel/app/Http/Controllers/Admin/Extensions/minecrafttools/minecrafttoolsExtensionController.php"
       rm -rf "$panel/app/Http/Controllers/Admin/Extensions/minecraft-tools"
+      rm -rf "$panel/app/Http/Controllers/Admin/Extensions/MinecraftTools"
       install -d -m 0755 -o pterodactyl -g pterodactyl "$(dirname "$ctrl_dest")"
       if [ ! -f "$ctrl_dest" ] || ! cmp -s "$ctrl_src" "$ctrl_dest"; then
         cp -a "$ctrl_src" "$ctrl_dest"

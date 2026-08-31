@@ -3,17 +3,17 @@
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
 use Pterodactyl\BlueprintFramework\Extensions\MinecraftTools\MinecraftToolsApiController;
-use Pterodactyl\Http\Controllers\Admin\Extensions\MinecraftTools\MinecraftToolsExtensionController;
+use Pterodactyl\Http\Controllers\Admin\Extensions\minecrafttools\minecrafttoolsExtensionController;
 use Pterodactyl\Http\Middleware\AdminAuthenticate;
 use Pterodactyl\Http\Middleware\RequireTwoFactorAuthentication;
 
 Route::middleware(['auth.session', RequireTwoFactorAuthentication::class, AdminAuthenticate::class])->group(function () {
-    Route::get('plugins', [MinecraftToolsExtensionController::class, 'plugins'])->name('admin.extensions.minecraft-tools.plugins');
-    Route::get('versions', [MinecraftToolsExtensionController::class, 'versions'])->name('admin.extensions.minecraft-tools.versions');
-    Route::get('players', [MinecraftToolsExtensionController::class, 'players'])->name('admin.extensions.minecraft-tools.players');
-    Route::get('modpacks', [MinecraftToolsExtensionController::class, 'modpacks'])->name('admin.extensions.minecraft-tools.modpacks');
-    Route::get('config', [MinecraftToolsExtensionController::class, 'config'])->name('admin.extensions.minecraft-tools.config');
-    Route::get('icon', [MinecraftToolsExtensionController::class, 'icon'])->name('admin.extensions.minecraft-tools.icon');
+    Route::get('plugins', [minecrafttoolsExtensionController::class, 'plugins'])->name('admin.extensions.minecraft-tools.plugins');
+    Route::get('versions', [minecrafttoolsExtensionController::class, 'versions'])->name('admin.extensions.minecraft-tools.versions');
+    Route::get('players', [minecrafttoolsExtensionController::class, 'players'])->name('admin.extensions.minecraft-tools.players');
+    Route::get('modpacks', [minecrafttoolsExtensionController::class, 'modpacks'])->name('admin.extensions.minecraft-tools.modpacks');
+    Route::get('config', [minecrafttoolsExtensionController::class, 'config'])->name('admin.extensions.minecraft-tools.config');
+    Route::get('icon', [minecrafttoolsExtensionController::class, 'icon'])->name('admin.extensions.minecraft-tools.icon');
 
     Route::prefix('api')->withoutMiddleware(VerifyCsrfToken::class)->group(function () {
         /* plugins */

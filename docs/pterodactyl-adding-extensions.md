@@ -1,4 +1,4 @@
-# Pterodactyl Blueprint: Adding an Extension (Legacy ABI Recipe)
+﻿# Pterodactyl Blueprint: Adding an Extension (Legacy ABI Recipe)
 
 **Status:** Worked example = `minecraft-tools` (implemented 2026-08, legacy ABI port)
 **Branch:** `dell-poweredge-r730xd`
@@ -26,7 +26,7 @@ the same way `portforward` and `dnsrecords` already work:
 |-----------|------|
 | Backend classes | `nixos/containers/mc-tools-port/app/BlueprintFramework/Extensions/MinecraftTools/` |
 | API controller | `.../MinecraftToolsApiController.php` |
-| Admin controller | `.../Http/Controllers/Admin/Extensions/MinecraftTools/MinecraftToolsExtensionController.php` |
+| Admin controller | `.../Http/Controllers/Admin/Extensions/minecrafttools/minecrafttoolsExtensionController.php` (lowercase; matches blueprint resolution) |
 | Routes | `.../routes/blueprint/web/minecraft-tools.php` |
 | Config | `.../config/minecraft-tools.php` |
 | Models | `.../BlueprintFramework/Extensions/MinecraftTools/Models/*.php` |
@@ -91,6 +91,19 @@ the same way `portforward` and `dnsrecords` already work:
 
 ## Gotchas learned
 
+- **`$classSafe` produces the lowercase class, so the controller dir/class MUST be lowercase.**
+  `preg_replace("/-/", "", $identifier)` yields `minecrafttools`, but blueprint resolves
+  `...\Extensions\{$classSafe}\{$classSafe}ExtensionController` — the controller must live at
+  `.../Extensions/minecrafttools/minecrafttoolsExtensionController.php`. A studly
+  `.../Extensions/MinecraftTools/MinecraftToolsExtensionController.php` compiles fine yet throws
+  `Target class [...minecrafttoolsExtensionController] does not exist` at request time
+  (log line, `userId`). Do NOT flip the patch to studly — that would break other hyphenated
+  identifiers (e.g. `portforward`).
+- **`/admin/api` "The MAC is invalid" (Encrypter.php).** The API admin view runs
+  `decrypt($key->token)` on every stored Application API key. A key created under a different
+  `APP_KEY` (e.g. before a panel rebuild/restore) fails MAC verification and 500s the whole
+  page regardless of your extension. The affected row is unrecoverable — delete it
+  (`ApiKey::where('id', X)->delete()`) once confirmed it can never decrypt.
 - **Nix `''...''` strings:** watch for `''` and `${`; PHP heredocs inside `writeShellScript`
   must avoid both (`preg_replace("/-/", ...)` style double-quotes instead of single-quote
   regex delimiters avoids `''`).

@@ -1,6 +1,6 @@
 <?php
 
-namespace Pterodactyl\Http\Controllers\Admin\Extensions\MinecraftTools;
+namespace Pterodactyl\Http\Controllers\Admin\Extensions\minecrafttools;
 
 use Illuminate\Contracts\View\Factory as ViewFactory;
 use Illuminate\Http\JsonResponse;
@@ -10,7 +10,7 @@ use Illuminate\View\View;
 use Pterodactyl\BlueprintFramework\Libraries\ExtensionLibrary\Admin\BlueprintAdminLibrary;
 use Pterodactyl\Http\Controllers\Controller;
 
-class MinecraftToolsExtensionController extends Controller
+class minecrafttoolsExtensionController extends Controller
 {
     public function __construct(
         private ViewFactory $view,
