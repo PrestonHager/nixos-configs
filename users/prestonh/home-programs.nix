@@ -5,6 +5,9 @@
   imports = [
     ./programs/tmux.nix
     ./programs/neovim.nix
+    ./programs/ssh.nix
+    ./programs/bitwarden.nix
+    ./programs/git-signing.nix
   ];
 
   # Add the brave browser
@@ -22,7 +25,7 @@
     ];
   };
 
-  # Setup local git configuration
+  # Setup local git configuration (SSH signing: programs/git-signing.nix)
   programs.git = {
     enable = true;
     package = pkgs.git;
@@ -32,10 +35,6 @@
       alias.c = "commit -S";
       core.editor = "XDG_CONFIG_HOME=\"$HOME/.config/\" ${pkgs.neovim}/bin/nvim";
       init.defaultBranch = "main";
-    };
-    signing = {
-      signByDefault = true;
-      key = "preston@hagerfamily.com";
     };
   };
 }

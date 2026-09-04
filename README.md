@@ -89,3 +89,19 @@ repository.
 [11]: https://cli.github.com/
 [12]: https://www.gnupg.org/
 
+## Documentation
+
+Homelab server runbooks are published as an mdBook site:
+
+| Build | Command |
+|-------|---------|
+| Static HTML | `nix build .#docs` |
+| Live preview | `nix develop .#docs-dev -c mdbook serve docs/site` |
+| On ace (LAN) | https://serverdocs.prestonhager.com |
+
+Source: `docs/*.md` (canonical) + `docs/site/` (mdBook wrapper). See `docs/site/src/shared/local-development.md`.
+
+Optional services (not enabled on hosts until you opt in):
+
+- [GitHub Actions self-hosted runners](docs/github-runner.md) — `nixos/services/github-runner.nix`
+

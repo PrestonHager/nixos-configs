@@ -1,0 +1,18 @@
+# icloudpd credentials come from env (see env.example).
+# migrate.py invokes icloudpd with --directory and --cookie-directory.
+
+# Manual example:
+#   export ICLOUD_APPLE_ID=you@icloud.com
+#   export ICLOUD_PASSWORD=xxxx-xxxx-xxxx-xxxx
+#   icloudpd --username "$ICLOUD_APPLE_ID" --password "$ICLOUD_PASSWORD" \
+#     --directory ~/.config/nextcloud-migrate/photos-staging \
+#     --cookie-directory ~/.config/nextcloud-migrate/icloudpd-cookies \
+#     --set-exif-datetime
+
+# HEIC handling:
+# - Default: keep HEIC originals; Nextcloud Photos generates previews when enabled.
+# - Optional JPEG copies: add --convert-to-jpeg to icloudpd (doubles storage).
+# - rclone uploads files as-is; no transcoding.
+
+# Albums:
+#   migrate.py icloud photos --album "Family Trip"

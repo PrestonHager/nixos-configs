@@ -1,0 +1,66 @@
+{
+  "uid": "ace-overview",
+  "title": "Ace Server Overview",
+  "tags": ["ace", "monitoring"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "description": "Host health from server-health.sh, node metrics, and system resources. See Ace Service Uptime for combined probe status.",
+  "links": [
+    { "title": "Service Uptime", "type": "dashboard", "url": "/d/ace-uptime" },
+    { "title": "HTTP Probes", "type": "dashboard", "url": "/d/ace-http-probes" },
+    { "title": "Ace Services", "type": "dashboard", "url": "/d/ace-services" }
+  ],
+  "panels": [
+    {
+      "id": 1, "title": "Health Warnings", "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "ace_health_warnings", "refId": "A" }]
+    },
+    {
+      "id": 2, "title": "Health Critical", "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "ace_health_critical", "refId": "A" }]
+    },
+    {
+      "id": 3, "title": "CPU Usage %", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)", "legendFormat": "cpu", "refId": "A" }]
+    },
+    {
+      "id": 4, "title": "Memory Available %", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100", "refId": "A" }]
+    },
+    {
+      "id": 5, "title": "HTTP Probe Success", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "probe_success{job=\"blackbox-http\"}", "legendFormat": "{{instance}}", "refId": "A" }]
+    },
+    {
+      "id": 6, "title": "HTTP Probe Duration (s)", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "probe_duration_seconds{job=\"blackbox-http\"}", "legendFormat": "{{instance}}", "refId": "A" }]
+    },
+    {
+      "id": 7, "title": "PHP Cache Driver OK", "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "min(php_perf_env_ok{key=\"CACHE_DRIVER\"})", "refId": "A" }]
+    },
+    {
+      "id": 8, "title": "PHP Opcache Loaded", "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "min(php_perf_extension_loaded{extension=\"opcache\"})", "refId": "A" }]
+    }
+  ]
+}

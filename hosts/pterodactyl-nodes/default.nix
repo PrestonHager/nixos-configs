@@ -1,26 +1,42 @@
-{ config, inputs, pkgs, ... }:
+{ config, inputs, pkgs, lib, ... }:
 
 let
   sops-path = builtins.toString inputs.nix-secrets;
+  host = config.networking.hostName;
+  bootstrapPubkey =
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAZG4s8GtqKZoahIUsFwbXsMnuUrrlSDmN2nzt39pDiS bootstrap@homelab";
 in
 {
   imports = [
     ./link-letsencrypt.nix
     ./nfs.nix
     ../../nixos
-    ../../nixos/headless
-    ../../hardware/dell-optiplex-7050/hardware-configuration.nix
+    ../../nixos/security
+    # Ace headless imports podman/containers/monitoring — incompatible with Wings (Docker).
     ../../users/prestonh
   ];
 
-  sops.secrets = {
-    "crux-samba" = {
-      sopsFile = "${sops-path}/secrets/crux.yaml";
-      mode = "0640";
+  services.openssh = {
+    enable = true;
+    settings = {
+      PasswordAuthentication = true;
+      KbdInteractiveAuthentication = false;
+      PermitRootLogin = "prohibit-password";
     };
+  };
+
+  users.users.root.openssh.authorizedKeys.keys = [ bootstrapPubkey ];
+  users.users.prestonh.openssh.authorizedKeys.keys = [ bootstrapPubkey ];
+
+  sops.secrets = {
     "pterodactyl-db-password" = {
       sopsFile = "${sops-path}/secrets/pterodactyl.yaml";
       mode = "0400";
+    };
+  } // lib.optionalAttrs (host == "crux") {
+    "crux-samba" = {
+      sopsFile = "${sops-path}/secrets/crux.yaml";
+      mode = "0640";
     };
   };
 
@@ -42,7 +58,7 @@ in
   ];
 
   systemd.services.pterodactyl-config-perms = {
-    description = "Ensure Wings can read /etc/pterodactyl/config.yml";
+    description = "Ensure Wings ownership on config and server volumes";
     before = [ "wings.service" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
@@ -53,6 +69,7 @@ in
           chmod 0640 /etc/pterodactyl/config.yml
         fi
         if [ -d /var/lib/pterodactyl ]; then
+          # Docker install/start runs as root and leaves root-owned files Wings cannot write.
           chown -R pterodactyl:pterodactyl /var/lib/pterodactyl
           find /var/lib/pterodactyl -type d -exec chmod 0750 {} \;
           find /var/lib/pterodactyl -maxdepth 1 -type f -exec chmod 0640 {} \;
@@ -67,6 +84,15 @@ in
         fi
       '';
       RemainAfterExit = true;
+    };
+  };
+
+  systemd.timers.pterodactyl-config-perms = {
+    description = "Reconcile Pterodactyl volume ownership after Docker installs";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "2min";
+      OnUnitActiveSec = "5min";
     };
   };
 
@@ -91,7 +117,7 @@ in
       ExecStart = "${inputs.pterodactyl-wings.packages.x86_64-linux.wings}/bin/wings";
       RuntimeDirectory = "wings";
       RuntimeDirectoryMode = "0755";
-      PIDFile = "/var/run/wings/daemon.pid";
+      PIDFile = "/run/wings/daemon.pid";
       AmbientCapabilities = [ "CAP_NET_BIND_SERVICE" ];
       CapabilityBoundingSet = [ "CAP_NET_BIND_SERVICE" ];
       Restart = "on-failure";
@@ -151,5 +177,13 @@ in
     extraCommands = ''
       iptables -A nixos-fw -m conntrack --ctstate RELATED,ESTABLISHED -j nixos-fw-accept
     '';
+  };
+
+  homelab.security = {
+    enable = true;
+    hostName = config.networking.hostName;
+    role = "node";
+    phase2.enable = true;
+    promtail.enable = true;
   };
 }

@@ -13,29 +13,37 @@
     # Pterodactyl
     "panel.prestonhager.com"
     "test.panel.prestonhager.com"
-    "testpanel.prestonhager.com"
 
     # Monitoring & media
+    "update.prestonhager.com"
     "grafana.prestonhager.com"
     "prometheus.prestonhager.com"
     "jellyfin.prestonhager.com"
+    "cloud.prestonhager.com"
 
     # Identity / infra
     "vault.prestonhager.com"
     "wg.prestonhager.com"
     "metrics.wg.prestonhager.com"
+    "dns.prestonhager.com"
     "zitadel.prestonhager.com"
-    "portunus.prestonhager.com"
     "git.prestonhager.com"
 
-    # Matrix / wiki (Caddy imports on ace)
+    # Matrix / wiki / docs / other Caddy vhosts on ace
+    "serverdocs.prestonhager.com"
     "matrix.prestonhager.com"
+    "spacetime.prestonhager.com"
+    # K80 AI stack — docs/ace-k80-gpu.md (TEMPORARILY DISABLED with OpenClaw)
+    # "ai.prestonhager.com"
+    "test.sui.prestonhager.com"
+    "faucet.test.sui.prestonhager.com"
+    "indexer.test.sui.prestonhager.com"
     "loftiawiki.org"
     "loftiawiki.com"
     "upgrade.loftiawiki.org"
   ];
 
-  # Remote game/wings nodes (already partially configured; ensure both are present)
-  networking.hosts."192.168.5.6" = [ "crux.lc1.nm.us.prestonhager.com" ];
-  networking.hosts."192.168.5.7" = [ "nova.lc1.nm.us.prestonhager.com" ];
+  networking.hosts."192.168.5.5" = [ "ace.internal.prestonhager.com" ];
+  networking.hosts."192.168.5.6" = [ "crux.internal.prestonhager.com" ];
+  networking.hosts."192.168.5.7" = [ "nova.internal.prestonhager.com" ];
 }

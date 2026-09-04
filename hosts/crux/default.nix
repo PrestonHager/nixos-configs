@@ -12,7 +12,8 @@
       }];
     };
     defaultGateway = "192.168.5.1";
-    nameservers = [ "192.168.5.2" "1.1.1.1" ];
+    # Technitium on ace for split-horizon DNS (LAN probe perspective).
+    nameservers = [ "192.168.5.5" "1.1.1.1" ];
 
     # Setup IP's for local network
     hosts = {
@@ -21,8 +22,17 @@
         "ace.internal.prestonhager.com"
       ];
       "192.168.5.6" = [
-        "crux.lc1.nm.us.prestonhager.com"
+        "crux.internal.prestonhager.com"
       ];
     };
   };
+
+  imports = [
+    ../../hardware/dell-optiplex-7050/hardware-configuration.nix
+    ../../nixos/monitoring/crux-probes.nix
+    ../../nixos/monitoring/crux-prometheus.nix
+    ../../nixos/monitoring/promtail.nix
+  ];
+
+  homelab.security.nodeExporter.enable = false;
 }
