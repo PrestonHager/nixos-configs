@@ -1,0 +1,18 @@
+modules:
+  http_2xx:
+    prober: http
+    timeout: 15s
+    http:
+      valid_status_codes: [200, 301, 302, 403]
+      preferred_ip_protocol: ip4
+      tls_config:
+        insecure_skip_verify: false
+  http_local:
+    prober: http
+    timeout: 10s
+    http:
+      valid_status_codes: [200, 301, 302, 403, 404]
+      preferred_ip_protocol: ip4
+  tcp_connect:
+    prober: tcp
+    timeout: 5s

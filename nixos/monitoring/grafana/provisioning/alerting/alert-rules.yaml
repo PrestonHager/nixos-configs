@@ -1,0 +1,184 @@
+# Grafana unified alerting — Ace service health and version lag.
+# Provisioned from nixos/monitoring/grafana-alerting.nix
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: ace-service-health
+    folder: Ace Alerts
+    interval: 1m
+    rules:
+      - uid: ace_probe_failed
+        title: Ace service probe failed
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: probe_success{probe_location=~"local|lan",job=~"blackbox.*",service_tier="essential"} == 0
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          description: >-
+            Blackbox probe {{ $labels.job }} for {{ $labels.instance }}
+            ({{ $labels.probe_location }}) has been failing for at least 5 minutes.
+          summary: Service probe failed — {{ $labels.instance }}
+        labels:
+          severity: critical
+          alert_type: service_down
+
+  - orgId: 1
+    name: ace-version-updates
+    folder: Ace Alerts
+    interval: 5m
+    rules:
+      - uid: ace_version_major
+        title: Ace service major version behind
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: ace_service_version_behind{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 3
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 0s
+        annotations:
+          description: >-
+            {{ $labels.service }} is on {{ $labels.current }}; latest upstream is
+            {{ $labels.latest }} (major version behind).
+          summary: Major update available — {{ $labels.service }}
+        labels:
+          severity: critical
+          alert_type: version_major
+
+      - uid: ace_version_minor
+        title: Ace service minor or patch update available
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: ace_service_version_behind{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 1 or ace_service_version_behind{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 2
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 1h
+        annotations:
+          description: >-
+            {{ $labels.service }} is on {{ $labels.current }}; latest upstream is
+            {{ $labels.latest }} (patch or minor update available).
+          summary: Update available — {{ $labels.service }}
+        labels:
+          severity: warning
+          alert_type: version_update

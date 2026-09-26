@@ -91,13 +91,6 @@
         };
       });
 
-      "portunus.prestonhager.com" = (SSL // {
-        locations."/" = {
-          proxyPass = "http://localhost:8086/";
-          proxyWebsockets = true;
-        };
-      });
-
       "test.sui.prestonhager.com" = (SSL // {
         locations."/".proxyPass = "http://localhost:9000/";
       });

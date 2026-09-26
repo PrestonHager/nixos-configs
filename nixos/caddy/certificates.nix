@@ -1,10 +1,12 @@
 { config, pkgs, lib ? pkgs.lib, ... }:
 
-# TLS certificates for Pterodactyl Wings nodes (crux and nova only).
+# TLS certificates for Pterodactyl Wings nodes.
 let
   nodes = {
     crux = "crux.lc1.nm.us.prestonhager.com";
     nova = "nova.lc1.nm.us.prestonhager.com";
+    elara = "elara.lc1.nm.us.prestonhager.com";
+    zenith = "zenith.lc1.nm.us.prestonhager.com";
   };
   domains = builtins.attrValues nodes;
   caddyCertDir =
@@ -27,6 +29,8 @@ in {
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "oneshot";
+      # Inactive after success so path/timer units can start a later copy when
+      # Caddy issues a cert after the first (empty) run.
       ExecStart = pkgs.writeShellScript "copy-caddy-certs" ''
         set -euo pipefail
         src_root="${caddyCertDir}"
@@ -39,17 +43,19 @@ in {
           src="$src_root/$domain"
           dest="/stor/shares/private/nodes/${name}/letsencrypt/$domain"
           if [ ! -d "$src" ]; then
-            echo "Missing certificate directory for ${name}: $src" >&2
-            exit 1
+            echo "Missing certificate directory for ${name}: $src (skip until Caddy issues the cert)" >&2
+          else
+            mkdir -p "$dest"
+            ${pkgs.rsync}/bin/rsync -a --delete "$src/" "$dest/"
+            # Panel-default Wings config.yml uses Let's Encrypt names; Caddy uses .crt/.key.
+            ln -sfn "$domain.crt" "$dest/fullchain.pem"
+            ln -sfn "$domain.key" "$dest/privkey.pem"
           fi
-          mkdir -p "$dest"
-          ${pkgs.rsync}/bin/rsync -a --delete "$src/" "$dest/"
         '') nodeNames)}
         chown -R root:users /stor/shares/private/nodes
         find /stor/shares/private/nodes -type d -exec chmod 775 {} \;
         find /stor/shares/private/nodes -type f -exec chmod 664 {} \;
       '';
-      RemainAfterExit = true;
     };
   };
 
