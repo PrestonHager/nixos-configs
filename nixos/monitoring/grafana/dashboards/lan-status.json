@@ -1,0 +1,1237 @@
+{
+  "uid": "lan-status",
+  "title": "LAN Status",
+  "tags": [
+    "lan",
+    "uptime",
+    "ace",
+    "crux",
+    "nova"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 9,
+  "refresh": "30s",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "description": "Combined LAN health: ace services (local + LAN + external perspectives), crux host metrics, and TCP reachability for ace/crux/nova.",
+  "links": [
+    {
+      "title": "Ace Uptime",
+      "type": "dashboard",
+      "url": "/d/ace-uptime"
+    },
+    {
+      "title": "Crux Uptime",
+      "type": "dashboard",
+      "url": "/d/crux-uptime"
+    },
+    {
+      "title": "Ace HTTP Probes",
+      "type": "dashboard",
+      "url": "/d/ace-http-probes"
+    },
+    {
+      "title": "Crux HTTP Probes",
+      "type": "dashboard",
+      "url": "/d/crux-http-probes"
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "LAN overview",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 2,
+      "title": "Ace Services Up (local)",
+      "description": "Loopback probes on ace",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
+                "color": "green",
+                "value": 100
+              }
+            ]
+          },
+          "min": 0,
+          "displayName": "${__field.labels.up}/${__field.labels.total}",
+          "max": 100
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "name"
+      },
+      "targets": [
+        {
+          "expr": "100 * sum(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"}) / count(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"})) * on() group_left(total) count_values(\"total\", count(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"})))",
+          "refId": "A",
+          "legendFormat": "__auto",
+          "instant": true,
+          "queryType": "instant",
+          "range": false,
+          "exemplar": false
+        }
+      ],
+      "transformations": []
+    },
+    {
+      "id": 3,
+      "title": "Ace Services Up (LAN)",
+      "description": "HTTPS from crux via Technitium DNS (ace Prometheus)",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
+                "color": "green",
+                "value": 100
+              }
+            ]
+          },
+          "min": 0,
+          "displayName": "${__field.labels.up}/${__field.labels.total}",
+          "max": 100
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "name"
+      },
+      "targets": [
+        {
+          "expr": "100 * sum(probe_success{probe_location=\"lan\",job=~\"blackbox-http-lan|blackbox-dns-lan\"}) / count(probe_success{probe_location=\"lan\",job=~\"blackbox-http-lan|blackbox-dns-lan\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{probe_location=\"lan\",job=~\"blackbox-http-lan|blackbox-dns-lan\"})) * on() group_left(total) count_values(\"total\", count(probe_success{probe_location=\"lan\",job=~\"blackbox-http-lan|blackbox-dns-lan\"})))",
+          "refId": "A",
+          "legendFormat": "__auto",
+          "instant": true,
+          "queryType": "instant",
+          "range": false,
+          "exemplar": false
+        }
+      ],
+      "transformations": []
+    },
+    {
+      "id": 4,
+      "title": "Ace Services Up (external)",
+      "description": "WAN perspective via crux pushgateway",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
+                "color": "green",
+                "value": 100
+              }
+            ]
+          },
+          "min": 0,
+          "displayName": "${__field.labels.up}/${__field.labels.total}",
+          "max": 100
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "name"
+      },
+      "targets": [
+        {
+          "expr": "100 * (sum(probe_success{probe_location=\"external\"}) or vector(0)) / (count(probe_success{probe_location=\"external\"}) or vector(0)) * on() group_left(up, total) (count_values(\"up\", (sum(probe_success{probe_location=\"external\"}) or vector(0))) * on() group_left(total) count_values(\"total\", (count(probe_success{probe_location=\"external\"}) or vector(0))))",
+          "refId": "A",
+          "legendFormat": "__auto",
+          "instant": true,
+          "queryType": "instant",
+          "range": false,
+          "exemplar": false
+        }
+      ],
+      "transformations": []
+    },
+    {
+      "id": 5,
+      "title": "Crux Probes Up",
+      "description": "All blackbox probes on crux Prometheus",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-crux"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
+                "color": "green",
+                "value": 100
+              }
+            ]
+          },
+          "min": 0,
+          "displayName": "${__field.labels.up}/${__field.labels.total}",
+          "max": 100
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "name"
+      },
+      "targets": [
+        {
+          "expr": "100 * sum(probe_success{job=~\"blackbox-.*\"}) / count(probe_success{job=~\"blackbox-.*\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{job=~\"blackbox-.*\"})) * on() group_left(total) count_values(\"total\", count(probe_success{job=~\"blackbox-.*\"})))",
+          "refId": "A",
+          "legendFormat": "__auto",
+          "instant": true,
+          "queryType": "instant",
+          "range": false,
+          "exemplar": false
+        }
+      ],
+      "transformations": []
+    },
+    {
+      "id": 6,
+      "title": "LAN Hosts TCP Up",
+      "description": "443 reachability: ace, crux, nova (crux Prometheus)",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-crux"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
+                "color": "green",
+                "value": 100
+              }
+            ]
+          },
+          "min": 0,
+          "displayName": "${__field.labels.up}/${__field.labels.total}",
+          "max": 100
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "name"
+      },
+      "targets": [
+        {
+          "expr": "100 * sum(probe_success{job=\"blackbox-tcp-lan\"}) / count(probe_success{job=\"blackbox-tcp-lan\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{job=\"blackbox-tcp-lan\"})) * on() group_left(total) count_values(\"total\", count(probe_success{job=\"blackbox-tcp-lan\"})))",
+          "refId": "A",
+          "legendFormat": "__auto",
+          "instant": true,
+          "queryType": "instant",
+          "range": false,
+          "exemplar": false
+        }
+      ],
+      "transformations": []
+    },
+    {
+      "id": 7,
+      "title": "Crux Node",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-crux"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 1,
+                  "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 0,
+                  "text": "UP"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "up{job=\"node\",host=\"crux\"}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "row",
+      "title": "By host",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 9,
+      "title": "LAN Host TCP Status",
+      "description": "TCP :443 from crux to each LAN host",
+      "type": "table",
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-crux"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "0": {
+                        "color": "red",
+                        "index": 1,
+                        "text": "DOWN"
+                      },
+                      "1": {
+                        "color": "green",
+                        "index": 0,
+                        "text": "UP"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latency"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "targets": [
+        {
+          "expr": "probe_success{job=\"blackbox-tcp-lan\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "status"
+        },
+        {
+          "expr": "probe_duration_seconds{job=\"blackbox-tcp-lan\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "latency"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "host"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "__name__": true,
+              "__name__ 1": true,
+              "instance": true,
+              "instance 1": true,
+              "job": true,
+              "job 1": true,
+              "module": true,
+              "module 1": true,
+              "probe_location": true,
+              "probe_location 1": true,
+              "probe_source": true,
+              "probe_source 1": true
+            },
+            "renameByName": {
+              "Value #status": "Status",
+              "Value #latency": "Latency",
+              "host": "Host"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Ace LAN HTTP Services (crux view)",
+      "type": "table",
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-crux"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "0": {
+                        "color": "red",
+                        "index": 1,
+                        "text": "DOWN"
+                      },
+                      "1": {
+                        "color": "green",
+                        "index": 0,
+                        "text": "UP"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latency"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "HTTP Code"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "desc": false,
+            "displayName": "Status"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "probe_success{job=\"blackbox-http-lan\",module=\"http_2xx\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "status"
+        },
+        {
+          "expr": "probe_duration_seconds{job=\"blackbox-http-lan\",module=\"http_2xx\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "latency"
+        },
+        {
+          "expr": "probe_http_status_code{job=\"blackbox-http-lan\",module=\"http_2xx\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "code"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "instance"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "__name__": true,
+              "__name__ 1": true,
+              "__name__ 2": true,
+              "job": true,
+              "job 1": true,
+              "job 2": true,
+              "module": true,
+              "module 1": true,
+              "module 2": true,
+              "probe_location": true,
+              "probe_location 1": true,
+              "probe_location 2": true,
+              "probe_source": true,
+              "probe_source 1": true,
+              "probe_source 2": true
+            },
+            "renameByName": {
+              "Value #status": "Status",
+              "Value #latency": "Latency",
+              "Value #code": "HTTP Code",
+              "instance": "Service"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "row",
+      "title": "Ace service perspectives",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 12,
+      "title": "Ace HTTP \u2014 local vs LAN vs external latency",
+      "type": "bargauge",
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "targets": [
+        {
+          "expr": "avg(probe_duration_seconds{probe_location=\"local\",job=\"blackbox-http\"})",
+          "legendFormat": "local",
+          "refId": "A",
+          "instant": true
+        },
+        {
+          "expr": "avg(probe_duration_seconds{probe_location=\"lan\"})",
+          "legendFormat": "lan",
+          "refId": "B",
+          "instant": true
+        },
+        {
+          "expr": "avg(probe_duration_seconds{probe_location=\"external\"})",
+          "legendFormat": "external",
+          "refId": "C",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Ace Local HTTP Services",
+      "type": "table",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "0": {
+                        "color": "red",
+                        "index": 1,
+                        "text": "DOWN"
+                      },
+                      "1": {
+                        "color": "green",
+                        "index": 0,
+                        "text": "UP"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latency"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Latency"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "probe_success{job=\"blackbox-http\",probe_location=\"local\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "status"
+        },
+        {
+          "expr": "probe_duration_seconds{job=\"blackbox-http\",probe_location=\"local\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "latency"
+        },
+        {
+          "expr": "probe_http_status_code{job=\"blackbox-http\",probe_location=\"local\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "code"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "instance"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "__name__": true,
+              "__name__ 1": true,
+              "__name__ 2": true,
+              "job": true,
+              "job 1": true,
+              "job 2": true,
+              "module": true,
+              "module 1": true,
+              "module 2": true,
+              "probe_location": true,
+              "probe_location 1": true,
+              "probe_location 2": true
+            },
+            "renameByName": {
+              "Value #status": "Status",
+              "Value #latency": "Latency",
+              "Value #code": "HTTP Code",
+              "instance": "Service"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "title": "Ace LAN HTTP Services (ace Prometheus)",
+      "description": "Same targets scraped via crux blackbox, stored on ace",
+      "type": "table",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 17
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "0": {
+                        "color": "red",
+                        "index": 1,
+                        "text": "DOWN"
+                      },
+                      "1": {
+                        "color": "green",
+                        "index": 0,
+                        "text": "UP"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latency"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Latency"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "probe_success{job=\"blackbox-http-lan\",probe_location=\"lan\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "status"
+        },
+        {
+          "expr": "probe_duration_seconds{job=\"blackbox-http-lan\",probe_location=\"lan\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "latency"
+        },
+        {
+          "expr": "probe_http_status_code{job=\"blackbox-http-lan\",probe_location=\"lan\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "code"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "instance"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "__name__": true,
+              "__name__ 1": true,
+              "__name__ 2": true,
+              "job": true,
+              "job 1": true,
+              "job 2": true,
+              "module": true,
+              "module 1": true,
+              "module 2": true,
+              "probe_location": true,
+              "probe_location 1": true,
+              "probe_location 2": true,
+              "probe_source": true,
+              "probe_source 1": true,
+              "probe_source 2": true
+            },
+            "renameByName": {
+              "Value #status": "Status",
+              "Value #latency": "Latency",
+              "Value #code": "HTTP Code",
+              "instance": "Service"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "title": "Probe success \u2014 all perspectives",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(probe_success{probe_location=\"local\",job=~\"blackbox-http|blackbox-tcp\"})",
+          "legendFormat": "ace local up",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(probe_success{probe_location=\"lan\"})",
+          "legendFormat": "ace lan up",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(probe_success{probe_location=\"external\"}) or vector(0)",
+          "legendFormat": "ace external up",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "title": "Crux probe success over time",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-crux"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (job) (probe_success{job=~\"blackbox-.*\"})",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        },
+        {
+          "expr": "up{job=\"node\",host=\"crux\"}",
+          "legendFormat": "crux node_exporter",
+          "refId": "B"
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": []
+  }
+}

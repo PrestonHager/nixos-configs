@@ -1,0 +1,15 @@
+{
+	"name": "cloudmigrate/cloudmigrate",
+	"description": "Migrate files from iCloud and OneDrive into Nextcloud",
+	"license": "AGPL-3.0-or-later",
+	"authors": [
+		{
+			"name": "Preston Hager"
+		}
+	],
+	"autoload": {
+		"psr-4": {
+			"OCA\\CloudMigrate\\": "lib/"
+		}
+	}
+}

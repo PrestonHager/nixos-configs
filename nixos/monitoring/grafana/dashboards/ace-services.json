@@ -1,0 +1,137 @@
+{
+  "uid": "ace-services",
+  "title": "Ace Services",
+  "tags": ["ace", "services", "systemd"],
+  "schemaVersion": 39,
+  "version": 2,
+  "refresh": "30s",
+  "time": { "from": "now-24h", "to": "now" },
+  "description": "Systemd unit health, Caddy traffic, and infrastructure probes.",
+  "links": [
+    { "title": "Service Uptime", "type": "dashboard", "url": "/d/ace-uptime" },
+    { "title": "HTTP Probes", "type": "dashboard", "url": "/d/ace-http-probes" },
+    { "title": "Host Overview", "type": "dashboard", "url": "/d/ace-overview" }
+  ],
+  "panels": [
+    {
+      "id": 10, "title": "Services Up (probes)", "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 14 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [{ "expr": "sum(probe_success{job=~\"blackbox-http|blackbox-tcp\"})", "refId": "A" }]
+    },
+    {
+      "id": 11, "title": "Probe Uptime (24h)", "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 95 },
+              { "color": "green", "value": 99 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [{ "expr": "avg(avg_over_time(probe_success{job=~\"blackbox-http|blackbox-tcp\"}[24h])) * 100", "refId": "A" }]
+    },
+    {
+      "id": 12, "title": "Caddy Requests/s", "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "decimals": 2 } },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [{ "expr": "sum(rate(caddy_http_requests_total[5m]))", "refId": "A" }]
+    },
+    {
+      "id": 13, "title": "Active Systemd Units", "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [{ "expr": "count(node_systemd_unit_state{state=\"active\",name=~\"caddy|podman-.*\"} == 1)", "refId": "A" }]
+    },
+    {
+      "id": 1, "title": "Systemd Active Units", "type": "timeseries",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "node_systemd_unit_state{state=\"active\",name=~\"caddy|podman-.*\"}", "legendFormat": "{{name}}", "refId": "A" }]
+    },
+    {
+      "id": 2, "title": "TCP Probe Success", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "probe_success{job=\"blackbox-tcp\"}", "legendFormat": "{{instance}}", "refId": "A" }]
+    },
+    {
+      "id": 3, "title": "HTTP Probe Success", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "probe_success{job=\"blackbox-http\"}", "legendFormat": "{{instance}}", "refId": "A" }]
+    },
+    {
+      "id": 4, "title": "Caddy Requests/s", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum(rate(caddy_http_requests_total[5m]))", "refId": "A" }]
+    },
+    {
+      "id": 5, "title": "HTTP Probe Latency", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 30 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [{ "expr": "probe_duration_seconds{job=\"blackbox-http\"}", "legendFormat": "{{instance}}", "refId": "A" }]
+    }
+  ]
+}

@@ -1,0 +1,129 @@
+# Homelab GitHub Actions runner: Amazon Linux 2023 (glibc 2.34).
+# Native builds link against GLIBC ≤2.34 — compatible with AWS Lambda provided.al2023.
+#
+# Registration/entrypoint scripts come from myoung34 (same env contract as the
+# Ubuntu Noble image). Toolchain is baked via dnf so ephemeral restarts skip installs.
+#
+# Built on the host by github-runner-image.service (Podman).
+# Tag: localhost/homelab-github-runner:al2023
+ARG BASE_IMAGE=docker.io/amazonlinux:2023
+ARG MYOUNG34_IMAGE=docker.io/myoung34/github-runner:ubuntu-noble
+ARG GH_RUNNER_VERSION=2.335.1
+
+FROM ${MYOUNG34_IMAGE} AS myoung34
+
+FROM ${BASE_IMAGE}
+
+ARG GH_RUNNER_VERSION=2.335.1
+
+USER root
+
+# Core build + runner runtime deps. Use --allowerasing so full curl/gnupg2 can
+# replace the *-minimal packages shipped in amazonlinux:2023.
+# Split optional packages so a missing name does not fail the whole bake.
+# openssl (CLI) is separate from openssl-devel — CI scripts often call `openssl`.
+RUN dnf install -y --setopt=install_weak_deps=0 --allowerasing \
+      gcc gcc-c++ make cmake \
+      openssl openssl-devel libffi-devel zlib-devel \
+      ca-certificates curl wget jq unzip zip rsync \
+      gnupg2 openssh-clients git python3 \
+      libicu krb5-libs \
+      tar gzip xz findutils which hostname procps-ng \
+      shadow-utils \
+ && (dnf install -y --setopt=install_weak_deps=0 pkgconf-pkg-config || dnf install -y pkgconf || true) \
+ && (dnf install -y --setopt=install_weak_deps=0 lttng-ust || true) \
+ && dnf clean all \
+ && rm -rf /var/cache/dnf /var/cache/libdnf5
+
+# aarch64 GNU cross packages (Fedora-style names) are not shipped on AL2023.
+# Try dnf anyway in case Amazon adds them; otherwise install Zig cc wrappers so
+# cc-rs / aws-lc-sys find `aarch64-linux-gnu-gcc` on PATH (same names Ubuntu
+# apt provides). Runtime Zig comes from /var/lib/github-runner-tools/bin (Nix).
+RUN dnf install -y --setopt=install_weak_deps=0 \
+      gcc-aarch64-linux-gnu gcc-c++-aarch64-linux-gnu \
+      binutils-aarch64-linux-gnu \
+    || echo "homelab-ci: aarch64 cross RPMs unavailable on AL2023; installing zig wrappers" \
+ && if ! command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then \
+      mkdir -p /usr/local/bin; \
+      printf '%s\n' \
+        '#!/bin/sh' \
+        '# Homelab AL2023: Zig stands in for missing aarch64-linux-gnu-* (Lambda glibc 2.34).' \
+        '# Always use -target aarch64-linux-gnu.2.34. Strip caller --target/-target' \
+        '# (cc-rs passes aarch64-unknown-linux-gnu; Zig rejects "unknown" OS).' \
+        'ZIG="${HOMELAB_ZIG:-}"' \
+        'if [ -z "$ZIG" ]; then' \
+        '  if [ -x /var/lib/github-runner-tools/bin/zig ]; then' \
+        '    ZIG=/var/lib/github-runner-tools/bin/zig' \
+        '  elif command -v zig >/dev/null 2>&1; then' \
+        '    ZIG="$(command -v zig)"' \
+        '  else' \
+        '    echo "aarch64-linux-gnu-*: zig not found (expected /var/lib/github-runner-tools/bin/zig)" >&2' \
+        '    exit 127' \
+        '  fi' \
+        'fi' \
+        '# Filter --target=* / -target[=]* / -target <triple> from caller argv.' \
+        '_n=0' \
+        'while [ $# -gt 0 ]; do' \
+        '  case "$1" in' \
+        '    --target=*|-target=*) shift; continue ;;' \
+        '    --target|-target) shift; [ $# -gt 0 ] && shift; continue ;;' \
+        '  esac' \
+        '  _n=$((_n + 1))' \
+        '  eval "_a_${_n}=\"\$1\""' \
+        '  shift' \
+        'done' \
+        'set --' \
+        '_i=1' \
+        'while [ "$_i" -le "$_n" ]; do' \
+        '  eval "set -- \"\$@\" \"\$_a_${_i}\""' \
+        '  _i=$((_i + 1))' \
+        'done' \
+        'case "$(basename "$0")" in' \
+        '  aarch64-linux-gnu-g++|aarch64-linux-gnu-c++) exec "$ZIG" c++ -target aarch64-linux-gnu.2.34 "$@" ;;' \
+        '  aarch64-linux-gnu-ar) exec "$ZIG" ar "$@" ;;' \
+        '  aarch64-linux-gnu-ranlib) exec "$ZIG" ranlib "$@" ;;' \
+        '  *) exec "$ZIG" cc -target aarch64-linux-gnu.2.34 "$@" ;;' \
+        'esac' \
+        > /usr/local/bin/aarch64-linux-gnu-gcc; \
+      chmod 0755 /usr/local/bin/aarch64-linux-gnu-gcc; \
+      ln -sf aarch64-linux-gnu-gcc /usr/local/bin/aarch64-linux-gnu-g++; \
+      ln -sf aarch64-linux-gnu-gcc /usr/local/bin/aarch64-linux-gnu-ar; \
+      ln -sf aarch64-linux-gnu-gcc /usr/local/bin/aarch64-linux-gnu-ranlib; \
+      echo "homelab-ci: installed Zig-backed aarch64-linux-gnu-{gcc,g++,ar,ranlib}"; \
+    fi \
+ && command -v aarch64-linux-gnu-gcc \
+ && command -v aarch64-linux-gnu-g++
+
+# Node 20 LTS on PATH for shell jobs (build-lambdas.sh, setup scripts).
+# Official linux-x64 tarball links against system glibc 2.34 (Lambda-safe).
+# Do NOT use nixpkgs nodejs here — keeps the bake self-contained and avoids
+# host-side nodejs rebuilds on ace (see docs/ace-rebuild-freeze-rca.md).
+ARG NODE_VERSION=20.20.2
+RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+      -o /tmp/node.tar.xz \
+ && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
+ && rm -f /tmp/node.tar.xz \
+ && node -v \
+ && npm -v \
+ && corepack enable || true
+
+# myoung34 entrypoint shebang: #!/usr/bin/dumb-init /bin/bash
+RUN curl -fsSL -o /usr/bin/dumb-init \
+      https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_x86_64 \
+ && chmod +x /usr/bin/dumb-init
+
+ENV AGENT_TOOLSDIRECTORY=/opt/hostedtoolcache
+RUN mkdir -p /opt/hostedtoolcache /_work /actions-runner
+
+WORKDIR /actions-runner
+RUN curl -fsSL -o /tmp/actions-runner.tgz \
+      "https://github.com/actions/runner/releases/download/v${GH_RUNNER_VERSION}/actions-runner-linux-x64-${GH_RUNNER_VERSION}.tar.gz" \
+ && tar xzf /tmp/actions-runner.tgz -C /actions-runner \
+ && rm -f /tmp/actions-runner.tgz
+
+COPY --from=myoung34 /token.sh /app_token.sh /entrypoint.sh /
+RUN chmod +x /token.sh /app_token.sh /entrypoint.sh \
+ && touch /etc/homelab-ci-baked
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["./bin/Runner.Listener", "run", "--startuptype", "service"]

@@ -10,6 +10,14 @@ let
       ip = "192.168.5.7";
       domain = "nova.lc1.nm.us.prestonhager.com";
     };
+    elara = {
+      ip = "192.168.5.8";
+      domain = "elara.lc1.nm.us.prestonhager.com";
+    };
+    zenith = {
+      ip = "192.168.5.9";
+      domain = "zenith.lc1.nm.us.prestonhager.com";
+    };
   };
   nodeNames = builtins.attrNames nodes;
 in {

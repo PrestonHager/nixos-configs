@@ -146,3 +146,5 @@ starship init nu | save -f ($nu.data-dir | path join "vendor/autoload/starship.n
 
 source ($nu.default-config-dir | path join "aliases.nu")
 
+source ($nu.default-config-dir | path join "bitwarden.nu")
+
