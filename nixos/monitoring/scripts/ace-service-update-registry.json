@@ -1,0 +1,136 @@
+{
+  "grafana": {
+    "enabled": true,
+    "strategy": "nix-bump",
+    "nixFile": "nixos/containers/grafana.nix",
+    "bumpRules": [
+      { "match": "grafanaVersion = \"", "suffix": "\"", "prefix": "" }
+    ],
+    "postUpgradeUnits": ["podman-grafana.service"],
+    "majorWarnings": [
+      "Major Grafana releases may require dashboard or plugin updates.",
+      "Review https://grafana.com/docs/grafana/latest/breaking-changes/ before approving."
+    ]
+  },
+  "technitium": {
+    "enabled": true,
+    "strategy": "nix-bump",
+    "nixFile": "nixos/containers/technitium.nix",
+    "bumpRules": [
+      { "match": "technitiumVersion = \"", "suffix": "\"", "prefix": "" }
+    ],
+    "postUpgradeUnits": ["podman-technitium.service"],
+    "majorWarnings": [
+      "Major Technitium DNS Server upgrades can change zone import behavior or API defaults.",
+      "Have a DNS rollback plan before approving."
+    ]
+  },
+  "nextcloud": {
+    "enabled": true,
+    "strategy": "nix-bump",
+    "nixFile": "nixos/containers/nextcloud.nix",
+    "bumpRules": [
+      { "match": "nextcloudImage = \"docker.io/library/nextcloud:", "suffix": "\"", "prefix": "" }
+    ],
+    "postUpgradeUnits": ["nextcloud-occ-maintain.service"],
+    "majorWarnings": [
+      "Major Nextcloud upgrades run database migrations and may break third-party apps.",
+      "Review https://docs.nextcloud.com/server/stable/admin_manual/release_notes/ and back up data before approving."
+    ]
+  },
+  "zitadel": {
+    "enabled": true,
+    "strategy": "nix-bump",
+    "nixFile": "nixos/containers/zitadel.nix",
+    "bumpRules": [
+      { "match": "image = \"ghcr.io/zitadel/zitadel:v", "suffix": "\"", "prefix": "" },
+      { "match": "image = \"ghcr.io/zitadel/zitadel-login:v", "suffix": "\"", "prefix": "" }
+    ],
+    "postUpgradeUnits": ["podman-zitadel.service", "podman-zitadel-login.service"],
+    "majorWarnings": [
+      "Major Zitadel upgrades may require identity provider or login UI changes.",
+      "SSO for Grafana, Nextcloud, and Pterodactyl could be affected during migration."
+    ]
+  },
+  "vaultwarden": {
+    "enabled": true,
+    "strategy": "nix-bump",
+    "nixFile": "nixos/containers/vaultwarden.nix",
+    "bumpRules": [
+      { "match": "image = \"ghcr.io/dani-garcia/vaultwarden:", "suffix": "\"", "prefix": "" }
+    ],
+    "postUpgradeUnits": ["podman-vaultwarden.service"],
+    "majorWarnings": [
+      "Major Vaultwarden releases may change database schema or API compatibility.",
+      "Back up /vw-data before approving a major upgrade."
+    ]
+  },
+  "matrix-synapse": {
+    "enabled": true,
+    "strategy": "nix-bump",
+    "nixFile": "nixos/containers/matrix.nix",
+    "bumpRules": [
+      { "match": "synapseImage = \"matrixdotorg/synapse:v", "suffix": "\"", "prefix": "v" }
+    ],
+    "postUpgradeUnits": ["podman-matrix-synapse.service"],
+    "majorWarnings": [
+      "Major Synapse releases can require database migrations and federation config review."
+    ]
+  },
+  "jellyfin": {
+    "enabled": true,
+    "strategy": "nix-bump",
+    "nixFile": "nixos/containers/jellyfin.nix",
+    "bumpRules": [
+      { "match": "jellyfinVersion = \"", "suffix": "\"", "prefix": "" }
+    ],
+    "postUpgradeUnits": ["podman-jellyfin.service", "jellyfin-sso-setup.service"],
+    "majorWarnings": [
+      "Major Jellyfin releases may require client updates or plugin reinstallation.",
+      "Review https://jellyfin.org/docs/general/installation/ before approving."
+    ]
+  },
+  "prometheus": {
+    "enabled": true,
+    "strategy": "nix-bump",
+    "nixFile": "nixos/containers/prometheus.nix",
+    "bumpRules": [
+      { "match": "prometheusVersion = \"", "suffix": "\"", "prefix": "" }
+    ],
+    "postUpgradeUnits": ["podman-prometheus.service"],
+    "majorWarnings": [
+      "Major Prometheus releases may deprecate PromQL features or change scrape behavior.",
+      "Review release notes and verify Ace alert rules after upgrading."
+    ]
+  },
+  "pterodactyl-panel": {
+    "enabled": true,
+    "strategy": "nix-bump",
+    "nixFile": "nixos/containers/pterodactyl-docker.nix",
+    "bumpRules": [
+      { "match": "version = \"", "suffix": "\"", "prefix": "" }
+    ],
+    "postUpgradeUnits": ["podman-pterodactyl.service"],
+    "majorWarnings": [
+      "Major Pterodactyl panel upgrades rebuild the runtime image and run Laravel migrations.",
+      "Game servers and wings daemons may need coordinated updates; schedule downtime before approving."
+    ]
+  },
+  "notify_push": {
+    "enabled": true,
+    "strategy": "occ-app",
+    "containerName": "nextcloud",
+    "appName": "notify_push",
+    "majorWarnings": [
+      "Major notify_push releases must match your Nextcloud major version.",
+      "Approve only if Nextcloud itself is already on a compatible major release."
+    ]
+  },
+  "caddy": {
+    "enabled": false,
+    "strategy": "nixpkgs",
+    "majorWarnings": [
+      "Caddy is supplied by nixpkgs; auto-updates require a full flake input bump."
+    ]
+  }
+}

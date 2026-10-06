@@ -5,9 +5,19 @@ let
   pterodactylImages = import ./pterodactyl-docker.nix {
     inherit pkgs sops-path;
   };
-  inherit (pterodactylImages) panelUpdateEnv;
+  inherit (pterodactylImages) panelUpdateEnvStock version;
+  # Host /etc/hosts maps *.prestonhager.com → 127.0.0.1; inside the pod that is
+  # loopback, not Caddy on the host. Override so server-side OAuth token calls work.
+  zitadelDomain = "zitadel.prestonhager.com";
 in
 {
+  imports = [
+    ./pterodactyl-stock-reset.nix
+    ./pterodactyl-blueprint.nix
+    ./pterodactyl-blueprint-extensions-configure.nix
+    ./pterodactyl-sso.nix
+    ./pterodactyl-extensions.nix
+  ];
   sops.secrets = {
     "pterodactyl-env" = {
       sopsFile = "${sops-path}/secrets/containers/pterodactyl.yaml";
@@ -18,6 +28,12 @@ in
     "pterodactyl-password" = {
       sopsFile = "${sops-path}/secrets/containers/pterodactyl.yaml";
       mode = "0640";
+    };
+    "pterodactyl-router-ssh-key" = {
+      sopsFile = "${sops-path}/secrets/containers/pterodactyl.yaml";
+      mode = "0600";
+      owner = "pterodactyl";
+      group = "pterodactyl";
     };
   };
 
@@ -55,14 +71,84 @@ in
     };
     serviceConfig = {
       Type = "oneshot";
+      RemainAfterExit = true;
       Restart = "no";
       ExecStart = pkgs.writeShellScript "pod-pterodactyl" ''
-        ${pkgs.podman}/bin/podman pod exists pterodactyl || \
-        ${pkgs.podman}/bin/podman pod create -p 9001:9000 \
+        set -euo pipefail
+        podman=${pkgs.podman}/bin/podman
+        hostGw="$(${pkgs.iproute2}/bin/ip -4 -o addr show podman0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)"
+        if [ -z "''${hostGw}" ]; then
+          hostGw="10.88.0.1"
+        fi
+
+        pod_network_ok() {
+          $podman container exists pterodactyl 2>/dev/null || return 0
+          $podman container exists pterodactyl-redis 2>/dev/null || return 0
+          $podman exec pterodactyl redis-cli -h 127.0.0.1 ping 2>/dev/null | grep -q PONG
+        }
+
+        pod_hosts_ok() {
+          $podman pod inspect pterodactyl --format '{{range .InfraConfig.HostAdd}}{{.}} {{end}}' 2>/dev/null \
+            | grep -q "${zitadelDomain}:''${hostGw}"
+        }
+
+        if $podman pod exists pterodactyl && { ! pod_network_ok || ! pod_hosts_ok; }; then
+          if ! pod_network_ok; then
+            echo "pod-pterodactyl: panel cannot reach redis in pod; recreating pod"
+          else
+            echo "pod-pterodactyl: missing Zitadel host-gateway mapping; recreating pod"
+          fi
+          $podman pod stop -t 30 pterodactyl || true
+          $podman pod rm -f pterodactyl
+        fi
+
+        $podman pod exists pterodactyl || \
+        $podman pod create -p 9001:9000 \
+          --add-host=${zitadelDomain}:''${hostGw} \
+          --add-host=host.containers.internal:host-gateway \
           --memory 8G --cpus 0 pterodactyl
       '';
     };
-    path = [ pkgs.podman ];
+    path = [ pkgs.podman pkgs.coreutils pkgs.gnugrep pkgs.iproute2 pkgs.gawk ];
+  };
+
+  systemd.services.pterodactyl-pod-network-check = {
+    description = "Ensure Pterodactyl pod containers share network namespace";
+    after = [
+      "podman-pterodactyl.service"
+      "podman-pterodactyl-db.service"
+      "podman-pterodactyl-redis.service"
+    ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      TimeoutStartSec = "10min";
+      ExecStart = pkgs.writeShellScript "pterodactyl-pod-network-check" ''
+        set -euo pipefail
+        podman=${pkgs.podman}/bin/podman
+
+        if $podman exec pterodactyl redis-cli -h 127.0.0.1 ping 2>/dev/null | grep -q PONG; then
+          echo "pterodactyl-pod-network-check: pod network OK"
+          exit 0
+        fi
+
+        echo "pterodactyl-pod-network-check: redis unreachable from panel; recreating pod" >&2
+        systemctl stop podman-pterodactyl.service podman-pterodactyl-db.service podman-pterodactyl-redis.service 2>/dev/null || true
+        systemctl stop pod-pterodactyl.service 2>/dev/null || true
+        $podman pod stop -t 30 pterodactyl 2>/dev/null || true
+        $podman pod rm -f pterodactyl 2>/dev/null || true
+        systemctl start pod-pterodactyl.service
+        systemctl start podman-pterodactyl-db.service podman-pterodactyl-redis.service
+        sleep 2
+        systemctl start podman-pterodactyl.service
+        sleep 5
+        $podman exec pterodactyl redis-cli -h 127.0.0.1 ping | grep -q PONG
+        $podman exec pterodactyl php /var/www/pterodactyl/artisan config:clear
+        $podman exec pterodactyl php /var/www/pterodactyl/artisan cache:clear
+      '';
+    };
+    path = [ pkgs.podman pkgs.coreutils pkgs.systemd pkgs.gnugrep pkgs.procps ];
   };
 
   # Define the container
@@ -80,20 +166,22 @@ in
         "/pterodactyl/html:/var/www/pterodactyl"
         "/pterodactyl/sockets/mysqld:/run/mysqld"
         "/pterodactyl/sockets/php:/run/php-fpm"
+        "/pterodactyl/secrets:/pterodactyl/secrets:ro"
         "${config.sops.secrets."pterodactyl-env".path}:/var/www/pterodactyl/.env.initial:U"
       ];
 
-      environment = panelUpdateEnv // {
+      environment = panelUpdateEnvStock // {
         ENV_FILE = "${config.sops.secrets."pterodactyl-env".path}";
       };
 
       extraOptions = [
         "--pod=pterodactyl"
         "--env-file=${config.sops.secrets."pterodactyl-env".path}"
+        "--env-file=/pterodactyl/secrets/blueprint-extensions.env"
       ];
 
       # Finally, the pterodactyl runtime image and version
-      image = "pterodactyl-runtime:v1.11.11";
+      image = "pterodactyl-runtime:v${version}";
       imageFile = pterodactylImages.runtimeImage;
     };
 
@@ -118,7 +206,7 @@ in
         "--env-file=${config.sops.secrets."pterodactyl-env".path}"
       ];
 
-      image = "mariadb:latest";
+      image = "mariadb:12.3.2";
     };
     # Redis is not required, but is a great cache system
     "pterodactyl-redis" = {
@@ -136,7 +224,7 @@ in
 
       extraOptions = [ "--pod=pterodactyl" ];
 
-      image = "redis:latest";
+      image = "redis:7.4";
     };
   };
 }
