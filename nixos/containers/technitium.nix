@@ -1,7 +1,7 @@
 { pkgs, ... }:
 
 let
-  technitiumVersion = "15.6.0";
+  technitiumVersion = "15.6.1";
   dataRoot = "/stor/technitium";
   technitiumDnsIp = "192.168.5.5";
   technitiumDnsPort = 5353;
