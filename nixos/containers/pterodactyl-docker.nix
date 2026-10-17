@@ -1,7 +1,7 @@
 { pkgs, ... }:
 
 let
-  version = "1.11.11";
+  version = "1.15.1";
   pterodactyPanelSrc = "https://github.com/pterodactyl/panel.git";
   forkPanelSrc = "https://github.com/PrestonHager/panel.git";
 
@@ -19,15 +19,14 @@ let
     '';
   };
 
-  panelUpdateEnv = {
-    APP_ENVIRONMENT_ONLY = "false";
-    PTERODACTYL_UPDATE_REPOSITORY = "PrestonHager/panel";
-    PTERODACTYL_UPDATE_BRANCH = "feat/plugin-manager";
-    PTERODACTYL_UPDATE_MODE = "git";
-    PTERODACTYL_UPDATE_GIT_REMOTE = "origin";
-    PTERODACTYL_UPDATE_GIT_STRATEGY = "auto";
+  # Production panel tracks official Pterodactyl releases.
+  panelUpdateEnvStock = {
+    APP_ENVIRONMENT_ONLY = "true";
     GIT_CONFIG_SYSTEM = "/etc/gitconfig";
   };
+
+    # Test panel uses stock Pterodactyl + upstream Blueprint (see pterodactyl-test-blueprint.nix).
+  panelUpdateEnvTest = panelUpdateEnvStock;
 
   waitForServices = ''
     set -e
@@ -276,7 +275,16 @@ EOF
     pkgs.openssh
     pkgs.curl
     pkgs.gnutar
-    pkgs.uutils-findutils
+    # Blueprint framework build tools
+    pkgs.nodejs_22
+    pkgs.yarn
+    pkgs.zip
+    pkgs.unzip
+    pkgs.ncurses
+    pkgs.gawk
+    pkgs.diffutils
+    pkgs.findutils
+    pkgs.gzip
     pkgs.cron
     pkgs.systemd
     pkgs.nettools
@@ -284,7 +292,7 @@ EOF
   ];
 in
 {
-  inherit panelUpdateEnv forkPanelSrc;
+  inherit panelUpdateEnvStock panelUpdateEnvTest forkPanelSrc version;
 
   setupImage = pkgs.dockerTools.buildImage {
     name = "pterodactyl-setup";

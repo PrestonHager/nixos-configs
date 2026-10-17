@@ -4,6 +4,8 @@ let
   nfsExports = {
     crux = "ace.internal.prestonhager.com:/export/pterodactyl-crux";
     nova = "ace.internal.prestonhager.com:/export/pterodactyl-nova";
+    elara = "ace.internal.prestonhager.com:/export/pterodactyl-elara";
+    zenith = "ace.internal.prestonhager.com:/export/pterodactyl-zenith";
   };
   host = config.networking.hostName;
 in {

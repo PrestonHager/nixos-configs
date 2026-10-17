@@ -1,45 +1,63 @@
-{ config, ... }:
+{ config, pkgs, ... }:
 
-#locations = {
-#  "/" = {
-#    proxyPass = "http://localhost:8083/";
-#    proxyWebsockets = true;
-#    extraConfig = ''
-#      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-#      proxy_set_header X-Forwarded-Port $server_port;
-#      proxy_set_header X-Forwarded-Scheme $scheme;
-#      proxy_set_header X-Forwarded-Proto $scheme;
-#      proxy_set_header X-Real-IP $remote_addr;
-#      proxy_set_header Host $host;
-#      proxy_set_header Early-Data $ssl_early_data;
-#    '';
-#  };
-#};
-#extraConfig = ''
-#  proxy_buffering off;
-#  proxy_request_buffering off;
-#
-#  client_max_body_size 0;
-#  client_body_buffer_size 512k;
-#  proxy_read_timeout 86400s;
-#
-#  location /.well-known/carddav {
-#    return 301 $scheme://$host/remote.php/dav;
-#  }
-#  location /.well-known/caldav {
-#    return 301 $scheme://$host/remote.php/dav;
-#  }
-#  location ^~ /.well-known {
-#    return 301 $scheme://$host/index.php$request_uri;
-#  }
-#  proxy_hide_header Upgrade;
-#'';
-
+let
+  nextcloudWellKnown = pkgs.runCommand "nextcloud-well-known" { } ''
+    mkdir -p $out/.well-known
+    cp ${../../static/nextcloud/.well-known/microsoft-identity-association.json} \
+      $out/.well-known/microsoft-identity-association.json
+  '';
+in
 {
   services.caddy = {
     virtualHosts."cloud.prestonhager.com".extraConfig = ''
-      reverse_proxy http://localhost:8083
+      request_body {
+        max_size 0
+      }
+
+      redir /.well-known/carddav /remote.php/dav 301
+      redir /.well-known/caldav /remote.php/dav 301
+
+      handle /.well-known/microsoft-identity-association.json {
+        root * ${nextcloudWellKnown}
+        header Content-Type application/json
+        file_server
+      }
+
+      header Strict-Transport-Security "max-age=15552000; includeSubDomains"
+
+      handle_path /push/* {
+        reverse_proxy http://127.0.0.1:7867 {
+          header_up Host {host}
+          header_up X-Real-IP {remote_host}
+          header_up X-Forwarded-For {remote_host}
+          header_up X-Forwarded-Proto {scheme}
+        }
+      }
+
+      handle_path /whiteboard/* {
+        request_body {
+          max_size 100MB
+        }
+
+        reverse_proxy http://127.0.0.1:3002 {
+          header_up Host {host}
+          header_up X-Real-IP {remote_host}
+          header_up X-Forwarded-For {remote_host}
+          header_up X-Forwarded-Proto {scheme}
+        }
+      }
+
+      reverse_proxy http://127.0.0.1:8083 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        flush_interval -1
+        transport http {
+          read_timeout 1h
+          write_timeout 1h
+        }
+      }
     '';
   };
 }
-

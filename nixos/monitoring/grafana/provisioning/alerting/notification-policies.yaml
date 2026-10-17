@@ -1,0 +1,26 @@
+# Route all Ace provisioned alerts to the ace-email contact point.
+apiVersion: 1
+policies:
+  - orgId: 1
+    receiver: ace-email
+    group_by:
+      - alertname
+      - grafana_folder
+      - severity
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+    routes:
+      - receiver: ace-email
+        object_matchers:
+          - - severity
+            - =
+            - critical
+        group_wait: 10s
+        repeat_interval: 1h
+      - receiver: ace-email
+        object_matchers:
+          - - severity
+            - =
+            - warning
+        repeat_interval: 12h

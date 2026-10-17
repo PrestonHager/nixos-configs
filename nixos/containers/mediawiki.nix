@@ -16,9 +16,9 @@ let
   # and delete or backup the old mediawiki directory
   # make sure to disable the upgrade option after as well!
   mediawiki = {
-    enableUpgrade = true;
+    enableUpgrade = false;
     upgradeVersion = "1.45.3";
-    version = "1.44.0";
+    version = "1.45.3";
     # Run nix-shell -p nix-prefetch-docker --run "nix-prefetch-docker --image-name mediawiki --image-tag <VERSION>-fpm-alpine"
     # then paste the nix data below when upgrading version
     dockerImage = {
@@ -65,11 +65,11 @@ in
 
   # Create the data directory
   systemd.tmpfiles.rules = [
-    "d /mw 0770 root root -"
+    "d /mw 0755 root root -"
     "d /mw/images 0770 www-data www-data -"
     "d /mw/data 0770 nm-iodine nscd -"
     "d /mw/redis 0770 nm-iodine nscd -"
-    "d /mw/html 0770 www-data www-data -"
+    "d /mw/html 0755 www-data www-data -"
     "d /mw/apache2 0770 root root -"
     "d /mw/run 0770 root root -"
   ];
@@ -172,10 +172,12 @@ in
       dependsOn = [ "mediawiki-db" "mediawiki-redis" ];
       extraOptions = [ "--pod=mediawiki" ];
 
-      # Finally, the mediawiki image and version
-      image = "docker.io/prestonhager/mediawiki-redis:latest";
-      #image = "mediawiki-redis:${mediawiki.version}";
-      #imageFile = import ./mediawiki-docker.nix { inherit pkgs; version = mediawiki.version; };
+      image = "mediawiki-redis:${mediawiki.version}";
+      imageFile = import ./mediawiki-docker.nix {
+        inherit pkgs;
+        version = mediawiki.version;
+        dockerImage = mediawiki.upgradeDockerImage;
+      };
     };
     "mediawiki-db" = {
       autoStart = true;
@@ -199,7 +201,7 @@ in
         "--env-file=${config.sops.secrets."mediawiki-environment".path}"
       ];
 
-      image = "mariadb:latest";
+      image = "mariadb:11.4";
     };
     # Redis is not required, but is a great cache system
     "mediawiki-redis" = {
@@ -215,7 +217,7 @@ in
 
       extraOptions = [ "--pod=mediawiki" ];
 
-      image = "redis:latest";
+      image = "redis:7.4";
     };
   };
 }

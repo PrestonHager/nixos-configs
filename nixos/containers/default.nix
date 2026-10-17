@@ -9,18 +9,23 @@
     ./grafana.nix
     ./jellyfin.nix
     ./mediawiki.nix
-    #./nextcloud-aio.nix
-    #./nextcloud.nix
+    # ./nextcloud-aio.nix (disabled; use nextcloud.nix)
+    ./nextcloud.nix
     #./phorge.nix
-    ./portunus.nix
     ./prometheus.nix
+    ./pushgateway.nix
     ./pterodactyl.nix
     ./pterodactyl-test.nix
     #./spacetimedb.nix
     #./sui.nix
     ./vaultwarden.nix
     ./wg-portal.nix
-    #./zitadel.nix
+    ./technitium.nix
+    # TEMPORARILY DISABLED — OpenClaw SSO (avoids openclaw-oauth sops when off)
+    # ./openclaw-oauth.nix
+    # ./openclaw-config.nix
+    # ./lancache.nix — disabled; Technitium is primary LAN DNS on 192.168.5.5:53
+    ./zitadel.nix
   ];
 
   # Enable Podman (or Docker) for use with oci-containers
@@ -42,4 +47,5 @@
   # default is "podman", you can also use "docker"
   virtualisation.oci-containers.backend = "podman";
 }
+
 

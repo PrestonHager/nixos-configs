@@ -2,6 +2,8 @@
 
 {
   imports = [
+    ../auth
+    ../monitoring
     # Containers submodule
     ../containers
     # nginx module, further customization available in nginx folder
@@ -13,6 +15,8 @@
     # Wireguard server
     ../wireguard.nix
   ];
+
+  services.zitadel-sso.enable = true;
 
   # Enable SSH with keys only
   services.openssh = {

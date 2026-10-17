@@ -1,0 +1,245 @@
+# Grafana unified alerting — Security folder (Phase 2).
+# Tier 1 email alerts; tune thresholds after baselining in Loki Explore.
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: security-ssh-abuse
+    folder: Security
+    interval: 1m
+    rules:
+      - uid: sec_ssh_failed_burst
+        title: SSH authentication failure burst
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: loki
+            model:
+              editorMode: code
+              expr: >-
+                sum by (host) (count_over_time({job="systemd-journal"}
+                |= "Failed password" or |= "Invalid user" [5m])) > 10
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              queryType: instant
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          description: >-
+            More than 10 SSH auth failures in 5 minutes on host {{ $labels.host }}.
+            Check fail2ban and auth logs in Loki.
+          summary: SSH auth failure burst — {{ $labels.host }}
+        labels:
+          severity: warning
+          alert_type: ssh_abuse
+
+  - orgId: 1
+    name: security-drift
+    folder: Security
+    interval: 5m
+    rules:
+      - uid: sec_git_drift
+        title: NixOS git config drift detected
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: homelab_git_drift == 1
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 15m
+        annotations:
+          description: >-
+            /etc/nixos on {{ $labels.host }} has uncommitted changes or diverged from origin.
+          summary: Git drift — {{ $labels.host }}
+        labels:
+          severity: warning
+          alert_type: config_drift
+
+      - uid: sec_cisco_config_drift
+        title: Cisco running-config changed
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 900
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: homelab_cisco_config_drift == 1
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 0s
+        annotations:
+          description: >-
+            Astracap or Astraquasar running-config differs from the previous daily backup.
+            Diff files under /var/lib/cisco-config-backup/.
+          summary: Cisco config drift detected
+        labels:
+          severity: warning
+          alert_type: cisco_drift
+
+  - orgId: 1
+    name: security-network-ids
+    folder: Security
+    interval: 1m
+    rules:
+      - uid: sec_suricata_scan
+        title: Suricata scan or exploit alert
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: loki
+            model:
+              editorMode: code
+              expr: >-
+                sum(count_over_time({job="suricata"} | json | event_type="alert" [5m])) > 0
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              queryType: instant
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 1m
+        annotations:
+          description: >-
+            Suricata raised at least one alert in the last 5 minutes. Review EVE JSON in Loki.
+          summary: Suricata IDS alert
+        labels:
+          severity: warning
+          alert_type: suricata

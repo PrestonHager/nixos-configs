@@ -5,14 +5,17 @@ let
   pterodactylImages = import ./pterodactyl-docker.nix {
     inherit pkgs sops-path;
   };
-  inherit (pterodactylImages) panelUpdateEnv forkPanelSrc;
+  inherit (pterodactylImages) panelUpdateEnvStock version;
+  officialPanelSrc = "https://github.com/pterodactyl/panel.git";
   testEnvFile = "/var/lib/pterodactyl-test/pterodactyl.env";
   testPanelDir = "/home/prestonh/Projects/panel";
   testPublicDir = "/pterodactyl-test/public";
+  testBlueprintMountDir = "/pterodactyl-test/.blueprint";
   setupMarker = "/var/lib/pterodactyl-test/setup-complete";
   adminCredentialsFile = "/var/lib/pterodactyl-test/admin-credentials";
+  zitadelDomain = "zitadel.prestonhager.com";
 
-  panelUpdateEnvLines = pkgs.lib.mapAttrsToList (n: v: "${n}=${v}") panelUpdateEnv;
+  panelUpdateEnvLines = pkgs.lib.mapAttrsToList (n: v: "${n}=${v}") panelUpdateEnvStock;
 
   ensureEnvVar = name: value: ''
     if ! grep -q "^${name}=" "$ENV" 2>/dev/null; then
@@ -143,6 +146,13 @@ EOF
   '';
 in
 {
+  imports = [
+    ./pterodactyl-test-stock-reset.nix
+    ./pterodactyl-test-blueprint.nix
+    ./pterodactyl-test-blueprint-extensions-configure.nix
+    ./pterodactyl-test-sso.nix
+  ];
+
   users.users.pterodactyl.extraGroups = [ "users" ];
 
   systemd.tmpfiles.rules = [
@@ -156,7 +166,7 @@ in
   ];
 
   systemd.services.pterodactyl-test-public-mount = {
-    description = "Bind-mount test panel public dir for Caddy static file access";
+    description = "Bind-mount test panel public and blueprint dirs for Caddy";
     wantedBy = [ "multi-user.target" ];
     before = [ "caddy.service" "podman-pterodactyl-test.service" ];
     after = [ "pterodactyl-test-panel-perms.service" ];
@@ -167,11 +177,14 @@ in
     path = [ pkgs.util-linux pkgs.coreutils ];
     script = ''
       set -euo pipefail
-      install -d -m 0755 ${testPublicDir}
+      install -d -m 0755 /pterodactyl-test ${testPublicDir} ${testBlueprintMountDir}
       if ! ${pkgs.util-linux}/bin/mountpoint -q ${testPublicDir}; then
         ${pkgs.util-linux}/bin/mount --bind ${testPanelDir}/public ${testPublicDir}
       fi
-      chmod 0755 ${testPublicDir}
+      if ! ${pkgs.util-linux}/bin/mountpoint -q ${testBlueprintMountDir}; then
+        ${pkgs.util-linux}/bin/mount --bind ${testPanelDir}/.blueprint ${testBlueprintMountDir}
+      fi
+      chmod 0755 /pterodactyl-test ${testPublicDir} ${testBlueprintMountDir}
     '';
   };
 
@@ -227,14 +240,19 @@ REDIS_PORT=6379
 CACHE_DRIVER=redis
 QUEUE_CONNECTION=redis
 SESSION_DRIVER=redis
+SESSION_DOMAIN=.prestonhager.com
+SESSION_SECURE_COOKIE=true
+SESSION_SAME_SITE=lax
+
+TRUSTED_PROXIES=*
 
 HASHIDS_SALT=$HASHIDS
 HASHIDS_LENGTH=8
 
 MAIL_MAILER=log
 
-PTERODACTYL_UPDATE_REPOSITORY=PrestonHager/panel
-PTERODACTYL_UPDATE_BRANCH=feat/plugin-manager
+PTERODACTYL_UPDATE_REPOSITORY=pterodactyl/panel
+PTERODACTYL_UPDATE_BRANCH=release/v1.14.1
 PTERODACTYL_UPDATE_MODE=git
 PTERODACTYL_UPDATE_GIT_REMOTE=origin
 PTERODACTYL_UPDATE_GIT_STRATEGY=auto
@@ -243,12 +261,27 @@ EOF
         chmod 0640 "$ENV"
       fi
 
+      set_kv() {
+        local key="$1" val="$2"
+        if grep -q "^''${key}=" "$ENV"; then
+          ${pkgs.gnused}/bin/sed -i "s|^''${key}=.*|''${key}=$(printf '%s' "$val" | ${pkgs.gnused}/bin/sed 's/[&/\\|]/\\&/g')|" "$ENV"
+        else
+          printf '%s=%s\n' "$key" "$val" >> "$ENV"
+        fi
+      }
+
       ${ensureEnvVar "APP_ENVIRONMENT_ONLY" "false"}
-      ${ensureEnvVar "PTERODACTYL_UPDATE_REPOSITORY" "PrestonHager/panel"}
-      ${ensureEnvVar "PTERODACTYL_UPDATE_BRANCH" "feat/plugin-manager"}
+      ${ensureEnvVar "PTERODACTYL_UPDATE_REPOSITORY" "pterodactyl/panel"}
+      ${ensureEnvVar "PTERODACTYL_UPDATE_BRANCH" "release/v1.14.1"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_MODE" "git"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_GIT_REMOTE" "origin"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_GIT_STRATEGY" "auto"}
+
+      set_kv APP_URL "https://test.panel.prestonhager.com"
+      set_kv TRUSTED_PROXIES "*"
+      set_kv SESSION_DOMAIN ".prestonhager.com"
+      set_kv SESSION_SECURE_COOKIE "true"
+      set_kv SESSION_SAME_SITE "lax"
     '';
   };
 
@@ -285,13 +318,11 @@ EOF
         GIT="${pkgs.git}/bin/git -c safe.directory=${testPanelDir}"
         cd ${testPanelDir}
         if $GIT remote get-url origin &>/dev/null; then
-          $GIT remote set-url origin ${forkPanelSrc}
+          $GIT remote set-url origin ${officialPanelSrc}
         else
-          $GIT remote add origin ${forkPanelSrc}
+          $GIT remote add origin ${officialPanelSrc}
         fi
-        if $GIT remote get-url fork &>/dev/null; then
-          $GIT remote set-url fork ${forkPanelSrc}
-        fi
+        $GIT remote remove fork 2>/dev/null || true
       fi
     '';
   };
@@ -352,14 +383,108 @@ EOF
     unitConfig.RequiresMountsFor = "/run/containers";
     serviceConfig = {
       Type = "oneshot";
+      RemainAfterExit = true;
       Restart = "no";
       ExecStart = pkgs.writeShellScript "pod-pterodactyl-test" ''
-        ${pkgs.podman}/bin/podman pod exists pterodactyl-test || \
-        ${pkgs.podman}/bin/podman pod create -p 9002:9000 \
+        set -euo pipefail
+        podman=${pkgs.podman}/bin/podman
+        hostGw="$(${pkgs.iproute2}/bin/ip -4 -o addr show podman0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)"
+        if [ -z "''${hostGw}" ]; then
+          hostGw="10.88.0.1"
+        fi
+
+        pod_network_ok() {
+          $podman container exists pterodactyl-test 2>/dev/null || return 0
+          $podman container exists pterodactyl-test-redis 2>/dev/null || return 0
+          $podman exec pterodactyl-test redis-cli -h 127.0.0.1 ping 2>/dev/null | grep -q PONG
+        }
+
+        pod_hosts_ok() {
+          $podman pod inspect pterodactyl-test --format '{{range .InfraConfig.HostAdd}}{{.}} {{end}}' 2>/dev/null \
+            | grep -q "${zitadelDomain}:''${hostGw}"
+        }
+
+        if $podman pod exists pterodactyl-test && { ! pod_network_ok || ! pod_hosts_ok; }; then
+          if ! pod_network_ok; then
+            echo "pod-pterodactyl-test: panel cannot reach redis in pod; recreating pod"
+          else
+            echo "pod-pterodactyl-test: missing Zitadel host-gateway mapping; recreating pod"
+          fi
+          $podman pod stop -t 30 pterodactyl-test || true
+          $podman pod rm -f pterodactyl-test
+        fi
+
+        $podman pod exists pterodactyl-test || \
+        $podman pod create -p 9002:9000 \
+          --add-host=${zitadelDomain}:''${hostGw} \
+          --add-host=host.containers.internal:host-gateway \
           --memory 4G --cpus 0 pterodactyl-test
       '';
     };
-    path = [ pkgs.podman ];
+    path = [ pkgs.podman pkgs.coreutils pkgs.gnugrep pkgs.iproute2 pkgs.gawk ];
+  };
+
+  systemd.services.pterodactyl-test-laravel-env-refresh = {
+    description = "Clear Laravel config cache after test panel proxy/session env updates";
+    after = [
+      "pterodactyl-test-env.service"
+      "podman-pterodactyl-test.service"
+    ];
+    wants = [ "podman-pterodactyl-test.service" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = pkgs.writeShellScript "pterodactyl-test-laravel-env-refresh" ''
+        set -euo pipefail
+        podman=${pkgs.podman}/bin/podman
+        if ! $podman container inspect pterodactyl-test --format '{{.State.Running}}' 2>/dev/null | grep -q true; then
+          exit 0
+        fi
+        $podman exec pterodactyl-test php /var/www/pterodactyl/artisan config:clear
+        $podman exec pterodactyl-test php /var/www/pterodactyl/artisan cache:clear
+      '';
+    };
+    path = [ pkgs.podman pkgs.coreutils pkgs.gnugrep ];
+  };
+
+  systemd.services.pterodactyl-test-pod-network-check = {
+    description = "Ensure test Pterodactyl pod containers share network namespace";
+    after = [
+      "podman-pterodactyl-test.service"
+      "podman-pterodactyl-test-db.service"
+      "podman-pterodactyl-test-redis.service"
+    ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      TimeoutStartSec = "10min";
+      ExecStart = pkgs.writeShellScript "pterodactyl-test-pod-network-check" ''
+        set -euo pipefail
+        podman=${pkgs.podman}/bin/podman
+
+        if $podman exec pterodactyl-test redis-cli -h 127.0.0.1 ping 2>/dev/null | grep -q PONG; then
+          echo "pterodactyl-test-pod-network-check: pod network OK"
+          exit 0
+        fi
+
+        echo "pterodactyl-test-pod-network-check: redis unreachable from panel; recreating pod" >&2
+        systemctl stop podman-pterodactyl-test.service podman-pterodactyl-test-db.service podman-pterodactyl-test-redis.service 2>/dev/null || true
+        systemctl stop pod-pterodactyl-test.service 2>/dev/null || true
+        $podman pod stop -t 30 pterodactyl-test 2>/dev/null || true
+        $podman pod rm -f pterodactyl-test 2>/dev/null || true
+        systemctl start pod-pterodactyl-test.service
+        systemctl start podman-pterodactyl-test-db.service podman-pterodactyl-test-redis.service
+        sleep 2
+        systemctl start podman-pterodactyl-test.service
+        sleep 5
+        $podman exec pterodactyl-test redis-cli -h 127.0.0.1 ping | grep -q PONG
+        $podman exec pterodactyl-test php /var/www/pterodactyl/artisan config:clear
+        $podman exec pterodactyl-test php /var/www/pterodactyl/artisan cache:clear
+      '';
+    };
+    path = [ pkgs.podman pkgs.coreutils pkgs.systemd pkgs.gnugrep pkgs.procps ];
   };
 
   virtualisation.oci-containers.containers = {
@@ -372,14 +497,16 @@ EOF
         "${testPanelDir}:/var/www/pterodactyl"
         "/pterodactyl-test/sockets/mysqld:/run/mysqld"
         "/pterodactyl-test/sockets/php:/run/php-fpm"
+        "/pterodactyl/secrets:/pterodactyl/secrets:ro"
         "${testEnvFile}:/var/www/pterodactyl/.env:U"
       ];
-      environment = panelUpdateEnv;
+      environment = panelUpdateEnvStock;
       extraOptions = [
         "--pod=pterodactyl-test"
         "--env-file=${testEnvFile}"
+        "--env-file=/pterodactyl/secrets/blueprint-extensions.env"
       ];
-      image = "pterodactyl-runtime:v1.11.11";
+      image = "pterodactyl-runtime:v${version}";
       imageFile = pterodactylImages.runtimeImage;
     };
 
@@ -398,7 +525,7 @@ EOF
         "--pod=pterodactyl-test"
         "--env-file=${testEnvFile}"
       ];
-      image = "mariadb:latest";
+      image = "mariadb:11.4";
     };
 
     pterodactyl-test-redis = {
@@ -411,7 +538,7 @@ EOF
       ];
       cmd = [ "redis-server" "--save" "59" "1" "--loglevel" "warning" ];
       extraOptions = [ "--pod=pterodactyl-test" ];
-      image = "redis:latest";
+      image = "redis:7.4";
     };
   };
 }

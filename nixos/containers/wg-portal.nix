@@ -87,7 +87,7 @@ in
     };
 
     # Finally, the wireguard image and version
-    image = "docker.io/wgportal/wg-portal:latest";
+    image = "docker.io/wgportal/wg-portal:v2.3.1";
   };
 }
 
