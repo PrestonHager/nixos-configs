@@ -64,7 +64,7 @@ All documented access ports use **`switchport mode access`** (no 802.1Q trunks i
 | `Te2/1/4` | Uplink_to_Astracap (routed, no IP) | shutdown | Alternate uplink not in use |
 | `Gi2/1/1`, `Gi2/1/2`, `Te2/1/3` | default | — | Unused uplink capacity |
 
-**Online infra (Aug 2026):** crux on **`Gi2/0/25`**, ace iDRAC on **`Gi2/0/47`**, mars iDRAC on **`Gi2/0/48`**. Reserved / not cabled: nova `.7`, elara `.8`, zenith `.9`, sally iDRAC `.12`, mars OS `.15`, sally OS `.16`. Prefer **`Gi2/0/27`** for nova; label new ports when attaching.
+**Online infra (Aug 2026):** crux on **`Gi2/0/25`**, ace iDRAC on **`Gi2/0/47`**, mars iDRAC on **`Gi2/0/48`**. **Oct 2026:** elara `.8` is online (answers SSH) but its switch port is not yet recorded here; nova `.7` is physically disconnected. Reserved / not cabled: zenith `.9`, sally iDRAC `.12`, mars OS `.15`, sally OS `.16`. Prefer **`Gi2/0/27`** for nova; label new ports when attaching.
 
 
 ## Spanning tree

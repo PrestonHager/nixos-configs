@@ -12,10 +12,10 @@ Homelab documentation for the [nixos-configs](https://github.com/PrestonHager/ni
 | **mars** | 192.168.5.15 | — | Reserved / not connected | PowerEdge R410 host ([mars](poweredge/mars.md)) |
 | **sally iDRAC** | 192.168.5.12 | — | Reserved / not connected | PowerEdge R320 OOB ([sally iDRAC](poweredge/sally-idrac.md)) |
 | **sally** | 192.168.5.16 | — | Reserved / not connected | PowerEdge R320 host ([sally](poweredge/sally.md)) |
-| **crux** | 192.168.5.6 | `#crux` | LAN only (`Gi2/0/25`) | Pterodactyl Wings node ([crux](pterodactyl-nodes/crux.md)) |
-| **nova** | 192.168.5.7 | `#nova` | Reserved / offline | Pterodactyl Wings node ([nova](pterodactyl-nodes/nova.md)) |
-| **elara** | 192.168.5.8 | — | Reserved / not connected | OptiPlex Wings node ([elara](pterodactyl-nodes/elara.md)) |
-| **zenith** | 192.168.5.9 | — | Reserved / not connected | OptiPlex Wings node ([zenith](pterodactyl-nodes/zenith.md)) |
+| **crux** | 192.168.5.6 | `#crux` | LAN only (`Gi2/0/25`) | Pterodactyl Wings node and Coolify deploy server ([crux](pterodactyl-nodes/crux.md)) |
+| **nova** | 192.168.5.7 | `#nova` | Physically disconnected | Pterodactyl Wings node, config kept as a template ([nova](pterodactyl-nodes/nova.md)) |
+| **elara** | 192.168.5.8 | `#elara` | LAN only | OptiPlex Wings node — online ([elara](pterodactyl-nodes/elara.md)) |
+| **zenith** | 192.168.5.9 | `#zenith` | Planned / not connected | OptiPlex Wings node, no hardware config yet ([zenith](pterodactyl-nodes/zenith.md)) |
 | **ph-nixos** | DHCP | `#ph-nixos` | LAN | Laptop/desktop (GNOME) ([ph-nixos](ph-nixos/index.md)) |
 
 Full map (IPs, switch ports, WAN vs LAN): [Network topology](shared/network-topology.md).

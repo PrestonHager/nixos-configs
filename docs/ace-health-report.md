@@ -1,5 +1,13 @@
 # Ace Server Health Report
 
+> **Historical snapshot from 2026-06-26. Do not use it as current status.** It has not been re-run since. Known to be out of date as of Oct 2026:
+>
+> - **Coolify** now runs on ace ([Coolify on ace](./coolify.md)); it is missing from every table below.
+> - **`upgrade.loftiawiki.org`** is now LAN-only by design and exists only while an upgrade is enabled, so its HTTP 403 from off-LAN is expected, not "degraded".
+> - Versions moved on: **Grafana 13.2.4** (not 13.0.2), **Zitadel / Zitadel Login 4.19.5** (not 4.15.0).
+>
+> For live state use Grafana (blackbox probes, *Ace Service Versions*) or re-run the probes on ace.
+
 **Generated:** 2026-06-26 (MDT)  
 **Host:** ace (`192.168.5.5`)  
 **NixOS:** 26.11.20260531.331800d (Zokor)  
@@ -99,7 +107,7 @@ Caddy reverse-proxies `/dns-query` → `127.0.0.1:8053` (`nixos/caddy/technitium
 
 ### DoH/DoT deployment (verified)
 
-`nixos/containers/technitium-protocols.nix` is imported from `nixos/containers/technitium.nix` on ace (`/etc/nixos/nixos/containers/technitium-protocols.nix`). It defines `technitium-sync-tls-cert` and `technitium-sync-protocols` to export the Caddy LE cert to PKCS#12 and enable DoH/DoT via Technitium API:
+`nixos/containers/technitium-protocols.nix` is imported from `nixos/containers/technitium.nix` on ace (repo path `nixos/containers/technitium-protocols.nix`). It defines `technitium-sync-tls-cert` and `technitium-sync-protocols` to export the Caddy LE cert to PKCS#12 and enable DoH/DoT via Technitium API:
 
 - PFX at `/stor/technitium/certs/dns.prestonhager.com.pfx` ✅
 - Caddy cert for `dns.prestonhager.com` ✅

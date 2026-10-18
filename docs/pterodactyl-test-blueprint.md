@@ -54,14 +54,18 @@ The test panel shares the **Home Lab** Zitadel OIDC application with production.
 
 Both roles live in the **Home Lab** Zitadel project (`376196450586990901`). The unified `homelabGroups` complement action emits both into the OIDC `groups` claim when granted; each panel maps only its own role.
 
-Setup scripts (run on ace as root):
+The setup scripts were removed in commit `572c200`; no Nix unit creates the role or the action. Recover them on ace (as root) when needed:
 
 ```bash
+cd /etc/nixos
+git show 572c200^:scripts/zitadel-pterodactyl-test-admin-setup.js > /tmp/zitadel-pterodactyl-test-admin-setup.js
+git show 572c200^:scripts/zitadel-homelab-groups-action.js > /tmp/zitadel-homelab-groups-action.js
+
 # Create role + grant prestonh
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-pterodactyl-test-admin-setup.js
+nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-pterodactyl-test-admin-setup.js
 
 # Refresh homelabGroups action (includes pterodactyl_test_admin in groups claim)
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-homelab-groups-action.js
+nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-homelab-groups-action.js
 ```
 
 Test panel SSO uses `ZitadelTestAdminSync` and checks `pterodactyl_test_admin` only — `pterodactyl_admin` does **not** grant admin on the test panel.
@@ -157,7 +161,8 @@ Verify SSO admin (after Zitadel role grant + sign out/in):
 
 ```bash
 # prestonh should have pterodactyl_test_admin in Zitadel Authorizations
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-pterodactyl-test-admin-setup.js
+# (console → Projects → Home Lab → Authorizations, or the recovered script above)
+nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-pterodactyl-test-admin-setup.js
 
 # Sign in at https://test.panel.prestonhager.com/extensions/sociallogin/redirect/zitadel
 # Admin menu should appear; production panel unchanged unless pterodactyl_admin is granted

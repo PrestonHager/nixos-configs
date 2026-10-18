@@ -50,7 +50,7 @@ From [network-astracap-router.md](../shared/network-astracap.md) and [dns-ace.md
 | Dynamic NAT | `ip nat inside source list 1 interface Gi0/0 overload` (PAT for LAN) |
 | SSH | User **`prestonh`**, publickey-only ([network-ssh-ace.md](../shared/network-ssh.md)) |
 | Wings nodes | crux `.6`, nova `.7`; FQDN `*.lc1.nm.us.prestonhager.com` |
-| Public WAN | `ip1.lc1.nm.us.prestonhager.com` → `73.26.67.25` |
+| Public WAN | `ip1.lc1.nm.us.prestonhager.com` → `98.249.78.62` |
 
 Game traffic typically needs **additional static NAT** entries: `WAN:game_port` → `192.168.5.6|7:game_port` for TCP and/or UDP.
 
@@ -389,7 +389,7 @@ ssh astracap "show ip nat translations"
 ssh astracap "show running-config | include ip nat inside source static"
 
 # External (non-LAN)
-nc -vz 73.26.67.25 <game_port>
+nc -vz 98.249.78.62 <game_port>
 
 # Wings node — confirm listener
 ssh root@192.168.5.6 "ss -ulnp | grep <port>"
@@ -403,7 +403,7 @@ Cross-check DNS: SRV port matches NAT external port.
 
 | # | Question | Notes |
 |---|----------|-------|
-| Q1 | ISP modem port forwarding vs Cisco WAN | Is `73.26.67.25` directly on router or double-NAT through modem? May need modem config too |
+| Q1 | ISP modem port forwarding vs Cisco WAN | Is `98.249.78.62` directly on router or double-NAT through modem? May need modem config too |
 | Q2 | `write memory` default | Running-only is safer for automation; reboot loses rules |
 | Q3 | UDP + TCP same port | Some games need both; apply two IOS lines |
 | Q4 | Port range allocations | Pterodactyl may assign non-primary ports — forward all allocations or primary only? |

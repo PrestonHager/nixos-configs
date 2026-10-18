@@ -104,6 +104,6 @@ Console/AUX lines use default-style settings; no remote telnet on VTY.
 
 ## Operational notes
 
-- WAN address is **DHCP**; public services rely on ISP forwarding or CNAME to **`ip1.lc1.nm.us.prestonhager.com`** (`73.26.67.25`) hitting static NAT on ace.
+- WAN address is **DHCP**; public services rely on ISP forwarding or CNAME to **`ip1.lc1.nm.us.prestonhager.com`** (`98.249.78.62`) hitting static NAT on ace.
 - Re-fetch config: `ssh astracap` then `enable` → `show running-config` (do not paste secrets into git).
 - Switch documentation: [Astraquasar](./network-astraquasar.md).

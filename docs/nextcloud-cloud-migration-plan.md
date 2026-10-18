@@ -97,8 +97,8 @@ podman exec -u www-data nextcloud php /var/www/html/occ files:scan --path="<user
 
 | Approach | Pros | Cons | Verdict |
 |----------|------|------|---------|
-| **Pure shell** | Matches many `scripts/ace-*.sh` deploy helpers | Harder CLI subcommands, status aggregation | Use for thin wrappers per provider |
-| **Python CLI** | `argparse` subcommands, JSON status, exit codes; matches `scripts/astracap-*.py` | Extra dependency (stdlib + subprocess sufficient) | **Selected** for main `migrate` entrypoint |
+| **Pure shell** | Matches the `scripts/ace-*.sh` deploy helpers of the time (removed in commit `572c200`) | Harder CLI subcommands, status aggregation | Use for thin wrappers per provider |
+| **Python CLI** | `argparse` subcommands, JSON status, exit codes; matches the `scripts/astracap-*.py` helpers (also removed in `572c200`) | Extra dependency (stdlib + subprocess sufficient) | **Selected** for main `migrate` entrypoint |
 | **Nix package** | Reproducible tool closure on ace | Overhead for a script-heavy tool | **Optional** `packages.nextcloud-migrate` wrapping Python + rclone + icloudpd |
 
 ---

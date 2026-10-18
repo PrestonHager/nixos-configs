@@ -55,10 +55,11 @@ services.aceK80 = {
 3. **Caddy** — uncomment `./ai.nix` in `nixos/caddy/default.nix`
 4. **Local hosts** — uncomment `ai.prestonhager.com` in `nixos/local-service-hosts.nix`
 
-Deploy script (documents steps, dry-run build only):
+The deploy checklist script `scripts/ace-k80-deploy.sh` (it only printed steps and ran a dry-run build) was removed in commit `572c200`. Recover it with:
 
 ```bash
-bash scripts/ace-k80-deploy.sh
+git -C /etc/nixos show 572c200^:scripts/ace-k80-deploy.sh > /tmp/ace-k80-deploy.sh
+bash /tmp/ace-k80-deploy.sh
 ```
 
 ## Services
@@ -89,10 +90,19 @@ systemctl status podman-ollama37        # if Ollama enabled
 systemctl status openclaw-gateway       # if OpenClaw enabled
 curl -sS http://127.0.0.1:11434/api/tags
 curl -sS http://127.0.0.1:18789/health
-bash scripts/ace-ollama-pull.sh llama3.2:3b   # pull + smoke-test a K80 model (128k ctx; gemma2:2b is too small)
-bash scripts/ace-openclaw-config.sh llama3.2:3b
-systemctl restart openclaw-gateway
+systemctl status openclaw-trusted-proxy-config   # Nix unit that enforces trusted-proxy auth on every boot/rebuild
 curl -sS -o /dev/null -w '%{http_code}\n' https://ai.prestonhager.com/
+```
+
+`scripts/ace-ollama-pull.sh` (pull + smoke-test a K80 model; `llama3.2:3b`, 128k ctx; `gemma2:2b` is too small) and `scripts/ace-openclaw-config.sh` (model + gateway config) were removed in commit `572c200`. The trusted-proxy auth part of `ace-openclaw-config.sh` is now `openclaw-trusted-proxy-config.service` (`nixos/containers/openclaw-config.nix`); for the model setup, recover the scripts:
+
+```bash
+cd /etc/nixos
+git show 572c200^:scripts/ace-ollama-pull.sh > /tmp/ace-ollama-pull.sh
+git show 572c200^:scripts/ace-openclaw-config.sh > /tmp/ace-openclaw-config.sh
+bash /tmp/ace-ollama-pull.sh llama3.2:3b
+bash /tmp/ace-openclaw-config.sh llama3.2:3b
+systemctl restart openclaw-gateway
 ```
 
 SSO setup (Zitadel + trusted-proxy): [ace-openclaw-sso.md](./ace-openclaw-sso.md).
