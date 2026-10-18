@@ -104,15 +104,16 @@ systemctl start github-runner-ghost-watch.service
 |------|--------|
 | Containerfile (Ubuntu) | `nixos/services/github-runner/Containerfile` |
 | Containerfile (AL2023) | `nixos/services/github-runner/Containerfile.al2023` |
-| Build unit | `github-runner-image.service` |
+| Build unit | `github-runner-image.service` (boot/switch); `github-runner-image-refresh.timer` (daily) |
 | Image tag (ace) | `localhost/homelab-github-runner:al2023` |
 | Image tag (module default) | `localhost/homelab-github-runner:ubuntu-noble` |
-| Stamp | `/var/lib/github-runner-tools/image.stamp` (Containerfile sha256 + base image id) |
+| Stamp | `/var/lib/github-runner-tools/image.stamp` (Containerfile sha256 + base image id + myoung34 image id + runner version) |
+| Runner version | latest `actions/runner` release, resolved at bake time; last value in `/var/lib/github-runner-tools/runner.version`, `GH_RUNNER_VERSION` in the Containerfile is the offline fallback |
 | Base option | `homelab.github-runners.containerBaseImage` |
 | Image option | `homelab.github-runners.containerImage` |
 | File option | `homelab.github-runners.containerfile` |
 
-Rebuild the image after Containerfile or base digest changes (automatic on next `github-runner-image.service` start / nixos-rebuild). Force:
+Rebuild the image after Containerfile or base digest changes, or when a new `actions/runner` release lands (automatic on next `github-runner-image.service` start / nixos-rebuild, and daily via the refresh timer). The runners bake the binary with `DISABLE_AUTO_UPDATE`, so a stale bake shows up as `Runner version vX is deprecated and cannot receive messages` right after `Listening for Jobs`, and every runner crash-loops. Running containers pick up a rebuilt tag on their next ephemeral restart. Force:
 
 ```bash
 rm -f /var/lib/github-runner-tools/image.stamp
@@ -315,7 +316,7 @@ Ace therefore does **not** mount a shared soundbytes/cache volume and does **not
 - Storage is **GitHub’s cache backend** (HTTPS), not a folder on Ace.
 - Scope: cache **key** + **version** + **branch**; default-branch caches are visible to other branches/PRs; unrelated branches do not share freely.
 - Fork PRs typically get **read-only** cache access (cannot poison the base repo’s cache writes).
-- Same API as GitHub-hosted runners; Ace’s Ubuntu Noble image already speaks the Actions cache protocol. Prefer `actions/cache@v4` (or newer compatible with your runner version); keep runners updated (`DISABLE_AUTO_UPDATE` is set — bump the image periodically).
+- Same API as GitHub-hosted runners; Ace’s Ubuntu Noble image already speaks the Actions cache protocol. Prefer `actions/cache@v4` (or newer compatible with your runner version); keep runners updated (`DISABLE_AUTO_UPDATE` is set; `github-runner-image-refresh.timer` rebakes daily with the latest actions/runner release).
 - Repo cache size is capped (~10 GB); old entries are evicted.
 
 #### Recommended: Rust (`Swatinem/rust-cache`)

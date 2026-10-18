@@ -8,13 +8,13 @@
 # Tag: localhost/homelab-github-runner:al2023
 ARG BASE_IMAGE=docker.io/amazonlinux:2023
 ARG MYOUNG34_IMAGE=docker.io/myoung34/github-runner:ubuntu-noble
-ARG GH_RUNNER_VERSION=2.335.1
+ARG GH_RUNNER_VERSION=2.338.0
 
 FROM ${MYOUNG34_IMAGE} AS myoung34
 
 FROM ${BASE_IMAGE}
 
-ARG GH_RUNNER_VERSION=2.335.1
+ARG GH_RUNNER_VERSION=2.338.0
 
 USER root
 

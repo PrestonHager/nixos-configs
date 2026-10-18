@@ -39,6 +39,7 @@ let
   defaultContainerImage = "localhost/homelab-github-runner:ubuntu-noble";
   defaultContainerfile = ./github-runner/Containerfile;
   imageStampPath = "/var/lib/github-runner-tools/image.stamp";
+  runnerVersionPath = "/var/lib/github-runner-tools/runner.version";
 
   # Bootstrap once into a shared volume: rustup (+ apt fallback if image lacks
   # cross gcc). Must use /bin/bash shebang — Nix store interpreters are invisible
@@ -151,6 +152,10 @@ let
       # while files exist, with API delete-by-name fallback.
       export DISABLE_AUTOMATIC_DEREGISTRATION=true
       export RANDOM_RUNNER_SUFFIX=false
+      # myoung34 exports this only inside /entrypoint.sh; our EXIT trap runs
+      # config.sh remove from this shell, which otherwise fails with
+      # "Must not run with sudo" and leaves the runner registered.
+      export RUNNER_ALLOW_RUNASROOT=1
 
       _HOMELAB_DEREGISTERED=false
 
@@ -239,7 +244,84 @@ let
     '';
   };
 
-  recoverGhostScript = pkgs.writeShellScriptBin "github-runner-recover-ghost" ''
+  # The runner binary is baked into the image with DISABLE_AUTO_UPDATE, and
+  # GitHub refuses messages from deprecated versions (the listener exits right
+  # after "Listening for Jobs"). So resolve the latest actions/runner release at
+  # bake time and fold it into the stamp; the daily refresh timer rebakes when
+  # a new release lands. Falls back to the last resolved version (or the
+  # Containerfile's GH_RUNNER_VERSION default) when the API is unreachable.
+  imageBuildScript = pkgs.writeShellScript "github-runner-image-build" ''
+    set -euo pipefail
+    export PATH=${lib.makeBinPath [ pkgs.podman pkgs.coreutils pkgs.gnugrep pkgs.gnused pkgs.curl pkgs.jq pkgs.util-linux ]}:$PATH
+    install -d -m 0755 ${toolsDir}
+    exec 9>${toolsDir}/.image-build.lock
+    flock 9
+
+    base=${lib.escapeShellArg cfg.containerBaseImage}
+    tag=${lib.escapeShellArg cfg.containerImage}
+    cf=${lib.escapeShellArg "${cfg.containerfile}"}
+    stamp=${lib.escapeShellArg imageStampPath}
+    verfile=${lib.escapeShellArg runnerVersionPath}
+
+    echo "homelab-ci: ensuring base image $base"
+    podman pull "$base"
+    # AL2023 Containerfile also FROM myoung34 for entrypoint/token scripts.
+    m34_id=""
+    if grep -q 'myoung34/github-runner' "$cf" 2>/dev/null; then
+      echo "homelab-ci: ensuring myoung34 image for runner scripts"
+      podman pull docker.io/myoung34/github-runner:ubuntu-noble || true
+      m34_id="$(podman image inspect docker.io/myoung34/github-runner:ubuntu-noble --format '{{.Id}}' 2>/dev/null || true)"
+    fi
+
+    ver="$(curl -fsS --max-time 30 https://api.github.com/repos/actions/runner/releases/latest \
+      | jq -r '.tag_name // empty' | sed 's/^v//' || true)"
+    if [ -z "$ver" ] && [ -f "$verfile" ]; then
+      ver="$(cat "$verfile")"
+      echo "homelab-ci: runner release lookup failed; reusing $ver"
+    fi
+    ver_args=()
+    if [ -n "$ver" ]; then
+      echo "homelab-ci: actions/runner version $ver"
+      ver_args=(--build-arg "GH_RUNNER_VERSION=$ver")
+    else
+      echo "homelab-ci: runner release lookup failed; using Containerfile default"
+    fi
+
+    base_id="$(podman image inspect "$base" --format '{{.Id}}')"
+    cf_hash="$(sha256sum "$cf" | cut -d' ' -f1)"
+    want="''${cf_hash}-''${base_id}-''${m34_id}-''${ver:-default}"
+
+    old_id=""
+    if podman image exists "$tag"; then
+      old_id="$(podman image inspect "$tag" --format '{{.Id}}')"
+    fi
+
+    if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$want" ] && [ -n "$old_id" ]; then
+      echo "homelab-ci: runner image $tag up to date"
+      exit 0
+    fi
+
+    echo "homelab-ci: building $tag from $cf (base=$base)"
+    builddir="$(mktemp -d)"
+    trap 'rm -rf "$builddir"' EXIT
+    cp "$cf" "$builddir/Containerfile"
+    podman build \
+      --build-arg "BASE_IMAGE=$base" \
+      "''${ver_args[@]}" \
+      -t "$tag" \
+      -f "$builddir/Containerfile" \
+      "$builddir"
+    printf '%s\n' "$want" > "$stamp"
+    [ -n "$ver" ] && printf '%s\n' "$ver" > "$verfile"
+    echo "homelab-ci: built $tag"
+    # Drop the superseded image once no container uses it (best effort).
+    new_id="$(podman image inspect "$tag" --format '{{.Id}}')"
+    if [ -n "$old_id" ] && [ "$old_id" != "$new_id" ]; then
+      podman rmi "$old_id" >/dev/null 2>&1 || true
+    fi
+  '';
+
+  recoverGhostScript =pkgs.writeShellScriptBin "github-runner-recover-ghost" ''
     export PATH=${lib.makeBinPath [
       pkgs.bash
       pkgs.coreutils
@@ -731,54 +813,25 @@ in {
             containerInstances;
           after = [ "network-online.target" "podman.socket" ];
           wants = [ "network-online.target" "podman.socket" ];
-          path = [ pkgs.podman pkgs.coreutils pkgs.gnugrep ];
           serviceConfig = {
             Type = "oneshot";
             RemainAfterExit = true;
             TimeoutStartSec = "45min";
+            ExecStart = imageBuildScript;
           };
-          script = ''
-            set -euo pipefail
-            install -d -m 0755 ${toolsDir}
-            base=${lib.escapeShellArg cfg.containerBaseImage}
-            tag=${lib.escapeShellArg cfg.containerImage}
-            cf=${lib.escapeShellArg "${cfg.containerfile}"}
-            stamp=${lib.escapeShellArg imageStampPath}
-
-            echo "homelab-ci: ensuring base image $base"
-            podman pull "$base"
-            # AL2023 Containerfile also FROM myoung34 for entrypoint/token scripts.
-            if grep -q 'myoung34/github-runner' "$cf" 2>/dev/null; then
-              echo "homelab-ci: ensuring myoung34 image for runner scripts"
-              podman pull docker.io/myoung34/github-runner:ubuntu-noble || true
-            fi
-
-            base_id="$(podman image inspect "$base" --format '{{.Id}}')"
-            cf_hash="$(sha256sum "$cf" | cut -d' ' -f1)"
-            want="''${cf_hash}-''${base_id}"
-
-            have_tag=0
-            if podman image exists "$tag"; then
-              have_tag=1
-            fi
-
-            if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$want" ] && [ "$have_tag" = 1 ]; then
-              echo "homelab-ci: runner image $tag up to date"
-              exit 0
-            fi
-
-            echo "homelab-ci: building $tag from $cf (base=$base)"
-            builddir="$(mktemp -d)"
-            trap 'rm -rf "$builddir"' EXIT
-            cp "$cf" "$builddir/Containerfile"
-            podman build \
-              --build-arg "BASE_IMAGE=$base" \
-              -t "$tag" \
-              -f "$builddir/Containerfile" \
-              "$builddir"
-            printf '%s\n' "$want" > "$stamp"
-            echo "homelab-ci: built $tag"
-          '';
+        };
+        # Separate unit for the timer: restarting github-runner-image itself
+        # would propagate (Requires=) and kill every runner mid-job. Containers
+        # pick up the re-tagged image on their next ephemeral restart.
+        github-runner-image-refresh = {
+          description = "Rebuild homelab GitHub runner image if a newer runner release exists";
+          after = [ "network-online.target" "podman.socket" "github-runner-image.service" ];
+          wants = [ "network-online.target" "podman.socket" ];
+          serviceConfig = {
+            Type = "oneshot";
+            TimeoutStartSec = "45min";
+            ExecStart = imageBuildScript;
+          };
         };
       }])
       # Symlink nixpkgs toolchains into the shared volume (survives ephemeral restarts).
@@ -958,6 +1011,16 @@ in {
     );
 
     systemd.timers = lib.mkIf (cfg.backend == "container" && enabledRunners != { }) {
+      github-runner-image-refresh = {
+        description = "Daily check for a newer GitHub runner release";
+        wantedBy = [ "timers.target" ];
+        timerConfig = {
+          OnBootSec = "1h";
+          OnUnitActiveSec = "1d";
+          RandomizedDelaySec = "1h";
+          Persistent = true;
+        };
+      };
       github-runner-ghost-watch = {
         description = "Periodically recover ghost offline+busy GitHub runners";
         wantedBy = [ "timers.target" ];
