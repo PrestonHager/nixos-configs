@@ -249,7 +249,7 @@ groups:
             model:
               editorMode: code
               # 1 per target Prometheus cannot scrape (exporter or service down).
-              expr: 1 - node_systemd_unit_state{state="active",name=~"podman-coolify(-db|-redis)?\.service"}
+              expr: 1 - node_systemd_unit_state{state="active",name=~"podman-coolify(-db|-redis)?[.]service"}
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
