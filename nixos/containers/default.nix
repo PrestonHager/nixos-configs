@@ -8,6 +8,7 @@
     #./forgejo.nix
     ./animal-search.nix
     ./coolify.nix
+    ./coolify-sso.nix
     ./grafana.nix
     ./jellyfin.nix
     ./mediawiki.nix

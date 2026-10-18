@@ -9,14 +9,16 @@ let
   zitadelDiscoveryUri = "https://${zitadelDomain}/.well-known/openid-configuration";
   zitadelProjectId = "376196450586990901";
   ssoProviderName = "zitadel";
-  ssoPluginVersion = "3.5.2.4";
+  # 4.x targets Jellyfin ABI 10.11; 3.5.2.4 (ABI 10.9) is skipped as NotSupported.
+  ssoPluginVersion = "4.0.0.4";
   # Hash-pinned: the plugin DLL runs inside Jellyfin with its privileges. Update the
   # hash with nix-prefetch-url when bumping ssoPluginVersion.
   ssoPluginZip = pkgs.fetchurl {
     url = "https://github.com/9p4/jellyfin-plugin-sso/releases/download/v${ssoPluginVersion}/sso-authentication_${ssoPluginVersion}.zip";
-    hash = "sha256-8DQWOPh6NZYQUFfjKosYQJ8cFaREn9oMHjAQ11Q+nCg=";
+    hash = "sha256-wJ8WujEFmkNN3X+BHk+WCNS0xFFMyApb8cozvuYeEQc=";
   };
-  ssoPluginDir = "/jf/config/plugins/SSO Authentication/${ssoPluginVersion}";
+  # Jellyfin loads plugins from plugins/<Name>_<version>/ (dll + meta.json).
+  ssoPluginDir = "/jf/config/plugins/SSO Authentication_${ssoPluginVersion}";
   ssoConfigPath = "/jf/config/plugins/configurations/SSO-Auth.xml";
   jellyfinRuntimeEnv = "/run/jellyfin/container.env";
   jellyfinSsoSetupScript = pkgs.writeShellScript "jellyfin-sso-setup" ''
@@ -47,11 +49,19 @@ let
       exit 0
     fi
 
+    # Drop other SSO plugin versions (including the old nested layout) so
+    # Jellyfin does not keep a disabled copy alongside the current one.
+    for d in /jf/config/plugins/"SSO Authentication"*; do
+      if [ -e "$d" ] && [ "$d" != "${ssoPluginDir}" ]; then
+        rm -rf -- "$d"
+      fi
+    done
+
     if [ ! -f "${ssoPluginDir}/SSO-Auth.dll" ]; then
       echo "jellyfin-sso-setup: installing SSO Authentication plugin ${ssoPluginVersion}"
       mkdir -p "${ssoPluginDir}"
       ${pkgs.unzip}/bin/unzip -o ${ssoPluginZip} -d "${ssoPluginDir}"
-      chown -R jellyfin:jellyfin "/jf/config/plugins/SSO Authentication"
+      chown -R jellyfin:jellyfin "${ssoPluginDir}"
     fi
 
     prestonhGuid="$(${pkgs.sqlite}/bin/sqlite3 /jf/config/data/jellyfin.db "SELECT Id FROM Users WHERE Username='prestonh' LIMIT 1;" 2>/dev/null || true)"
