@@ -6,7 +6,7 @@
 #   bash ~/nixos/apply-local-hosts.sh
 #   sudo nixos-rebuild switch --flake /etc/nixos#ace
 
-{ ... }:
+{ config, lib, ... }:
 
 {
   networking.hosts."127.0.0.1" = [
@@ -46,8 +46,10 @@
 
     "loftiawiki.org"
     "loftiawiki.com"
-    "upgrade.loftiawiki.org"
-  ];
+  ]
+  # Staging vhost exists only with homelab.mediawiki.enableUpgrade
+  # (nixos/containers/mediawiki.nix); "or false" for hosts without that module.
+  ++ lib.optional (config.homelab.mediawiki.enableUpgrade or false) "upgrade.loftiawiki.org";
 
   networking.hosts."192.168.5.5" = [ "ace.internal.prestonhager.com" ];
   networking.hosts."192.168.5.6" = [ "crux.internal.prestonhager.com" ];
