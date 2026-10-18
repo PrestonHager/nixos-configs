@@ -153,4 +153,16 @@ in
       ];
     };
   };
+
+  # dependsOn only orders container starts. On a cold start Postgres is still
+  # initialising when Coolify runs its migrations, which then fail and leave
+  # the dashboard returning 500 until a manual restart. Wait for readiness.
+  systemd.services.podman-coolify.preStart = lib.mkAfter ''
+    for _ in $(seq 1 60); do
+      ${pkgs.podman}/bin/podman exec coolify-db pg_isready -q -U coolify -d coolify && exit 0
+      sleep 2
+    done
+    echo "coolify-db not ready after 120s" >&2
+    exit 1
+  '';
 }
