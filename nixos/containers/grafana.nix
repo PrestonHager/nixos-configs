@@ -12,7 +12,7 @@ let
   ];
   grafanaVersion = "13.2.4";
   # Remote image renderer (replaces deprecated in-Grafana plugin). Shares pod network with Grafana.
-  imageRendererVersion = "v5.9.1";
+  imageRendererImage = "docker.io/grafana/grafana-image-renderer@sha256:a643fd3ee669ff1b6927d5589c37ee1078b52fc76cea9a7bf8e247357e9d9dd1"; # v5.12.7
   grafanaPort = 8082;
   grafanaRuntimeEnv = "/run/grafana/container.env";
   rendererRuntimeEnv = "/run/grafana/renderer.env";
@@ -255,7 +255,7 @@ in {
   virtualisation.oci-containers.containers.grafana-image-renderer = {
     autoStart = true;
     dependsOn = [ "grafana" ];
-    image = "docker.io/grafana/grafana-image-renderer:${imageRendererVersion}";
+    image = imageRendererImage;
     extraOptions = [
       "--pod=grafana-pod"
       "--cap-add=SYS_ADMIN"
