@@ -16,7 +16,9 @@ let
   # and delete or backup the old mediawiki directory
   # make sure to disable the upgrade option after as well!
   mediawiki = {
-    enableUpgrade = false;
+    # Set homelab.mediawiki.enableUpgrade = true; it also turns on the
+    # upgrade.loftiawiki.org vhost, its /etc/hosts entry and its probe.
+    enableUpgrade = config.homelab.mediawiki.enableUpgrade;
     upgradeVersion = "1.45.3";
     version = "1.45.3";
     # Run nix-shell -p nix-prefetch-docker --run "nix-prefetch-docker --image-name mediawiki --image-tag <VERSION>-fpm-alpine"
@@ -38,6 +40,15 @@ let
   };
 in
 {
+  # Declared through imports so the rest of this file can stay a plain config
+  # module. Read by nixos/caddy/mediawiki.nix and nixos/local-service-hosts.nix.
+  imports = [
+    {
+      options.homelab.mediawiki.enableUpgrade = lib.mkEnableOption
+        "the mediawiki-upgrade staging pod and the upgrade.loftiawiki.org vhost";
+    }
+  ];
+
   # declare any secrets such as passwords
   sops.secrets = {
     "mediawiki-environment" = {

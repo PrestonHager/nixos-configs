@@ -76,10 +76,12 @@ in {
     systemd.timers.homelab-git-drift = {
       description = "Periodic /etc/nixos git drift check";
       wantedBy = [ "timers.target" ];
+      # Every 15 minutes: hourly left a stale "unpushed" for up to 70 minutes
+      # after a push. A run is one git fetch plus local git status/rev-list.
       timerConfig = {
-        OnBootSec = "15min";
-        OnUnitActiveSec = "1h";
-        RandomizedDelaySec = "10min";
+        OnBootSec = "5min";
+        OnUnitActiveSec = "15min";
+        RandomizedDelaySec = "1min";
         Unit = "homelab-git-drift.service";
       };
     };

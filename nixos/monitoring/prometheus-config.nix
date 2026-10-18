@@ -1,4 +1,7 @@
-{ lib, ... }:
+# mediawikiUpgrade: pass config.homelab.mediawiki.enableUpgrade from the importer
+# (nixos/monitoring/default.nix) to probe upgrade.loftiawiki.org while the
+# staging pod exists. Defaults to off, matching the option's default.
+{ lib, mediawikiUpgrade ? false, ... }:
 let
   hostGateway = "10.88.0.1";
   lanIp = "192.168.5.5";
@@ -31,8 +34,9 @@ let
   # Non-essential — still probed and shown in downtime/status, but excluded from Health Summary %.
   httpTargetsNonEssential = [
     "https://test.panel.prestonhager.com/"
-    "https://upgrade.loftiawiki.org/"
-  ];
+  ]
+  # Staging vhost, only served while the mediawiki-upgrade pod exists.
+  ++ lib.optional mediawikiUpgrade "https://upgrade.loftiawiki.org/";
 
   tcpTargets = [
     "127.0.0.1:9001"
