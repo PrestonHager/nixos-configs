@@ -18,12 +18,12 @@ Nextcloud requires stepping through each major release (32, 33, 34). Image pin: 
 
 Before upgrading, back up `/stor/nextcloud/data` and `/stor/nextcloud/mysql`.
 
-On ace after `git pull`:
+The stepping script `scripts/ace-nextcloud-major-upgrade.sh` was removed in commit `572c200`. To run it again on ace, recover it first:
 
 ```bash
 cd /etc/nixos
-chmod +x scripts/ace-nextcloud-major-upgrade.sh
-ACE_NC_UPGRADE_CONFIRM=yes scripts/ace-nextcloud-major-upgrade.sh
+git show 572c200^:scripts/ace-nextcloud-major-upgrade.sh > /tmp/ace-nextcloud-major-upgrade.sh
+ACE_NC_UPGRADE_CONFIRM=yes bash /tmp/ace-nextcloud-major-upgrade.sh
 ```
 
 If Docker Hub has not published `34.0.1` yet, the script falls back to `34.0.0` (Docker tags use major versions like `32`, `33`, not patch tags like `32.0.12`). After the `34.0.1` image is published, pull and rebuild:
@@ -53,24 +53,15 @@ Create or update the **Nextcloud** OIDC app in the **Home Lab** project (`376196
 | Auth method | Basic (client secret) |
 | Role assertions | Enabled (ID token + access token) |
 
-Automated setup on ace (admin session API; preferred):
+The Zitadel setup scripts (`zitadel-nextcloud-console-setup.js`, preferred, admin session API; `zitadel-nextcloud-oauth-setup.js`, login-client JWT fallback) and `ace-nextcloud-oauth-deploy.sh` were removed in commit `572c200`. Create the app in the console, or recover a script:
 
 ```bash
 cd /etc/nixos
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-nextcloud-console-setup.js
+git show 572c200^:scripts/zitadel-nextcloud-console-setup.js > /tmp/zitadel-nextcloud-console-setup.js
+nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-nextcloud-console-setup.js
 ```
 
-Fallback (login-client JWT; may lack project permissions):
-
-```bash
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-nextcloud-oauth-setup.js
-```
-
-Store the printed `NEXTCLOUD_OIDC_CLIENT_ID` and `NEXTCLOUD_OIDC_CLIENT_SECRET` in sops, then redeploy:
-
-```bash
-scripts/ace-nextcloud-oauth-deploy.sh <client_id> <client_secret>
-```
+Store `NEXTCLOUD_OIDC_CLIENT_ID` and `NEXTCLOUD_OIDC_CLIENT_SECRET` in sops, then `nix flake update nix-secrets` and rebuild ace. `nextcloud-oidc-config.service` (`nixos/containers/nextcloud.nix`) installs `user_oidc` and configures the Zitadel provider from the secret.
 
 ## Nextcloud admin via Zitadel role
 
@@ -85,23 +76,23 @@ Zitadel project roles use a nested object claim (`urn:zitadel:iam:org:project:ro
 
 **Important:** Only one Complement Token action may set the `groups` claim. Per-service actions (`jellyfinGroups`, `pterodactylGroups`, etc.) overwrite each other — the last one wins and drops `admin` for Nextcloud. Use the unified `homelabGroups` action instead.
 
-Automated setup on ace:
+The helper scripts for this (`zitadel-homelab-groups-action.js`, `zitadel-nextcloud-userinfo-test.js`, `ace-nextcloud-oidc-diagnose.sh`) were removed in commit `572c200`; no Nix unit manages the `homelabGroups` action. Recover them on ace as needed:
 
 ```bash
 cd /etc/nixos
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-homelab-groups-action.js
+for s in zitadel-homelab-groups-action.js zitadel-nextcloud-userinfo-test.js ace-nextcloud-oidc-diagnose.sh; do
+  git show 572c200^:scripts/$s > /tmp/$s
+done
+nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-homelab-groups-action.js   # create/update homelabGroups
+nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-nextcloud-userinfo-test.js # expect groups: ["admin", ...]
+bash /tmp/ace-nextcloud-oidc-diagnose.sh                                    # full OIDC diagnostic
 ```
 
-Verify the token includes `groups: ["admin", ...]`:
+The diagnostic mostly wraps these read-only checks:
 
 ```bash
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-nextcloud-userinfo-test.js
-```
-
-Full OIDC diagnostic:
-
-```bash
-scripts/ace-nextcloud-oidc-diagnose.sh
+podman exec -u www-data nextcloud php /var/www/html/occ user_oidc:provider zitadel
+podman exec -u www-data nextcloud php /var/www/html/occ group:info admin
 ```
 
 ### Assign `nextcloud_admin` in the Zitadel console
@@ -113,7 +104,7 @@ scripts/ace-nextcloud-oidc-diagnose.sh
 5. **Applications** → **Nextcloud** → enable **Assert Roles on Authentication** (ID token + access token)
 6. User signs out of Nextcloud and signs in again via Zitadel
 
-The setup script (`zitadel-nextcloud-oauth-setup.js`) creates the role, app, and admin grant when the login-client API permits it.
+The removed setup script (`zitadel-nextcloud-oauth-setup.js`) created the role, app, and admin grant when the login-client API permitted it; otherwise use the console steps above.
 
 ## Login (SSO)
 
@@ -154,7 +145,7 @@ nextcloud-whiteboard-env: |
 
 `MAX_UPLOAD_FILE_SIZE` (collaboration server WebSocket payload cap, in **megabytes**) is set in Nix (`100`), not sops. The whiteboard app admin limit is `occ config:app:set whiteboard max_file_size --value=100` (applied by `nextcloud-occ-maintain.service`).
 
-The whiteboard JWT secret is auto-generated on first ace bootstrap if missing (`scripts/ace-bootstrap-secrets.sh`). After sops changes:
+The whiteboard JWT secret used to be generated by `scripts/ace-bootstrap-secrets.sh`, which was removed in commit `572c200` (recover with `git show 572c200^:scripts/ace-bootstrap-secrets.sh`). If it is missing, `nextcloud-occ-maintain.service` logs `JWT_SECRET_KEY missing from nextcloud-whiteboard-env` and skips whiteboard config; add a random secret to sops by hand. After sops changes:
 
 ```bash
 cd /etc/nixos

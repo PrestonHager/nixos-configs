@@ -24,18 +24,15 @@ Create or update the **Matrix** OIDC app in the **Home Lab** project (same proje
 | Auth method | PKCE (no client secret; Synapse `pkce_method: always`) |
 | Role assertions | Enabled (ID token + access token) |
 
-Automated setup on ace:
+The setup script `zitadel-matrix-oauth-setup.js` and the deploy helper `ace-matrix-oauth-deploy.sh` were removed in commit `572c200`. Create the app in the Zitadel console, or recover the script:
 
 ```bash
 cd /etc/nixos
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-matrix-oauth-setup.js
+git show 572c200^:scripts/zitadel-matrix-oauth-setup.js > /tmp/zitadel-matrix-oauth-setup.js
+nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-matrix-oauth-setup.js
 ```
 
-Store the printed `SYNAPSE_OIDC_CLIENT_ID` and `SYNAPSE_OIDC_CLIENT_SECRET` in sops (`matrix-oauth-env` key in `secrets/containers/matrix.yaml`), then redeploy:
-
-```bash
-scripts/ace-matrix-oauth-deploy.sh <client_id> <client_secret>
-```
+Store `SYNAPSE_OIDC_CLIENT_ID`, `SYNAPSE_OIDC_CLIENT_SECRET` and `ZITADEL_PROJECT_ID` in sops (`matrix-oauth-env` key in `secrets/containers/matrix.yaml`), then `nix flake update nix-secrets` and rebuild ace. `matrix-synapse-init.service` (`nixos/containers/matrix.nix`) reads `matrix-oauth-env` and writes the OIDC block into the Synapse config.
 
 ## Matrix admin via Zitadel role
 

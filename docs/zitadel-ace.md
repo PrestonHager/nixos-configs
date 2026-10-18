@@ -29,9 +29,12 @@ Non-secret SMTP env vars are set in `nixos/containers/zitadel.nix`. The password
 
 `ZITADEL_DEFAULTINSTANCE_SMTPCONFIGURATION_*` env vars apply only during first init (`start-from-init`). On an already-running instance, configure SMTP via the Admin API after deploy:
 
+This used `scripts/zitadel-smtp-setup.js`, which was removed in commit `572c200` (no Nix unit replaces it). To run it again, recover it first:
+
 ```bash
 cd /etc/nixos
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-smtp-setup.js
+git show 572c200^:scripts/zitadel-smtp-setup.js > /tmp/zitadel-smtp-setup.js
+nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-smtp-setup.js
 ```
 
 The script reads `SMTP_PASSWORD` from `/run/secrets/nextcloud-environment`, sets domain policy `smtpSenderAddressMatchesInstanceDomain=false` (required because the sender domain is `prestonhager.com`, not `zitadel.prestonhager.com`), creates or updates the SMTP provider, and sends a test email.
@@ -56,9 +59,12 @@ The script reads `SMTP_PASSWORD` from `/run/secrets/nextcloud-environment`, sets
 
 On ace, after updating `ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD` in sops and redeploying:
 
+The reset and verify scripts below were removed in commit `572c200`; recover them with `git show 572c200^:scripts/<name>`:
+
 ```bash
-cd /path/to/nixos-configs
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-reset-admin-password.js
+cd /etc/nixos
+git show 572c200^:scripts/zitadel-reset-admin-password.js > /tmp/zitadel-reset-admin-password.js
+nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-reset-admin-password.js
 ```
 
 The script reads the password from `/run/secrets/zitadel-env`, authenticates with the login-client key at `/zitadel/login-client/tls.key`, and sets the admin password via the v2 User API.
@@ -66,7 +72,8 @@ The script reads the password from `/run/secrets/zitadel-env`, authenticates wit
 Verify:
 
 ```bash
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-verify-login.js
+git show 572c200^:scripts/zitadel-verify-login.js > /tmp/zitadel-verify-login.js
+nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-verify-login.js
 ```
 
 ## Troubleshooting

@@ -35,7 +35,9 @@ On ace:
 ```bash
 cd /etc/nixos
 git pull
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-openclaw-console-setup.js
+# scripts/zitadel-openclaw-console-setup.js was removed in 572c200; recover it:
+git show 572c200^:scripts/zitadel-openclaw-console-setup.js > /tmp/zitadel-openclaw-console-setup.js
+nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-openclaw-console-setup.js
 ```
 
 Save the printed `OPENCLAW_OIDC_CLIENT_ID` and `OPENCLAW_OIDC_CLIENT_SECRET`.
@@ -54,8 +56,9 @@ Save the printed `OPENCLAW_OIDC_CLIENT_ID` and `OPENCLAW_OIDC_CLIENT_SECRET`.
 On ace (nixos-secrets checkout at `/home/prestonh/nixos-secrets`):
 
 ```bash
-cp /etc/nixos/scripts/openclaw-oauth.yaml.template \
-  /home/prestonh/nixos-secrets/secrets/containers/openclaw-oauth.yaml
+# The template was removed from scripts/ in 572c200; recover it:
+git -C /etc/nixos show 572c200^:scripts/openclaw-oauth.yaml.template \
+  > /home/prestonh/nixos-secrets/secrets/containers/openclaw-oauth.yaml
 # Edit with real values, then encrypt:
 sops -e -i /home/prestonh/nixos-secrets/secrets/containers/openclaw-oauth.yaml
 cd /etc/nixos && nix flake update nix-secrets
@@ -78,15 +81,14 @@ Required keys in `openclaw-oauth-env`:
 
 ```bash
 cd /etc/nixos
-nixos-rebuild switch --flake .#ace
-bash scripts/ace-openclaw-config.sh llama3.2:3b
+nixos-rebuild switch --flake .#ace   # openclaw-trusted-proxy-config.service sets trusted-proxy auth
 systemctl restart openclaw-gateway openclaw-oauth2-proxy
 systemctl reload caddy
 ```
 
 ## OpenClaw trusted-proxy config
 
-Applied by `scripts/ace-openclaw-config.sh`:
+`gateway.auth.mode: trusted-proxy` is enforced on every boot and rebuild by `openclaw-trusted-proxy-config.service` (`nixos/containers/openclaw-config.nix`). The rest of the block below was applied by `scripts/ace-openclaw-config.sh`, removed in commit `572c200` (recover with `git show 572c200^:scripts/ace-openclaw-config.sh`):
 
 ```json
 {
@@ -120,7 +122,7 @@ Optional hardening: set `gateway.auth.trustedProxy.allowUsers` to restrict to sp
 4. oauth2-proxy sets session cookie and proxies to OpenClaw with `X-Forwarded-Email`
 5. OpenClaw Control UI loads; WebSocket connects without manual gateway token
 
-If the UI loads but WebSocket fails with `token_missing` in gateway logs, OpenClaw is still in token auth mode â€” redeploy or run `bash scripts/ace-openclaw-config.sh`, then hard-refresh the browser.
+If the UI loads but WebSocket fails with `token_missing` in gateway logs, OpenClaw is still in token auth mode â€” restart `openclaw-trusted-proxy-config` (or redeploy), then hard-refresh the browser.
 
 Non-LAN clients receive HTTP 403 (Caddy `@lan` matcher unchanged).
 
@@ -191,7 +193,7 @@ Do not enable `dangerouslyDisableDeviceAuth` on a LAN-facing deployment.
 | Redirect loop on `/oauth2/*` | Redirect URI mismatch in Zitadel app |
 | `trusted_proxy_untrusted_source` | Ensure `trustedProxies: ["127.0.0.1"]` and `allowLoopback: true` |
 | `trusted_proxy_user_missing` | oauth2-proxy not passing email; check `--pass-user-headers=true` |
-| WebSocket 1008 unauthorized / `token_missing` | OpenClaw still in token mode â€” run `bash scripts/ace-openclaw-config.sh` or redeploy (systemd `openclaw-trusted-proxy-config`); ensure oauth2-proxy reverse-proxies with `--pass-user-headers` |
+| WebSocket 1008 unauthorized / `token_missing` | OpenClaw still in token mode â€” run `systemctl restart openclaw-trusted-proxy-config openclaw-gateway` or redeploy; ensure oauth2-proxy reverse-proxies with `--pass-user-headers` |
 | WS connects then fails / no WS in gateway logs | Hard-refresh browser (Ctrl+Shift+R); clear site data for ai.prestonhager.com; verify DNS resolves to 192.168.5.5 on LAN (`dig @192.168.5.5 ai.prestonhager.com`) |
 | `forward_auth` + WebSocket | Caddy forward_auth does not pass identity headers on WS upgrades; oauth2-proxy must proxy OpenClaw directly |
 | `mixed_trusted_proxy_token` on startup | Remove `gateway.auth.token` / `OPENCLAW_GATEWAY_TOKEN` |

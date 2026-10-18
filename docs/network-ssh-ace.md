@@ -60,7 +60,7 @@ Verify:
 ssh astraquasar "show version"
 ```
 
-## NixOS deployment (ace, crux, nova, ph-nixos)
+## NixOS deployment (ace, crux, elara, nova, ph-nixos)
 
 Home-manager for **`prestonh`** on all NixOS hosts that import `users/prestonh`:
 
@@ -68,7 +68,9 @@ Home-manager for **`prestonh`** on all NixOS hosts that import `users/prestonh`:
 |------|----------------|
 | ace | `#ace` |
 | crux | `#crux` |
-| nova | `#nova` |
+| elara | `#elara` |
+| nova | `#nova` (disconnected; config kept as a template) |
+| zenith | `#zenith` (planned; no hardware config yet) |
 | ph-nixos | `#ph-nixos` |
 
 | File | Purpose |
@@ -150,9 +152,10 @@ Config: `~/.cursor/mcp.json`
 
 Bitwarden CLI: `bw config server https://vault.prestonhager.com`
 
-Cisco enable password helper (Windows, never prints secret):
+Cisco enable password helper (Windows, never prints secret). `scripts/get-cisco-enable.ps1` was removed in commit `572c200`; recover it into a repo checkout first:
 
 ```powershell
+git restore --source=572c200^ -- scripts/get-cisco-enable.ps1   
 $env:CISCO_ENABLE_PASSWORD = (& scripts/get-cisco-enable.ps1)
 ```
 
@@ -160,9 +163,9 @@ Vault item **Astracap Router Info** holds enable secret/password (shared with sw
 
 ## Authorize SSH pubkey (serial console)
 
-Scripts (Windows, COM6):
+Scripts (Windows, COM6). All of these were removed from the repo in commit `572c200`; recover one with `git restore --source=572c200^ -- scripts/<name>` before running it (or view it with `git show 572c200^:scripts/<name>`). Delete recovered scripts afterwards so the tree stays clean:
 
-| Script | Target |
+| Script (removed) | Target |
 |--------|--------|
 | `scripts/cisco-authorize-ssh.py` | Generic IOS pubkey install |
 | `scripts/astracap-authorize-ssh.py` | Router → user `prestonh` |
@@ -174,6 +177,7 @@ Scripts (Windows, COM6):
 Example (switch):
 
 ```powershell
+git restore --source=572c200^ -- scripts/get-cisco-enable.ps1 scripts/cisco-authorize-ssh.py scripts/cisco-enable-ssh-login.py
 $env:CISCO_ENABLE_PASSWORD = (& scripts/get-cisco-enable.ps1)
 python scripts/cisco-authorize-ssh.py --username admin
 python scripts/cisco-enable-ssh-login.py --username admin
@@ -207,9 +211,9 @@ Remove-Item Env:CISCO_ENABLE_PASSWORD
 | mars | 192.168.5.15 | reserved / not connected |
 | sally | 192.168.5.16 | reserved / not connected |
 | crux | 192.168.5.6 | root |
-| nova | 192.168.5.7 | root |
-| elara | 192.168.5.8 | reserved / not connected |
-| zenith | 192.168.5.9 | reserved / not connected |
+| nova | 192.168.5.7 | root (physically disconnected) |
+| elara | 192.168.5.8 | root (online; Wings node) |
+| zenith | 192.168.5.9 | planned; SSH does not answer |
 
 ### Bootstrap admin public key (LAN)
 

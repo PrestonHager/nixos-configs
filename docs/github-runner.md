@@ -409,8 +409,12 @@ rm -rf /var/lib/github-runner-tools/cargo/registry \
 
 From the repo root (WSL/NixOS):
 
+The helper `scripts/eval-github-runner.nix` was removed in commit `572c200`. It resolves the flake relative to its own location, so recover it back into `scripts/` (and delete it afterwards):
+
 ```bash
+git restore --source=572c200^ -- scripts/eval-github-runner.nix
 nix eval --impure --file scripts/eval-github-runner.nix
+rm scripts/eval-github-runner.nix
 ```
 
 That builds a minimal NixOS system that imports the module once disabled (no secrets) and once enabled with a dummy `tokenFile`. It does **not** contact GitHub.
