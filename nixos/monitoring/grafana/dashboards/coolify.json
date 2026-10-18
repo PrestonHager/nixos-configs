@@ -74,7 +74,7 @@
         "mappings": [{ "type": "value", "options": { "0": { "text": "down", "color": "red" }, "1": { "text": "active", "color": "green" } } }],
         "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] } } },
       "options": { "showValue": "never", "mergeValues": true },
-      "targets": [{ "expr": "node_systemd_unit_state{state=\"active\",name=~\"pod-coolify\\\\.service|podman-coolify(-db|-redis)?\\\\.service\"}", "legendFormat": "{{name}}", "refId": "A" }]
+      "targets": [{ "expr": "node_systemd_unit_state{state=\"active\",name=~\"podman-coolify(-db|-redis)?\\\\.service\"}", "legendFormat": "{{name}}", "refId": "A" }]
     },
     { "id": 8, "type": "row", "title": "Deployed apps (*.apps.prestonhager.com)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 } },
     {
