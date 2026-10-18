@@ -16,7 +16,7 @@ Enabled on **ace** (`hosts/ace/default.nix`) with **container backend** (Amazon 
 
 **Org / user-wide runners:** not available. `PrestonHager` is a personal GitHub user (not an Organization). `GET /orgs/PrestonHager/actions/runners` returns **404**. GitHub only supports org-scoped shared runners on Organizations. Personal accounts must register runners **per repository**. Ace therefore runs separate repo-scoped sets (`soundbytes-app` + `EverPuzzle`). To also serve `nixos-configs`, add another set (more CPU/RAM) or use a GitHub Organization.
 
-Token: nix-secrets `secrets/github-runner.yaml` key `token` (shared PAT for both repos; rendered to `/run/github-runner/<attr>.env` as `ACCESS_TOKEN=`). Fine-grained PAT needs **Self-hosted runners: Read and write** on each registered repo.
+Token: nix-secrets `secrets/github-runner.yaml` key `token` (shared PAT for both repos; rendered to the host-only `/run/github-runner/<attr>.env` as `ACCESS_TOKEN=`). The PAT never enters a runner container: each container start mints a registration and remove token (`/run/github-runner/<unit>.tokens.env`), and `ExecStopPost` deletes a leftover registration by name with the PAT. Fine-grained PAT needs **Self-hosted runners: Read and write** on each registered repo.
 
 Verify Online: **soundbytes-app** / **EverPuzzle** → **Settings → Actions → Runners**. On ace:
 
@@ -130,7 +130,7 @@ systemctl restart github-runner-image.service
 | cargo-lambda | Host symlinks official **musl** release (`v1.6.3`) → `/var/lib/github-runner-tools/cargo/bin/cargo-lambda` (static; works on AL2023 glibc 2.34) | Include yourself; avoid `cargo install` from a newer-glibc host into a shared volume |
 | Zig | Host symlinks `pkgs.zig` → `/var/lib/github-runner-tools/bin/zig` (+ `/nix/store` RO mount); provides `aarch64-linux-gnu.2.34` for Lambda cross-links | Included in `parityPackages` |
 | ffmpeg / ffprobe | Host symlinks `pkgs.ffmpeg` → `…/bin/ffmpeg` and `…/bin/ffprobe` (same tools volume + store mount) | Included in `parityPackages` |
-| Job `container:` | Host Podman socket mounted at `/var/run/docker.sock` | Opt-in `docker.enable` (Docker) |
+| Job `container:` | Opt-in `container.mountDockerSocket` (host Podman socket at `/var/run/docker.sock`; gives jobs host root) | Opt-in `docker.enable` (Docker) |
 | Node (PATH) | AL2023 bakes Node 20 (`node`/`npm`/`npx` in `/usr/local`); entrypoint also prepends Actions `externals/node20/bin` as fallback | Included in `parityPackages` (`nodejs_20`) |
 | Node externals | Actions runner ships `externals/node20` + `node24` (hashFiles / JS actions) | Module ships `node20`+`node24` externals |
 | openssl CLI | AL2023 bake installs `openssl` (+ devel) | Via `parityPackages` / system |
@@ -253,7 +253,7 @@ EverPuzzle workflows use the same label:
 runs-on: ace-al2023-x64-4
 ```
 
-Expect **GLIBC 2.34**, installed Rust targets including `aarch64-unknown-linux-gnu`, `cargo lambda --version` (musl binary on the tools volume), and `zig` / `ffmpeg` / `ffprobe` on `PATH` from `/var/lib/github-runner-tools/{bin,cargo/bin}`. Cold start should **not** re-download packages when using the baked image (`homelab-ci: toolchain present (baked image)`). Rustup still bootstraps once into `/var/lib/github-runner-tools` (shared; flocked). Zig, ffmpeg, and cargo-lambda are provisioned by `github-runner-tools-bin.service` on each rebuild.
+Expect **GLIBC 2.34**, installed Rust targets including `aarch64-unknown-linux-gnu`, `cargo lambda --version` (musl binary on the tools volume), and `zig` / `ffmpeg` / `ffprobe` on `PATH` from `/var/lib/github-runner-tools/{bin,cargo/bin}`. Cold start should **not** re-download packages when using the baked image (`homelab-ci: toolchain present (baked image)`). Rustup bootstraps once into `/var/lib/github-runner-tools` via `github-runner-tools-bootstrap.service`; runner containers mount that directory as an overlay (`:O`), so job writes there are discarded on exit. Zig, ffmpeg, and cargo-lambda are provisioned by `github-runner-tools-bin.service` on each rebuild.
 
 ## Options (summary)
 
@@ -277,7 +277,7 @@ Expect **GLIBC 2.34**, installed Rust targets including `aarch64-unknown-linux-g
 | `runners.<name>.container.memory` / `.cpus` | `null` | Inherit top-level defaults |
 | `runners.<name>.extraPackages` | `[]` | Native only |
 | `runners.<name>.docker.enable` | `false` | Native only; needs `user` + `group` |
-| `runners.<name>.container.mountDockerSocket` | `true` | Podman sock → docker.sock |
+| `runners.<name>.container.mountDockerSocket` | `false` | Podman sock → docker.sock (host root for jobs) |
 | `nodeRuntimes` | `[ "node20" "node24" ]` | Native only |
 | `parityPackages` | curl, wget, jq, … | Native only |
 
