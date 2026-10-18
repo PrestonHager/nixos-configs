@@ -6,6 +6,7 @@
     ./acme-dns.nix
     ./certificates.nix
     # Reverse proxy configuration
+    ./animal-search.nix
     #./forgejo.nix
     ./jellyfin.nix
     ./loopback-health.nix

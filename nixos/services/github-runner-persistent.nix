@@ -63,10 +63,12 @@ in
       description = "Podman CPU limit for the runner container.";
     };
 
+    mountPodmanSocket = lib.mkOption { type = lib.types.bool; default = true; };
+
     extraVolumes = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
-      example = [ "/stor/adopter-central" ];
+      example = [ "/stor/animal-search" ];
       description = ''
         Extra read-write host binds for the runner container, as `host:container`
         pairs. The runner already talks to the host Podman socket, so this only
@@ -122,9 +124,8 @@ in
         # pkgs.zig / pkgs.ffmpeg live in the shared tools volume as Nix store
         # paths, so the store must be visible inside the container.
         "/nix/store:/nix/store:ro"
-        # Jobs that use `container:` / docker actions talk to host Podman.
-        "/run/podman/podman.sock:/var/run/docker.sock"
-      ] ++ cfg.extraVolumes;
+      ] ++ lib.optional cfg.mountPodmanSocket "/run/podman/podman.sock:/var/run/docker.sock"
+        ++ cfg.extraVolumes;
 
       extraOptions = [
         "--memory=${cfg.memory}"

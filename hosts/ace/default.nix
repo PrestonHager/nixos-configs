@@ -7,7 +7,10 @@ in {
 
   imports = [
     ../../nixos/containers/blueprint-plugins.nix
+    # unblocks nixpkgs python3.12-inline-snapshot test failure (ceph/samba/HM chain)
+    ../../modules/overlays-inline-snapshot.nix
     ../../nixos/local-service-hosts.nix
+    ../../nixos/containers/animal-search.nix
     ../../nixos
     ../../nixos/headless
     ../../nixos/security
@@ -20,6 +23,8 @@ in {
     ../../nixos/matrix.nix
     # GitHub Actions self-hosted runners � docs/github-runner.md
     ../../nixos/services/github-runner.nix
+    # pre-registered, non-ephemeral runner (no PAT; see module header)
+    ../../nixos/services/github-runner-persistent.nix
     # hardware configuration for the MSI Summit E16 Flip
     ../../hardware/dell-poweredge-730xd/hardware-configuration.nix
     # yubico keys
@@ -147,6 +152,22 @@ in {
         extraLabels = [ "ace-al2023-x64-4" "ace-ubuntu-x64-4" ];
       };
     };
+  };
+
+  homelab.github-runner-persistent = {
+    enable = true;
+    memory = "4096m";
+    cpus = "4";
+    # The deploy job stages release trees here and repoints the `current`
+    # symlink.
+    mountPodmanSocket = false;
+    extraVolumes = [
+      "/stor/animal-search:/stor/animal-search"
+    ];
+  };
+
+  services.animalSearch = {
+    enable = true;
   };
 
   services.tailscale = {

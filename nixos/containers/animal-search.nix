@@ -283,7 +283,7 @@ in
                 systemctl restart podman-animal-search-${name}-app.service
 
                 for _ in $(seq 1 30); do
-                  if curl -fsS -o /dev/null http://127.0.0.1:${toString e.port}/api/health; then
+                  if curl -fsS -o /dev/null http://127.0.0.1:${toString e.port}; then
                     finish ok; exit 0
                   fi
                   sleep 3

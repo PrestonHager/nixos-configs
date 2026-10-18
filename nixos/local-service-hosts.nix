@@ -38,6 +38,10 @@
     "test.sui.prestonhager.com"
     "faucet.test.sui.prestonhager.com"
     "indexer.test.sui.prestonhager.com"
+    # Animal Search (NMSU-CS-CS371)
+    "animal-search.prestonhager.com"
+    "staging.animal-search.prestonhager.com"
+
     "loftiawiki.org"
     "loftiawiki.com"
     "upgrade.loftiawiki.org"
