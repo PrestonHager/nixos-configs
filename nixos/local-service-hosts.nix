@@ -41,6 +41,8 @@
     # Animal Search (NMSU-CS-CS371)
     "animal-search.prestonhager.com"
     "staging.animal-search.prestonhager.com"
+    # Coolify dashboard (nixos/caddy/coolify.nix)
+    "coolify.prestonhager.com"
 
     "loftiawiki.org"
     "loftiawiki.com"

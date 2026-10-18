@@ -7,6 +7,7 @@
     # properly in the virtualisation.oci-containers.backend varaible correctly.
     #./forgejo.nix
     ./animal-search.nix
+    ./coolify.nix
     ./grafana.nix
     ./jellyfin.nix
     ./mediawiki.nix
