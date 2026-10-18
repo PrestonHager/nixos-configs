@@ -16,7 +16,11 @@ in {
     ./grafana-security-alerting.nix
   ];
 
-  environment.etc."prometheus/prometheus.yml".text = (import ./prometheus-config.nix { inherit lib; }).prometheusYml;
+  environment.etc."prometheus/prometheus.yml".text = (import ./prometheus-config.nix {
+    inherit lib;
+    # Probe upgrade.loftiawiki.org only while the staging copy exists.
+    mediawikiUpgrade = config.homelab.mediawiki.enableUpgrade or false;
+  }).prometheusYml;
   environment.etc."prometheus/blackbox.yml".text = blackboxCfg.blackboxYml;
 
   environment.etc."grafana/provisioning/datasources/prometheus.yaml".text = ''
