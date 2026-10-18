@@ -226,7 +226,7 @@ in
 
       extraOptions = [ "--pod=pterodactyl" ];
 
-      image = "redis:7.4";
+      image = "docker.io/library/redis@sha256:b2b95679e3b46fb51864949ed25ea976fc3a6bcc00a40a1bc00d568cb2822e50"; # redis 7.4.9 (was redis:7.4)
     };
   };
 }

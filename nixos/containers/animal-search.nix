@@ -39,6 +39,9 @@ let
   # more services are added. Do not move these back down into the low band.
   dbId = 10000;
   appId = 10001;
+  # Pinned by digest to what was running; was the floating tags mariadb:11.4 / node:22-slim.
+  mariadbImage = "docker.io/library/mariadb@sha256:1b46b73d4b629022dfa29e6db3bb0d63b5df714fc3bfbe5057d63d76d8f6054b"; # mariadb 11.4.12
+  nodeImage = "docker.io/library/node@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c"; # node 22.23.3-slim
 
   envType = lib.types.submodule {
     options = {
@@ -275,7 +278,7 @@ in
                     --env-file ${config.sops.secrets.${e.appSecret}.path} \
                     -e DB_HOST=localhost -e DB_PORT=3306 \
                     -v "$release:/app:ro" --entrypoint node \
-                    docker.io/library/node:22-slim /app/scripts/migrate.mjs \
+                    ${nodeImage} /app/scripts/migrate.mjs \
                     || { finish migrate-failed; exit 1; }
                 fi
 
@@ -348,7 +351,7 @@ in
             value = {
               autoStart = true;
               user = "${toString dbId}:${toString dbId}";
-              image = "docker.io/library/mariadb:11.4";
+              image = mariadbImage;
               extraOptions = [ "--pod=${e.pod}" ];
               environmentFiles = [ config.sops.secrets.${e.dbSecret}.path ];
               volumes = [ "${e.root}/mariadb:/var/lib/mysql" ];
@@ -368,7 +371,7 @@ in
               # dependency, and its native binaries are glibc-only. The release
               # is built on the glibc AL2023 runner, so the runtime image has to
               # match.
-              image = "docker.io/library/node:22-slim";
+              image = nodeImage;
               extraOptions = [ "--pod=${e.pod}" ];
               environmentFiles = [ config.sops.secrets.${e.appSecret}.path ];
               environment = {
