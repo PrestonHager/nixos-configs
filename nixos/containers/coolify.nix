@@ -1,11 +1,16 @@
 # Coolify control plane (https://coolify.io) on ace.
 #
-# Only the dashboard runs here: app, Postgres and Redis share the `coolify`
-# pod, published on loopback for Caddy (nixos/caddy/coolify.nix). Coolify
-# deploys applications over SSH to the Docker hosts registered in its UI
-# (crux today; see docs/coolify.md). Upstream's installer expects Docker and
-# /data/coolify; this module is the Podman/NixOS equivalent of its
-# docker-compose.prod.yml.
+# Only the dashboard runs here: app, Postgres and Redis on a dedicated
+# `coolify` Podman network, with just the app publishing loopback ports for
+# Caddy (nixos/caddy/coolify.nix). Coolify deploys applications over SSH to
+# the Docker hosts registered in its UI (crux today; see docs/coolify.md).
+# This is the Podman/NixOS equivalent of upstream's docker-compose.prod.yml.
+#
+# Why a network and not a pod: a pod shares one network namespace owned by
+# its infra container. Restarting one member on a rebuild can restart infra,
+# and members that were not restarted keep the dead namespace (Redis then
+# refused connections and the dashboard returned 500). On a network each
+# container owns its namespace and peers are reached by container name.
 #
 # Secrets live in nix-secrets secrets/containers/coolify.yaml:
 #   coolify-env       -> the app's .env (APP_KEY encrypts Coolify's DB values;
@@ -18,6 +23,7 @@ let
   sops-path = builtins.toString inputs.nix-secrets;
   sopsFile = "${sops-path}/secrets/containers/coolify.yaml";
   root = "/stor/coolify";
+  network = "coolify";
 
   # Pinned by digest (podman rejects tag+digest references). Versions:
   # coolify 4.4.6, postgres 15-alpine, redis 7-alpine as of 2026-10-18.
@@ -74,25 +80,19 @@ in
     "d ${root}/redis 0700 ${toString redisUid} ${toString redisUid} -"
   ];
 
-  systemd.services.pod-coolify = {
-    description = "Start podman's 'coolify' pod";
+  systemd.services.coolify-network = {
+    description = "Podman network for Coolify";
     wants = [ "network-online.target" ];
     after = [ "network-online.target" ];
     before = map (c: "podman-${c}.service") containers;
     requiredBy = map (c: "podman-${c}.service") containers;
-    unitConfig.RequiresMountsFor = [ "/run/containers" root ];
+    unitConfig.RequiresMountsFor = [ "/run/containers" ];
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
-      ExecStart = pkgs.writeShellScript "pod-coolify" ''
-        # Loopback only: Caddy is the sole client, and netavark DNATs published
-        # ports ahead of nixos-fw. 8000 = dashboard, 6001 = realtime (websocket),
-        # 6002 = web terminal.
-        ${pkgs.podman}/bin/podman pod exists coolify || \
-        ${pkgs.podman}/bin/podman pod create \
-          -p 127.0.0.1:8000:8080 -p 127.0.0.1:6001:6001 -p 127.0.0.1:6002:6002 \
-          --add-host=host.docker.internal:host-gateway \
-          --memory 4G --cpus 0 coolify
+      ExecStart = pkgs.writeShellScript "coolify-network" ''
+        ${pkgs.podman}/bin/podman network exists ${network} || \
+        ${pkgs.podman}/bin/podman network create ${network}
       '';
     };
   };
@@ -103,7 +103,7 @@ in
       image = postgresImage;
       volumes = [ "${root}/postgres:/var/lib/postgresql/data" ];
       environmentFiles = [ config.sops.secrets."coolify-db-env".path ];
-      extraOptions = [ "--pod=coolify" ];
+      extraOptions = [ "--network=${network}" ];
     };
 
     "coolify-redis" = {
@@ -115,13 +115,21 @@ in
       # requirepass comes from the env file, so expand it in a shell.
       entrypoint = "/bin/sh";
       cmd = [ "-c" ''exec redis-server --save 20 1 --loglevel warning --requirepass "$REDIS_PASSWORD"'' ];
-      extraOptions = [ "--pod=coolify" ];
+      extraOptions = [ "--network=${network}" ];
     };
 
     "coolify" = {
       autoStart = true;
       image = coolifyImage;
       dependsOn = [ "coolify-db" "coolify-redis" ];
+      # Loopback only: Caddy is the sole client, and netavark DNATs published
+      # ports ahead of nixos-fw. 8000 = dashboard, 6001 = realtime (websocket),
+      # 6002 = web terminal.
+      ports = [
+        "127.0.0.1:8000:8080"
+        "127.0.0.1:6001:6001"
+        "127.0.0.1:6002:6002"
+      ];
       volumes = [
         "${config.sops.secrets."coolify-env".path}:/var/www/html/.env:ro"
         "${root}/app/ssh:/var/www/html/storage/app/ssh"
@@ -144,7 +152,10 @@ in
       # No podman --health-cmd: its first run fails while the app boots and leaves a
       # failed transient unit, which makes nixos-rebuild switch exit 4. Health is
       # probed by blackbox instead (nixos/monitoring/prometheus-config.nix).
-      extraOptions = [ "--pod=coolify" ];
+      extraOptions = [
+        "--network=${network}"
+        "--add-host=host.docker.internal:host-gateway"
+      ];
     };
   };
 
