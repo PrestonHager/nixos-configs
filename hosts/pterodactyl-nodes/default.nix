@@ -104,17 +104,36 @@ in
   systemd.services.wings = {
     enable = true;
     description = "Daemon for the Pterodactyl Wings binary";
-    unitConfig = {
-      After = [
-        "docker.service"
-        "link-letsencrypt.service"
-        "pterodactyl-config-perms.service"
-      ];
-      Requires = [
-        "link-letsencrypt.service"
-        "pterodactyl-config-perms.service"
-      ];
-    };
+    # The TLS key is read through /etc/letsencrypt/live -> /mnt/pterodactyl-share
+    # (NFS from ace; link-letsencrypt.nix, nfs.nix). Wants, not Requires: a
+    # failed requirement fails Wings with result 'dependency', which Restart=
+    # never retries, so one NFS hiccup at boot or during a switch would leave
+    # Wings down for good. With Wants, Wings still starts after them, fails on
+    # an unreadable key, and retries below until link-letsencrypt (which
+    # retries the mount itself) has the share back. Wants also stops a restart
+    # of either oneshot during a rebuild from bouncing Wings.
+    after = [
+      "docker.service"
+      "link-letsencrypt.service"
+      "pterodactyl-config-perms.service"
+    ];
+    wants = [
+      "link-letsencrypt.service"
+      "pterodactyl-config-perms.service"
+    ];
+    # Supplementary groups are fixed when the process starts, and a group
+    # change alone does not change this unit, so a switch would leave a running
+    # Wings without its new groups. `users` is what lets it read its 0640
+    # root:users key, so restart Wings whenever its groups change.
+    restartTriggers = [
+      (lib.concatStringsSep "," config.users.users.pterodactyl.extraGroups)
+    ];
+    # (StartLimitBurst - 1) * RestartSec = 90s > StartLimitIntervalSec, so the
+    # automatic restarts below can never hit the start limit (the old 100ms
+    # default burned all 5 starts in 3s and left Wings down); only a tight
+    # manual start loop can.
+    startLimitIntervalSec = 60;
+    startLimitBurst = 10;
     serviceConfig = {
       User = "pterodactyl";
       Group = "pterodactyl";
@@ -126,6 +145,7 @@ in
       AmbientCapabilities = [ "CAP_NET_BIND_SERVICE" ];
       CapabilityBoundingSet = [ "CAP_NET_BIND_SERVICE" ];
       Restart = "on-failure";
+      RestartSec = 10;
     };
     wantedBy = [ "multi-user.target" ];
   };
