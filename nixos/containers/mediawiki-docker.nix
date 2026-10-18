@@ -9,13 +9,14 @@ let
     RUN_JOBS="$MW_INSTALL_PATH/maintenance/runJobs.php --maxtime=3600"
     # The container runs as root; run jobs as php-fpm's user so thumbnails and
     # uploads written by jobs stay writable by the web workers.
-    AS_WWW="setpriv --reuid=www-data --regid=www-data --init-groups"
+    # The image ships BusyBox, whose setpriv has no --reuid, so use su.
+    as_www() { su -s /bin/sh www-data -c "$*"; }
     echo Starting job service...
     sleep 60
     echo Started.
     while true; do
-      $AS_WWW php $RUN_JOBS --type="enotifNotify"
-      $AS_WWW php $RUN_JOBS --wait --maxjobs=20
+      as_www php $RUN_JOBS --type="enotifNotify"
+      as_www php $RUN_JOBS --wait --maxjobs=20
       echo Waiting for 10 seconds...
       sleep 10
     done
