@@ -370,7 +370,7 @@ groups:
             datasourceUid: prometheus
             model:
               editorMode: code
-              # 1 per target Prometheus cannot scrape (exporter or service down).
+              # 1 per Coolify unit (app, db, redis) that is not in the active state.
               expr: 1 - node_systemd_unit_state{state="active",name=~"podman-coolify(-db|-redis)?[.]service"}
               instant: true
               intervalMs: 1000
