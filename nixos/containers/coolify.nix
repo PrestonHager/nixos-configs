@@ -148,6 +148,9 @@ in
         PHP_FPM_PM_MIN_SPARE_SERVERS = "1";
         PHP_FPM_PM_MAX_SPARE_SERVERS = "10";
         PUSHER_BACKEND_PORT = "6001";
+        # The image is pinned by digest above; Coolify must not update itself.
+        # app:init applies this on every start (see coolify-instance-settings).
+        AUTOUPDATE = "false";
       };
       # No podman --health-cmd: its first run fails while the app boots and leaves a
       # failed transient unit, which makes nixos-rebuild switch exit 4. Health is
@@ -159,6 +162,9 @@ in
         # loopback; send Zitadel to Caddy on the host so the OIDC token exchange
         # (server side of "Sign in with Zitadel") can connect.
         "--add-host=zitadel.prestonhager.com:host-gateway"
+        # The image stops on SIGQUIT (s6-overlay + php-fpm/nginx graceful); podman's
+        # default 10s was not enough and every stop ended in SIGKILL.
+        "--stop-timeout=30"
       ];
     };
   };

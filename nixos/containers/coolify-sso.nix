@@ -1,4 +1,5 @@
-# Zitadel login for the Coolify dashboard.
+# Zitadel login for the Coolify dashboard, plus instance settings that the
+# Coolify UI must not change.
 #
 # Zitadel side (created 2026-10-18; see docs/coolify-ace.md):
 #   project "Coolify" (id below) with "check authorization on authentication",
@@ -6,27 +7,78 @@
 #   OIDC web app "Coolify" -> https://coolify.prestonhager.com/auth/zitadel/callback.
 # Client id/secret: nix-secrets secrets/containers/coolify.yaml, coolify-zitadel-env.
 #
-# coolify-zitadel-oauth  writes the credentials into Coolify's oauth_settings.
-# coolify-zitadel-roles  (timer) maps grants onto Coolify's root team:
+# coolify-zitadel-oauth      writes the credentials into Coolify's oauth_settings.
+# coolify-instance-settings  keeps auto-update off and the unusable built-in
+#                            localhost server (id 0) force-disabled.
+# coolify-zitadel-roles      (timer) maps grants onto Coolify's root team:
 #   coolify_admin -> admin, coolify_member -> member, no grant -> removed.
-#   The root owner account (user 0) is never changed.
+#   The root owner account (user 0) is never changed. An empty grant list is
+#   refused unless COOLIFY_ALLOW_EMPTY_ROLE_MAP=1 is set on the unit.
+#
+# The first two are Type=exec, not oneshot: systemd counts them as started as
+# soon as the script runs, so `nixos-rebuild switch` and boot do not wait for
+# Coolify's migrations. They wait for the API themselves, bounded by
+# RuntimeMaxSec (TimeoutStartSec would only cover the instant until exec).
+# Without RemainAfterExit they end inactive and every switch re-runs them,
+# which is harmless because both are idempotent.
 { config, pkgs, inputs, ... }:
 
 let
   sops-path = builtins.toString inputs.nix-secrets;
   projectId = "395665464577001575";
   podman = "${pkgs.podman}/bin/podman";
+  curl = "${pkgs.curl}/bin/curl";
+  health = "http://127.0.0.1:8000/api/health";
 
+  runPhp = ./coolify/run.php;
   oauthSettingPhp = ./coolify/oauth-setting.php;
+  instanceSettingsPhp = ./coolify/instance-settings.php;
   applyRolesPhp = ./coolify/apply-roles.php;
   roleSyncJs = ./coolify/zitadel-role-sync.mjs;
 
-  # Copy a store file into the container and run it with artisan tinker.
-  tinker = file: extra: ''
-    ${podman} cp ${file} coolify:/tmp/${baseNameOf file}
-    ${podman} exec ${extra} -w /var/www/html coolify php artisan tinker /tmp/${baseNameOf file}
-    ${podman} exec coolify rm -f /tmp/${baseNameOf file}
+  # Run a store PHP file inside the coolify container with Laravel booted.
+  # `artisan tinker <file>` exits 0 on an exception (and then reads a REPL
+  # from stdin), and so does `--execute`; run.php catches the exception and
+  # exits 1. Each unit calls this once: the EXIT trap removes its copies.
+  tinker = file: extra:
+    let
+      script = "/tmp/coolify-${baseNameOf file}";
+      runner = "/tmp/coolify-run-${baseNameOf file}";
+    in ''
+      trap '${podman} exec coolify rm -f ${script} ${runner} || true' EXIT
+      ${podman} cp ${runPhp} coolify:${runner}
+      ${podman} cp ${file} coolify:${script}
+      ${podman} exec ${extra} -e COOLIFY_TINKER_SCRIPT=${script} -w /var/www/html coolify \
+        php artisan tinker --execute="require '${runner}';"
+    '';
+
+  # Coolify runs migrations on start; wait (up to 5 minutes) for its API.
+  waitForCoolify = ''
+    until ${curl} -fsS --max-time 5 ${health} >/dev/null; do
+      if (( SECONDS >= 300 )); then
+        echo "Coolify API not healthy after ''${SECONDS}s" >&2
+        exit 1
+      fi
+      sleep 5
+    done
   '';
+
+  # Shared by the two Coolify-side setup units.
+  setupUnit = description: script: {
+    inherit description;
+    after = [ "podman-coolify.service" ];
+    requires = [ "podman-coolify.service" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "exec";
+      RuntimeMaxSec = "6min";
+    };
+    script = ''
+      set -euo pipefail
+      ${waitForCoolify}
+      ${script}
+    '';
+  };
 in
 {
   sops.secrets."coolify-zitadel-env" = {
@@ -35,30 +87,28 @@ in
     restartUnits = [ "coolify-zitadel-oauth.service" ];
   };
 
-  systemd.services.coolify-zitadel-oauth = {
-    description = "Configure Coolify's Zitadel OAuth provider";
-    after = [ "podman-coolify.service" ];
-    requires = [ "podman-coolify.service" ];
-    wantedBy = [ "multi-user.target" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      # Coolify runs migrations on start; wait until its API answers.
-      ExecStartPre = "${pkgs.bash}/bin/bash -c 'for _ in $(seq 1 60); do ${pkgs.curl}/bin/curl -fsS http://127.0.0.1:8000/api/health >/dev/null && exit 0; sleep 5; done; exit 1'";
-    };
-    script = tinker oauthSettingPhp "--env-file ${config.sops.secrets."coolify-zitadel-env".path}";
-  };
+  systemd.services.coolify-zitadel-oauth = setupUnit "Configure Coolify's Zitadel OAuth provider"
+    (tinker oauthSettingPhp "--env-file ${config.sops.secrets."coolify-zitadel-env".path}");
+
+  systemd.services.coolify-instance-settings = setupUnit "Pin Coolify instance settings (auto-update, localhost server)"
+    (tinker instanceSettingsPhp "");
 
   systemd.services.coolify-zitadel-roles = {
     description = "Sync Zitadel Coolify roles onto Coolify's root team";
     after = [ "coolify-zitadel-oauth.service" "podman-zitadel.service" ];
     requires = [ "podman-coolify.service" ];
     environment.COOLIFY_ZITADEL_PROJECT_ID = projectId;
-    serviceConfig.Type = "oneshot";
+    serviceConfig = {
+      Type = "oneshot";
+      # Two 15s-bounded Zitadel calls plus one tinker run; anything longer is a hang.
+      TimeoutStartSec = "2min";
+    };
     script = ''
       set -euo pipefail
+      # Fail fast instead of waiting: the timer retries in 5 minutes.
+      ${curl} -fsS --max-time 5 ${health} >/dev/null
       map=$(${pkgs.nodejs_22}/bin/node ${roleSyncJs})
-      ${tinker applyRolesPhp "-e COOLIFY_ROLE_MAP=\"$map\""}
+      ${tinker applyRolesPhp "-e COOLIFY_ROLE_MAP=\"$map\" -e COOLIFY_ALLOW_EMPTY_ROLE_MAP"}
     '';
   };
 
@@ -71,4 +121,3 @@ in
     };
   };
 }
-
