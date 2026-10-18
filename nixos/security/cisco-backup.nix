@@ -76,6 +76,8 @@ in {
       description = "Backup Astracap and Astraquasar running-config via SSH";
       after = [ "network-online.target" "sops-nix.service" ];
       wants = [ "network-online.target" ];
+      # diff missing made every run report drift; logger is util-linux.
+      path = [ pkgs.diffutils pkgs.util-linux ];
       serviceConfig = {
         Type = "oneshot";
         ExecStart = backupScript;

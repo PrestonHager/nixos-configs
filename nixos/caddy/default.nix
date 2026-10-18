@@ -49,6 +49,11 @@
         metrics
       }
     '';
+    # Prometheus (in a container) scrapes this via the podman0 gateway; the admin API
+    # stays on loopback. Port 2020 is not opened in nixos-fw, so the LAN cannot reach it.
+    virtualHosts."http://:2020".extraConfig = ''
+      metrics /metrics
+    '';
   };
 }
 

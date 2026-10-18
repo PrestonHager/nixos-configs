@@ -84,16 +84,24 @@ probe_one() {
     --max-time "$PROBE_TIMEOUT"
     -L
   )
-  # Pin to public DNS only when the WAN IP is reachable (NAT hairpin often fails on LAN).
+  # Always pin to the public answer. If the WAN IP is unreachable (no DNS answer, or NAT
+  # hairpin failing on the LAN) the probe fails and probe_wan_path is 0. It used to fall
+  # back to system DNS, which reached ace over the LAN and reported "external" success.
+  wan_path=0
   if [[ "$resolve_ok" -eq 1 ]] && timeout 3 bash -c "exec 3<>/dev/tcp/${ip}/${port}" 2>/dev/null; then
+    wan_path=1
     curl_args+=(--resolve "${host}:${port}:${ip}")
   fi
 
   start="$(date +%s.%N)"
-  set +e
-  http_code="$(curl "${curl_args[@]}" "$url" 2>/dev/null)"
-  curl_ok=$?
-  set -e
+  http_code=0
+  curl_ok=1
+  if [[ "$wan_path" -eq 1 ]]; then
+    set +e
+    http_code="$(curl "${curl_args[@]}" "$url" 2>/dev/null)"
+    curl_ok=$?
+    set -e
+  fi
   end="$(date +%s.%N)"
   elapsed="$(awk -v s="$start" -v e="$end" 'BEGIN { printf "%.6f", e - s }')"
 
@@ -111,6 +119,7 @@ probe_success{instance="${inst}",job="${JOB}",probe_location="external",probe_so
 probe_duration_seconds{instance="${inst}",job="${JOB}",probe_location="external",probe_source="${PROBE_SOURCE}",target="${esc_host}"} ${elapsed}
 probe_http_status_code{instance="${inst}",job="${JOB}",probe_location="external",probe_source="${PROBE_SOURCE}",target="${esc_host}"} ${http_code:-0}
 probe_dns_resolved{instance="${inst}",job="${JOB}",probe_location="external",probe_source="${PROBE_SOURCE}",target="${esc_host}"} ${resolve_ok}
+probe_wan_path{instance="${inst}",job="${JOB}",probe_location="external",probe_source="${PROBE_SOURCE}",target="${esc_host}"} ${wan_path}
 EOF
   if [[ -n "$ip" ]]; then
     printf 'probe_dns_answer{instance="%s",job="%s",probe_location="external",probe_source="%s",target="%s",answer="%s"} 1\n' \
@@ -126,6 +135,7 @@ trap 'rm -f "$metrics"' EXIT
   echo '# TYPE probe_http_status_code gauge'
   echo '# TYPE probe_dns_resolved gauge'
   echo '# TYPE probe_dns_answer gauge'
+  echo '# TYPE probe_wan_path gauge'
   for url in "${TARGETS[@]}"; do
     probe_one "$url"
   done

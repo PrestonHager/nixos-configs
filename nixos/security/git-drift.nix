@@ -66,6 +66,7 @@ in {
       after = [ "network-online.target" ];
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
+      path = [ pkgs.git pkgs.openssh pkgs.util-linux ];
       serviceConfig = {
         Type = "oneshot";
         ExecStart = driftScript;

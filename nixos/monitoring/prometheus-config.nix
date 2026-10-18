@@ -250,7 +250,9 @@ in {
       {
         job_name = "caddy";
         metrics_path = "/metrics";
-        static_configs = [{ targets = [ "${hostGateway}:2019" ]; }];
+        # Caddy's admin API is on 127.0.0.1:2019, unreachable from this container;
+        # metrics are served on a separate listener (nixos/caddy/default.nix).
+        static_configs = [{ targets = [ "${hostGateway}:2020" ]; }];
       }
       {
         job_name = "grafana";
@@ -368,7 +370,9 @@ in {
       {
         job_name = "wg-portal";
         scrape_interval = "60s";
-        static_configs = [{ targets = [ "metrics.wg.prestonhager.com" ]; }];
+        # The vhost name resolves to loopback inside the container (host /etc/hosts);
+        # scrape wg-portal's published metrics port on the podman0 gateway instead.
+        static_configs = [{ targets = [ "${hostGateway}:8787" ]; }];
       }
     ];
   };

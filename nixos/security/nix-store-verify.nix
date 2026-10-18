@@ -22,6 +22,7 @@ in {
   config = lib.mkIf (cfg.enable && cfg.phase2.enable) {
     systemd.services.homelab-nix-store-verify = {
       description = "Weekly nix-store integrity verification";
+      path = [ pkgs.util-linux ];
       serviceConfig = {
         Type = "oneshot";
         ExecStart = verifyScript;

@@ -16,7 +16,8 @@ in {
           uid: loki
           orgId: 1
           access: proxy
-          url: http://127.0.0.1:3100
+          # Grafana runs in a container; Loki is on the host.
+          url: http://host.containers.internal:3100
           isDefault: false
           editable: false
           jsonData:

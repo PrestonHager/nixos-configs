@@ -18,7 +18,9 @@ write_metric() { echo "$1 $2"; }
     write_metric "php_perf_container_up{container=\"${label}\"}" 1
     for ext in opcache redis pdo_mysql; do
       v=0
-      exec_p "$c" php -m | grep -qi "^${ext}$" && v=1 || true
+      # php -m lists OPcache as "Zend OPcache", not "opcache".
+      pat="$ext"; [[ "$ext" == opcache ]] && pat="Zend OPcache"
+      exec_p "$c" php -m | grep -qix "$pat" && v=1 || true
       write_metric "php_perf_extension_loaded{container=\"${label}\",extension=\"${ext}\"}" "$v"
     done
     if exec_p "$c" test -r "${panel}/.env"; then

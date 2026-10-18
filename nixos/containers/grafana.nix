@@ -1,9 +1,15 @@
-{ config, pkgs, inputs, ... }:
+{ config, pkgs, lib, inputs, ... }:
 
 let
   sops-path = builtins.toString inputs.nix-secrets;
   etc = config.environment.etc;
   etcPath = name: etc.${name}.source;
+  # Provisioning files that other modules add to /etc only when enabled
+  # (grafana-security-alerting.nix: security rules and the Loki datasource).
+  optionalProvisioning = builtins.filter (name: etc ? ${name}) [
+    "grafana/provisioning/alerting/security-alert-rules.yaml"
+    "grafana/provisioning/datasources/loki.yaml"
+  ];
   grafanaVersion = "13.2.4";
   # Remote image renderer (replaces deprecated in-Grafana plugin). Shares pod network with Grafana.
   imageRendererVersion = "v5.9.1";
@@ -122,7 +128,8 @@ in {
     (etcPath "grafana/dashboards/crux/crux-uptime.json")
     (etcPath "grafana/dashboards/crux/crux-http-probes.json")
     (etcPath "grafana/dashboards/lan/lan-status.json")
-  ];
+    (etcPath "grafana/dashboards/lan/network-topology.json")
+  ] ++ map etcPath optionalProvisioning;
   systemd.services.podman-grafana-image-renderer.restartTriggers = [
     config.sops.secrets."grafana-oauth-env".path
   ];
@@ -157,6 +164,7 @@ in {
             --name grafana-pod \
             --add-host=${zitadelDomain}:''${hostGw} \
             --add-host=host.containers.internal:host-gateway \
+            --dns=192.168.5.5 \
             -p 127.0.0.1:${toString grafanaPort}:3000 \
             -p 10.88.0.1:${toString grafanaPort}:3000 \
             --memory 4G --cpus 0
@@ -219,7 +227,8 @@ in {
       "${etcPath "grafana/dashboards/crux/crux-uptime.json"}:/etc/grafana/dashboards/crux/crux-uptime.json:ro"
       "${etcPath "grafana/dashboards/crux/crux-http-probes.json"}:/etc/grafana/dashboards/crux/crux-http-probes.json:ro"
       "${etcPath "grafana/dashboards/lan/lan-status.json"}:/etc/grafana/dashboards/lan/lan-status.json:ro"
-    ];
+      "${etcPath "grafana/dashboards/lan/network-topology.json"}:/etc/grafana/dashboards/lan/network-topology.json:ro"
+    ] ++ map (name: "${etcPath name}:/etc/${name}:ro") optionalProvisioning;
   };
 
   virtualisation.oci-containers.containers.grafana-image-renderer = {

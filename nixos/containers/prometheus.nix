@@ -29,6 +29,11 @@ in
     "d /prometheus/data 0770 prometheus prometheus -"
   ];
 
+  # prometheus.yml is bind-mounted from a store path; restart when it changes.
+  systemd.services.podman-prometheus.restartTriggers = [
+    config.environment.etc."prometheus/prometheus.yml".source
+  ];
+
   # Define the container
   virtualisation.oci-containers.containers."prometheus" = {
     autoStart = true;
