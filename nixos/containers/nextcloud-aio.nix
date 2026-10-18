@@ -35,8 +35,12 @@ in
   systemd.tmpfiles.rules = [
     "d /nc 0770 root root -"
     "d /nc/data 0770 www-data www-data -"
-    "d /nc/mysql 0770 nm-iodine nscd -"
-    "d /nc/redis 0770 nm-iodine root -"
+    # The standalone db/redis containers below are commented out; the AIO
+    # master container manages its own database and cache storage. These two
+    # rules are vestigial, so give them root rather than the nm-iodine:nscd
+    # accounts that 999 resolves to on this host.
+    "d /nc/mysql 0770 root root -"
+    "d /nc/redis 0770 root root -"
   ];
 
   # Systemd service to create the pod required by podman containers

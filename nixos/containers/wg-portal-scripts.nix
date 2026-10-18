@@ -1,7 +1,10 @@
 { config, pkgs, ... }:
 
 let
-  lanIfs = [ "eno1" "eno3" ];
+  # bond0 is the LACP aggregate that actually carries 192.168.5.0/24.
+  # eno1/eno3 are only its members, so routing egress never selects them
+  # and the MASQUERADE/FORWARD rules below never matched anything.
+  lanIfs = [ "bond0" ];
 
   shared-script = ''
     set -euo pipefail
@@ -87,9 +90,21 @@ let
 in {
   systemd.services."wg-portal-sidecar" = {
     description = "Routing + firewall sidecar for WireGuard Podman container";
-    after = [ "podman-wg-portal.service" ];
+    after = [
+      "podman-wg-portal.service"
+      # nixos-fw.service is restarted on every activation and rebuilds the
+      # nat/filter tables from scratch via iptables-restore, which silently
+      # drops the MASQUERADE/FORWARD rules installed below. Order after it and
+      # tie it to it so a firewall reload re-runs this oneshot and restores
+      # them; otherwise VPN routing breaks after every rebuild until the
+      # service is restarted by hand.
+      "nixos-fw.service"
+    ];
     requires = [ "podman-wg-portal.service" ];
-    partOf = [ "podman-wg-portal.service" ];
+    partOf = [
+      "podman-wg-portal.service"
+      "nixos-fw.service"
+    ];
 
     serviceConfig = {
       Type = "oneshot";

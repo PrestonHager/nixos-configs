@@ -1,10 +1,16 @@
 { config, ... }:
 
 {
+  # The WireGuard interface lives inside the wg-portal Podman container's
+  # network namespace, not on the host, so the host has no wg0 device and
+  # these options used to generate nothing. Masquerading and forwarding for
+  # the tunnel are handled by the wg-portal-sidecar unit (see
+  # nixos/containers/wg-portal-scripts.nix), which resolves the container veth
+  # at runtime and targets bond0 -- the LACP aggregate that actually carries
+  # 192.168.5.0/24.
   networking.nat = {
     enable = true;
-    externalInterface = "eno1";
-    internalInterfaces = [ "wg0" ];
+    externalInterface = "bond0";
   };
 
   #networking.wireguard.interfaces = {

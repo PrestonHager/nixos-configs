@@ -14,7 +14,7 @@ let external_completer = {|spans|
     $spans | skip 1 | zoxide query -l $in | lines | where {|x| $x != $env.PWD}
   }
 
-  let expanded_alias = scope aliases | where name == $spans.0 | get -i 0 | get -i expansion
+  let expanded_alias = scope aliases | where name == $spans.0 | get -o 0 | get -o expansion
   let spans = if $expanded_alias != null  {
     $spans | skip 1 | prepend ($expanded_alias | split row " " | take 1)
   } else {
@@ -29,7 +29,7 @@ let external_completer = {|spans|
 
 #let carapace_completer = {|spans|
 #  # if the current command is an alias, get it's expansion
-#  let expanded_alias = (scope aliases | where name == $spans.0 | get -i 0 | get -i expansion)
+#  let expanded_alias = (scope aliases | where name == $spans.0 | get -o 0 | get -o expansion)
 #
 #  # overwrite
 #  let spans = (if $expanded_alias != null  {

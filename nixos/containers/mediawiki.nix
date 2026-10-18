@@ -16,9 +16,9 @@ let
   # and delete or backup the old mediawiki directory
   # make sure to disable the upgrade option after as well!
   mediawiki = {
-    enableUpgrade = true;
+    enableUpgrade = false;
     upgradeVersion = "1.45.3";
-    version = "1.44.0";
+    version = "1.45.3";
     # Run nix-shell -p nix-prefetch-docker --run "nix-prefetch-docker --image-name mediawiki --image-tag <VERSION>-fpm-alpine"
     # then paste the nix data below when upgrading version
     dockerImage = {
@@ -56,20 +56,39 @@ in
       isSystemUser = true;
       group = "daemon";
     };
+    # Dedicated ids for the database and cache containers.
+    #
+    # These containers used to run as 999:999, which on ace is not free:
+    # uid 999 is nm-iodine and gid 999 is nscd. The tmpfiles rules below used
+    # to name those accounts literally, so /mw/data and /mw/redis ended up
+    # owner-writable by iodine and group-writable by nscd. Pin them into the
+    # 10000+ band instead, which NixOS's allocator never hands out here.
+    "mediawiki-db" = {
+      isSystemUser = true;
+      group = "mediawiki-db";
+      uid = 10004;
+    };
+    "mediawiki-redis" = {
+      isSystemUser = true;
+      group = "mediawiki-redis";
+      uid = 10005;
+    };
   };
   users.groups = {
     www-data = {};
     mysql = {};
     daemon = {};
+    "mediawiki-db" = {};
+    "mediawiki-redis" = {};
   };
 
   # Create the data directory
   systemd.tmpfiles.rules = [
-    "d /mw 0770 root root -"
+    "d /mw 0755 root root -"
     "d /mw/images 0770 www-data www-data -"
-    "d /mw/data 0770 nm-iodine nscd -"
-    "d /mw/redis 0770 nm-iodine nscd -"
-    "d /mw/html 0770 www-data www-data -"
+    "d /mw/data 0770 mediawiki-db mediawiki-db -"
+    "d /mw/redis 0770 mediawiki-redis mediawiki-redis -"
+    "d /mw/html 0755 www-data www-data -"
     "d /mw/apache2 0770 root root -"
     "d /mw/run 0770 root root -"
   ];
@@ -172,15 +191,19 @@ in
       dependsOn = [ "mediawiki-db" "mediawiki-redis" ];
       extraOptions = [ "--pod=mediawiki" ];
 
-      # Finally, the mediawiki image and version
-      image = "docker.io/prestonhager/mediawiki-redis:latest";
-      #image = "mediawiki-redis:${mediawiki.version}";
-      #imageFile = import ./mediawiki-docker.nix { inherit pkgs; version = mediawiki.version; };
+      image = "mediawiki-redis:${mediawiki.version}";
+      imageFile = import ./mediawiki-docker.nix {
+        inherit pkgs;
+        version = mediawiki.version;
+        dockerImage = mediawiki.upgradeDockerImage;
+      };
     };
     "mediawiki-db" = {
       autoStart = true;
 
-      user = "root:root";
+      # 10004, not the image's built-in `mysql` user (999). See the
+      # users.users comment above for why 999 is unsafe on this host.
+      user = "10004:10004";
 
       volumes = [
         "/mw/data:/var/lib/mysql"
@@ -199,13 +222,14 @@ in
         "--env-file=${config.sops.secrets."mediawiki-environment".path}"
       ];
 
-      image = "mariadb:latest";
+      image = "mariadb:11.4";
     };
     # Redis is not required, but is a great cache system
     "mediawiki-redis" = {
       autoStart = true;
 
-      user = "root:root";
+      # 10005, for the same reason as mediawiki-db above.
+      user = "10005:10005";
 
       volumes = [
         "/mw/redis:/data"
@@ -215,7 +239,7 @@ in
 
       extraOptions = [ "--pod=mediawiki" ];
 
-      image = "redis:latest";
+      image = "redis:7.4";
     };
   };
 }

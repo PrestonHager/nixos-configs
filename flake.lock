@@ -1,5 +1,42 @@
 {
   "nodes": {
+    "ace-k80-stack": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "nixpkgs-cuda114": "nixpkgs-cuda114"
+      },
+      "locked": {
+        "lastModified": 1782612437,
+        "narHash": "sha256-TulPZnNuDP0mS2dya+8nlEgF3V6agoBMxU8H/fo7YqQ=",
+        "owner": "PrestonHager",
+        "repo": "ace-k80-stack",
+        "rev": "a0e101f3fa0297985b3f115ef99a500ed606e80e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "PrestonHager",
+        "repo": "ace-k80-stack",
+        "type": "github"
+      }
+    },
+    "blueprint-framework": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1789954303,
+        "narHash": "sha256-Vi9tf9qaB2gNpY7oPUStBS4XLROWHUM5T5bsR3VraYM=",
+        "owner": "BlueprintFramework",
+        "repo": "framework",
+        "rev": "f14c0fe7db67332a7492668c2a72fc1c7dab6181",
+        "type": "github"
+      },
+      "original": {
+        "owner": "BlueprintFramework",
+        "repo": "framework",
+        "type": "github"
+      }
+    },
     "conflake": {
       "inputs": {
         "nixpkgs": [
@@ -18,6 +55,26 @@
       "original": {
         "owner": "ratson",
         "repo": "conflake",
+        "type": "github"
+      }
+    },
+    "disko": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1789770686,
+        "narHash": "sha256-uZkBR7yHdIKUFB5SZdfgh1qkGfI3XmYmI/lTiquxbck=",
+        "owner": "nix-community",
+        "repo": "disko",
+        "rev": "725ea35e410ad83be4931d1bff7e090eacaf3563",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "disko",
         "type": "github"
       }
     },
@@ -64,11 +121,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1780679734,
-        "narHash": "sha256-KmRNvpNOb7QEORa06bVgjW9kITcx0VhsI7w0vhmZyD8=",
+        "lastModified": 1791163078,
+        "narHash": "sha256-DiuwfdoZtEqVRsWuAhXcHa+cfvkr0t/xWW8ugkcxNyI=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "b2b7db486e06e098711dc291bb25db82850e1d16",
+        "rev": "f53f3267f5d009dd8f99443505e609389d7ff267",
         "type": "github"
       },
       "original": {
@@ -83,11 +140,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1780713584,
-        "narHash": "sha256-x7NV3V1Xmu18viPjXlD1Jim6E7nlC6ldvqNHq0TIz+0=",
+        "lastModified": 1791185037,
+        "narHash": "sha256-ytwbyACpJCB3asH1pDXpBB53Zu49tgm+Z3AXj5LS3tE=",
         "ref": "refs/heads/main",
-        "rev": "c3227c7d7f85ae1fe95444f0ec73d1a28f5ad75e",
-        "revCount": 55,
+        "rev": "2bbc018cbe36ef8da4b1abeb0a5bf9fb13b665aa",
+        "revCount": 101,
         "type": "git",
         "url": "ssh://git@github.com/PrestonHager/nixos-secrets.git"
       },
@@ -112,13 +169,29 @@
         "type": "github"
       }
     },
+    "nixpkgs-cuda114": {
+      "locked": {
+        "lastModified": 1751274312,
+        "narHash": "sha256-/bVBlRpECLVzjV19t5KMdMFWSwKLtb5RyXdjz3LJT+g=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "50ab793786d9de88ee30ec4e4c24fb4236fc2674",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-24.11",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1780243769,
-        "narHash": "sha256-x5UQuRsH3MqI0U9afaXSNqzTPSeZlRLvFAav2Ux1pNw=",
+        "lastModified": 1791048980,
+        "narHash": "sha256-KgItSKML8Xvte0B7/uGnBDsYzSnnKHcOaiUbgWBXLXw=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "331800de5053fcebacf6813adb5db9c9dca22a0c",
+        "rev": "a7868a727837f3c09cee2ce0ca671c76b1589fed",
         "type": "github"
       },
       "original": {
@@ -141,6 +214,54 @@
         "owner": "NixOS",
         "ref": "nixpkgs-unstable",
         "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "pterodactyl-dns-records": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1788051311,
+        "narHash": "sha256-sYa+CDPQv+W2XNbXXEuoEkl6aIVYbRnRts+N1IoKVrM=",
+        "owner": "PrestonHager",
+        "repo": "pterodactyl-blueprint-dns-records",
+        "rev": "7e84fdc72bf1bd331a0eb8f7e4e2618409ca9481",
+        "type": "github"
+      },
+      "original": {
+        "owner": "PrestonHager",
+        "repo": "pterodactyl-blueprint-dns-records",
+        "type": "github"
+      }
+    },
+    "pterodactyl-minecraft-tools": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1788671055,
+        "narHash": "sha256-8NuR4YszKC82YA03yDSGG9N+0FN4JdFDNi+52CO5LpQ=",
+        "owner": "PrestonHager",
+        "repo": "pterodactyl-blueprint-minecraft-tools",
+        "rev": "779b31410cdf5bb6e3eaf79135fc7dd05d760198",
+        "type": "github"
+      },
+      "original": {
+        "owner": "PrestonHager",
+        "repo": "pterodactyl-blueprint-minecraft-tools",
+        "type": "github"
+      }
+    },
+    "pterodactyl-port-forward": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1788129596,
+        "narHash": "sha256-AFGD1iZRet2gRx0pZpTf2SWj6JMm+na2kOcGCSv4yBE=",
+        "owner": "PrestonHager",
+        "repo": "pterodactyl-blueprint-port-forward",
+        "rev": "17fd22bf6b5129c487d7c349698815374836a2aa",
+        "type": "github"
+      },
+      "original": {
+        "owner": "PrestonHager",
+        "repo": "pterodactyl-blueprint-port-forward",
         "type": "github"
       }
     },
@@ -167,9 +288,15 @@
     },
     "root": {
       "inputs": {
+        "ace-k80-stack": "ace-k80-stack",
+        "blueprint-framework": "blueprint-framework",
+        "disko": "disko",
         "home-manager": "home-manager",
         "nix-secrets": "nix-secrets",
         "nixpkgs": "nixpkgs_2",
+        "pterodactyl-dns-records": "pterodactyl-dns-records",
+        "pterodactyl-minecraft-tools": "pterodactyl-minecraft-tools",
+        "pterodactyl-port-forward": "pterodactyl-port-forward",
         "pterodactyl-wings": "pterodactyl-wings",
         "sops-nix": "sops-nix",
         "tree-sitter-parsers": "tree-sitter-parsers"
@@ -182,11 +309,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1780547341,
-        "narHash": "sha256-Gq8KNx5A7hBB3uGJaj6eQfLDIz5YdLu92gqBcvHvoUo=",
+        "lastModified": 1791103873,
+        "narHash": "sha256-nFxM+pKoZ8LJAEnUXARyCaOAloWgaW9kZQOSjWzKcTE=",
         "owner": "Mic92",
         "repo": "sops-nix",
-        "rev": "9ed65852b6257fbeae4355bc24ecfea307ca759a",
+        "rev": "dcd241ba97088c22569d1573286e1b9daad340c0",
         "type": "github"
       },
       "original": {
