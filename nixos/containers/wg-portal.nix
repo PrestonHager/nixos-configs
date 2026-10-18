@@ -74,6 +74,9 @@ in
       # Host /etc/hosts maps the vhost to 127.0.0.1, which is the container's own
       # loopback; point it at Caddy on the host so the Zitadel OIDC login works.
       "--add-host=zitadel.prestonhager.com:host-gateway"
+      # The image declares VOLUME /app/config; only config.yaml is bind-mounted,
+      # so every run created an anonymous volume. Back image volumes with tmpfs.
+      "--image-volume=tmpfs"
     ];
 
     # User and group to run the container as

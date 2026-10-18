@@ -40,11 +40,18 @@ class ZitadelOidcMappingProvider(JinjaOidcMappingProvider):
         self, userinfo: UserInfo, token: Token, failures: int
     ) -> UserAttributeDict:
         result = await super().map_user_attributes(userinfo, token, failures)
-        sub = self.get_remote_user_id(userinfo)
-        _pending_admin_by_sub[sub] = _has_admin_role(
-            userinfo, self._admin_role
-        )
+        self._record_admin(userinfo)
         return result
+
+    def _record_admin(self, userinfo: UserInfo) -> None:
+        sub = self.get_remote_user_id(userinfo)
+        _pending_admin_by_sub[sub] = _has_admin_role(userinfo, self._admin_role)
+
+    async def get_extra_attributes(self, userinfo: UserInfo, token: Token) -> Dict[str, Any]:
+        # map_user_attributes only runs when a user is first registered; this runs on
+        # every SSO login, so Zitadel role changes reach existing users too.
+        self._record_admin(userinfo)
+        return await super().get_extra_attributes(userinfo, token)
 
 
 class ZitadelAdminModule:
@@ -65,10 +72,23 @@ class ZitadelAdminModule:
         auth_provider_type: Optional[str],
         auth_provider_id: Optional[str],
     ) -> None:
-        if auth_provider_type != "oidc" or not auth_provider_id:
+        # Synapse reports SSO logins as type "m.login.sso" with the IdP id
+        # ("oidc-zitadel"), not "oidc" with the remote sub, so the old check never
+        # matched and admin was never synced.
+        if auth_provider_type != "m.login.sso" or not auth_provider_id:
             return
 
-        is_admin = _pending_admin_by_sub.pop(str(auth_provider_id), None)
+        try:
+            # (auth_provider, external_id) pairs recorded at SSO registration.
+            external_ids = await self._api._store.get_external_ids_by_user(user_id)
+        except Exception:
+            logger.exception("Zitadel OIDC: could not read external ids for %s", user_id)
+            return
+        is_admin = None
+        for provider, external_id in external_ids:
+            if provider == auth_provider_id and external_id in _pending_admin_by_sub:
+                is_admin = _pending_admin_by_sub.pop(external_id)
+                break
         if is_admin is None:
             return
 

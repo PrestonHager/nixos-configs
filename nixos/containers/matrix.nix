@@ -133,18 +133,25 @@ EOF
     chmod 0640 "$homeserver"
   '';
 in {
-  sops.secrets = {
+  # restartUnits, not restartTriggers on the paths: the /run/secrets path never
+  # changes when the secret value does, so path triggers never fired.
+  sops.secrets = let
+    restartUnits = [ "matrix-synapse-init.service" "podman-matrix-synapse.service" ];
+  in {
     "matrix-db-env" = {
       sopsFile = "${sops-path}/secrets/containers/matrix.yaml";
       key = "matrix-db-env";
+      restartUnits = restartUnits ++ [ "podman-matrix-db.service" ];
     };
     "matrix-secrets" = {
       sopsFile = "${sops-path}/secrets/containers/matrix.yaml";
       key = "matrix-secrets";
+      inherit restartUnits;
     };
     "matrix-oauth-env" = {
       sopsFile = "${sops-path}/secrets/containers/matrix.yaml";
       key = "matrix-oauth-env";
+      inherit restartUnits;
     };
   };
 
@@ -187,12 +194,7 @@ in {
       RemainAfterExit = true;
       ExecStart = synapseInitScript;
     };
-    restartTriggers = [
-      config.sops.secrets."matrix-db-env".path
-      config.sops.secrets."matrix-secrets".path
-      config.sops.secrets."matrix-oauth-env".path
-      synapseInitScript
-    ];
+    restartTriggers = [ synapseInitScript ];
   };
 
   systemd.services.pod-matrix = {
@@ -270,11 +272,6 @@ in {
       "podman-zitadel-login.service"
     ];
     before = [ "caddy.service" ];
-    restartTriggers = [
-      config.sops.secrets."matrix-db-env".path
-      config.sops.secrets."matrix-secrets".path
-      config.sops.secrets."matrix-oauth-env".path
-      synapseInitScript
-    ];
+    restartTriggers = [ synapseInitScript ];
   };
 }

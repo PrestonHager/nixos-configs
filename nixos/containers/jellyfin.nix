@@ -10,7 +10,12 @@ let
   zitadelProjectId = "376196450586990901";
   ssoProviderName = "zitadel";
   ssoPluginVersion = "3.5.2.4";
-  ssoPluginUrl = "https://github.com/9p4/jellyfin-plugin-sso/releases/download/v${ssoPluginVersion}/sso-authentication_${ssoPluginVersion}.zip";
+  # Hash-pinned: the plugin DLL runs inside Jellyfin with its privileges. Update the
+  # hash with nix-prefetch-url when bumping ssoPluginVersion.
+  ssoPluginZip = pkgs.fetchurl {
+    url = "https://github.com/9p4/jellyfin-plugin-sso/releases/download/v${ssoPluginVersion}/sso-authentication_${ssoPluginVersion}.zip";
+    hash = "sha256-8DQWOPh6NZYQUFfjKosYQJ8cFaREn9oMHjAQ11Q+nCg=";
+  };
   ssoPluginDir = "/jf/config/plugins/SSO Authentication/${ssoPluginVersion}";
   ssoConfigPath = "/jf/config/plugins/configurations/SSO-Auth.xml";
   jellyfinRuntimeEnv = "/run/jellyfin/container.env";
@@ -44,11 +49,8 @@ let
 
     if [ ! -f "${ssoPluginDir}/SSO-Auth.dll" ]; then
       echo "jellyfin-sso-setup: installing SSO Authentication plugin ${ssoPluginVersion}"
-      tmpdir="$(mktemp -d)"
-      trap 'rm -rf "$tmpdir"' EXIT
-      ${pkgs.curl}/bin/curl -fsSL -o "$tmpdir/sso.zip" "${ssoPluginUrl}"
       mkdir -p "${ssoPluginDir}"
-      ${pkgs.unzip}/bin/unzip -o "$tmpdir/sso.zip" -d "${ssoPluginDir}"
+      ${pkgs.unzip}/bin/unzip -o ${ssoPluginZip} -d "${ssoPluginDir}"
       chown -R jellyfin:jellyfin "/jf/config/plugins/SSO Authentication"
     fi
 
@@ -156,6 +158,8 @@ in
   sops.secrets."jellyfin-oauth-env" = {
     sopsFile = "${sops-path}/secrets/containers/jellyfin.yaml";
     key = "jellyfin-oauth-env";
+    # The secret path never changes, so a restartTriggers entry on it never fired.
+    restartUnits = [ "podman-jellyfin.service" "jellyfin-sso-setup.service" ];
   };
 
   users.users.jellyfin = {
@@ -187,10 +191,6 @@ in
       ExecStart = jellyfinSsoSetupScript;
     };
   };
-
-  systemd.services.podman-jellyfin.restartTriggers = [
-    config.sops.secrets."jellyfin-oauth-env".path
-  ];
 
   virtualisation.oci-containers.containers.jellyfin = {
     autoStart = true;

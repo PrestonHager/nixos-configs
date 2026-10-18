@@ -522,8 +522,10 @@ in
   users.groups = {
     www-data = {};
     mysql = {};
-    "nextcloud-db" = {};
-    "nextcloud-redis" = {};
+    # Match the containers' numeric user = "10002:10002" / "10003:10003"; with
+    # allocated gids the tmpfiles rules regrouped the data dirs away from them.
+    "nextcloud-db" = { gid = 10002; };
+    "nextcloud-redis" = { gid = 10003; };
   };
 
   systemd.tmpfiles.rules = [
@@ -811,7 +813,12 @@ in
         "${ncRoot}/data/custom_apps:/var/www/html/custom_apps:ro"
       ];
       dependsOn = [ "nextcloud" "nextcloud-clamav" ];
-      extraOptions = [ "--pod=nextcloud" ];
+      extraOptions = [
+        "--pod=nextcloud"
+        # The image's VOLUME /var/www/html is unused here (config and custom_apps
+        # are bind-mounted); without this each run left an anonymous volume behind.
+        "--image-volume=tmpfs"
+      ];
     };
     nextcloud-whiteboard = {
       autoStart = true;

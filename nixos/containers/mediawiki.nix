@@ -22,6 +22,11 @@ let
     # Run nix-shell -p nix-prefetch-docker --run "nix-prefetch-docker --image-name mediawiki --image-tag <VERSION>-fpm-alpine"
     # then paste the nix data below when upgrading version
     dockerImage = {
+      imageName = "mediawiki";
+      imageDigest = "sha256:95989cf1a61a1476f65ff8db8abfe10d54b9f5769ef0a3cb433ace81673d2f20";
+      hash = "sha256-roD1HrBppnuO6kybxT3KRP7H5n9cWjR+/cUv1sKw4Pw=";
+      finalImageName = "mediawiki";
+      finalImageTag = "1.45.3-fpm-alpine";
     };
     upgradeDockerImage = {
       imageName = "mediawiki";
@@ -78,8 +83,9 @@ in
     www-data = {};
     mysql = {};
     daemon = {};
-    "mediawiki-db" = {};
-    "mediawiki-redis" = {};
+    # Same as nextcloud: match the containers' numeric "10004:10004" / "10005:10005".
+    "mediawiki-db" = { gid = 10004; };
+    "mediawiki-redis" = { gid = 10005; };
   };
 
   # Create the data directory
@@ -98,6 +104,12 @@ in
     description = "Start podman's 'mediawiki' pod";
     wants = [ "network-online.target" ];
     after = [ "network-online.target" ];
+    # requiredBy alone does not order: containers could start before the pod exists.
+    before = [
+      "podman-mediawiki.service"
+      "podman-mediawiki-db.service"
+      "podman-mediawiki-redis.service"
+    ];
     requiredBy = [
       "podman-mediawiki.service"
       "podman-mediawiki-db.service"
@@ -123,6 +135,11 @@ in
     description = "Start podman's 'mediawiki-upgrade' pod";
     wants = [ "network-online.target" ];
     after = [ "network-online.target" ];
+    before = [
+      "podman-mediawiki-upgrade.service"
+      "podman-mediawiki-db.service"
+      "podman-mediawiki-redis.service"
+    ];
     requiredBy = [
       "podman-mediawiki-upgrade.service"
       "podman-mediawiki-db.service"
@@ -197,7 +214,7 @@ in
       imageFile = import ./mediawiki-docker.nix {
         inherit pkgs;
         version = mediawiki.version;
-        dockerImage = mediawiki.upgradeDockerImage;
+        dockerImage = mediawiki.dockerImage;
       };
     };
     "mediawiki-db" = {

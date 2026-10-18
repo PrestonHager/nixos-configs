@@ -15,14 +15,22 @@ let
   imageRendererVersion = "v5.9.1";
   grafanaPort = 8082;
   grafanaRuntimeEnv = "/run/grafana/container.env";
+  rendererRuntimeEnv = "/run/grafana/renderer.env";
   grafanaAlertingDir = "/run/grafana/provisioning/alerting";
   # Host /etc/hosts maps *.prestonhager.com → 127.0.0.1; inside the container that is
   # loopback, not Caddy on the host. Override so server-side OAuth token/userinfo calls work.
   zitadelDomain = "zitadel.prestonhager.com";
   grafanaContainerEnvScript = pkgs.writeShellScript "grafana-container-env" ''
     set -euo pipefail
+    # Secrets land in these files; never let them exist world-readable, even briefly.
+    umask 077
     mkdir -p /run/grafana/provisioning/alerting
     cp "${config.sops.secrets."grafana-oauth-env".path}" "${grafanaRuntimeEnv}"
+    # The image renderer only needs its shared token, not the OAuth client secret.
+    grep '^AUTH_TOKEN=' "${grafanaRuntimeEnv}" > "${rendererRuntimeEnv}" || {
+      echo "grafana-container-env: AUTH_TOKEN missing from grafana-oauth-env" >&2
+      exit 1
+    }
     ncEnv="${config.sops.secrets."nextcloud-environment".path}"
     smtpPass="$(grep '^SMTP_PASSWORD=' "$ncEnv" | cut -d= -f2- || true)"
     if [ -z "$smtpPass" ]; then
@@ -72,7 +80,11 @@ in {
     "grafana-oauth-env" = {
       sopsFile = "${sops-path}/secrets/containers/grafana-oauth.yaml";
       key = "grafana-oauth-env";
+      # The secret path never changes, so a restartTriggers entry on it never fired.
+      restartUnits = [ "podman-grafana.service" "podman-grafana-image-renderer.service" ];
     };
+    # Grafana's alert mail reuses the Nextcloud SMTP password.
+    "nextcloud-environment".restartUnits = [ "podman-grafana.service" ];
   };
 
   users.users.grafana = {
@@ -89,8 +101,12 @@ in {
 
   systemd.services.grafana-container-env = {
     description = "Build Grafana container env (OAuth + shared iCloud SMTP password)";
-    before = [ "grafana-alerting-provision.service" "podman-grafana.service" ];
-    requiredBy = [ "podman-grafana.service" ];
+    before = [
+      "grafana-alerting-provision.service"
+      "podman-grafana.service"
+      "podman-grafana-image-renderer.service"
+    ];
+    requiredBy = [ "podman-grafana.service" "podman-grafana-image-renderer.service" ];
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = false;
@@ -110,10 +126,10 @@ in {
     };
   };
 
-  # Recreate containers when secrets or provisioned dashboards change (podman bind-mounts store paths).
+  # Recreate containers when provisioned files change (podman bind-mounts store paths).
+  # Secret changes restart them through sops restartUnits above.
   systemd.services.podman-grafana.restartTriggers = [
-    config.sops.secrets."grafana-oauth-env".path
-    config.sops.secrets."nextcloud-environment".path
+    (etcPath "grafana/provisioning/datasources/prometheus.yaml")
     (pkgs.writeText "grafana-alert-rules" (builtins.readFile ../monitoring/grafana/provisioning/alerting/alert-rules.yaml))
     (pkgs.writeText "grafana-notification-policies" (builtins.readFile ../monitoring/grafana/provisioning/alerting/notification-policies.yaml))
     (etcPath "grafana/provisioning/dashboards/ace.yaml")
@@ -130,14 +146,17 @@ in {
     (etcPath "grafana/dashboards/lan/lan-status.json")
     (etcPath "grafana/dashboards/lan/network-topology.json")
   ] ++ map etcPath optionalProvisioning;
-  systemd.services.podman-grafana-image-renderer.restartTriggers = [
-    config.sops.secrets."grafana-oauth-env".path
-  ];
 
   systemd.services.pod-grafana = {
     description = "Podman pod for Grafana and image renderer";
     wants = [ "network-online.target" ];
     after = [ "network-online.target" ];
+    # Without before=, requiredBy alone lets the containers start in parallel with
+    # the pod and fail with "no such pod" (seen on the 2026-10-18 switch).
+    before = [
+      "podman-grafana.service"
+      "podman-grafana-image-renderer.service"
+    ];
     requiredBy = [
       "podman-grafana.service"
       "podman-grafana-image-renderer.service"
@@ -239,9 +258,8 @@ in {
       "--pod=grafana-pod"
       "--cap-add=SYS_ADMIN"
     ];
-    environmentFiles = [
-      config.sops.secrets."grafana-oauth-env".path
-    ];
+    # AUTH_TOKEN only (written by grafana-container-env).
+    environmentFiles = [ rendererRuntimeEnv ];
     environment = {
       GOMEMLIMIT = "1GiB";
     };

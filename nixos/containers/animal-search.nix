@@ -298,7 +298,15 @@ in
               description = "Podman pod for Animal Search [${name}] (Astro app + MariaDB)";
               wants = [ "network-online.target" ];
               after = [ "network-online.target" ];
-              requiredBy = [ "podman-animal-search-${name}-db.service" ];
+              # before= orders the pod ahead of both containers; requiredBy alone does not.
+              before = [
+                "podman-animal-search-${name}-db.service"
+                "podman-animal-search-${name}-app.service"
+              ];
+              requiredBy = [
+                "podman-animal-search-${name}-db.service"
+                "podman-animal-search-${name}-app.service"
+              ];
               serviceConfig = {
                 Type = "oneshot";
                 RemainAfterExit = true;
