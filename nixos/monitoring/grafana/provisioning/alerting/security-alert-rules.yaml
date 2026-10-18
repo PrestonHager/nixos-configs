@@ -18,9 +18,11 @@ groups:
             datasourceUid: loki
             model:
               editorMode: code
+              # != "org_id=": Loki logs every query it runs (org_id=fake ...), and
+              # this query's own text contains the search words, so it matched itself.
               expr: >-
                 sum by (host) (count_over_time({job="systemd-journal"}
-                |~ "Failed password|Invalid user" [5m])) > 10
+                != "org_id=" |~ "Failed password|Invalid user" [5m])) > 10
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
@@ -198,8 +200,12 @@ groups:
             datasourceUid: loki
             model:
               editorMode: code
+              # SYN-scan hits from the static infra range (.1-.20: router, switch, ace,
+              # nodes) are blackbox probes and log shipping, not scans. Everything else,
+              # including SYN scans from LAN clients, still alerts.
               expr: >-
-                sum(count_over_time({job="suricata"} | json | event_type="alert" [5m])) > 0
+                sum(count_over_time({job="suricata"} | json | event_type="alert"
+                and (alert_signature != "ET SCAN SYN Scan detected" or src_ip !~ "192\\.168\\.5\\.([1-9]|1[0-9]|20)") [5m])) > 0
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
