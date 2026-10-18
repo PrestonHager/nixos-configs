@@ -3,7 +3,7 @@
 # Only the dashboard runs here: app, Postgres and Redis on a dedicated
 # `coolify` Podman network, with just the app publishing loopback ports for
 # Caddy (nixos/caddy/coolify.nix). Coolify deploys applications over SSH to
-# the Docker hosts registered in its UI (crux today; see docs/coolify.md).
+# the Docker hosts registered in its UI (crux today; see docs/coolify-ace.md).
 # This is the Podman/NixOS equivalent of upstream's docker-compose.prod.yml.
 #
 # Why a network and not a pod: a pod shares one network namespace owned by

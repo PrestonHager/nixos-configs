@@ -7,7 +7,7 @@
 # for *.apps.prestonhager.com terminates on ace's Caddy, which forwards here.
 #
 # Coolify does not list NixOS as a supported OS, so the server was registered
-# with is_reachable/is_usable set directly (docs/coolify.md). Docker and
+# with is_reachable/is_usable set directly (docs/coolify-ace.md). Docker and
 # Compose come from virtualisation.docker in hosts/pterodactyl-nodes.
 { pkgs, ... }:
 

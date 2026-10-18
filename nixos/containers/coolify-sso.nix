@@ -1,6 +1,6 @@
 # Zitadel login for the Coolify dashboard.
 #
-# Zitadel side (created 2026-10-18; see docs/coolify.md):
+# Zitadel side (created 2026-10-18; see docs/coolify-ace.md):
 #   project "Coolify" (id below) with "check authorization on authentication",
 #   so only users granted coolify_admin or coolify_member can sign in;
 #   OIDC web app "Coolify" -> https://coolify.prestonhager.com/auth/zitadel/callback.
