@@ -71,6 +71,9 @@ in
       "--cap-add=NET_ADMIN"
       "--cap-add=SYS_MODULE"
       #"--cap-add=NET_RAW"
+      # Host /etc/hosts maps the vhost to 127.0.0.1, which is the container's own
+      # loopback; point it at Caddy on the host so the Zitadel OIDC login works.
+      "--add-host=zitadel.prestonhager.com:host-gateway"
     ];
 
     # User and group to run the container as

@@ -20,7 +20,7 @@ groups:
               editorMode: code
               expr: >-
                 sum by (host) (count_over_time({job="systemd-journal"}
-                |= "Failed password" or |= "Invalid user" [5m])) > 10
+                |~ "Failed password|Invalid user" [5m])) > 10
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
