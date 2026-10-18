@@ -132,5 +132,53 @@
     "majorWarnings": [
       "Caddy is supplied by nixpkgs; auto-updates require a full flake input bump."
     ]
+  },
+  "grafana-image-renderer": {
+    "enabled": false,
+    "strategy": "monitor-only",
+    "nixFile": "nixos/containers/grafana.nix",
+    "majorWarnings": [
+      "Monitor-only: bump imageRendererVersion in nixos/containers/grafana.nix by hand."
+    ]
+  },
+  "pushgateway": {
+    "enabled": false,
+    "strategy": "monitor-only",
+    "nixFile": "nixos/containers/pushgateway.nix",
+    "majorWarnings": [
+      "Monitor-only: bump the image tag in nixos/containers/pushgateway.nix by hand."
+    ]
+  },
+  "wg-portal": {
+    "enabled": false,
+    "strategy": "monitor-only",
+    "nixFile": "nixos/containers/wg-portal.nix",
+    "majorWarnings": [
+      "Monitor-only: wg-portal upgrades can migrate its database; bump nixos/containers/wg-portal.nix by hand."
+    ]
+  },
+  "nextcloud-whiteboard": {
+    "enabled": false,
+    "strategy": "monitor-only",
+    "nixFile": "nixos/containers/nextcloud.nix",
+    "majorWarnings": [
+      "Monitor-only: whiteboardImage follows the floating :stable tag; pin a version in nixos/containers/nextcloud.nix to control upgrades."
+    ]
+  },
+  "coolify": {
+    "enabled": false,
+    "strategy": "monitor-only",
+    "nixFile": "nixos/containers/coolify.nix",
+    "majorWarnings": [
+      "Monitor-only: coolifyImage is pinned by digest; update the digest in nixos/containers/coolify.nix by hand."
+    ]
+  },
+  "mediawiki": {
+    "enabled": false,
+    "strategy": "monitor-only",
+    "nixFile": "nixos/containers/mediawiki.nix",
+    "majorWarnings": [
+      "Monitor-only: MediaWiki upgrades need the staged procedure in nixos/containers/mediawiki.nix (homelab.mediawiki.enableUpgrade)."
+    ]
   }
 }

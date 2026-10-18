@@ -2,17 +2,68 @@
 # Collect installed vs upstream versions for Ace services; write Prometheus textfile metrics.
 set -euo pipefail
 
-OUT_DIR="/var/lib/node-exporter-textfile"
+# Overridable so the functions can be sourced and tested without touching the
+# live textfile or cache (see the guard at the bottom).
+OUT_DIR="${ACE_VERSION_OUT_DIR:-/var/lib/node-exporter-textfile}"
 OUT_FILE="${OUT_DIR}/ace_versions.prom"
 TMP="${OUT_FILE}.$$"
-CACHE_DIR="/var/lib/ace-version-cache"
+CACHE_DIR="${ACE_VERSION_CACHE_DIR:-/var/lib/ace-version-cache}"
 CACHE_TTL="${ACE_VERSION_CACHE_TTL:-21600}"
 
-mkdir -p "$OUT_DIR" "$CACHE_DIR"
+# Highest stable version among the strings on stdin. Strips the usual tag
+# prefixes, then keeps only plain X.Y or X.Y.Z (no -rc, -beta, +build, tokumx-).
+highest_stable() {
+  sed -E 's#^(v|V|release/|release-v|Release/|Release-v|clamav-|CLAMAV-)##' \
+    | awk '/^[0-9]+\.[0-9]+(\.[0-9]+)?$/' \
+    | sort -V | tail -n 1
+}
 
-github_latest() {
+# Same, but strictly X.Y.Z. For registries whose tag lists mix in floating
+# tags such as "12.3" or "13" that would otherwise outrank the real releases.
+highest_stable_strict() {
+  awk '/^[0-9]+\.[0-9]+\.[0-9]+$/' | sort -V | tail -n 1
+}
+
+github_api() {
+  curl -fsSL --connect-timeout 10 --max-time 30 \
+    -H "Accept: application/vnd.github+json" \
+    -H "User-Agent: ace-version-check" \
+    "https://api.github.com/$1" 2>/dev/null
+}
+
+# Highest stable release among the 100 most recent, falling back to tags for
+# repos that publish none. Not releases/latest: that is simply the most recently
+# published release, which is often a backport (Nextcloud's said 33.0.10 while
+# 34.0.3 ran and 35.0.2 was out; Prometheus LTS point releases do the same).
+# Overall-highest rather than same-major on purpose, so a new major still shows
+# up as major_behind.
+fetch_github_stable() {
+  local repo="$1" v
+  v="$(github_api "repos/${repo}/releases?per_page=100" \
+    | jq -r '.[] | select((.draft | not) and (.prerelease | not)) | .tag_name' \
+    | highest_stable || true)"
+  if [[ -z "$v" ]]; then
+    v="$(github_api "repos/${repo}/tags?per_page=100" | jq -r '.[].name' | highest_stable || true)"
+  fi
+  printf '%s\n' "$v"
+}
+
+# Highest strict X.Y.Z tag of a Docker Hub image, e.g. library/mariadb. Used where
+# the GitHub repo has no usable releases (MariaDB/server's tags start with
+# tokumx-*) or where the image is what we actually run.
+fetch_dockerhub_stable() {
   local repo="$1"
-  local cache="${CACHE_DIR}/github_${repo//\//_}.json"
+  curl -fsSL --connect-timeout 10 --max-time 30 \
+    "https://hub.docker.com/v2/repositories/${repo}/tags?page_size=100&ordering=last_updated" 2>/dev/null \
+    | jq -r '.results[].name' \
+    | highest_stable_strict || true
+}
+
+# cached_latest KEY CMD...: run CMD at most once per CACHE_TTL; on failure, serve
+# the last good value.
+cached_latest() {
+  local key="$1"; shift
+  local cache="${CACHE_DIR}/latest_${key//\//_}.json"
   local now fetched_at version
 
   now="$(date +%s)"
@@ -23,38 +74,25 @@ github_latest() {
     fi
   fi
 
-  version="$(
-    curl -fsSL --connect-timeout 10 --max-time 30 \
-      -H "Accept: application/vnd.github+json" \
-      -H "User-Agent: ace-version-check" \
-      "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null \
-      | jq -r '.tag_name // empty' \
-      || true
-  )"
-
-  if [[ -z "$version" ]]; then
-    version="$(
-      curl -fsSL --connect-timeout 10 --max-time 30 \
-        -H "Accept: application/vnd.github+json" \
-        -H "User-Agent: ace-version-check" \
-        "https://api.github.com/repos/${repo}/tags?per_page=1" 2>/dev/null \
-        | jq -r '.[0].name // empty' \
-        || true
-    )"
-  fi
-
+  version="$("$@" || true)"
+  version="$(normalize_version "$version")"
   if [[ -n "$version" ]]; then
-    version="$(normalize_version "$version")"
-    if [[ -n "$version" ]]; then
-      jq -n --arg v "$version" --argjson t "$now" '{version:$v,fetched_at:$t}' > "$cache"
-      printf '%s\n' "$version"
-      return 0
-    fi
+    jq -n --arg v "$version" --argjson t "$now" '{version:$v,fetched_at:$t}' > "$cache"
+    printf '%s\n' "$version"
+    return 0
   fi
 
   if [[ -f "$cache" ]]; then
     jq -r '.version // empty' "$cache" 2>/dev/null || true
   fi
+}
+
+github_latest() {
+  cached_latest "gh_$1" fetch_github_stable "$1"
+}
+
+dockerhub_latest() {
+  cached_latest "hub_$1" fetch_dockerhub_stable "$1"
 }
 
 normalize_version() {
@@ -423,6 +461,51 @@ current_notify_push() {
   normalize_version "$v"
 }
 
+# Monitor-only services (registry rows with enabled=false): tracked here so
+# Grafana shows the lag, never auto-updated.
+
+current_grafana_image_renderer() {
+  version_from_container_tag grafana-image-renderer
+}
+
+current_pushgateway() {
+  version_from_container_tag pushgateway
+}
+
+current_wg_portal() {
+  version_from_container_tag wg-portal
+}
+
+current_mediawiki() {
+  # localhost/mediawiki-redis:<version>, built from the pinned upstream image.
+  version_from_container_tag mediawiki
+}
+
+current_nextcloud_whiteboard() {
+  local v=""
+  # Runs the floating :stable tag; the app reports its version in package.json.
+  if container_running nextcloud-whiteboard; then
+    v="$(podman exec nextcloud-whiteboard cat package.json 2>/dev/null | jq -r '.version // empty' || true)"
+  fi
+  normalize_version "$v"
+}
+
+current_coolify() {
+  local v=""
+  # Pinned by digest, so the tag says nothing. COOLIFY_VERSION is what the app
+  # reports; config/constants.php carries the same default.
+  if container_running coolify; then
+    v="$(podman exec coolify printenv COOLIFY_VERSION 2>/dev/null || true)"
+    if [[ -z "$v" ]]; then
+      v="$(podman exec coolify cat /var/www/html/config/constants.php 2>/dev/null \
+        | sed -nE "s/.*COOLIFY_VERSION'\) \?: '([^']+)'.*/\1/p" | head -n 1 || true)"
+    fi
+  fi
+  normalize_version "$v"
+}
+
+main() {
+mkdir -p "$OUT_DIR" "$CACHE_DIR"
 {
   printf '%s\n' '# HELP ace_version_check_up Whether ace version check ran successfully.'
   printf '%s\n' '# TYPE ace_version_check_up gauge'
@@ -438,20 +521,36 @@ current_notify_push() {
   emit_service prometheus "$(current_prometheus)" "$(github_latest prometheus/prometheus)"
   emit_service nextcloud "$(current_nextcloud)" "$(nextcloud_docker_latest "$(github_latest nextcloud/server)" || true)"
   emit_service zitadel "$(current_zitadel)" "$(github_latest zitadel/zitadel)"
-  emit_service matrix-synapse "$(current_synapse)" "$(github_latest matrix-org/synapse)"
+  # matrix-org/synapse is archived; development moved to element-hq.
+  emit_service matrix-synapse "$(current_synapse)" "$(github_latest element-hq/synapse)"
   emit_service technitium "$(current_technitium)" "$(github_latest TechnitiumSoftware/DnsServer)"
   emit_service jellyfin "$(current_jellyfin)" "$(github_latest jellyfin/jellyfin)"
   emit_service vaultwarden "$(current_vaultwarden)" "$(github_latest dani-garcia/vaultwarden)"
-  emit_service nextcloud-mariadb "$(current_nextcloud_mariadb)" "$(github_latest MariaDB/server)"
+  # MariaDB/server has no GitHub releases and its tags start with tokumx-*;
+  # the Docker Hub image is what runs.
+  emit_service nextcloud-mariadb "$(current_nextcloud_mariadb)" "$(dockerhub_latest library/mariadb)"
   emit_service caddy "$(current_caddy)" "$(github_latest caddyserver/caddy)"
   emit_service pterodactyl-panel "$(current_pterodactyl)" "$(github_latest pterodactyl/panel)"
-  emit_service pterodactyl-mariadb "$(current_pterodactyl_mariadb)" "$(github_latest MariaDB/server)"
+  emit_service pterodactyl-mariadb "$(current_pterodactyl_mariadb)" "$(dockerhub_latest library/mariadb)"
   emit_service nextcloud-redis "$(current_nextcloud_redis)" "$(github_latest redis/redis)"
   emit_service pterodactyl-redis "$(current_pterodactyl_redis)" "$(github_latest redis/redis)"
   emit_service nextcloud-clamav "$(current_nextcloud_clamav)" "$(github_latest Cisco-Talos/clamav)"
   emit_service notify_push "$(current_notify_push)" "$(github_latest nextcloud/notify_push)"
+  # Monitor-only.
+  emit_service grafana-image-renderer "$(current_grafana_image_renderer)" "$(github_latest grafana/grafana-image-renderer)"
+  emit_service pushgateway "$(current_pushgateway)" "$(github_latest prometheus/pushgateway)"
+  emit_service wg-portal "$(current_wg_portal)" "$(github_latest h44z/wg-portal)"
+  emit_service nextcloud-whiteboard "$(current_nextcloud_whiteboard)" "$(github_latest nextcloud/whiteboard)"
+  emit_service coolify "$(current_coolify)" "$(github_latest coollabsio/coolify)"
+  emit_service mediawiki "$(current_mediawiki)" "$(dockerhub_latest library/mediawiki)"
 } > "$TMP"
 
 chown node_exporter:node_exporter "$TMP" 2>/dev/null || true
 mv "$TMP" "$OUT_FILE"
 chown node_exporter:node_exporter "$OUT_FILE" 2>/dev/null || true
+}
+
+# Run only when executed; `source` it to test the functions on their own.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi
