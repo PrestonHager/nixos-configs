@@ -133,7 +133,9 @@ in
   users.users.pterodactyl = {
     isSystemUser = true;
     group = "pterodactyl";
-    extraGroups = [ "systemd-journal" "docker" ];
+    # `users` (gid 100): node TLS keys arrive over NFS as 0640 root:users
+    # (nixos/caddy/certificates.nix), and Wings must read its own key.
+    extraGroups = [ "systemd-journal" "docker" "users" ];
   };
   users.groups.pterodactyl = { };
 
