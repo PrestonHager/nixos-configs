@@ -28,11 +28,13 @@ in
     mysql = {};
   };
 
-  # Create the data directory
+  # Dedicated ids for the database and cache containers: 999 is not free on
+  # this host (uid 999 is nm-iodine, gid 999 is nscd), so these dirs must not
+  # be handed to those accounts.
   systemd.tmpfiles.rules = [
     "d /phorge 0770 root root -"
-    "d /phorge/data 0770 nm-iodine nscd -"
-    "d /phorge/redis 0770 nm-iodine nscd -"
+    "d /phorge/data 0770 10008 10008 -"
+    "d /phorge/redis 0770 10009 10009 -"
     "d /phorge/html 0770 www-data www-data -"
     "d /phorge/arcanist 0770 www-data www-data -"
     "d /phorge/apache2 0770 root root -"
@@ -99,7 +101,7 @@ in
     "phorge-db" = {
       autoStart = true;
 
-      user = "root:root";
+      user = "10008:10008";
 
       volumes = [
         "/phorge/data:/var/lib/mysql"
@@ -124,7 +126,7 @@ in
     "phorge-redis" = {
       autoStart = true;
 
-      user = "root:root";
+      user = "10009:10009";
 
       volumes = [
         "/phorge/redis:/data"

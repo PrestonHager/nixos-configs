@@ -56,19 +56,38 @@ in
       isSystemUser = true;
       group = "daemon";
     };
+    # Dedicated ids for the database and cache containers.
+    #
+    # These containers used to run as 999:999, which on ace is not free:
+    # uid 999 is nm-iodine and gid 999 is nscd. The tmpfiles rules below used
+    # to name those accounts literally, so /mw/data and /mw/redis ended up
+    # owner-writable by iodine and group-writable by nscd. Pin them into the
+    # 10000+ band instead, which NixOS's allocator never hands out here.
+    "mediawiki-db" = {
+      isSystemUser = true;
+      group = "mediawiki-db";
+      uid = 10004;
+    };
+    "mediawiki-redis" = {
+      isSystemUser = true;
+      group = "mediawiki-redis";
+      uid = 10005;
+    };
   };
   users.groups = {
     www-data = {};
     mysql = {};
     daemon = {};
+    "mediawiki-db" = {};
+    "mediawiki-redis" = {};
   };
 
   # Create the data directory
   systemd.tmpfiles.rules = [
     "d /mw 0755 root root -"
     "d /mw/images 0770 www-data www-data -"
-    "d /mw/data 0770 nm-iodine nscd -"
-    "d /mw/redis 0770 nm-iodine nscd -"
+    "d /mw/data 0770 mediawiki-db mediawiki-db -"
+    "d /mw/redis 0770 mediawiki-redis mediawiki-redis -"
     "d /mw/html 0755 www-data www-data -"
     "d /mw/apache2 0770 root root -"
     "d /mw/run 0770 root root -"
@@ -182,7 +201,9 @@ in
     "mediawiki-db" = {
       autoStart = true;
 
-      user = "root:root";
+      # 10004, not the image's built-in `mysql` user (999). See the
+      # users.users comment above for why 999 is unsafe on this host.
+      user = "10004:10004";
 
       volumes = [
         "/mw/data:/var/lib/mysql"
@@ -207,7 +228,8 @@ in
     "mediawiki-redis" = {
       autoStart = true;
 
-      user = "root:root";
+      # 10005, for the same reason as mediawiki-db above.
+      user = "10005:10005";
 
       volumes = [
         "/mw/redis:/data"

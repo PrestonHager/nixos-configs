@@ -44,6 +44,21 @@ let
     # Web upgrades can run long DB migrations; default 300s is tight.
     Timeout 3600
   '';
+  # The image ships no concurrency directives and no APACHE_* env knobs, so
+  # Apache falls back to its compiled-in prefork defaults: MaxRequestWorkers 150
+  # and MaxConnectionsPerChild 0. On ace that let it reach 150 processes that
+  # each ballooned to ~200 MiB over several days (29 GiB total), which
+  # exhausted RAM + swap and triggered ~47 OOM kills/day. Cap the pool and
+  # recycle workers so memory stays bounded.
+  nextcloudApacheLimits = pkgs.writeText "nextcloud-limits.conf" ''
+    <IfModule mpm_prefork_module>
+      StartServers 4
+      MinSpareServers 4
+      MaxSpareServers 10
+      MaxRequestWorkers 24
+      MaxConnectionsPerChild 1000
+    </IfModule>
+  '';
   ncRuntimeEnv = "/run/nextcloud/container.env";
   nextcloudEnvScript = pkgs.writeShellScript "nextcloud-container-env" ''
     set -euo pipefail
@@ -486,19 +501,42 @@ in
       group = "mysql";
       extraGroups = [ "www-data" ];
     };
+    # Dedicated ids for the database and cache containers.
+    #
+    # These containers used to run as 999:999, which is not free on this host:
+    # uid 999 is nm-iodine and gid 999 is nscd. The tmpfiles rules below named
+    # those accounts literally, so the MySQL and Redis data directories ended
+    # up owner-writable by iodine and group-writable by nscd. Pin these into
+    # the 10000+ band, which the allocator never hands out here.
+    "nextcloud-db" = {
+      isSystemUser = true;
+      group = "nextcloud-db";
+      uid = 10002;
+    };
+    "nextcloud-redis" = {
+      isSystemUser = true;
+      group = "nextcloud-redis";
+      uid = 10003;
+    };
   };
   users.groups = {
     www-data = {};
     mysql = {};
+    "nextcloud-db" = {};
+    "nextcloud-redis" = {};
   };
 
   systemd.tmpfiles.rules = [
     "d ${ncRoot} 0770 root root -"
     "d ${ncRoot}/data 0770 www-data www-data -"
     "d ${ncRoot}/data/custom_apps 0755 www-data www-data -"
-    "d ${ncRoot}/mysql 0770 nm-iodine nscd -"
-    "d ${ncRoot}/redis 0770 nm-iodine nscd -"
-    "d ${ncRoot}/clamav 0770 nm-iodine nscd -"
+    "d ${ncRoot}/mysql 0770 nextcloud-db nextcloud-db -"
+    "d ${ncRoot}/redis 0770 nextcloud-redis nextcloud-redis -"
+    # nextcloud-clamav runs as root but clamd/freshclam inside drop to the image's
+    # own clamav user (100:101, which is unused on this host). Use those
+    # numbers rather than nm-iodine:nscd, which handed nscd write access to
+    # the signature database for no reason.
+    "d ${ncRoot}/clamav 0770 100 101 -"
     "d /run/nextcloud 0750 root root -"
   ];
 
@@ -713,6 +751,7 @@ in
         "${nextcloudRclone}/bin/rclone:/usr/local/bin/rclone:ro"
         "${nextcloudApacheHsts}:/etc/apache2/conf-enabled/z-nextcloud-hsts.conf:ro"
         "${nextcloudApacheTimeouts}:/etc/apache2/conf-enabled/z-nextcloud-timeouts.conf:ro"
+        "${nextcloudApacheLimits}:/etc/apache2/conf-enabled/z-nextcloud-limits.conf:ro"
       ];
       environment = {
         APACHE_PORT = "80";
@@ -799,7 +838,9 @@ in
     };
     nextcloud-db = {
       autoStart = true;
-      user = "root:root";
+      # 10002, not the image's built-in `mysql` user (999).
+      # See the users.users comment above for why 999 is unsafe here.
+      user = "10002:10002";
       volumes = [
         "${ncRoot}/mysql:/var/lib/mysql:z"
       ];
@@ -822,7 +863,8 @@ in
     };
     nextcloud-redis = {
       autoStart = true;
-      user = "root:root";
+      # 10003, for the same reason as nextcloud-db.
+      user = "10003:10003";
       volumes = [
         "${ncRoot}/redis:/data"
       ];
