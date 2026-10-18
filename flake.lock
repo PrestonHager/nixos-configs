@@ -24,11 +24,11 @@
     "blueprint-framework": {
       "flake": false,
       "locked": {
-        "lastModified": 1788113340,
-        "narHash": "sha256-q4MFs4XgdYsT/VuPWspEZC8OQRqsVW6d06Qb7rFrI7c=",
+        "lastModified": 1789954303,
+        "narHash": "sha256-Vi9tf9qaB2gNpY7oPUStBS4XLROWHUM5T5bsR3VraYM=",
         "owner": "BlueprintFramework",
         "repo": "framework",
-        "rev": "74830f852a1ff3f1c3bccba76eff9a001dcca773",
+        "rev": "f14c0fe7db67332a7492668c2a72fc1c7dab6181",
         "type": "github"
       },
       "original": {
@@ -65,11 +65,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1781152676,
-        "narHash": "sha256-RxWs5ND31KzTG7wvMM+PMfUjyNpmIEr999lqNARaM5o=",
+        "lastModified": 1789770686,
+        "narHash": "sha256-uZkBR7yHdIKUFB5SZdfgh1qkGfI3XmYmI/lTiquxbck=",
         "owner": "nix-community",
         "repo": "disko",
-        "rev": "ff8702b4de27f72b4c78573dfb89ec74e36abdf1",
+        "rev": "725ea35e410ad83be4931d1bff7e090eacaf3563",
         "type": "github"
       },
       "original": {
@@ -121,11 +121,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1788199093,
-        "narHash": "sha256-gh09zTgEsbnoWwrNPzIDajc/HoE446Sc3yKDCPFa7Xs=",
+        "lastModified": 1791163078,
+        "narHash": "sha256-DiuwfdoZtEqVRsWuAhXcHa+cfvkr0t/xWW8ugkcxNyI=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "f772b7f968365e7b2b70a860c509d214639556fe",
+        "rev": "f53f3267f5d009dd8f99443505e609389d7ff267",
         "type": "github"
       },
       "original": {
@@ -140,11 +140,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1788049512,
-        "narHash": "sha256-hKgSfcqUaf6Es2mayOPoywDa2sW/OzkmgVrWQH3obdU=",
+        "lastModified": 1791185037,
+        "narHash": "sha256-ytwbyACpJCB3asH1pDXpBB53Zu49tgm+Z3AXj5LS3tE=",
         "ref": "refs/heads/main",
-        "rev": "a4a4dd7620d95f35355d6770bc0d3c2fe4e0a512",
-        "revCount": 98,
+        "rev": "2bbc018cbe36ef8da4b1abeb0a5bf9fb13b665aa",
+        "revCount": 101,
         "type": "git",
         "url": "ssh://git@github.com/PrestonHager/nixos-secrets.git"
       },
@@ -187,11 +187,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1788179007,
-        "narHash": "sha256-hn1oU2rue2SYK8dAr8+WNZWtbsz1S2W5mnHlSEuh3bo=",
+        "lastModified": 1791048980,
+        "narHash": "sha256-KgItSKML8Xvte0B7/uGnBDsYzSnnKHcOaiUbgWBXLXw=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "34ab99075ac4f7e40cf037eef32cb1c360bb85e9",
+        "rev": "a7868a727837f3c09cee2ce0ca671c76b1589fed",
         "type": "github"
       },
       "original": {
@@ -236,11 +236,11 @@
     "pterodactyl-minecraft-tools": {
       "flake": false,
       "locked": {
-        "lastModified": 1788207709,
-        "narHash": "sha256-HX8UmMUgtiCbOlgOZE+3TyMUh0ZwZ145c65+5ZpoGv8=",
+        "lastModified": 1788671055,
+        "narHash": "sha256-8NuR4YszKC82YA03yDSGG9N+0FN4JdFDNi+52CO5LpQ=",
         "owner": "PrestonHager",
         "repo": "pterodactyl-blueprint-minecraft-tools",
-        "rev": "f2aebd0db9eeedf756ac134c43528109909a5b40",
+        "rev": "779b31410cdf5bb6e3eaf79135fc7dd05d760198",
         "type": "github"
       },
       "original": {
@@ -309,11 +309,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1786629091,
-        "narHash": "sha256-gkig4nPi1CWc4Z50GBsjE4ygSE7hMpl/TwID2an2Cck=",
+        "lastModified": 1791103873,
+        "narHash": "sha256-nFxM+pKoZ8LJAEnUXARyCaOAloWgaW9kZQOSjWzKcTE=",
         "owner": "Mic92",
         "repo": "sops-nix",
-        "rev": "a8627b21b9107c5711c96b84f32a9a4b3d45295f",
+        "rev": "dcd241ba97088c22569d1573286e1b9daad340c0",
         "type": "github"
       },
       "original": {
