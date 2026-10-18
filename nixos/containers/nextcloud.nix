@@ -682,7 +682,19 @@ in
     "podman-nextcloud-db".partOf = [ "pod-nextcloud.service" ];
     "podman-nextcloud-redis".partOf = [ "pod-nextcloud.service" ];
     "podman-nextcloud-clamav".partOf = [ "pod-nextcloud.service" ];
-    "podman-nextcloud-notify-push".partOf = [ "pod-nextcloud.service" ];
+    # dependsOn below already gives After= and Requires= on podman-nextcloud
+    # (and clamav), so a stop or restart of the app container propagates here;
+    # PartOf= on it would add nothing. What was missing is a restart delay:
+    # the 100ms default burned all 5 starts in 2s (podman lock exhaustion,
+    # 2026-10-18 04:07) and left notify_push down until a manual start.
+    # (StartLimitBurst - 1) * RestartSec > StartLimitIntervalSec, so the
+    # automatic restarts cannot hit the start limit.
+    "podman-nextcloud-notify-push" = {
+      partOf = [ "pod-nextcloud.service" ];
+      startLimitIntervalSec = 60;
+      startLimitBurst = 10;
+      serviceConfig.RestartSec = 10;
+    };
     "podman-nextcloud-whiteboard".partOf = [ "pod-nextcloud.service" ];
   };
 
@@ -818,6 +830,10 @@ in
         # The image's VOLUME /var/www/html is unused here (config and custom_apps
         # are bind-mounted); without this each run left an anonymous volume behind.
         "--image-volume=tmpfs"
+        # The image STOPSIGNAL is SIGWINCH (Apache graceful stop). notify_push runs
+        # as PID 1 and does not catch it, so every stop waited 10s, was SIGKILLed
+        # (exit 137) and marked the unit failed on each rebuild. It handles SIGTERM.
+        "--stop-signal=SIGTERM"
       ];
     };
     nextcloud-whiteboard = {
