@@ -49,6 +49,12 @@ in {
     size = 32 * 1024; # MiB
   }];
 
+  # Redis (coolify-redis and the other Redis containers) warns "Memory overcommit
+  # must be enabled" and can fail BGSAVE/fork under memory pressure without it.
+  # The vm.overcommit_* entries in nixos/default.nix boot.kernelParams lack the
+  # sysctl. prefix and are ignored by the kernel, so set it here.
+  boot.kernel.sysctl."vm.overcommit_memory" = 1;
+
   # Memory-bound host: keep concurrent derivations low, give each build more cores.
   nix.settings = {
     max-jobs = 4;
