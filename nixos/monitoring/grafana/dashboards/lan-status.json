@@ -6,7 +6,9 @@
     "uptime",
     "ace",
     "crux",
-    "nova"
+    "nova",
+    "elara",
+    "zenith"
   ],
   "timezone": "browser",
   "schemaVersion": 39,
@@ -16,7 +18,7 @@
     "from": "now-24h",
     "to": "now"
   },
-  "description": "Combined LAN health: ace services (local + LAN + external perspectives), crux host metrics, and TCP reachability for ace/crux/nova.",
+  "description": "Combined LAN health: ace services (local + LAN + external perspectives), crux host metrics, and TCP reachability for ace, crux and the nova/elara/zenith nodes.",
   "links": [
     {
       "title": "Ace Uptime",
@@ -763,7 +765,7 @@
     },
     {
       "id": 12,
-      "title": "Ace HTTP \u2014 local vs LAN vs external latency",
+      "title": "Ace HTTP — local vs LAN vs external latency",
       "type": "bargauge",
       "gridPos": {
         "h": 4,
@@ -1119,7 +1121,7 @@
     },
     {
       "id": 15,
-      "title": "Probe success \u2014 all perspectives",
+      "title": "Probe success — all perspectives",
       "type": "timeseries",
       "gridPos": {
         "h": 8,

@@ -103,11 +103,7 @@ in
       image = postgresImage;
       volumes = [ "${root}/postgres:/var/lib/postgresql/data" ];
       environmentFiles = [ config.sops.secrets."coolify-db-env".path ];
-      extraOptions = [
-        "--pod=coolify"
-        "--health-cmd=pg_isready -U coolify -d coolify"
-        "--health-interval=10s"
-      ];
+      extraOptions = [ "--pod=coolify" ];
     };
 
     "coolify-redis" = {
@@ -145,12 +141,10 @@ in
         PHP_FPM_PM_MAX_SPARE_SERVERS = "10";
         PUSHER_BACKEND_PORT = "6001";
       };
-      extraOptions = [
-        "--pod=coolify"
-        "--health-cmd=curl -fsS http://127.0.0.1:8080/api/health && curl -fsS http://127.0.0.1:6001/up"
-        "--health-interval=30s"
-        "--health-start-period=2m"
-      ];
+      # No podman --health-cmd: its first run fails while the app boots and leaves a
+      # failed transient unit, which makes nixos-rebuild switch exit 4. Health is
+      # probed by blackbox instead (nixos/monitoring/prometheus-config.nix).
+      extraOptions = [ "--pod=coolify" ];
     };
   };
 

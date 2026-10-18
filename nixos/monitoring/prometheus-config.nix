@@ -18,7 +18,14 @@ let
     "https://zitadel.prestonhager.com/"
     "https://cloud.prestonhager.com/"
     "https://dns.prestonhager.com/"
+    # Coolify control plane (nixos/containers/coolify.nix).
+    "https://coolify.prestonhager.com/api/health"
     "http://127.0.0.1/"
+  ];
+
+  # Apps deployed through Coolify (https://<name>.apps.prestonhager.com/...).
+  # Probed as essential services and listed on the Coolify dashboard.
+  coolifyAppTargets = [
   ];
 
   # Non-essential — still probed and shown in downtime/status, but excluded from Health Summary %.
@@ -50,6 +57,16 @@ let
   ];
 
   cruxTcpStaticConfigs = [
+    {
+      targets = [ "192.168.5.6:80" ];
+      labels = {
+        host = "crux";
+        service = "coolify-proxy";
+        service_role = "http";
+        probe_location = "local";
+        service_tier = "essential";
+      };
+    }
     {
       targets = [ "192.168.5.6:443" ];
       labels = {
@@ -122,6 +139,39 @@ let
         service_role = "https";
         probe_location = "local";
         # Nova is currently offline / not a required Ace dependency.
+        service_tier = "non-essential";
+      };
+    }
+    {
+      targets = [ "192.168.5.7:22" ];
+      labels = {
+        host = "nova";
+        service = "ssh";
+        service_role = "management";
+        probe_location = "local";
+        # Offline: not physically connected (Wings node, flake #nova).
+        service_tier = "non-essential";
+      };
+    }
+    {
+      targets = [ "192.168.5.8:22" ];
+      labels = {
+        host = "elara";
+        service = "ssh";
+        service_role = "management";
+        probe_location = "local";
+        # Planned Wings node (Dell OptiPlex).
+        service_tier = "non-essential";
+      };
+    }
+    {
+      targets = [ "192.168.5.9:22" ];
+      labels = {
+        host = "zenith";
+        service = "ssh";
+        service_role = "management";
+        probe_location = "local";
+        # Planned Wings node (Dell OptiPlex); SSH not answering yet.
         service_tier = "non-essential";
       };
     }
@@ -284,6 +334,14 @@ in {
             labels = {
               probe_location = "local";
               service_tier = "non-essential";
+            };
+          }
+          {
+            targets = coolifyAppTargets;
+            labels = {
+              probe_location = "local";
+              service_tier = "essential";
+              service = "coolify-app";
             };
           }
         ];

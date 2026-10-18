@@ -1,0 +1,111 @@
+{
+  "uid": "coolify",
+  "title": "Coolify",
+  "tags": ["ace", "coolify", "apps"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-24h", "to": "now" },
+  "description": "Coolify control plane on ace (dashboard, Postgres, Redis), its app proxy on crux, and the apps it deploys under *.apps.prestonhager.com.",
+  "links": [
+    { "title": "Coolify", "type": "link", "url": "https://coolify.prestonhager.com", "targetBlank": true },
+    { "title": "LAN Status", "type": "dashboard", "url": "/d/lan-status" }
+  ],
+  "panels": [
+    { "id": 1, "type": "row", "title": "Control plane (ace)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 } },
+    {
+      "id": 2, "type": "stat", "title": "Dashboard health",
+      "description": "Blackbox probe of https://coolify.prestonhager.com/api/health through Caddy.",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {
+        "mappings": [{ "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }],
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] } } },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "probe_success{job=\"blackbox-http\",instance=\"https://coolify.prestonhager.com/api/health\"}", "instant": true, "refId": "A" }]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Containers active",
+      "description": "podman-coolify, podman-coolify-db and podman-coolify-redis systemd units.",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "none",
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 1 }, { "color": "green", "value": 3 }] } } },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "value_and_name",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "sum(node_systemd_unit_state{state=\"active\",name=~\"podman-coolify(-db|-redis)?\\\\.service\"})", "legendFormat": "of 3", "instant": true, "refId": "A" }]
+    },
+    {
+      "id": 4, "type": "stat", "title": "TLS certificate",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "d", "decimals": 0,
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 14 }, { "color": "green", "value": 30 }] } } },
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "center", "textMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "(probe_ssl_earliest_cert_expiry{job=\"blackbox-http\",instance=\"https://coolify.prestonhager.com/api/health\"} - time()) / 86400", "instant": true, "refId": "A" }]
+    },
+    {
+      "id": 5, "type": "stat", "title": "App proxy (crux :80)",
+      "description": "Coolify's Traefik proxy on the deploy server. *.apps.prestonhager.com is forwarded here by Caddy on ace.",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {
+        "mappings": [{ "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }],
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] } } },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "probe_success{job=\"blackbox-tcp-crux\",service=\"coolify-proxy\"}", "instant": true, "refId": "A" }]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Dashboard response time",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [{ "expr": "probe_duration_seconds{job=\"blackbox-http\",instance=\"https://coolify.prestonhager.com/api/health\"}", "legendFormat": "api/health", "refId": "A" }]
+    },
+    {
+      "id": 7, "type": "state-timeline", "title": "Container units",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {
+        "mappings": [{ "type": "value", "options": { "0": { "text": "down", "color": "red" }, "1": { "text": "active", "color": "green" } } }],
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] } } },
+      "options": { "showValue": "never", "mergeValues": true },
+      "targets": [{ "expr": "node_systemd_unit_state{state=\"active\",name=~\"pod-coolify\\\\.service|podman-coolify(-db|-redis)?\\\\.service\"}", "legendFormat": "{{name}}", "refId": "A" }]
+    },
+    { "id": 8, "type": "row", "title": "Deployed apps (*.apps.prestonhager.com)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 } },
+    {
+      "id": 9, "type": "table", "title": "App probes",
+      "description": "URLs listed in coolifyAppTargets (nixos/monitoring/prometheus-config.nix). Empty until an app is added there.",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {}, "overrides": [
+        { "matcher": { "id": "byName", "options": "Value #status" }, "properties": [
+          { "id": "displayName", "value": "Status" },
+          { "id": "mappings", "value": [{ "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }] },
+          { "id": "custom.cellOptions", "value": { "type": "color-background" } } ] },
+        { "matcher": { "id": "byName", "options": "Value #latency" }, "properties": [
+          { "id": "displayName", "value": "Response time" }, { "id": "unit", "value": "s" } ] },
+        { "matcher": { "id": "byName", "options": "Value #cert" }, "properties": [
+          { "id": "displayName", "value": "Cert days left" }, { "id": "unit", "value": "d" }, { "id": "decimals", "value": 0 } ] } ] },
+      "transformations": [
+        { "id": "merge", "options": {} },
+        { "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "job": true, "module": true, "probe_location": true, "service": true, "service_tier": true } } } ],
+      "targets": [
+        { "expr": "probe_success{job=\"blackbox-http\",service=\"coolify-app\"}", "format": "table", "instant": true, "refId": "status" },
+        { "expr": "probe_duration_seconds{job=\"blackbox-http\",service=\"coolify-app\"}", "format": "table", "instant": true, "refId": "latency" },
+        { "expr": "(probe_ssl_earliest_cert_expiry{job=\"blackbox-http\",service=\"coolify-app\"} - time()) / 86400", "format": "table", "instant": true, "refId": "cert" } ]
+    },
+    {
+      "id": 10, "type": "timeseries", "title": "App response time",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [{ "expr": "probe_duration_seconds{job=\"blackbox-http\",service=\"coolify-app\"}", "legendFormat": "{{instance}}", "refId": "A" }]
+    }
+  ]
+}
+

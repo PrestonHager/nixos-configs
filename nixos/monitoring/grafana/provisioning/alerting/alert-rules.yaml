@@ -60,13 +60,11 @@ groups:
         for: 5m
         annotations:
           description: >-
-            Blackbox probe {{ $labels.job }} for {{ $labels.instance }}
-            ({{ $labels.probe_location }}) has been failing for at least 5 minutes.
+            Blackbox probe {{ $labels.job }} for {{ $labels.instance }} ({{ $labels.probe_location }}) has been failing for at least 5 minutes.
           summary: Service probe failed — {{ $labels.instance }}
         labels:
           severity: critical
           alert_type: service_down
-
       - uid: ace_scrape_down
         title: Ace Prometheus scrape target down
         condition: C
@@ -118,13 +116,11 @@ groups:
         for: 10m
         annotations:
           description: >-
-            Prometheus job {{ $labels.job }} target {{ $labels.instance }} has been
-            unscrapeable for at least 10 minutes.
+            Prometheus job {{ $labels.job }} target {{ $labels.instance }} has been unscrapeable for at least 10 minutes.
           summary: Scrape target down — {{ $labels.job }} {{ $labels.instance }}
         labels:
           severity: warning
           alert_type: monitoring
-
       - uid: ace_metrics_absent
         title: Ace monitoring series missing
         condition: C
@@ -139,10 +135,7 @@ groups:
               # absent() returns 1 (labelled with the job) when a whole job has
               # vanished, which the per-series rules above cannot see.
               expr: >-
-                absent(up{job="node"})
-                or absent(up{job="pushgateway-external"})
-                or absent(probe_success{job="blackbox-http"})
-                or absent(probe_success{job="external-http-probe"})
+                absent(up{job="node"}) or absent(up{job="pushgateway-external"}) or absent(probe_success{job="blackbox-http"}) or absent(probe_success{job="external-http-probe"})
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
@@ -182,13 +175,11 @@ groups:
         for: 10m
         annotations:
           description: >-
-            No {{ $labels.job }} series in Prometheus for 10 minutes; that job's
-            alerts cannot fire.
+            No {{ $labels.job }} series in Prometheus for 10 minutes; that job's alerts cannot fire.
           summary: Monitoring series missing — {{ $labels.job }}
         labels:
           severity: warning
           alert_type: monitoring
-
       - uid: ace_pushgateway_stale
         title: Ace external probe push stale
         condition: C
@@ -241,13 +232,67 @@ groups:
         for: 5m
         annotations:
           description: >-
-            crux has not pushed external probe results for over 20 minutes
-            (timer runs every 5). External probe data in Grafana is stale.
+            crux has not pushed external probe results for over 20 minutes (timer runs every 5). External probe data in Grafana is stale.
           summary: External probe push stale
         labels:
           severity: warning
           alert_type: monitoring
-
+      - uid: ace_coolify_unit_down
+        title: Coolify container down
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              # 1 per target Prometheus cannot scrape (exporter or service down).
+              expr: 1 - node_systemd_unit_state{state="active",name=~"podman-coolify(-db|-redis)?\.service"}
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          description: >-
+            {{ $labels.name }} on ace has not been active for 5 minutes. The Coolify dashboard and deployments are unavailable. Check: systemctl status {{ $labels.name }}; podman logs coolify
+          summary: Coolify container down — {{ $labels.name }}
+        labels:
+          severity: critical
+          alert_type: service_down
   - orgId: 1
     name: ace-version-updates
     folder: Ace Alerts
@@ -303,13 +348,11 @@ groups:
         for: 0s
         annotations:
           description: >-
-            {{ $labels.service }} is on {{ $labels.current }}; latest upstream is
-            {{ $labels.latest }} (major version behind).
+            {{ $labels.service }} is on {{ $labels.current }}; latest upstream is {{ $labels.latest }} (major version behind).
           summary: Major update available — {{ $labels.service }}
         labels:
           severity: critical
           alert_type: version_major
-
       - uid: ace_version_minor
         title: Ace service minor or patch update available
         condition: C
@@ -360,8 +403,7 @@ groups:
         for: 1h
         annotations:
           description: >-
-            {{ $labels.service }} is on {{ $labels.current }}; latest upstream is
-            {{ $labels.latest }} (patch or minor update available).
+            {{ $labels.service }} is on {{ $labels.current }}; latest upstream is {{ $labels.latest }} (patch or minor update available).
           summary: Update available — {{ $labels.service }}
         labels:
           severity: warning

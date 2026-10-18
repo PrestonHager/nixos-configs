@@ -141,6 +141,7 @@ in {
     (etcPath "grafana/dashboards/ace/ace-http-probes.json")
     (etcPath "grafana/dashboards/ace/ace-tcp-probes.json")
     (etcPath "grafana/dashboards/ace/ace-versions.json")
+    (etcPath "grafana/dashboards/ace/coolify.json")
     (etcPath "grafana/dashboards/crux/crux-uptime.json")
     (etcPath "grafana/dashboards/crux/crux-http-probes.json")
     (etcPath "grafana/dashboards/lan/lan-status.json")
@@ -243,6 +244,7 @@ in {
       "${etcPath "grafana/dashboards/ace/ace-http-probes.json"}:/etc/grafana/dashboards/ace/ace-http-probes.json:ro"
       "${etcPath "grafana/dashboards/ace/ace-tcp-probes.json"}:/etc/grafana/dashboards/ace/ace-tcp-probes.json:ro"
       "${etcPath "grafana/dashboards/ace/ace-versions.json"}:/etc/grafana/dashboards/ace/ace-versions.json:ro"
+      "${etcPath "grafana/dashboards/ace/coolify.json"}:/etc/grafana/dashboards/ace/coolify.json:ro"
       "${etcPath "grafana/dashboards/crux/crux-uptime.json"}:/etc/grafana/dashboards/crux/crux-uptime.json:ro"
       "${etcPath "grafana/dashboards/crux/crux-http-probes.json"}:/etc/grafana/dashboards/crux/crux-http-probes.json:ro"
       "${etcPath "grafana/dashboards/lan/lan-status.json"}:/etc/grafana/dashboards/lan/lan-status.json:ro"

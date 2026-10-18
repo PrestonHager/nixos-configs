@@ -1,24 +1,50 @@
 {
   "uid": "network-topology",
   "title": "Network Topology & Ports",
-  "tags": ["lan", "network", "ports", "topology", "blackbox"],
+  "tags": [
+    "lan",
+    "network",
+    "ports",
+    "topology",
+    "blackbox"
+  ],
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
   "refresh": "30s",
-  "time": { "from": "now-6h", "to": "now" },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
   "description": "LAN topology, Crux open ports, Astracap WAN forwards, and live up/down from ace blackbox probes. See docs/crux-ports.md for the inventory table.",
   "links": [
-    { "title": "Crux Uptime", "type": "dashboard", "url": "/d/crux-uptime" },
-    { "title": "Ace Uptime", "type": "dashboard", "url": "/d/ace-uptime" },
-    { "title": "LAN Status", "type": "dashboard", "url": "/d/lan-status" }
+    {
+      "title": "Crux Uptime",
+      "type": "dashboard",
+      "url": "/d/crux-uptime"
+    },
+    {
+      "title": "Ace Uptime",
+      "type": "dashboard",
+      "url": "/d/ace-uptime"
+    },
+    {
+      "title": "LAN Status",
+      "type": "dashboard",
+      "url": "/d/lan-status"
+    }
   ],
   "panels": [
     {
       "id": 1,
       "type": "row",
       "title": "Topology",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "collapsed": false,
       "panels": []
     },
@@ -27,10 +53,15 @@
       "title": "Network diagram",
       "description": "Logical LAN path and static WAN NAT (live inventory Jul 2026)",
       "type": "text",
-      "gridPos": { "h": 10, "w": 14, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 10,
+        "w": 14,
+        "x": 0,
+        "y": 1
+      },
       "options": {
         "mode": "markdown",
-        "content": "```\nInternet / ISP  (73.26.67.25 → modem 10.0.0.x)\n        |\n   Astracap .1  Gi0/0 WAN  +  Gi0/2 LAN\n   WAN NAT: TCP 80/443 → ace .5 only\n   (no static NAT to crux/nova today)\n        |\n  Astraquasar .3  (L2 switch)\n     |----------+----------+----------|\n   ace .5     crux .6    nova .7    clients\n  Caddy/DNS   Wings      Wings      DHCP .21+\n  Grafana     SFTP:2022  :443\n  Panel       SSH:22\n```\n\n**Crux firewall (Nix):** TCP **22**, **443**, **2022** public on LAN; **9090**/**9115** ace-only.\n\n**Not probed from ace:** MariaDB `:3306` (localhost), Alloy `:12345` (localhost), node_exporter `:9100` (firewalled), dynamic Docker game ports."
+        "content": "```\nInternet / ISP  (73.26.67.25 → modem 10.0.0.x)\n        |\n   Astracap .1  Gi0/0 WAN  +  Gi0/2 LAN\n   WAN NAT: TCP 80/443 → ace .5 only\n   (no static NAT to crux/nova today)\n        |\n  Astraquasar .3  (L2 switch)\n     |----------+----------+----------|\n   ace .5     crux .6    nova .7    elara .8   zenith .9   clients\n  Caddy/DNS   Wings      Wings      Wings      Wings       DHCP .21+\n  Grafana     SFTP:2022  (offline)  (planned)  (planned)\n  Panel       SSH:22\n  Coolify     Coolify proxy :80\n```\n\n**Crux firewall (Nix):** TCP **22**, **443**, **2022** public on LAN; **9090**/**9115** ace-only.\n\n**Not probed from ace:** MariaDB `:3306` (localhost), Alloy `:12345` (localhost), node_exporter `:9100` (firewalled), dynamic Docker game ports.\n\n**Nodes:** nova `.7` is not physically connected; elara `.8` and zenith `.9` are planned Wings nodes. All three are probed on SSH :22 as non-essential (shown here, not paged). Coolify apps run on crux behind ace Caddy (`*.apps.prestonhager.com` → crux:80)."
       }
     },
     {
@@ -38,8 +69,16 @@
       "title": "Hosts Up (HTTPS/SSH)",
       "description": "LAN host TCP probes from ace",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 5, "x": 14, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 14,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
@@ -49,9 +88,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 0.01 },
-              { "color": "green", "value": 100 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
+                "color": "green",
+                "value": 100
+              }
             ]
           }
         }
@@ -60,7 +108,13 @@
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "name"
       },
       "targets": [
@@ -79,16 +133,30 @@
       "id": 4,
       "title": "Crux ports down",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 5, "x": 19, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 19,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 1 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
             ]
           }
         }
@@ -97,7 +165,13 @@
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "value"
       },
       "targets": [
@@ -112,18 +186,44 @@
       "id": 5,
       "title": "ace :443",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 5, "x": 14, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 14,
+        "y": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
             ]
           }
         }
@@ -132,7 +232,13 @@
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "value"
       },
       "targets": [
@@ -147,18 +253,44 @@
       "id": 6,
       "title": "crux :443",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 5, "x": 19, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 19,
+        "y": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
             ]
           }
         }
@@ -167,7 +299,13 @@
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "value"
       },
       "targets": [
@@ -182,7 +320,12 @@
       "id": 7,
       "type": "row",
       "title": "Host & port status",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 11 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 11
+      },
       "collapsed": false,
       "panels": []
     },
@@ -190,18 +333,44 @@
       "id": 8,
       "title": "nova :443",
       "type": "stat",
-      "gridPos": { "h": 3, "w": 4, "x": 0, "y": 12 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 0,
+        "y": 12
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
             ]
           }
         }
@@ -210,12 +379,18 @@
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "value"
       },
       "targets": [
         {
-          "expr": "probe_success{job=\"blackbox-tcp-lan-hosts\",host=\"nova\"}",
+          "expr": "probe_success{job=\"blackbox-tcp-lan-hosts\",host=\"nova\",service=\"wings\"}",
           "instant": true,
           "refId": "A"
         }
@@ -225,18 +400,44 @@
       "id": 9,
       "title": "Astracap SSH",
       "type": "stat",
-      "gridPos": { "h": 3, "w": 4, "x": 4, "y": 12 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 4,
+        "y": 12
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
             ]
           }
         }
@@ -245,7 +446,13 @@
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "value"
       },
       "targets": [
@@ -260,18 +467,44 @@
       "id": 10,
       "title": "Astraquasar SSH",
       "type": "stat",
-      "gridPos": { "h": 3, "w": 4, "x": 8, "y": 12 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 8,
+        "y": 12
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
             ]
           }
         }
@@ -280,7 +513,13 @@
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "value"
       },
       "targets": [
@@ -295,18 +534,44 @@
       "id": 11,
       "title": "Crux SFTP :2022",
       "type": "stat",
-      "gridPos": { "h": 3, "w": 4, "x": 12, "y": 12 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 12,
+        "y": 12
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
             ]
           }
         }
@@ -315,7 +580,13 @@
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "value"
       },
       "targets": [
@@ -330,18 +601,44 @@
       "id": 12,
       "title": "Crux SSH :22",
       "type": "stat",
-      "gridPos": { "h": 3, "w": 4, "x": 16, "y": 12 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 16,
+        "y": 12
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
             ]
           }
         }
@@ -350,7 +647,13 @@
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "value"
       },
       "targets": [
@@ -366,18 +669,44 @@
       "title": "WAN → ace :443",
       "description": "Public HTTPS path ends on ace (static NAT). Not a direct WAN probe.",
       "type": "stat",
-      "gridPos": { "h": 3, "w": 4, "x": 20, "y": 12 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 20,
+        "y": 12
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "NAT OK", "color": "green" } } }
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "NAT OK",
+                  "color": "green"
+                }
+              }
+            }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
             ]
           }
         }
@@ -386,7 +715,13 @@
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "value"
       },
       "targets": [
@@ -401,15 +736,28 @@
       "id": 14,
       "title": "Probed ports — live status",
       "type": "table",
-      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 15 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "custom": { "align": "auto" }
+          "custom": {
+            "align": "auto"
+          }
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Status" },
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
             "properties": [
               {
                 "id": "mappings",
@@ -417,20 +765,42 @@
                   {
                     "type": "value",
                     "options": {
-                      "0": { "text": "DOWN", "color": "red", "index": 1 },
-                      "1": { "text": "UP", "color": "green", "index": 0 }
+                      "0": {
+                        "text": "DOWN",
+                        "color": "red",
+                        "index": 1
+                      },
+                      "1": {
+                        "text": "UP",
+                        "color": "green",
+                        "index": 0
+                      }
                     }
                   }
                 ]
               },
-              { "id": "custom.cellOptions", "value": { "type": "color-background" } }
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Latency" },
+            "matcher": {
+              "id": "byName",
+              "options": "Latency"
+            },
             "properties": [
-              { "id": "unit", "value": "s" },
-              { "id": "decimals", "value": 3 }
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
             ]
           }
         ]
@@ -438,7 +808,12 @@
       "options": {
         "showHeader": true,
         "cellHeight": "sm",
-        "sortBy": [{ "displayName": "Status", "desc": false }]
+        "sortBy": [
+          {
+            "displayName": "Status",
+            "desc": false
+          }
+        ]
       },
       "targets": [
         {
@@ -455,7 +830,12 @@
         }
       ],
       "transformations": [
-        { "id": "seriesToColumns", "options": { "byField": "instance" } },
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "instance"
+          }
+        },
         {
           "id": "organize",
           "options": {
@@ -489,11 +869,284 @@
       "id": 15,
       "title": "WAN port forwards (documented)",
       "type": "text",
-      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 27 },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
       "options": {
         "mode": "markdown",
         "content": "| WAN (Astracap Gi0/0) | Inside | Purpose | Probed? |\n|----------------------|--------|---------|---------|\n| TCP **80** | `192.168.5.5:80` | HTTP → ace / Caddy | via local HTTP probes |\n| TCP **443** | `192.168.5.5:443` | HTTPS → ace | yes (ace services + grafana) |\n| *(none)* | crux `.6` | No static NAT to crux | — |\n| *(none)* | nova `.7` | No static NAT to nova | — |\n| dynamic PAT | all LAN | Outbound internet | n/a |\n\nGame / Wings allocation ports on crux are **LAN-only** unless the Pterodactyl port-forward extension adds NAT. Re-check: `ssh astracap` → `show ip nat translations`."
       }
+    },
+    {
+      "id": 16,
+      "title": "nova SSH :22",
+      "type": "stat",
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 0,
+        "y": 15
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "probe_success{job=\"blackbox-tcp-lan-hosts\",host=\"nova\",service=\"ssh\"}",
+          "instant": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "title": "elara SSH :22",
+      "type": "stat",
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 4,
+        "y": 15
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "probe_success{job=\"blackbox-tcp-lan-hosts\",host=\"elara\",service=\"ssh\"}",
+          "instant": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "title": "zenith SSH :22",
+      "type": "stat",
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 8,
+        "y": 15
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "probe_success{job=\"blackbox-tcp-lan-hosts\",host=\"zenith\",service=\"ssh\"}",
+          "instant": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "title": "Coolify proxy crux :80",
+      "type": "stat",
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 12,
+        "y": 15
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "probe_success{job=\"blackbox-tcp-crux\",service=\"coolify-proxy\"}",
+          "instant": true,
+          "refId": "A"
+        }
+      ]
     }
   ]
 }
