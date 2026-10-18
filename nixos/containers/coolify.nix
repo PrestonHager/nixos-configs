@@ -155,6 +155,10 @@ in
       extraOptions = [
         "--network=${network}"
         "--add-host=host.docker.internal:host-gateway"
+        # The host /etc/hosts maps Caddy vhosts to 127.0.0.1, the container's own
+        # loopback; send Zitadel to Caddy on the host so the OIDC token exchange
+        # (server side of "Sign in with Zitadel") can connect.
+        "--add-host=zitadel.prestonhager.com:host-gateway"
       ];
     };
   };
