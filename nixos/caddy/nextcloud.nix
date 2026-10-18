@@ -23,6 +23,9 @@ in
         file_server
       }
 
+      @metrics path /metrics /metrics/*
+      respond @metrics 404
+
       header Strict-Transport-Security "max-age=15552000; includeSubDomains"
 
       handle_path /push/* {

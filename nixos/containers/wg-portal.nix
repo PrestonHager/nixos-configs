@@ -58,8 +58,11 @@ in
     # Add wireguard and web portal ports
     ports = [
       "51825:51825/udp"
-      "8888:8888/tcp"
-      "8787:8787/tcp"
+      # Web UI: Caddy only. Metrics: Caddy plus Prometheus via the podman0 gateway.
+      # Not 0.0.0.0: netavark DNATs ahead of nixos-fw.
+      "127.0.0.1:8888:8888/tcp"
+      "127.0.0.1:8787:8787/tcp"
+      "10.88.0.1:8787:8787/tcp"
     ];
 
     # Add network admin capabilities and use the host network

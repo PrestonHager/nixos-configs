@@ -27,9 +27,10 @@ in
   virtualisation.oci-containers.containers."vaultwarden" = {
     autoStart = true;
 
-    # <hostPort>:<containerPort>
+    # <hostPort>:<containerPort>. Loopback only: netavark DNATs published ports ahead
+    # of nixos-fw, so 0.0.0.0 would expose Vaultwarden to the LAN. Caddy is the only client.
     ports = [
-      "8081:8081"
+      "127.0.0.1:8081:8081"
     ];
 
     # User and group to run the container as
@@ -45,8 +46,8 @@ in
     environment = {
       ROCKET_PORT = "8081";
       VOLUME = "/data";
-      # Set signups and invitations to false once all users are added
-#      SIGNUPS_ALLOWED = "false";
+      # All users are added; new accounts by invitation only.
+      SIGNUPS_ALLOWED = "false";
 #      INVITATIONS_ALLOWED = "false";
       # Or whitelist specific email domains
 #      SIGNUPS_DOMAINS_WHITELIST = "example.com";

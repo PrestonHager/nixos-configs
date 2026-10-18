@@ -28,8 +28,15 @@ in {
     image = "docker.io/prom/pushgateway:v1.11.3";
   };
 
-  # Accept metric pushes from crux external probe timer only (not WAN).
+  # Accept metric pushes from the crux external probe timer only (not WAN, not other LAN
+  # hosts). The port stays on 0.0.0.0 for crux, but netavark DNATs it in nat PREROUTING
+  # before nixos-fw sees it, so the filter is in raw PREROUTING. Loopback and podman0
+  # (the Prometheus scrape) are untouched.
   networking.firewall.extraCommands = lib.mkAfter ''
-    iptables -A nixos-fw -p tcp -s ${cruxIp} --dport 9091 -j nixos-fw-accept
+    iptables -t raw -D PREROUTING -p tcp --dport 9091 ! -i podman0 ! -s ${cruxIp} -j DROP 2>/dev/null || true
+    iptables -t raw -A PREROUTING -p tcp --dport 9091 ! -i podman0 ! -s ${cruxIp} -j DROP
+  '';
+  networking.firewall.extraStopCommands = lib.mkAfter ''
+    iptables -t raw -D PREROUTING -p tcp --dport 9091 ! -i podman0 ! -s ${cruxIp} -j DROP 2>/dev/null || true
   '';
 }

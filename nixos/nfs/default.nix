@@ -45,5 +45,8 @@ in {
     ) nodeNames);
   };
 
-  networking.firewall.allowedTCPPorts = [ 2049 ];
+  # NFSv4 for the Wings nodes only.
+  networking.firewall.extraCommands = lib.mkAfter (lib.concatMapStrings (name: ''
+    iptables -A nixos-fw -p tcp -s ${nodes.${name}.ip} --dport 2049 -j nixos-fw-accept
+  '') nodeNames);
 }

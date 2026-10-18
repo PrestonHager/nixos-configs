@@ -33,8 +33,11 @@ in
   virtualisation.oci-containers.containers."prometheus" = {
     autoStart = true;
 
+    # Loopback for Caddy and host scripts, podman0 gateway for Grafana
+    # (host.containers.internal:9090). Not 0.0.0.0: netavark DNATs ahead of nixos-fw.
     ports = [
-      "9090:9090/tcp"
+      "127.0.0.1:9090:9090/tcp"
+      "10.88.0.1:9090:9090/tcp"
     ];
 
     # User and group to run the container as

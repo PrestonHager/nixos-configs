@@ -55,6 +55,8 @@ in {
         chown -R root:users /stor/shares/private/nodes
         find /stor/shares/private/nodes -type d -exec chmod 775 {} \;
         find /stor/shares/private/nodes -type f -exec chmod 664 {} \;
+        # Private keys: root and group users only.
+        find /stor/shares/private/nodes -type f -name '*.key' -exec chmod 640 {} \;
       '';
     };
   };

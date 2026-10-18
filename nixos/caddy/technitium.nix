@@ -12,7 +12,11 @@
       }
     }
 
-    # Technitium web console.
+    # Technitium web console: LAN only (DoH above stays public).
+    @notLan not remote_ip 192.168.5.0/24 127.0.0.1/32
+    handle @notLan {
+      respond 403
+    }
     handle {
       reverse_proxy http://localhost:5380
     }

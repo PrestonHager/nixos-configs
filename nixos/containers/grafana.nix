@@ -157,7 +157,8 @@ in {
             --name grafana-pod \
             --add-host=${zitadelDomain}:''${hostGw} \
             --add-host=host.containers.internal:host-gateway \
-            -p ${toString grafanaPort}:3000 \
+            -p 127.0.0.1:${toString grafanaPort}:3000 \
+            -p 10.88.0.1:${toString grafanaPort}:3000 \
             --memory 4G --cpus 0
         fi
       '';

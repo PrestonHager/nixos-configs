@@ -70,7 +70,7 @@ in {
       "d ${dataDir}/compactor 0750 loki loki -"
     ];
 
-    networking.firewall.allowedTCPPorts = lib.mkAfter [ 3100 ];
+    # Push clients only (crux, nova); no blanket allowedTCPPorts.
     networking.firewall.extraCommands = lib.mkAfter ''
       iptables -A nixos-fw -p tcp -s 192.168.5.6 --dport 3100 -j nixos-fw-accept
       iptables -A nixos-fw -p tcp -s 192.168.5.7 --dport 3100 -j nixos-fw-accept

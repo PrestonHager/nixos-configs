@@ -167,8 +167,8 @@ in {
           ${pkgs.podman}/bin/podman pod create \
             --name zitadel-pod \
             --add-host=${zitadelDomain}:''${hostGw} \
-            -p 9080:8080 \
-            -p 9081:3000 \
+            -p 127.0.0.1:9080:8080 \
+            -p 127.0.0.1:9081:3000 \
             --memory 8G --cpus 0
         fi
       '';
