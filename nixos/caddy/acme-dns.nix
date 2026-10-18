@@ -30,7 +30,14 @@ in {
           base = pkgs.caddy.withPlugins {
             # v0.2.3 + postPatch: accept cfat_/cfut_ tokens (>50 chars); upstream #123.
             plugins = [ "github.com/caddy-dns/cloudflare@v0.2.3" ];
-            hash = "sha256-9tO1blZoDhfxBbHMYsJzEWejuAuzM36/56dBR68dVKk=";
+            # The old hash (sha256-9tO1blZoDhfxBbHMYsJzEWejuAuzM36/56dBR68dVKk=)
+            # never matched the real upstream vendor tree; builds only succeeded
+            # while a stale copy sat in the store. Re-fetching fails loudly with
+            # "hash mismatch". This value was confirmed by two independent fetches
+            # agreeing, and the tree checks out as caddy-dns/cloudflare v0.2.3
+            # (go.sum h1:4JOrCP/9ivaMyNmZiJtBjHo0pTtxczZT0nB3sQ9G608=) with the
+            # {35,50} token regexp the postPatch below rewrites.
+            hash = "sha256-IJbMYNjWn0Mug/k4whdIwuKsxqaL/2rid8sypaEcsNw=";
           };
         in
         base.overrideAttrs (old: {
