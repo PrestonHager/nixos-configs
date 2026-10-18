@@ -10,6 +10,8 @@ in {
     # unblocks nixpkgs python3.12-inline-snapshot test failure (ceph/samba/HM chain)
     ../../modules/overlays-inline-snapshot.nix
     ../../nixos/local-service-hosts.nix
+    # root's own GitHub + signing key (no agent forwarding needed)
+    ../../nixos/ace-git-identity.nix
     ../../nixos/containers/animal-search.nix
     ../../nixos
     ../../nixos/headless
