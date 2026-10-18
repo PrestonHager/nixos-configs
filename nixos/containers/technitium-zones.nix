@@ -9,7 +9,7 @@ let
   publicZone = "prestonhager.com";
 
   internalSerial = "2026081401";
-  publicSerial = "2026081401";
+  publicSerial = "2026101801";
 
   # Authoritative LAN names under internal.prestonhager.com (edit here, then nixos-rebuild switch on ace).
   internalHosts = {
@@ -69,6 +69,7 @@ let
         "vpn"
         "serverdocs"
         "update"
+        "coolify"
       ];
     in
     {
@@ -84,6 +85,8 @@ let
       "nova.lc1.nm.us" = cnameInternal "nova";
       "elara.lc1.nm.us" = cnameInternal "elara";
       "zenith.lc1.nm.us" = cnameInternal "zenith";
+      # Coolify apps: TLS terminates on ace Caddy, which forwards to crux:80.
+      "*.apps" = viaAce;
     }
     // lib.genAttrs aceHosted (_: viaAce)
     // lib.mapAttrs (_: target: cname target) {
