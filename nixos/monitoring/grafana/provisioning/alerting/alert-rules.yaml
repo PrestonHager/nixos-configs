@@ -18,7 +18,10 @@ groups:
             datasourceUid: prometheus
             model:
               editorMode: code
-              expr: probe_success{probe_location=~"local|lan",job=~"blackbox.*",service_tier="essential"} == 0
+              # 1 per failing probe, 0 per healthy one, so threshold C (> 0) fires
+              # per series. The old "== 0" filter returned only zeros, and 0 > 0
+              # never fired.
+              expr: 1 - probe_success{probe_location=~"local|lan",job=~"blackbox.*",service_tier="essential"}
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200

@@ -43,11 +43,17 @@
     '';
     virtualHosts."upgrade.loftiawiki.org".extraConfig = ''
       root * /mw/mediawiki-1.45.3
+      # Staging copy used only while upgrading: LAN admins only, and the same
+      # private-path rules as the production vhost above.
+      @notLan not remote_ip 192.168.5.0/24 127.0.0.1/32
+      respond @notLan 403
       @dotFiles {
         path */.*
         not path /.well-known/*
       }
       respond @dotFiles 404
+      @private path_regexp private ^/(mw-config|cache|maintenance|tests|sql|vendor/composer)(/|$)|^/composer\.|^/LocalSettings\.php.|^/[^:]*(\.(log|bak|old|orig|swp|sql|gz|tar|zip)|~)$
+      respond @private 404
       php_fastcgi http://localhost:8101 {
         root /mw/mediawiki-1.45.3
         env SCRIPT_FILENAME /var/www/html{http.request.uri.path}

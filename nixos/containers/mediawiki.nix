@@ -110,8 +110,10 @@ in
       Type = "oneshot";
       Restart = "no";
       ExecStart = pkgs.writeShellScript "pod-mediawiki" ''
+        # Publish on loopback only: Caddy is the sole client, and netavark DNATs
+        # published ports ahead of nixos-fw, so 0.0.0.0 exposed raw FastCGI to the LAN.
         ${pkgs.podman}/bin/podman pod exists mediawiki || \
-        ${pkgs.podman}/bin/podman pod create -p 8090:80 -p 8091:9000 -h loftiawiki.org \
+        ${pkgs.podman}/bin/podman pod create -p 127.0.0.1:8090:80 -p 127.0.0.1:8091:9000 -h loftiawiki.org \
         --memory 8G --cpus 0 mediawiki
       '';
     };
@@ -134,7 +136,7 @@ in
       Restart = "no";
       ExecStart = pkgs.writeShellScript "pod-mediawiki-upgrade" ''
         ${pkgs.podman}/bin/podman pod exists mediawiki-upgrade || \
-        ${pkgs.podman}/bin/podman pod create -p 8100:80 -p 8101:9000 -h upgrade.loftiawiki.org \
+        ${pkgs.podman}/bin/podman pod create -p 127.0.0.1:8100:80 -p 127.0.0.1:8101:9000 -h upgrade.loftiawiki.org \
         --memory 8G --cpus 0 mediawiki-upgrade
       '';
     };

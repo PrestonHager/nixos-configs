@@ -102,8 +102,10 @@ in
           $podman pod rm -f pterodactyl
         fi
 
+        # Publish on loopback only: Caddy is the sole client, and netavark DNATs
+        # published ports ahead of nixos-fw, so 0.0.0.0 exposed raw FastCGI to the LAN.
         $podman pod exists pterodactyl || \
-        $podman pod create -p 9001:9000 \
+        $podman pod create -p 127.0.0.1:9001:9000 \
           --add-host=${zitadelDomain}:''${hostGw} \
           --add-host=host.containers.internal:host-gateway \
           --memory 8G --cpus 0 pterodactyl
