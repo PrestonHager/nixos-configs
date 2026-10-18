@@ -241,7 +241,7 @@ in
         "--env-file=${config.sops.secrets."mediawiki-environment".path}"
       ];
 
-      image = "mariadb:11.4";
+      image = "docker.io/library/mariadb@sha256:1b46b73d4b629022dfa29e6db3bb0d63b5df714fc3bfbe5057d63d76d8f6054b"; # mariadb 11.4.12 (was mariadb:11.4)
     };
     # Redis is not required, but is a great cache system
     "mediawiki-redis" = {
@@ -258,7 +258,7 @@ in
 
       extraOptions = [ "--pod=mediawiki" ];
 
-      image = "redis:7.4";
+      image = "docker.io/library/redis@sha256:b2b95679e3b46fb51864949ed25ea976fc3a6bcc00a40a1bc00d568cb2822e50"; # redis 7.4.9 (was redis:7.4)
     };
   };
 }

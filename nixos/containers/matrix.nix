@@ -230,7 +230,7 @@ in {
 
   virtualisation.oci-containers.containers.matrix-db = {
     autoStart = true;
-    image = "docker.io/library/postgres:16-alpine";
+    image = "docker.io/library/postgres@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229"; # postgres 16.14-alpine (was 16-alpine)
     extraOptions = [ "--pod=matrix-pod" ];
     environmentFiles = [ config.sops.secrets."matrix-db-env".path ];
     environment = {
