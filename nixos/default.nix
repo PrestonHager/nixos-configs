@@ -37,6 +37,7 @@ in
     "zsh-autoenv"
     # Allow virtual box extension
     "Oracle_VirtualBox_Extension_Pack"
+    "virtualbox-extpack" # current nixpkgs name
   ];
   # Accept the nvidia license if applicable
   nixpkgs.config.nvidia.acceptLicense = true;

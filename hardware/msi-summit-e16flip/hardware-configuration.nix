@@ -11,7 +11,9 @@
       device = "/dev/disk/by-uuid/66ba4a80-a99f-4f56-b4b3-6fb5bde695d4";
       encrypted = {
         enable = true;
-        keyFile = "/mnt-root/root/swap.key";
+        # systemd stage 1 mounts the root fs at /sysroot (/mnt-root is the
+        # scripted-initrd path and fails evaluation with systemd initrd).
+        keyFile = "/sysroot/root/swap.key";
         label = "luks-swap";
         blkDev = "/dev/disk/by-uuid/66ba4a80-a99f-4f56-b4b3-6fb5bde695d4";
       };

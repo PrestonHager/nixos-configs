@@ -97,6 +97,37 @@ def _download_dir(env: dict[str, str]) -> Path:
     return path
 
 
+_SHIM_PASSWORD_ENV = "NC_MIGRATE_ICLOUD_PASSWORD"
+
+# icloudpd only takes a password as a parameter, from a keyring, or from the console
+# (getpass). Run its own entry script and answer the console prompt from the env.
+_SHIM = """
+import os, runpy, sys
+script = sys.argv[1]
+sys.argv = [script] + sys.argv[2:]
+g = runpy.run_path(script, run_name="icloudpd_shim")
+import icloudpd.base
+password = os.environ.pop("%s")
+icloudpd.base.ask_password_in_console = lambda _user: password
+sys.exit(g["cli"]())
+""" % _SHIM_PASSWORD_ENV
+
+
+def _password_shim_cmd(icloudpd: str) -> list[str] | None:
+    """[python, -c, shim, script] for the Nix-wrapped icloudpd, or None."""
+    bin_path = Path(icloudpd).resolve()
+    script = bin_path.with_name(f".{bin_path.name}-wrapped")
+    if not script.is_file():
+        script = bin_path
+    try:
+        first = script.read_bytes().split(b"\n", 1)[0].decode()
+    except OSError:
+        return None
+    if not first.startswith("#!") or "python" not in first:
+        return None
+    return [first[2:].strip(), "-c", _SHIM, str(script)]
+
+
 def _run_icloudpd(
     creds: dict[str, str],
     download_dir: Path,
@@ -108,12 +139,9 @@ def _run_icloudpd(
         raise SystemExit("icloudpd not found in PATH")
 
     cookie_dir = download_dir.parent / "icloudpd-cookies"
-    cmd = [
-        icloudpd,
+    args = [
         "--username",
         creds["ICLOUD_APPLE_ID"],
-        "--password",
-        creds["ICLOUD_PASSWORD"],
         "--directory",
         str(download_dir),
         "--cookie-directory",
@@ -121,10 +149,20 @@ def _run_icloudpd(
         "--set-exif-datetime",
     ]
     if album:
-        cmd.extend(["--album", album])
+        args.extend(["--album", album])
+
+    env = os.environ.copy()
+    shim = _password_shim_cmd(icloudpd)
+    if shim:
+        # Keep the Apple password out of argv (world-readable in ps / /proc).
+        cmd = [*shim, *args, "--password-provider", "console"]
+        env[_SHIM_PASSWORD_ENV] = creds["ICLOUD_PASSWORD"]
+    else:
+        logger.warn("icloudpd wrapper layout not recognised; passing the password as an argument")
+        cmd = [icloudpd, *args, "--password", creds["ICLOUD_PASSWORD"]]
 
     logger.command(cmd)
-    result = subprocess.run(cmd, env=os.environ.copy(), check=False)
+    result = subprocess.run(cmd, env=env, check=False)
     if result.returncode != 0:
         logger.error(f"icloudpd failed (exit {result.returncode})")
     return result.returncode

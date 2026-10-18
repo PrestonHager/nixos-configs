@@ -293,14 +293,15 @@ class RcloneRunner {
 		}
 	}
 
-	private function iniEscape(string $value): string {
+	public function iniEscape(string $value): string {
 		if (preg_match('/[\s#"\'=]/', $value) === 1) {
 			return '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $value) . '"';
 		}
 		return $value;
 	}
 
-	private function obscurePassword(string $password): string {
+	/** Obscure via stdin so the password never appears in a process argv. */
+	public function obscurePassword(string $password): string {
 		$process = new Process([$this->getBinaryPath(), 'obscure', '-']);
 		$process->setInput($password);
 		$process->setTimeout(30);

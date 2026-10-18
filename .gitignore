@@ -3,5 +3,4 @@ COMMIT_EDITMSG
 
 # NixOS files
 result
-flake.lock
 

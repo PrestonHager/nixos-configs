@@ -25,8 +25,32 @@ class MigrationLogger:
         self._emit("ERROR", message)
 
     def command(self, cmd: list[str]) -> None:
-        rendered = " ".join(_shell_quote(part) for part in cmd)
+        rendered = " ".join(_shell_quote(part) for part in _redact(cmd))
         self.info(f"command: {rendered}")
+
+
+_SECRET_FLAGS = {"--password", "--pass", "--token", "--client-secret"}
+
+
+def _redact(cmd: list[str]) -> list[str]:
+    """Hide values of secret flags (--password X, --password=X) in logged commands."""
+    out: list[str] = []
+    hide_next = False
+    for part in cmd:
+        if hide_next:
+            out.append("***")
+            hide_next = False
+            continue
+        flag, sep, _ = part.partition("=")
+        if flag in _SECRET_FLAGS:
+            if sep:
+                out.append(f"{flag}=***")
+            else:
+                out.append(part)
+                hide_next = True
+            continue
+        out.append(part)
+    return out
 
 
 def _shell_quote(value: str) -> str:
