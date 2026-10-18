@@ -42,6 +42,8 @@ in
     Match host github.com localuser root
       IdentityFile ${keyPath}
       IdentitiesOnly yes
+    Match host 192.168.5.6,192.168.5.7,192.168.5.8,192.168.5.9,crux*,nova*,elara*,zenith* localuser root
+      IdentityFile ${keyPath}
   '';
 
   programs.git.config.includeIf = {

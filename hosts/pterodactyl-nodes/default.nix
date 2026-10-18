@@ -5,6 +5,8 @@ let
   host = config.networking.hostName;
   bootstrapPubkey =
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAZG4s8GtqKZoahIUsFwbXsMnuUrrlSDmN2nzt39pDiS bootstrap@homelab";
+  aceDeployPubkey =
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDEMydexGEchoOPoh8jDiecyTkmgj/Tfxap7U+lQQfPW root@ace (nixos-configs automation)";
 in
 {
   imports = [
@@ -25,7 +27,9 @@ in
     };
   };
 
-  users.users.root.openssh.authorizedKeys.keys = [ bootstrapPubkey ];
+  # root@ace deploys the nodes (nixos-rebuild --target-host, nix copy) with its
+  # own key from nixos/ace-git-identity.nix, so no workstation agent forwarding.
+  users.users.root.openssh.authorizedKeys.keys = [ bootstrapPubkey aceDeployPubkey ];
   users.users.prestonh.openssh.authorizedKeys.keys = [ bootstrapPubkey ];
 
   sops.secrets = {
