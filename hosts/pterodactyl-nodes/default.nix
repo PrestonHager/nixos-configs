@@ -40,7 +40,12 @@ in
     };
   };
 
-  virtualisation.docker.enable = true;
+  virtualisation.docker = {
+    enable = true;
+    # Keep game-server containers running when dockerd restarts on a rebuild
+    # (nixpkgs defaults this to false).
+    liveRestore = true;
+  };
 
   environment.systemPackages = [
     inputs.pterodactyl-wings.packages.x86_64-linux.wings

@@ -259,11 +259,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1780356338,
-        "narHash": "sha256-vsKlR02wl/svTXfU1XTgJESjMj5ncsuuuuwKESOXW3Y=",
+        "lastModified": 1792329161,
+        "narHash": "sha256-oF1Pdg0hujrUxlqBt6lTjVZ3tOAV7raSTEK06bsC91g=",
         "owner": "PrestonHager",
         "repo": "pterodactyl-wings-nix-overlay",
-        "rev": "88dc2ffd825c658cfe351065f0f7b43a7e92c9aa",
+        "rev": "fbbff995c3c03b198c8ac31e8afdf7555107d0a2",
         "type": "github"
       },
       "original": {

@@ -32,6 +32,8 @@
     ../../nixos/monitoring/crux-probes.nix
     ../../nixos/monitoring/crux-prometheus.nix
     ../../nixos/monitoring/promtail.nix
+    # Coolify deploy server for apps under *.apps.prestonhager.com.
+    ../../nixos/coolify-node.nix
   ];
 
   homelab.security.nodeExporter.enable = false;
