@@ -7,6 +7,8 @@
     extraFlags = [
       "--collector.textfile.directory=/var/lib/node-exporter-textfile"
       "--collector.systemd.unit-whitelist=(caddy|podman-.*)\\.service"
+      # node_systemd_service_restart_total, for the ace_unit_restart_loop alert.
+      "--collector.systemd.enable-restarts-metrics"
     ];
   };
 

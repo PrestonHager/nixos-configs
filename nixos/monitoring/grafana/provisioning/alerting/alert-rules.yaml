@@ -415,6 +415,65 @@ groups:
         labels:
           severity: critical
           alert_type: service_down
+      - uid: ace_unit_restart_loop
+        title: Ace systemd unit restart loop
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 1800
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              # systemd restarts (Restart=) per unit in the last 30 minutes. Needs
+              # --collector.systemd.enable-restarts-metrics (exporters.nix) and
+              # only covers units in node_exporter's unit whitelist
+              # (caddy and podman-*).
+              expr: increase(node_systemd_service_restart_total[30m])
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 5
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 10m
+        annotations:
+          description: >-
+            {{ $labels.name }} on ace was restarted by systemd more than 5 times in 30 minutes ({{ humanize $values.A.Value }}), and has kept it up for 10 minutes. It is crash-looping. Check: systemctl status {{ $labels.name }}; journalctl -u {{ $labels.name }} -n 100
+          summary: Restart loop — {{ $labels.name }}
+        labels:
+          severity: warning
+          alert_type: service_down
   - orgId: 1
     name: ace-version-updates
     folder: Ace Alerts
