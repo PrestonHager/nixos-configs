@@ -74,6 +74,7 @@ Router IOS also has **`ip name-server 192.168.5.2`** and **`192.168.5.5`** and *
 | `access-list 1` | Permits `192.168.5.0/24` (used for NAT source and VTY inbound filter) |
 | Dynamic NAT | `ip nat inside source list 1 interface Gi0/0 overload` — all LAN → WAN PAT |
 | Static NAT | TCP **80** and **443** on WAN interface → **192.168.5.5:80/443** (published web/TLS on ace) |
+| Static NAT (automated) | `ip nat inside source static <tcp\|udp> 192.168.5.15 <port> interface GigabitEthernet0/0 <port>` — ports Coolify apps publish on mars, written and removed by `coolify-edge-nat` on ace ([Coolify](../ace/coolify.md#routing-traffic-to-apps)); game ports to Wings nodes come from the [Pterodactyl port-forward extension](../ace/pterodactyl-plugin-port-forward.md). Running-config only. |
 
 No extended ACLs on data-plane interfaces in the documented config; edge filtering is primarily NAT + VTY `access-class 1`.
 
@@ -95,6 +96,21 @@ No extended ACLs on data-plane interfaces in the documented config; edge filteri
 | VTY | `transport input ssh`; `access-class 1 in`; login via LOCAL-USERS |
 
 Console/AUX lines use default-style settings; no remote telnet on VTY.
+
+### Automation account `pterofwd`
+
+`pterofwd` is the key-only account that ace uses to change NAT: the Pterodactyl port-forward extension and `coolify-edge-nat` (Coolify app ports). The private key is `pterodactyl-router-ssh-key` in nix-secrets (`secrets/containers/pterodactyl.yaml`), readable by root and the panel only; the public half is under `ip ssh pubkey-chain` → `username pterofwd`.
+
+Both tools send `show running-config | include ^ip nat inside source static` and `configure terminal` on stdin, so the account must log in at **privilege 15**. As of 2026-10-20 it logged in at the default level (`Astracap>` prompt, `% Invalid input` on `show running-config`), so neither could apply NAT. Fix, from `ssh astracap` + `enable`:
+
+```text
+configure terminal
+ username pterofwd privilege 15
+end
+write memory
+```
+
+`username … privilege` keeps the existing secret and pubkey entry. Verify from ace: `systemctl start coolify-edge-nat; journalctl -u coolify-edge-nat -n 5` once an app publishes a port, or `podman exec pterodactyl ssh -F /pterodactyl/secrets/portforward-ssh-config astracap` and check for the `Astracap#` prompt.
 
 ## Hardware / software
 

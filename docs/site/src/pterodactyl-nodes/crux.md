@@ -19,13 +19,10 @@ Pterodactyl Wings node at **192.168.5.6**.
 - `nixos/monitoring/crux-probes.nix` — blackbox HTTP/TCP probes
 - `nixos/monitoring/crux-prometheus.nix` — local Prometheus scraping ace + crux
 - `nixos/monitoring/promtail.nix` — logs to Loki on ace
-- `nixos/coolify-node.nix` — Coolify deploy server (see below)
 
-## Coolify deploy server
+crux was also a [Coolify](../ace/coolify.md) deploy server until 2026-10-20. It was removed from Coolify, `nixos/coolify-node.nix` is no longer imported, and the `coolify-proxy`/`coolify-sentinel` containers and `/data/coolify` were deleted. Coolify apps run on [mars](../poweredge/mars.md).
 
-crux runs the apps that [Coolify on ace](../ace/coolify.md) deploys. Coolify connects as root over SSH with its own key (`coolify@ace`) and runs its Traefik proxy (`coolify-proxy`) on **:80** only, since Wings owns :443. TLS for `*.apps.prestonhager.com` terminates on ace's Caddy, which forwards plain HTTP to crux:80. A `DOCKER-USER` iptables rule drops :80 connections to crux from anything but ace (`192.168.5.5`). Details: [Crux ports & NAT](crux-ports.md#coolify-proxy-on-80-ace-only).
-
-Docker's `liveRestore` keeps game servers and Coolify apps running when dockerd restarts during a rebuild.
+Docker's `liveRestore` keeps game servers running when dockerd restarts during a rebuild.
 
 ## SSH
 
@@ -49,7 +46,5 @@ Dashboards: [Crux Service Uptime](https://grafana.prestonhager.com/d/crux-uptime
 ```bash
 systemctl status wings docker
 journalctl -u wings -n 50
-docker logs coolify-proxy --tail 50         # Coolify proxy
-iptables -S DOCKER-USER                     # expect the :80 drop rule
 dig @192.168.5.5 crux.lc1.nm.us.prestonhager.com +short   # expect 192.168.5.6
 ```
