@@ -1,16 +1,26 @@
 # Coolify dashboard and the apps it deploys.
 #
 #   coolify.prestonhager.com   -> 127.0.0.1:8000/6001/6002 (nixos/containers/coolify.nix)
-#   *.apps.prestonhager.com    -> Coolify's proxy on the deploy server (crux:80)
+#   *.apps.prestonhager.com    -> Coolify's proxy on the deploy server (mars:80)
+#   any other hostname         -> mars:80 too, when a Coolify app uses it
 #
-# TLS terminates here for both, with certificates from the Cloudflare DNS-01
-# challenge in acme-dns.nix (the wildcard needs DNS-01). Coolify's proxy on
-# crux only serves plain HTTP on port 80 because Wings already owns crux:443,
-# so apps in Coolify use http://<name>.apps.prestonhager.com as their domain.
+# TLS terminates here, with certificates from the Cloudflare DNS-01 challenge
+# in acme-dns.nix (the wildcard needs DNS-01). Coolify's proxy on mars only
+# serves plain HTTP on port 80, so apps in Coolify use http://<host> as their
+# domain.
+#
+# The catch-all sites below only match hostnames that no other vhost on ace
+# claims (Caddy prefers the most specific host). HTTPS certificates for them
+# are issued on demand, after coolify-edge-ask (nixos/containers/coolify-edge.nix)
+# confirms that a Coolify app uses the name; everything else fails the TLS
+# handshake.
 { ... }:
 
 let
-  appsUpstream = "192.168.5.6:80";
+  # Traefik routes on Host; Caddy already sends X-Forwarded-Proto/Host/For.
+  proxyToApps = ''
+    reverse_proxy 192.168.5.15:80
+  '';
 in
 {
   services.caddy.virtualHosts = {
@@ -27,9 +37,19 @@ in
       }
     '';
 
-    "*.apps.prestonhager.com".extraConfig = ''
-      reverse_proxy ${appsUpstream}
+    "*.apps.prestonhager.com".extraConfig = proxyToApps;
+
+    "https://".extraConfig = ''
+      tls {
+        on_demand
+      }
+      ${proxyToApps}
+    '';
+
+    # Plain HTTP for names no other vhost claims: send it to HTTPS, where the
+    # on-demand check decides. Named vhosts keep their own redirects.
+    "http://".extraConfig = ''
+      redir https://{host}{uri} 308
     '';
   };
 }
-

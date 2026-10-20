@@ -10,18 +10,21 @@
 # coolify-zitadel-oauth      writes the credentials into Coolify's oauth_settings.
 # coolify-instance-settings  keeps auto-update off and the unusable built-in
 #                            localhost server (id 0) force-disabled.
+# coolify-email-settings     points Coolify's SMTP at the iCloud+ account
+#                            Nextcloud/Grafana/Zitadel use (password from
+#                            nextcloud-environment SMTP_PASSWORD).
 # coolify-zitadel-roles      (timer) maps grants onto Coolify's root team:
 #   coolify_admin -> admin, coolify_member -> member, no grant -> removed.
 #   The root owner account (user 0) is never changed. An empty grant list is
 #   refused unless COOLIFY_ALLOW_EMPTY_ROLE_MAP=1 is set on the unit.
 #
-# The first two are Type=exec, not oneshot: systemd counts them as started as
+# The first three are Type=exec, not oneshot: systemd counts them as started as
 # soon as the script runs, so `nixos-rebuild switch` and boot do not wait for
 # Coolify's migrations. They wait for the API themselves, bounded by
 # RuntimeMaxSec (TimeoutStartSec would only cover the instant until exec).
 # Without RemainAfterExit they end inactive and every switch re-runs them,
-# which is harmless because both are idempotent.
-{ config, pkgs, inputs, ... }:
+# which is harmless because all are idempotent.
+{ config, lib, pkgs, inputs, ... }:
 
 let
   sops-path = builtins.toString inputs.nix-secrets;
@@ -33,6 +36,7 @@ let
   runPhp = ./coolify/run.php;
   oauthSettingPhp = ./coolify/oauth-setting.php;
   instanceSettingsPhp = ./coolify/instance-settings.php;
+  emailSettingsPhp = ./coolify/email-settings.php;
   applyRolesPhp = ./coolify/apply-roles.php;
   roleSyncJs = ./coolify/zitadel-role-sync.mjs;
 
@@ -63,7 +67,7 @@ let
     done
   '';
 
-  # Shared by the two Coolify-side setup units.
+  # Shared by the Coolify-side setup units.
   setupUnit = description: script: {
     inherit description;
     after = [ "podman-coolify.service" ];
@@ -86,12 +90,33 @@ in
     mode = "0400";
     restartUnits = [ "coolify-zitadel-oauth.service" ];
   };
+  # Re-apply SMTP when the shared password changes.
+  sops.secrets."nextcloud-environment".restartUnits = [ "coolify-email-settings.service" ];
 
   systemd.services.coolify-zitadel-oauth = setupUnit "Configure Coolify's Zitadel OAuth provider"
     (tinker oauthSettingPhp "--env-file ${config.sops.secrets."coolify-zitadel-env".path}");
 
   systemd.services.coolify-instance-settings = setupUnit "Pin Coolify instance settings (auto-update, localhost server)"
     (tinker instanceSettingsPhp "");
+
+  # Coolify mail through the shared iCloud+ SMTP account (coolify/email-settings.php).
+  # Only the password is passed in, from a file in the unit's RuntimeDirectory
+  # (0700, removed by systemd when the unit stops).
+  systemd.services.coolify-email-settings = lib.recursiveUpdate
+    (setupUnit "Configure Coolify SMTP (shared iCloud+ account)" ''
+      env_file=/run/coolify-email-settings/smtp.env
+      (umask 077; grep '^SMTP_PASSWORD=' ${config.sops.secrets."nextcloud-environment".path} > "$env_file") || {
+        echo "SMTP_PASSWORD missing from nextcloud-environment" >&2
+        exit 1
+      }
+      ${tinker emailSettingsPhp "--env-file $env_file"}
+    '')
+    {
+      serviceConfig = {
+        RuntimeDirectory = "coolify-email-settings";
+        RuntimeDirectoryMode = "0700";
+      };
+    };
 
   systemd.services.coolify-zitadel-roles = {
     description = "Sync Zitadel Coolify roles onto Coolify's root team";

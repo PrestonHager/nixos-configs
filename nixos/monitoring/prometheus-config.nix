@@ -62,16 +62,6 @@ let
 
   cruxTcpStaticConfigs = [
     {
-      targets = [ "192.168.5.6:80" ];
-      labels = {
-        host = "crux";
-        service = "coolify-proxy";
-        service_role = "http";
-        probe_location = "local";
-        service_tier = "essential";
-      };
-    }
-    {
       targets = [ "192.168.5.6:443" ];
       labels = {
         host = "crux";
@@ -125,6 +115,17 @@ let
 
   # LAN host TCP reachability from ace (network topology dashboard).
   lanHostTcpStaticConfigs = [
+    {
+      # Coolify's Traefik proxy on mars; ace's Caddy forwards Coolify apps here.
+      targets = [ "192.168.5.15:80" ];
+      labels = {
+        host = "mars";
+        service = "coolify-proxy";
+        service_role = "http";
+        probe_location = "local";
+        service_tier = "essential";
+      };
+    }
     {
       targets = [ "192.168.5.5:443" ];
       labels = {

@@ -7,7 +7,7 @@
   "version": 1,
   "refresh": "30s",
   "time": { "from": "now-24h", "to": "now" },
-  "description": "Coolify control plane on ace (dashboard, Postgres, Redis), its app proxy on crux, and the apps it deploys under *.apps.prestonhager.com.",
+  "description": "Coolify control plane on ace (dashboard, Postgres, Redis), its app proxy on mars, and the apps it deploys under *.apps.prestonhager.com.",
   "links": [
     { "title": "Coolify", "type": "link", "url": "https://coolify.prestonhager.com", "targetBlank": true },
     { "title": "LAN Status", "type": "dashboard", "url": "/d/lan-status" }
@@ -48,7 +48,7 @@
       "targets": [{ "expr": "(probe_ssl_earliest_cert_expiry{job=\"blackbox-http\",instance=\"https://coolify.prestonhager.com/api/health\"} - time()) / 86400", "instant": true, "refId": "A" }]
     },
     {
-      "id": 5, "type": "stat", "title": "App proxy (crux :80)",
+      "id": 5, "type": "stat", "title": "App proxy (mars :80)",
       "description": "Coolify's Traefik proxy on the deploy server. *.apps.prestonhager.com is forwarded here by Caddy on ace.",
       "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -57,7 +57,7 @@
         "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] } } },
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "value",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
-      "targets": [{ "expr": "probe_success{job=\"blackbox-tcp-crux\",service=\"coolify-proxy\"}", "instant": true, "refId": "A" }]
+      "targets": [{ "expr": "probe_success{job=\"blackbox-tcp-lan-hosts\",service=\"coolify-proxy\"}", "instant": true, "refId": "A" }]
     },
     {
       "id": 6, "type": "timeseries", "title": "Dashboard response time",

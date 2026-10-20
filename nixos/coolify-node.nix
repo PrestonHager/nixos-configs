@@ -3,13 +3,12 @@
 #
 # Coolify connects as root over SSH with its own key (the private half lives
 # encrypted in Coolify's database, under Keys & Tokens). It runs its Traefik
-# proxy here, published on port 80 only: TLS for *.apps.prestonhager.com
-# terminates on ace's Caddy, which forwards here (on crux, Wings also owns :443).
+# proxy here, published on port 80 only: TLS for app domains terminates on
+# ace's Caddy, which forwards here (nixos/caddy/coolify.nix).
 #
 # Coolify does not list NixOS as a supported OS, so servers are registered
 # with is_reachable/is_usable set directly (docs/coolify-ace.md). The host
-# must enable virtualisation.docker itself (crux gets it from
-# hosts/pterodactyl-nodes, mars from hosts/mars).
+# must enable virtualisation.docker itself (mars does in hosts/mars).
 { config, lib, pkgs, ... }:
 
 let
@@ -29,7 +28,7 @@ in
 {
   options.homelab.coolifyNode.address = lib.mkOption {
     type = lib.types.str;
-    example = "192.168.5.6";
+    example = "192.168.5.15";
     description = ''
       This host's LAN IPv4 address. The DOCKER-USER rule drops port 80
       connections addressed to it unless they come from ace, so only ace's
