@@ -254,9 +254,7 @@ groups:
               # probe_success when it reached the WAN address (probe_wan_path 1);
               # the "and" keeps it that way if the script ever changes.
               expr: >-
-                (1 - probe_success{probe_location="external",job="external-http-probe"})
-                and on (target, probe_source)
-                (probe_wan_path{probe_location="external",job="external-http-probe"} == 1)
+                (1 - probe_success{probe_location="external",job="external-http-probe"}) and on (target, probe_source) (probe_wan_path{probe_location="external",job="external-http-probe"} == 1)
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
@@ -474,6 +472,62 @@ groups:
         labels:
           severity: warning
           alert_type: service_down
+      - uid: ace_backup_stale
+        title: Ace backup stale
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              # 1 per target Prometheus cannot scrape (exporter or service down).
+              expr: time() - max(homelab_backup_last_success_timestamp_seconds{repo="local"})
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 129600
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 30m
+        annotations:
+          description: >-
+            restic-backups-local has not completed successfully for over 36 hours (or never reported). Check: journalctl -u restic-backups-local; systemctl status restic-backups-local. See docs/backups-ace.md.
+          summary: No successful ace backup in 36 hours
+        labels:
+          severity: warning
+          alert_type: backup
   - orgId: 1
     name: ace-version-updates
     folder: Ace Alerts

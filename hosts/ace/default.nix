@@ -12,6 +12,8 @@ in {
     ../../nixos/local-service-hosts.nix
     # root's own GitHub + signing key (no agent forwarding needed)
     ../../nixos/ace-git-identity.nix
+    # Nightly DB dumps + restic snapshots to /stor
+    ../../nixos/backup.nix
     ../../nixos/containers/animal-search.nix
     ../../nixos
     ../../nixos/headless
