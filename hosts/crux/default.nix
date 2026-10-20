@@ -36,5 +36,7 @@
     ../../nixos/coolify-node.nix
   ];
 
+  homelab.coolifyNode.address = "192.168.5.6";
+
   homelab.security.nodeExporter.enable = false;
 }

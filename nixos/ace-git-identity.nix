@@ -42,7 +42,7 @@ in
     Match host github.com localuser root
       IdentityFile ${keyPath}
       IdentitiesOnly yes
-    Match host 192.168.5.6,192.168.5.7,192.168.5.8,192.168.5.9,crux*,nova*,elara*,zenith* localuser root
+    Match host 192.168.5.6,192.168.5.7,192.168.5.8,192.168.5.9,192.168.5.15,crux*,nova*,elara*,zenith*,mars* localuser root
       IdentityFile ${keyPath}
   '';
 

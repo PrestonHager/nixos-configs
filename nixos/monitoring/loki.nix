@@ -74,6 +74,7 @@ in {
     networking.firewall.extraCommands = lib.mkAfter ''
       iptables -A nixos-fw -p tcp -s 192.168.5.6 --dport 3100 -j nixos-fw-accept
       iptables -A nixos-fw -p tcp -s 192.168.5.7 --dport 3100 -j nixos-fw-accept
+      iptables -A nixos-fw -p tcp -s 192.168.5.15 --dport 3100 -j nixos-fw-accept
     '';
   };
 }

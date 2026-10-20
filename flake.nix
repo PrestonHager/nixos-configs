@@ -117,6 +117,13 @@
           ./hosts/ace
         ];
       };
+      # Coolify deploy/build server (PowerEdge R410), not a Wings node.
+      mars = nixpkgs.lib.nixosSystem {
+        specialArgs = { inherit inputs; };
+        modules = defaultModules ++ [
+          ./hosts/mars
+        ];
+      };
     } // builtins.mapAttrs (name: value: nixpkgs.lib.nixosSystem {
       specialArgs = {inherit inputs;};
       modules = defaultModules ++ [
