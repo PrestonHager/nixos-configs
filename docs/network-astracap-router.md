@@ -101,7 +101,18 @@ Console/AUX lines use default-style settings; no remote telnet on VTY.
 
 `pterofwd` is the key-only account that ace uses to change NAT: the Pterodactyl port-forward extension and `coolify-edge-nat` (Coolify app ports). The private key is `pterodactyl-router-ssh-key` in nix-secrets (`secrets/containers/pterodactyl.yaml`), readable by root and the panel only; the public half is under `ip ssh pubkey-chain` → `username pterofwd`.
 
-Both tools send `show running-config | include ^ip nat inside source static` and `configure terminal` on stdin, so the account logs in at **privilege 15** (`username pterofwd privilege 15`, set 2026-10-20; before that it landed at `Astracap>` and could not apply NAT). Verify from ace: `systemctl start coolify-edge-nat; journalctl -u coolify-edge-nat -n 5` once an app publishes a port, or run the NAT job's `ExecStart` with `--dry-run`.
+Both tools send `show running-config | include ^ip nat inside source static` and `configure terminal` on stdin, so the account must land at **privilege 15** when it logs in. `username pterofwd privilege 15` (set 2026-10-20) is not enough on its own: with only `aaa authentication login` configured, IOS starts every VTY session at level 1 (`Astracap>`) whatever the username's privilege, which is also why `prestonh` has to type `enable`. Exec authorization makes the username's level apply:
+
+```text
+configure terminal
+ aaa authorization exec VTY-EXEC local
+ line vty 0 15
+  authorization exec VTY-EXEC
+end
+write memory
+```
+
+After this `prestonh` also lands at `Astracap#` directly. Verify from ace by running the NAT job's `ExecStart` (see `systemctl cat coolify-edge-nat`) with `--dry-run --recheck 0` once an app publishes a port, or check the `Astracap#` prompt with `ssh -F <the unit's COOLIFY_EDGE_ROUTER_SSH_CONFIG> astracap`.
 
 ## Hardware / software
 

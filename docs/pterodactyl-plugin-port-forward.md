@@ -207,7 +207,7 @@ sudo podman exec pterodactyl php artisan tinker --execute="DB::table('portforwar
 - UDP + TCP same port requires two explicit mappings
 - No WAN ACL permit-line management
 - SSH apply not verified in CI; test on ace before disabling dry-run in production
-- `pterofwd` needs privilege 15 (set 2026-10-20; before that `configure terminal` failed and live NAT could not apply). See [Astracap → Automation account](../shared/network-astracap.md#automation-account-pterofwd). `coolify-edge-nat` uses the same account and key.
+- `pterofwd` must land at privilege 15, which needs both `username pterofwd privilege 15` and VTY exec authorization; without them `configure terminal` fails and live NAT cannot apply. See [Astracap → Automation account](../shared/network-astracap.md#automation-account-pterofwd). `coolify-edge-nat` uses the same account and key.
 
 ---
 
