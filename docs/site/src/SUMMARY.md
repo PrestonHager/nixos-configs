@@ -7,6 +7,7 @@
 - [Overview](ace/index.md)
 - [iDRAC (OOB)](ace/idrac.md)
 - [Health Report](ace/health-report.md)
+- [Backups](ace/backups.md)
 - [Coolify](ace/coolify.md)
 - [DNS (Technitium)](shared/dns.md)
 - [LanCache (deprecated)](ace/lancache.md)
