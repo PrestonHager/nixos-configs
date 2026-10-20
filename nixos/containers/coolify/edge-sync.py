@@ -20,6 +20,10 @@ Two jobs, both driven by what is configured in Coolify's database
          ports) are never touched. The router is only contacted when the
          wanted set changed or the last check is older than --recheck, so a
          router reboot (rules are running-config only) heals within that time.
+         While Coolify wants no ports it never logs in at all.
+
+         The router account needs `show running-config` and `configure
+         terminal` (privilege 15, or a custom level granting both).
 
 Configuration comes from the environment (set by nixos/containers/coolify-edge.nix).
 """
@@ -276,7 +280,8 @@ def nat(args):
     wanted_key = sorted([list(r) for r in wanted])
     state = load_state()
     fresh = time.time() - state.get("checked_at", 0) < args.recheck
-    if state.get("wanted") == wanted_key and fresh:
+    # Nothing wanted now or last time: no rule of ours can be on the router.
+    if state.get("wanted", []) == wanted_key and (fresh or not wanted):
         print(f"no change ({len(wanted)} rules)")
         return 0
 
