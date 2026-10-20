@@ -533,7 +533,8 @@ mkdir -p "$OUT_DIR" "$CACHE_DIR"
   emit_service pterodactyl-panel "$(current_pterodactyl)" "$(github_latest pterodactyl/panel)"
   emit_service pterodactyl-mariadb "$(current_pterodactyl_mariadb)" "$(dockerhub_latest library/mariadb)"
   emit_service nextcloud-redis "$(current_nextcloud_redis)" "$(github_latest redis/redis)"
-  emit_service pterodactyl-redis "$(current_pterodactyl_redis)" "$(github_latest redis/redis)"
+  # pterodactyl-redis runs Valkey (BSD Redis fork) since 2026-10-19.
+  emit_service pterodactyl-redis "$(current_pterodactyl_redis)" "$(github_latest valkey-io/valkey)"
   emit_service nextcloud-clamav "$(current_nextcloud_clamav)" "$(github_latest Cisco-Talos/clamav)"
   emit_service notify_push "$(current_notify_push)" "$(github_latest nextcloud/notify_push)"
   # Monitor-only.

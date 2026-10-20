@@ -540,7 +540,7 @@ EOF
       ];
       cmd = [ "redis-server" "--save" "59" "1" "--loglevel" "warning" ];
       extraOptions = [ "--pod=pterodactyl-test" ];
-      image = "docker.io/library/redis@sha256:b2b95679e3b46fb51864949ed25ea976fc3a6bcc00a40a1bc00d568cb2822e50"; # redis 7.4.9 (was redis:7.4)
+      image = "docker.io/valkey/valkey@sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507"; # valkey 8.1.10-alpine (BSD fork of Redis; cache/sessions only)
     };
   };
 }
