@@ -61,7 +61,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "```\nInternet / ISP  (73.26.67.25 → modem 10.0.0.x)\n        |\n   Astracap .1  Gi0/0 WAN  +  Gi0/2 LAN\n   WAN NAT: TCP 80/443 → ace .5 only\n   (no static NAT to crux/nova today)\n        |\n  Astraquasar .3  (L2 switch)\n     |----------+----------+----------|\n   ace .5     crux .6    nova .7    elara .8   zenith .9   clients\n  Caddy/DNS   Wings      Wings      Wings      Wings       DHCP .21+\n  Grafana     SFTP:2022  (offline)  (planned)  (planned)\n  Panel       SSH:22\n  Coolify     Coolify proxy :80\n```\n\n**Crux firewall (Nix):** TCP **22**, **443**, **2022** public on LAN; **9090**/**9115** ace-only.\n\n**Not probed from ace:** MariaDB `:3306` (localhost), Alloy `:12345` (localhost), node_exporter `:9100` (firewalled), dynamic Docker game ports.\n\n**Nodes:** nova `.7` is not physically connected; elara `.8` and zenith `.9` are planned Wings nodes. All three are probed on SSH :22 as non-essential (shown here, not paged). Coolify apps run on crux behind ace Caddy (`*.apps.prestonhager.com` → crux:80)."
+        "content": "```\nInternet / ISP  (73.26.67.25 → modem 10.0.0.x)\n        |\n   Astracap .1  Gi0/0 WAN  +  Gi0/2 LAN\n   WAN NAT: TCP 80/443 → ace .5 only\n   (no static NAT to crux/nova today)\n        |\n  Astraquasar .3  (L2 switch)\n     |----------+----------+----------|\n   ace .5     crux .6    nova .7    elara .8   zenith .9   clients\n  Caddy/DNS   Wings      Wings      Wings      Wings       DHCP .21+\n  Grafana     SFTP:2022  (offline)  (planned)  (planned)\n  Panel       SSH:22\n  Coolify\n```\n\n**Crux firewall (Nix):** TCP **22**, **443**, **2022** public on LAN; **9090**/**9115** ace-only.\n\n**Not probed from ace:** MariaDB `:3306` (localhost), Alloy `:12345` (localhost), node_exporter `:9100` (firewalled), dynamic Docker game ports.\n\n**Nodes:** nova `.7` is not physically connected; elara `.8` and zenith `.9` are planned Wings nodes. All three are probed on SSH :22 as non-essential (shown here, not paged). Coolify apps run on mars `.15` behind ace Caddy (`*.apps.prestonhager.com` and any other hostname ace does not serve → mars:80; Coolify app ports NATed by coolify-edge-sync)."
       }
     },
     {
@@ -1083,7 +1083,7 @@
     },
     {
       "id": 19,
-      "title": "Coolify proxy crux :80",
+      "title": "Coolify proxy mars :80",
       "type": "stat",
       "gridPos": {
         "h": 3,
@@ -1142,7 +1142,7 @@
       },
       "targets": [
         {
-          "expr": "probe_success{job=\"blackbox-tcp-crux\",service=\"coolify-proxy\"}",
+          "expr": "probe_success{job=\"blackbox-tcp-lan-hosts\",service=\"coolify-proxy\"}",
           "instant": true,
           "refId": "A"
         }

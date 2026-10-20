@@ -11,7 +11,7 @@ Dell PowerEdge **R410** host. Paired with a dedicated iDRAC 6 OOB interface.
 | Hardware | 2× Xeon E5620, 24 GB RAM, PERC 6/i (one 465 GB virtual disk), legacy BIOS only |
 | OS | NixOS, flake `.#mars` (`hosts/mars/`) |
 | Role | [Coolify](../ace/coolify.md) deploy and build server (Coolify server id 2) |
-| WAN | None — LAN / outbound PAT only |
+| WAN | HTTP(S) via ace's Caddy; ports Coolify apps publish are NATed to mars by `coolify-edge-nat` |
 
 ## Configuration
 
@@ -30,9 +30,15 @@ cd /etc/nixos && nixos-rebuild switch --flake .#mars --target-host root@192.168.
 
 ## Coolify
 
-Registered like crux (`docs/coolify-ace.md`): server `mars`, private key `crux-deploy` (the `coolify@ace` key both nodes authorize), marked reachable/usable directly because Coolify rejects `ID=nixos`. The Traefik proxy uses crux's saved configuration: HTTP on :80 only, TLS on ace's Caddy.
+mars is Coolify's only deploy server (crux was removed on 2026-10-20). Registered by hand ([Coolify](../ace/coolify.md)): server `mars`, private key `crux-deploy` (the `coolify@ace` key from `coolify-node.nix`; the name is historical), marked reachable/usable directly because Coolify rejects `ID=nixos`.
 
-Apps deployed to mars are reachable from ace on `192.168.5.15:80`. ace's Caddy still sends every `*.apps.prestonhager.com` request to crux, so a public hostname for a mars app needs its own entry in `nixos/caddy/coolify.nix`.
+The Traefik proxy (`coolify-proxy`, `/data/coolify/proxy/docker-compose.yml`) serves HTTP on :80 only and trusts `X-Forwarded-*` from ace (`--entrypoints.http.forwardedHeaders.trustedIPs=192.168.5.5/32`, also in Coolify's saved proxy configuration so a proxy restart from the UI keeps it). TLS terminates on ace's Caddy, which sends `*.apps.prestonhager.com` and every hostname a Coolify app uses that ace does not serve itself to `192.168.5.15:80`. Ports apps publish are forwarded from the WAN by `coolify-edge-nat` on ace. See [Routing traffic to apps](../ace/coolify.md#routing-traffic-to-apps).
+
+```bash
+docker ps                                   # coolify-proxy, coolify-sentinel, apps
+docker logs coolify-proxy --tail 50
+iptables -S DOCKER-USER                     # expect the :80 drop rule (only ace may connect)
+```
 
 ## Install notes (2026-10-20)
 
