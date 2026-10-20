@@ -9,7 +9,7 @@ Homelab documentation for the [nixos-configs](https://github.com/PrestonHager/ni
 | **ace** | 192.168.5.5 | `#ace` | LAN + WAN `:80`/`:443` | Main server — Caddy, Podman stacks, DNS, monitoring ([overview](ace/index.md)) |
 | **ace iDRAC** | 192.168.5.10 | — | LAN OOB only | OOB management ([iDRAC](ace/idrac.md)) |
 | **mars iDRAC** | 192.168.5.11 | — | LAN OOB only (`Gi2/0/48`) | PowerEdge R410 iDRAC 6 ([mars iDRAC](poweredge/mars-idrac.md)) — **online** |
-| **mars** | 192.168.5.15 | — | Reserved / not connected | PowerEdge R410 host ([mars](poweredge/mars.md)) |
+| **mars** | 192.168.5.15 | — | Coolify deploy/build server | PowerEdge R410 host ([mars](poweredge/mars.md)) — **online** |
 | **sally iDRAC** | 192.168.5.12 | — | Reserved / not connected | PowerEdge R320 OOB ([sally iDRAC](poweredge/sally-idrac.md)) |
 | **sally** | 192.168.5.16 | — | Reserved / not connected | PowerEdge R320 host ([sally](poweredge/sally.md)) |
 | **crux** | 192.168.5.6 | `#crux` | LAN only (`Gi2/0/25`) | Pterodactyl Wings node and Coolify deploy server ([crux](pterodactyl-nodes/crux.md)) |

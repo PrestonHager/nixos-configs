@@ -7,8 +7,8 @@
 | Dashboard | https://coolify.prestonhager.com |
 | Apps | `https://<name>.apps.prestonhager.com` |
 | Version | Coolify 4.4.6 (pinned by digest) |
-| Deploy server | crux (192.168.5.6), Coolify proxy (Traefik) on :80 |
-| Config | `nixos/containers/coolify.nix`, `nixos/containers/coolify-sso.nix`, `nixos/caddy/coolify.nix`, `nixos/coolify-node.nix` (crux) |
+| Deploy servers | crux (192.168.5.6) and mars (192.168.5.15), Coolify proxy (Traefik) on :80 on each |
+| Config | `nixos/containers/coolify.nix`, `nixos/containers/coolify-sso.nix`, `nixos/caddy/coolify.nix`, `nixos/coolify-node.nix` (crux, mars) |
 | Secrets | `nixos-secrets/secrets/containers/coolify.yaml` |
 
 ## How it fits together
