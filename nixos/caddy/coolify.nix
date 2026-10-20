@@ -39,17 +39,25 @@ in
 
     "*.apps.prestonhager.com".extraConfig = proxyToApps;
 
-    "https://".extraConfig = ''
-      tls {
-        on_demand
-      }
-      ${proxyToApps}
-    '';
+    # The default per-vhost log name would be access-https:__.log, which
+    # Caddy fails to open, so these two name their logs explicitly.
+    "https://" = {
+      logFormat = "output file /var/log/caddy/access-catchall-https.log";
+      extraConfig = ''
+        tls {
+          on_demand
+        }
+        ${proxyToApps}
+      '';
+    };
 
     # Plain HTTP for names no other vhost claims: send it to HTTPS, where the
     # on-demand check decides. Named vhosts keep their own redirects.
-    "http://".extraConfig = ''
-      redir https://{host}{uri} 308
-    '';
+    "http://" = {
+      logFormat = "output file /var/log/caddy/access-catchall-http.log";
+      extraConfig = ''
+        redir https://{host}{uri} 308
+      '';
+    };
   };
 }
