@@ -52,6 +52,11 @@ in
     };
   };
 
+  # Only the host SSH key decrypts sops here. nixos/default.nix also names
+  # /var/lib/sops/age/keys.txt (ace has one); a missing keyFile makes
+  # sops-install-secrets abort, so users came up without passwords.
+  sops.age.keyFile = lib.mkForce null;
+
   homelab.coolifyNode.address = marsIp;
 
   services.openssh = {
