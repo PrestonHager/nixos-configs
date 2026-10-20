@@ -101,16 +101,7 @@ Console/AUX lines use default-style settings; no remote telnet on VTY.
 
 `pterofwd` is the key-only account that ace uses to change NAT: the Pterodactyl port-forward extension and `coolify-edge-nat` (Coolify app ports). The private key is `pterodactyl-router-ssh-key` in nix-secrets (`secrets/containers/pterodactyl.yaml`), readable by root and the panel only; the public half is under `ip ssh pubkey-chain` → `username pterofwd`.
 
-Both tools send `show running-config | include ^ip nat inside source static` and `configure terminal` on stdin, so the account must log in at **privilege 15**. As of 2026-10-20 it logged in at the default level (`Astracap>` prompt, `% Invalid input` on `show running-config`), so neither could apply NAT. Fix, from `ssh astracap` + `enable`:
-
-```text
-configure terminal
- username pterofwd privilege 15
-end
-write memory
-```
-
-`username … privilege` keeps the existing secret and pubkey entry. Verify from ace: `systemctl start coolify-edge-nat; journalctl -u coolify-edge-nat -n 5` once an app publishes a port, or `podman exec pterodactyl ssh -F /pterodactyl/secrets/portforward-ssh-config astracap` and check for the `Astracap#` prompt.
+Both tools send `show running-config | include ^ip nat inside source static` and `configure terminal` on stdin, so the account logs in at **privilege 15** (`username pterofwd privilege 15`, set 2026-10-20; before that it landed at `Astracap>` and could not apply NAT). Verify from ace: `systemctl start coolify-edge-nat; journalctl -u coolify-edge-nat -n 5` once an app publishes a port, or run the NAT job's `ExecStart` with `--dry-run`.
 
 ## Hardware / software
 

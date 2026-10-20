@@ -86,7 +86,7 @@ let
       "elara.lc1.nm.us" = cnameInternal "elara";
       "zenith.lc1.nm.us" = cnameInternal "zenith";
       # Coolify apps: TLS terminates on ace Caddy, which forwards to mars:80.
-      # Other hostnames a Coolify app uses need an entry in aceHosted too.
+      # Other Coolify app hostnames get records from coolify-edge-dns at runtime.
       "*.apps" = viaAce;
     }
     // lib.genAttrs aceHosted (_: viaAce)

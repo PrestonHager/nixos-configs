@@ -9,7 +9,7 @@
 | Version | Coolify 4.4.6 (pinned by digest) |
 | Deploy server | mars (192.168.5.15), Coolify proxy (Traefik) on :80 |
 | Config | `nixos/containers/coolify.nix`, `nixos/containers/coolify-sso.nix`, `nixos/containers/coolify-edge.nix`, `nixos/caddy/coolify.nix`, `nixos/coolify-node.nix` (mars) |
-| Secrets | `nixos-secrets/secrets/containers/coolify.yaml`; SMTP password from `nextcloud-environment`; router key `pterodactyl-router-ssh-key` |
+| Secrets | `nixos-secrets/secrets/containers/coolify.yaml`; SMTP password from `nextcloud-environment`; router key `pterodactyl-router-ssh-key`; Cloudflare token `cloudflare-acme-env`; Technitium admin password |
 
 ## How it fits together
 
@@ -26,6 +26,8 @@ flowchart LR
   E -. reads .-> P
   N[coolify-edge-nat timer] -. reads .-> P
   N -->|SSH pterofwd| RT[Astracap static NAT]
+  DN[coolify-edge-dns timer] -. reads .-> P
+  DN -->|CNAMEs| CF[Cloudflare + Technitium]
   RT -->|published ports| A
   Z[Zitadel] -. OIDC .- D
 ```
@@ -36,7 +38,7 @@ flowchart LR
 
 ## Routing traffic to apps
 
-Everything an app in Coolify needs from outside is derived from what is configured in Coolify; there is nothing to add in Nix per app (except LAN DNS for custom names, below).
+Everything an app in Coolify needs from outside (DNS, TLS, proxying, port forwards) is derived from what is configured in Coolify; there is nothing to add in Nix or by hand per app.
 
 **Web (HTTP/HTTPS).** `nixos/caddy/coolify.nix` has three sites for apps:
 
@@ -48,14 +50,12 @@ Everything an app in Coolify needs from outside is derived from what is configur
 
 Caddy always prefers the most specific site, so the catch-alls only see hostnames that none of ace's own services claim. Before Caddy issues an on-demand certificate it asks `coolify-edge-ask` (`127.0.0.1:9180/ask?domain=…`), which says yes only when an application, preview or service in Coolify uses that hostname **and** it is inside `COOLIFY_EDGE_ZONES` (`prestonhager.com`). Any other name fails the TLS handshake, so stray SNI never reaches Let's Encrypt. Certificates use the same Cloudflare DNS-01 token as everything else, so only names in Cloudflare zones that token can edit work.
 
-To give an app a custom name such as `group5.prestonhager.com`:
+To give an app a custom name such as `group5.prestonhager.com`, set the app's domain in Coolify to `http://group5.prestonhager.com` (always `http://`; TLS is ace's job) and deploy. Within a minute `coolify-edge-dns` creates:
 
-1. In Coolify, set the app's domain to `http://group5.prestonhager.com` (always `http://`; TLS is ace's job).
-2. Cloudflare: CNAME `group5` → `ip1.lc1.nm.us.prestonhager.com`.
-3. LAN: add `"group5"` to `aceHosted` in `nixos/containers/technitium-zones.nix` and rebuild ace (Technitium is authoritative for `prestonhager.com` on the LAN, so without it LAN clients cannot resolve the name).
-4. Open the URL. The first request waits a few seconds for the certificate.
+- **Cloudflare:** CNAME `group5` → `ip1.lc1.nm.us.prestonhager.com`, DNS only, comment `managed by coolify-edge (nixos-configs)`. It uses the Caddy DNS-01 token (`cloudflare-acme-env`).
+- **Technitium (LAN):** CNAME `group5` → `ace.internal.prestonhager.com`. Technitium is authoritative for `prestonhager.com` on the LAN, so without it LAN clients could not resolve the name. `technitium-sync-zones` re-imports the zone when the Nix zone file changes, which drops these records; the job re-adds them within 15 minutes (or run `systemctl start coolify-edge-dns`).
 
-`*.apps.prestonhager.com` names need none of this.
+When the domain is removed from Coolify, both records are deleted. Only records the job created are ever deleted (by comment in Cloudflare, by its state file in Technitium). A name that already has other records, such as `grafana`, is left alone and logged as a conflict. `*.apps.prestonhager.com` names are skipped because the wildcard records already cover them. The first HTTPS request to a new name waits a few seconds for the certificate.
 
 **Other ports (TCP/UDP).** `coolify-edge-nat` (timer, every minute) forwards from the WAN every host port that Coolify publishes on mars:
 
@@ -70,9 +70,10 @@ The NAT job logs in as `pterofwd` with the Pterodactyl port-forward key. That ac
 
 ```bash
 journalctl -u coolify-edge-nat -n 20      # what it added/removed, conflicts
+journalctl -u coolify-edge-dns -n 20      # CNAMEs added/removed, conflicts
 journalctl -u coolify-edge-ask -f         # on-demand TLS decisions
-cat /var/lib/coolify-edge/nat.json        # last wanted set
-systemctl start coolify-edge-nat          # sync now
+cat /var/lib/coolify-edge/{nat,dns}.json  # last wanted sets
+systemctl start coolify-edge-nat coolify-edge-dns   # sync now
 ```
 
 To see what the job would do without touching the router: `systemctl cat coolify-edge-nat` for the environment, then run its `ExecStart` with `--dry-run`. `… edge-sync.py domains` lists the hostnames the ask endpoint accepts.

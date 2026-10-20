@@ -25,6 +25,17 @@ Two jobs, both driven by what is configured in Coolify's database
          The router account needs `show running-config` and `configure
          terminal` (privilege 15, or a custom level granting both).
 
+  dns    Gives every Coolify hostname inside the zones a CNAME, so a new
+         app domain resolves without editing DNS by hand: in Cloudflare
+         (public, -> COOLIFY_EDGE_PUBLIC_TARGET, DNS only) and in Technitium
+         (LAN, -> COOLIFY_EDGE_LAN_TARGET). Names under a wildcard that already
+         exists (*.apps) are skipped. A name that already has records it did
+         not create is left alone and reported. Cloudflare records it creates
+         carry the comment COOLIFY_EDGE_DNS_COMMENT, and only records with that
+         comment are ever deleted; Technitium records it created are tracked in
+         its state file (Technitium's zone sync can re-import the zone, so they
+         are re-checked like the NAT rules).
+
 Configuration comes from the environment (set by nixos/containers/coolify-edge.nix).
 """
 
@@ -35,7 +46,9 @@ import re
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.parse
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PODMAN = os.environ.get("PODMAN", "podman")
@@ -47,6 +60,13 @@ WAN_INTERFACE = os.environ.get("COOLIFY_EDGE_WAN_INTERFACE", "GigabitEthernet0/0
 ROUTER_SSH_CONFIG = os.environ.get("COOLIFY_EDGE_ROUTER_SSH_CONFIG", "")
 ROUTER_HOST = os.environ.get("COOLIFY_EDGE_ROUTER_HOST", "astracap")
 STATE_FILE = os.environ.get("COOLIFY_EDGE_STATE", "/var/lib/coolify-edge/nat.json")
+DNS_STATE_FILE = os.environ.get("COOLIFY_EDGE_DNS_STATE", "/var/lib/coolify-edge/dns.json")
+DNS_SKIP_SUFFIXES = [s.lower().strip(".") for s in os.environ.get("COOLIFY_EDGE_DNS_SKIP", "").split()]
+PUBLIC_TARGET = os.environ.get("COOLIFY_EDGE_PUBLIC_TARGET", "")
+LAN_TARGET = os.environ.get("COOLIFY_EDGE_LAN_TARGET", "")
+DNS_COMMENT = os.environ.get("COOLIFY_EDGE_DNS_COMMENT", "managed by coolify-edge")
+TECHNITIUM_API = os.environ.get("COOLIFY_EDGE_TECHNITIUM_API", "http://127.0.0.1:5380")
+TECHNITIUM_PASSWORD_FILE = os.environ.get("COOLIFY_EDGE_TECHNITIUM_PASSWORD_FILE", "")
 MAX_RANGE = 100
 
 DOMAIN_SQL = r"""
@@ -260,19 +280,19 @@ def rule_line(proto, ip, port):
     return f"ip nat inside source static {proto} {ip} {port} interface {WAN_INTERFACE} {port}"
 
 
-def load_state():
+def load_state(path=STATE_FILE):
     try:
-        with open(STATE_FILE) as f:
+        with open(path) as f:
             return json.load(f)
     except (OSError, ValueError):
         return {}
 
 
-def save_state(state):
-    tmp = STATE_FILE + ".tmp"
+def save_state(state, path=STATE_FILE):
+    tmp = path + ".tmp"
     with open(tmp, "w") as f:
         json.dump(state, f, indent=2, sort_keys=True)
-    os.replace(tmp, STATE_FILE)
+    os.replace(tmp, path)
 
 
 def nat(args):
@@ -312,6 +332,183 @@ def nat(args):
     return 0
 
 
+# --- dns -------------------------------------------------------------------
+
+def http_json(method, url, headers=None, body=None):
+    data = None if body is None else json.dumps(body).encode()
+    req = urllib.request.Request(url, data=data, method=method, headers=dict(headers or {}))
+    if data is not None:
+        req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as res:
+            return json.load(res)
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"{method} {url.split('?')[0]}: HTTP {e.code} {e.read()[:300]!r}") from None
+
+
+class Cloudflare:
+    API = "https://api.cloudflare.com/client/v4"
+
+    def __init__(self, zone):
+        token = os.environ.get("CLOUDFLARE_API_TOKEN", "")
+        if not token:
+            raise RuntimeError("CLOUDFLARE_API_TOKEN is not set")
+        self.headers = {"Authorization": f"Bearer {token}"}
+        found = self.call("GET", "/zones?" + urllib.parse.urlencode({"name": zone}))
+        if not found:
+            raise RuntimeError(f"Cloudflare zone {zone} not visible to the token")
+        self.zone_id = found[0]["id"]
+
+    def call(self, method, path, body=None):
+        res = http_json(method, self.API + path, self.headers, body)
+        if not res.get("success"):
+            raise RuntimeError(f"Cloudflare {method} {path.split('?')[0]}: {res.get('errors')}")
+        return res["result"]
+
+    def records(self, name):
+        return self.call("GET", f"/zones/{self.zone_id}/dns_records?"
+                         + urllib.parse.urlencode({"name": name, "per_page": 100}))
+
+    def managed(self):
+        return self.call("GET", f"/zones/{self.zone_id}/dns_records?"
+                         + urllib.parse.urlencode({"type": "CNAME", "comment.exact": DNS_COMMENT,
+                                                   "per_page": 1000}))
+
+    def add(self, name, target):
+        self.call("POST", f"/zones/{self.zone_id}/dns_records", {
+            "type": "CNAME", "name": name, "content": target, "ttl": 1,
+            "proxied": False, "comment": DNS_COMMENT,
+        })
+
+    def delete(self, record_id):
+        self.call("DELETE", f"/zones/{self.zone_id}/dns_records/{record_id}")
+
+
+class Technitium:
+    def __init__(self):
+        with open(TECHNITIUM_PASSWORD_FILE) as f:
+            password = f.read().strip()
+        # Form POST, so the password never appears in a URL.
+        form = urllib.parse.urlencode({"user": "admin", "pass": password}).encode()
+        with urllib.request.urlopen(TECHNITIUM_API + "/api/user/login", data=form, timeout=30) as res:
+            body = json.load(res)
+        if body.get("status") != "ok":
+            raise RuntimeError(f"Technitium login: {body.get('errorMessage', body.get('status'))}")
+        self.token = body["token"]
+
+    def call(self, path, **params):
+        res = http_json("GET", TECHNITIUM_API + path + "?" + urllib.parse.urlencode(params),
+                        {"Authorization": f"Bearer {self.token}"})
+        if res.get("status") != "ok":
+            raise RuntimeError(f"Technitium {path}: {res.get('errorMessage', res.get('status'))}")
+        return res
+
+    def records(self, zone, name):
+        try:
+            res = self.call("/api/zones/records/get", zone=zone, domain=name)
+        except RuntimeError as e:
+            if "No such" in str(e) or "not found" in str(e).lower():
+                return []
+            raise
+        # Only records at exactly this name (get also returns the zone's subtree).
+        return [r for r in res["response"]["records"] if r["name"].lower() == name]
+
+    def add(self, zone, name, target):
+        self.call("/api/zones/records/add", zone=zone, domain=name, type="CNAME",
+                  cname=target, ttl=300, overwrite="false", comments=DNS_COMMENT)
+
+    def delete(self, zone, name, target):
+        self.call("/api/zones/records/delete", zone=zone, domain=name, type="CNAME", cname=target)
+
+    def logout(self):
+        try:
+            self.call("/api/user/logout")
+        except Exception:  # noqa: BLE001 - the session expires anyway
+            pass
+
+
+def zone_of(host):
+    return max((z for z in ZONES if host == z or host.endswith("." + z)), key=len, default=None)
+
+
+def dns_wanted():
+    out = set()
+    for host in coolify_domains():
+        if "*" in host or host in ZONES or not zone_of(host):
+            continue
+        if any(host.endswith("." + s) for s in DNS_SKIP_SUFFIXES):
+            continue
+        out.add(host)
+    return out
+
+
+def dns(args):
+    wanted = dns_wanted()
+    state = load_state(DNS_STATE_FILE)
+    lan_ours = set(state.get("lan", []))
+    fresh = time.time() - state.get("checked_at", 0) < args.recheck
+    if set(state.get("wanted", [])) == wanted and (fresh or not (wanted or lan_ours)):
+        print(f"no change ({len(wanted)} names)")
+        return 0
+
+    log, conflicts = [], []
+
+    def act(msg, fn):
+        log.append(("dry run: " if args.dry_run else "") + msg)
+        if not args.dry_run:
+            fn()
+
+    # Public: Cloudflare.
+    for zone in sorted({zone_of(h) for h in wanted} | set(ZONES)):
+        cf = Cloudflare(zone)
+        managed = {r["name"].lower(): r for r in cf.managed()}
+        for name, rec in sorted(managed.items()):
+            if zone_of(name) == zone and name not in wanted:
+                act(f"cloudflare: delete {name}", lambda r=rec: cf.delete(r["id"]))
+        for name in sorted(h for h in wanted if zone_of(h) == zone):
+            rec = managed.get(name)
+            if rec and rec["content"].lower() == PUBLIC_TARGET.lower():
+                continue
+            if rec:
+                act(f"cloudflare: repoint {name}", lambda r=rec: cf.delete(r["id"]))
+            elif cf.records(name):
+                conflicts.append(f"cloudflare: {name} already has records not managed by coolify-edge")
+                continue
+            act(f"cloudflare: add {name} CNAME {PUBLIC_TARGET}", lambda n=name: cf.add(n, PUBLIC_TARGET))
+
+    # LAN: Technitium (authoritative for the zones on the LAN).
+    lan_now = set()
+    if TECHNITIUM_PASSWORD_FILE:
+        tn = Technitium()
+        try:
+            for name in sorted(lan_ours - wanted):
+                act(f"technitium: delete {name}", lambda n=name: tn.delete(zone_of(n), n, LAN_TARGET))
+            for name in sorted(wanted):
+                recs = tn.records(zone_of(name), name)
+                if any(r["type"] == "CNAME" and r["rData"].get("cname", "").lower() == LAN_TARGET.lower()
+                       for r in recs):
+                    if name in lan_ours or any(DNS_COMMENT in (r.get("comments") or "") for r in recs):
+                        lan_now.add(name)
+                    continue
+                if recs:
+                    conflicts.append(f"technitium: {name} already has records not managed by coolify-edge")
+                    continue
+                act(f"technitium: add {name} CNAME {LAN_TARGET}", lambda n=name: tn.add(zone_of(n), n, LAN_TARGET))
+                lan_now.add(name)
+        finally:
+            tn.logout()
+
+    for line in log:
+        print(line)
+    for c in conflicts:
+        print(f"conflict: {c}", file=sys.stderr)
+    if not args.dry_run:
+        save_state({"wanted": sorted(wanted), "lan": sorted(lan_now), "checked_at": time.time(),
+                    "conflicts": conflicts}, DNS_STATE_FILE)
+    print(f"in sync: {len(wanted)} names, {len(log)} changes, {len(conflicts)} conflicts")
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -322,12 +519,17 @@ def main():
     n = sub.add_parser("nat")
     n.add_argument("--recheck", type=float, default=900, help="seconds between router checks when nothing changed")
     n.add_argument("--dry-run", action="store_true")
+    d = sub.add_parser("dns")
+    d.add_argument("--recheck", type=float, default=900, help="seconds between DNS checks when nothing changed")
+    d.add_argument("--dry-run", action="store_true")
     sub.add_parser("domains")
     args = ap.parse_args()
     if args.cmd == "serve":
         serve(args)
     elif args.cmd == "nat":
         return nat(args)
+    elif args.cmd == "dns":
+        return dns(args)
     elif args.cmd == "domains":
         for h in sorted(coolify_domains()):
             print(h, "" if in_zones(h) else "(outside allowed zones)")
