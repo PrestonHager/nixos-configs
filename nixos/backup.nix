@@ -20,7 +20,6 @@ let
   podman = "${pkgs.podman}/bin/podman";
 
   mariadbContainers = [
-    "nextcloud-db"
     "mediawiki-db"
     "pterodactyl-db"
     "pterodactyl-test-db"
@@ -34,6 +33,10 @@ let
     umask 077
     mkdir -p ${dumpDir}
     failed=0
+
+    running() {
+      ${podman} container inspect "$1" --format '{{.State.Running}}' 2>/dev/null | grep -q true
+    }
 
     # Write to a temp file and rename, so a failed dump never replaces the
     # previous good one.
@@ -51,17 +54,27 @@ let
     }
 
     for c in ${lib.concatStringsSep " " mariadbContainers}; do
-      if ! ${podman} container inspect "$c" --format '{{.State.Running}}' 2>/dev/null | grep -q true; then
-        echo "skipping $c (not running)"; continue
-      fi
+      running "$c" || { echo "skipping $c (not running)"; continue; }
       dump "$c" ${podman} exec "$c" sh -c \
         'exec mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" --all-databases --single-transaction --routines --events --triggers'
     done
 
+    # nextcloud-db: the root and app passwords in its container env no longer
+    # match the database, so use the credentials Nextcloud itself connects
+    # with (config.php), passed through a root-only env file.
+    if running nextcloud-db && running nextcloud; then
+      ncenv=$(mktemp /run/nc-dump.XXXXXX)
+      ${podman} exec -u www-data nextcloud php -r \
+        '$CONFIG=[]; include "/var/www/html/config/config.php"; echo "MYSQL_PWD=", $CONFIG["dbpassword"], "\nDBU=", $CONFIG["dbuser"], "\nDBN=", $CONFIG["dbname"], "\n";' > "$ncenv"
+      dump nextcloud-db ${podman} exec --env-file "$ncenv" nextcloud-db sh -c \
+        'exec mariadb-dump -u"$DBU" --single-transaction --routines --events --triggers --databases "$DBN"'
+      ${pkgs.coreutils}/bin/shred -u "$ncenv"
+    else
+      echo "skipping nextcloud-db (not running)"
+    fi
+
     for c in ${lib.concatStringsSep " " postgresContainers}; do
-      if ! ${podman} container inspect "$c" --format '{{.State.Running}}' 2>/dev/null | grep -q true; then
-        echo "skipping $c (not running)"; continue
-      fi
+      running "$c" || { echo "skipping $c (not running)"; continue; }
       dump "$c" ${podman} exec "$c" sh -c 'exec pg_dumpall -U "$POSTGRES_USER"'
     done
 
@@ -144,5 +157,13 @@ in
   };
 
   systemd.services.restic-backups-local.serviceConfig.ExecStartPost = [ "${markSuccess}" ];
+
+  # MariaDB's image only upgrades its system tables after a major version
+  # bump when this is set. Without it, pterodactyl-db and nextcloud-db kept
+  # 11.x system tables under 12.3, which broke dumps of stored routines.
+  # The upgrade runs with --skip-grant-tables and keeps its own backup.
+  virtualisation.oci-containers.containers = lib.genAttrs
+    ([ "nextcloud-db" ] ++ mariadbContainers)
+    (_: { environment.MARIADB_AUTO_UPGRADE = "1"; });
 }
 
