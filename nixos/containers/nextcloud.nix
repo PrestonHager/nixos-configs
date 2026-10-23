@@ -60,6 +60,28 @@ let
       MaxConnectionsPerChild 1000
     </IfModule>
   '';
+  # Redis requires a password. Generated once on the host (no nix-secrets entry) and
+  # handed to Redis as a config file and to Nextcloud / notify_push via an env file
+  # (REDIS_HOST_PASSWORD is read by the image's redis.config.php and session ini).
+  redisAuthDir = "/var/lib/redis-auth/nextcloud";
+  redisAuthScript = pkgs.writeShellScript "nextcloud-redis-auth" ''
+    set -euo pipefail
+    umask 077
+    dir=${redisAuthDir}
+    install -d -m 0700 /var/lib/redis-auth "$dir"
+    if [ ! -s "$dir/password" ]; then
+      od -An -tx1 -N32 /dev/urandom | tr -d ' \n' > "$dir/password.tmp"
+      mv -f "$dir/password.tmp" "$dir/password"
+    fi
+    pw="$(cat "$dir/password")"
+    printf 'requirepass %s\n' "$pw" > "$dir/redis.conf.tmp"
+    chown 10003:10003 "$dir/redis.conf.tmp"
+    chmod 0400 "$dir/redis.conf.tmp"
+    mv -f "$dir/redis.conf.tmp" "$dir/redis.conf"
+    printf 'REDIS_HOST_PASSWORD=%s\nREDISCLI_AUTH=%s\nREDIS_URL=redis://:%s@127.0.0.1:6379\n' \
+      "$pw" "$pw" "$pw" > "$dir/app.env.tmp"
+    mv -f "$dir/app.env.tmp" "$dir/app.env"
+  '';
   ncRuntimeEnv = "/run/nextcloud/container.env";
   nextcloudEnvScript = pkgs.writeShellScript "nextcloud-container-env" ''
     set -euo pipefail
@@ -563,6 +585,27 @@ in
     };
   };
 
+  systemd.services.nextcloud-redis-auth = {
+    description = "Generate the Nextcloud Redis password and config";
+    before = [
+      "podman-nextcloud.service"
+      "podman-nextcloud-redis.service"
+      "podman-nextcloud-notify-push.service"
+    ];
+    requiredBy = [
+      "podman-nextcloud.service"
+      "podman-nextcloud-redis.service"
+      "podman-nextcloud-notify-push.service"
+    ];
+    after = [ "systemd-tmpfiles-setup.service" ];
+    path = [ pkgs.coreutils ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = redisAuthScript;
+    };
+  };
+
   systemd.services.nextcloud-occ-install = {
     description = "Run occ maintenance:install when Nextcloud is not installed";
     wantedBy = [ "multi-user.target" ];
@@ -798,6 +841,7 @@ in
       extraOptions = [
         "--pod=nextcloud"
         "--env-file=${ncRuntimeEnv}"
+        "--env-file=${redisAuthDir}/app.env"
       ];
       image = nextcloudImage;
     };
@@ -837,6 +881,9 @@ in
         # as PID 1 and does not catch it, so every stop waited 10s, was SIGKILLed
         # (exit 137) and marked the unit failed on each rebuild. It handles SIGTERM.
         "--stop-signal=SIGTERM"
+        # Redis password: REDIS_URL (notify_push env override) and REDIS_HOST_PASSWORD
+        # (for the getenv() in config/redis.config.php).
+        "--env-file=${redisAuthDir}/app.env"
       ];
     };
     nextcloud-whiteboard = {
@@ -893,8 +940,11 @@ in
       user = "10003:10003";
       volumes = [
         "${ncRoot}/redis:/data"
+        "${redisAuthDir}/redis.conf:/etc/redis-auth.conf:ro"
       ];
-      cmd = [ "redis-server" "--save" "60" "1" "--loglevel" "warning" "--bind" "127.0.0.1" ];
+      # Pod-local and password-protected (requirepass comes from the mounted file so
+      # it is not on the command line).
+      cmd = [ "redis-server" "/etc/redis-auth.conf" "--save" "60" "1" "--loglevel" "warning" "--bind" "127.0.0.1" ];
       extraOptions = [ "--pod=nextcloud" ];
       image = "docker.io/library/redis:8.8.0";
     };
