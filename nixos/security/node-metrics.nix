@@ -19,7 +19,8 @@ in {
         ];
       };
 
-      networking.firewall.allowedTCPPorts = lib.mkAfter [ 9100 ];
+      # ace's Prometheus only; no allowedTCPPorts entry, which would open the
+      # port to the whole LAN (IPv4 and IPv6) ahead of this rule.
       networking.firewall.extraCommands = lib.mkAfter ''
         iptables -A nixos-fw -p tcp -s 192.168.5.5 --dport 9100 -j nixos-fw-accept
       '';

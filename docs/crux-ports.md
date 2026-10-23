@@ -12,12 +12,14 @@ Inventory from live host (`ss` / firewall) and Astracap NAT (Jul 2026), updated 
 | Docker game servers | Per-allocation TCP/UDP | Dynamic (e.g. docker-proxy) | **Not** in Nix `allowedTCPPorts` unless allocation + NAT | Ephemeral; do not hardcode in Prometheus |
 | Prometheus | Local metrics | `*:9090` | **ace only** (`192.168.5.5`) | Grafana datasource `prometheus-crux` |
 | Blackbox exporter | Probe agent | `*:9115` | **ace only** | Scraped by ace Prometheus for LAN HTTP/DNS |
-| Node exporter | Host metrics | `*:9100` | Closed to LAN | Not ace-reachable today |
+| Node exporter | Host metrics | `*:9100` | Closed to LAN | Not ace-reachable today; on elara/mars, `nixos/security/node-metrics.nix` opens it to ace only |
 | MariaDB | Wings local DB | `127.0.0.1:3306` | localhost | Cannot probe from ace |
 | Alloy | Logs → Loki | `127.0.0.1:12345` | localhost | Cannot probe from ace |
 | rpcbind | NFS client helper | `*:111` | Not in allow list | Used for NFS LE certs from ace |
 
 Nix firewall allow list (`hosts/pterodactyl-nodes/default.nix`): **TCP 22, 443, 2022**.
+
+Game containers (`pterodactyl0`, plus `docker0`/`br-*`) are refused by the host firewall for any port on crux itself, and `DOCKER-USER` drops their traffic to private, CGNAT/tailnet, link-local and ULA destinations (`homelab.security.containerEgress`). They keep internet access, with Wings' resolvers `1.1.1.1`/`1.0.0.1`. Check with `iptables -S homelab-ctr-egress` and `journalctl -k --grep ctr-egress-drop`.
 
 ### Coolify (removed)
 

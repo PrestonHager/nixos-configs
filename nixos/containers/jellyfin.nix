@@ -205,8 +205,13 @@ in
   virtualisation.oci-containers.containers.jellyfin = {
     autoStart = true;
 
+    # Not 0.0.0.0 (netavark DNATs published ports ahead of nixos-fw, so that also
+    # exposed it on the tailnet and the podman bridges). Loopback for Caddy and the
+    # version check; the LAN address stays for TV/app clients that talk to
+    # http://192.168.5.5:8096 directly (Jellyfin requires its own login there).
     ports = [
-      "8096:8096"
+      "127.0.0.1:8096:8096"
+      "192.168.5.5:8096:8096"
     ];
 
     user = "jellyfin:jellyfin";

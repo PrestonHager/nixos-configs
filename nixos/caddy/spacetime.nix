@@ -1,45 +1,38 @@
 { config, ... }:
 
-## deny non-local requests for publishing
-#"/v1/publish" = {
-#proxyPass = "http://localhost:8084/";
-#extraConfig = ''
-#allow 192.168.8.0/24;
-#deny all;
-#proxy_http_version 1.1;
-#proxy_set_header Upgrade $http_upgrade;
-#proxy_set_header Connection "upgrade";
-#'';
-
+# SpacetimeDB: clients (subscribe, reducer calls, identities) are public;
+# everything that changes or inspects a database from outside is
+# LAN/tailnet/VPN only: publishing (POST/PUT /v1/database[/<name>] and the
+# older /v1/publish), deleting (DELETE), renaming (/names), SQL, logs and
+# energy.
+let
+  caddyLib = import ./lib.nix;
+  proxy = ''
+    reverse_proxy http://localhost:8084
+  '';
+in
 {
   services.caddy = {
     virtualHosts."spacetime.prestonhager.com".extraConfig = ''
-      @allowedSubnet {
-        path /v1/publish
-        remote_ip 192.168.8.0/24
-        remote_ip 10.88.0.0/16
+      ${caddyLib.securityHeaders}
+      ${caddyLib.lanMatcher}
+
+      @spacetimeManage path_regexp spacetimeManage ^/v1/(publish|energy)(/|$)|^/v1/database/[^/]+/(sql|logs|names)(/|$)
+      handle @spacetimeManage {
+        ${caddyLib.lanGuard proxy}
       }
 
-      # Any request to /v1/publish
-      @restrictRoute {
-        path /v1/publish
+      @spacetimeWrite {
+        method POST PUT PATCH DELETE
+        path_regexp spacetimeWrite ^/v1/database(/[^/]+)?/?$
+      }
+      handle @spacetimeWrite {
+        ${caddyLib.lanGuard proxy}
       }
 
-      # Handle: allowed subnet for /v1/publish
-      handle @allowedSubnet {
-        reverse_proxy http://localhost:8084
-      }
-
-      # Handle: /v1/publish but not in allowed subnet
-      handle @restrictRoute {
-        respond "Forbidden" 403
-      }
-
-      # Handle: everything else
       handle {
-        reverse_proxy http://localhost:8084
+        ${proxy}
       }
     '';
   };
 }
-

@@ -17,7 +17,9 @@ All four share `hosts/pterodactyl-nodes/default.nix`; the flake also imports `ho
 |-----------|-------|
 | Wings | `inputs.pterodactyl-wings` overlay binary (Wings 1.13.4 in the current lock), `wings.service` |
 | Docker | Enabled with `liveRestore = true`, so game servers keep running when dockerd restarts on a rebuild (Wings requirement; ace uses Podman instead) |
-| TLS certs | NFS symlink from ace Let's Encrypt (`link-letsencrypt.nix`) |
+| TLS certs | NFS symlink from ace Let's Encrypt (`link-letsencrypt.nix`); ace exports each active node's share read-only with `root_squash` (`nixos/nfs/default.nix`) |
+| Container network | Game containers reach the internet only: no LAN, tailnet, link-local or ULA destinations and no services on the node itself (`homelab.security.containerEgress`, `nixos/security/container-egress.nix`). Published game ports still work. |
+| SSH | Keys-only; only Nix-declared keys count (`~/.ssh/authorized_keys` is ignored); no TCP/agent/X11 forwarding; root@ace's automation key only from `192.168.5.5` (`nixos/security/ssh.nix`) |
 | DNS | Clients use ace Technitium `192.168.5.5`; nodes resolve panel via `/etc/hosts` or Technitium |
 | Monitoring | crux runs local Prometheus + blackbox probes (`nixos/monitoring/crux-*.nix`) |
 

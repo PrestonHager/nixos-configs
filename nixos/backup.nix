@@ -55,8 +55,9 @@ let
 
     for c in ${lib.concatStringsSep " " mariadbContainers}; do
       running "$c" || { echo "skipping $c (not running)"; continue; }
+      # MYSQL_PWD, not -p<password>: argv of container processes shows up in host `ps`.
       dump "$c" ${podman} exec "$c" sh -c \
-        'exec mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" --all-databases --single-transaction --routines --events --triggers'
+        'export MYSQL_PWD="$MARIADB_ROOT_PASSWORD"; exec mariadb-dump -uroot --all-databases --single-transaction --routines --events --triggers'
     done
 
     # nextcloud-db: the root and app passwords in its container env no longer

@@ -258,7 +258,8 @@ in {
     image = imageRendererImage;
     extraOptions = [
       "--pod=grafana-pod"
-      "--cap-add=SYS_ADMIN"
+      # No CAP_SYS_ADMIN: renderer v5 defaults to browser.sandbox=false and
+      # browser.namespaced=false; only the namespaced mode needs SYS_ADMIN/SYS_CHROOT.
     ];
     # AUTH_TOKEN only (written by grafana-container-env).
     environmentFiles = [ rendererRuntimeEnv ];

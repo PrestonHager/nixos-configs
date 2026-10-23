@@ -1,5 +1,9 @@
 { config, inputs, pkgs, ... }:
 
+# Shared guards and headers for the vhosts live in ./lib.nix (imported by the
+# vhost files, not a module): lanOnly / lanGuard restrict a site or path to
+# loopback, 192.168.5.0/24, the tailnet and WireGuard clients; securityHeaders
+# adds HSTS, nosniff and Referrer-Policy where the app does not set them.
 {
   # Comment or uncomment the following imports to customize caddy
   imports = [

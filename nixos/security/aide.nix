@@ -4,14 +4,39 @@ let
   cfg = config.homelab.security;
   dbPath = "/var/lib/aide/aide.db";
   dbNewPath = "/var/lib/aide/aide.db.new";
+  # Watched trees minus state that changes on its own, which otherwise fails
+  # every daily check (seen on elara and mars): the random seed, timer stamps,
+  # the letsencrypt symlink link-letsencrypt recreates on start, shell history
+  # and Docker/buildx client state under /root, and logs left in /root. The
+  # container data trees are listed too in case a watched path ever covers
+  # them. AIDE matches these as regular expressions.
   configFile = pkgs.writeText "aide.conf" ''
     database_in=file:${dbPath}
     database_out=file:${dbNewPath}
     /etc p+i+u+g+sha256
     /root p+i+u+g+sha256
-    !/etc/nixos/.git
-    !/etc/nixos/result
     /var/lib/systemd p+i+u+g+sha256
+    !/etc/nixos/\.git
+    !/etc/nixos/result
+    !/etc/letsencrypt
+    !/var/lib/systemd/random-seed$
+    !/var/lib/systemd/timers
+    !/var/lib/systemd/coredump
+    !/var/lib/systemd/catalog
+    !/var/lib/systemd/backlight
+    !/var/lib/systemd/pstore
+    !/var/lib/systemd/timesync
+    !/root/\.docker
+    !/root/\.cache
+    !/root/\.local/share
+    !/root/\.[a-z]*_history$
+    !/root/\.zcompdump
+    !/root/\.lesshst$
+    !/root/\.viminfo$
+    !/root/[^/]*\.log$
+    !/var/lib/docker
+    !/var/lib/pterodactyl
+    !/data/coolify
   '';
   aideInit = pkgs.writeShellScript "aide-init" ''
     set -euo pipefail
@@ -69,7 +94,12 @@ in {
       };
     };
 
-    system.activationScripts.homelabAideInit = lib.stringAfter [ "users" ] ''
+    # Re-baseline on every activation (boot and switch), after /etc has been
+    # rebuilt: a rebuild legitimately rewrites /etc, and a baseline taken
+    # before the "etc" step left every later check failing. The config file
+    # path is part of this script, so changing the exclusions above also
+    # re-baselines.
+    system.activationScripts.homelabAideInit = lib.stringAfter [ "users" "etc" ] ''
       ${aideInit} || true
     '';
 

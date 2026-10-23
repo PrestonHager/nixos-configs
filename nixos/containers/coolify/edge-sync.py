@@ -36,6 +36,21 @@ Two jobs, both driven by what is configured in Coolify's database
          its state file (Technitium's zone sync can re-import the zone, so they
          are re-checked like the NAT rules).
 
+Guard rails (all from the environment):
+
+  COOLIFY_EDGE_TEAM_IDS        only domains/ports of these Coolify teams
+                               (empty: all teams)
+  COOLIFY_EDGE_DENY_HOSTS      exact names never accepted (ace's own vhosts)
+  COOLIFY_EDGE_DENY_LABELS     names with any of these labels below the zone
+                               are never accepted (login, admin, vault, ...)
+  COOLIFY_EDGE_FORWARD_PUBLIC_DATABASES
+                               "1" to forward database ports (public port or
+                               port mappings of a database); default off
+  COOLIFY_EDGE_MAX_PORTS       refuse to sync NAT when more ports are wanted
+  COOLIFY_EDGE_MAX_RANGE       skip port ranges with more ports than this
+
+Every change to the router or to DNS is logged at warning priority.
+
 Configuration comes from the environment (set by nixos/containers/coolify-edge.nix).
 """
 
@@ -45,6 +60,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -67,16 +83,42 @@ LAN_TARGET = os.environ.get("COOLIFY_EDGE_LAN_TARGET", "")
 DNS_COMMENT = os.environ.get("COOLIFY_EDGE_DNS_COMMENT", "managed by coolify-edge")
 TECHNITIUM_API = os.environ.get("COOLIFY_EDGE_TECHNITIUM_API", "http://127.0.0.1:5380")
 TECHNITIUM_PASSWORD_FILE = os.environ.get("COOLIFY_EDGE_TECHNITIUM_PASSWORD_FILE", "")
-MAX_RANGE = 100
+TEAM_IDS = [int(t) for t in os.environ.get("COOLIFY_EDGE_TEAM_IDS", "").split()]
+DENY_HOSTS = {h.lower().strip(".") for h in os.environ.get("COOLIFY_EDGE_DENY_HOSTS", "").split()}
+DENY_LABELS = {lbl.lower() for lbl in os.environ.get("COOLIFY_EDGE_DENY_LABELS", "").split()}
+FORWARD_PUBLIC_DATABASES = os.environ.get("COOLIFY_EDGE_FORWARD_PUBLIC_DATABASES", "0") == "1"
+MAX_PORTS = int(os.environ.get("COOLIFY_EDGE_MAX_PORTS", "50"))
+MAX_RANGE = int(os.environ.get("COOLIFY_EDGE_MAX_RANGE", "20"))
 
-DOMAIN_SQL = r"""
-select fqdn from applications where deleted_at is null and coalesce(fqdn, '') <> ''
-union all select docker_compose_domains from applications
-  where deleted_at is null and coalesce(docker_compose_domains, '') <> ''
-union all select fqdn from application_previews where deleted_at is null and coalesce(fqdn, '') <> ''
-union all select docker_compose_domains from application_previews
-  where deleted_at is null and coalesce(docker_compose_domains, '') <> ''
-union all select fqdn from service_applications where deleted_at is null and coalesce(fqdn, '') <> '';
+
+def warn(msg):
+    """Log at warning priority (journald reads the <4> prefix)."""
+    print(f"<4>{msg}", file=sys.stderr, flush=True)
+
+
+def team_filter(env_col):
+    """SQL condition limiting env_col (an environment id) to TEAM_IDS."""
+    if not TEAM_IDS:
+        return "true"
+    ids = ", ".join(str(i) for i in TEAM_IDS)
+    return (f"({env_col})::bigint in (select e.id from environments e"
+            f" join projects p on p.id = e.project_id where p.team_id in ({ids}))")
+
+
+def domain_sql():
+    app_ok = team_filter("to_jsonb(a)->>'environment_id'")
+    svc_ok = team_filter("to_jsonb(s)->>'environment_id'")
+    return f"""
+select a.fqdn from applications a
+  where a.deleted_at is null and coalesce(a.fqdn, '') <> '' and {app_ok}
+union all select a.docker_compose_domains from applications a
+  where a.deleted_at is null and coalesce(a.docker_compose_domains, '') <> '' and {app_ok}
+union all select p.fqdn from application_previews p join applications a on a.id = p.application_id
+  where p.deleted_at is null and coalesce(p.fqdn, '') <> '' and {app_ok}
+union all select p.docker_compose_domains from application_previews p join applications a on a.id = p.application_id
+  where p.deleted_at is null and coalesce(p.docker_compose_domains, '') <> '' and {app_ok}
+union all select sa.fqdn from service_applications sa join services s on s.id = sa.service_id
+  where sa.deleted_at is null and coalesce(sa.fqdn, '') <> '' and {svc_ok};
 """
 
 # Standalone databases share these columns. destination_type is the PHP class
@@ -89,27 +131,31 @@ DB_TABLES = [
 
 
 def port_sql():
-    rows = ["select ports_mappings, null::int as public_port, destination_id, destination_type,"
-            " (to_jsonb(t)->>'deleted_at') as del from applications t"]
+    """Rows (kind, server ip, ports_mappings, public_port); kind is app or db."""
+    rows = ["select 'app' as kind, ports_mappings, null::int as public_port, destination_id,"
+            " destination_type, (to_jsonb(t)->>'deleted_at') as del,"
+            " (to_jsonb(t)->>'environment_id') as env from applications t"]
     for table in DB_TABLES:
         rows.append(
-            "select ports_mappings, case when is_public then public_port end, destination_id,"
-            f" destination_type, (to_jsonb(t)->>'deleted_at') from {table} t")
+            "select 'db', ports_mappings, case when is_public then public_port end, destination_id,"
+            f" destination_type, (to_jsonb(t)->>'deleted_at'), (to_jsonb(t)->>'environment_id') from {table} t")
     union = "\n  union all ".join(rows)
     return f"""
-select s.ip, coalesce(x.ports_mappings, ''), coalesce(x.public_port::text, '')
+select x.kind, s.ip, coalesce(x.ports_mappings, ''), coalesce(x.public_port::text, '')
 from ({union}) x
 join standalone_dockers d on d.id = x.destination_id and x.destination_type like '%StandaloneDocker'
 join servers s on s.id = d.server_id
 where x.del is null and (coalesce(x.ports_mappings, '') <> '' or x.public_port is not null)
+  and {team_filter("x.env")}
 union all
-select s.ip, '', sd.public_port::text
+select 'db', s.ip, '', sd.public_port::text
 from service_databases sd
 join services sv on sv.id = sd.service_id
 join standalone_dockers d on d.id = sv.destination_id and sv.destination_type like '%StandaloneDocker'
 join servers s on s.id = d.server_id
 where sd.is_public and sd.public_port is not null
-  and sd.deleted_at is null and (to_jsonb(sv)->>'deleted_at') is null;
+  and sd.deleted_at is null and (to_jsonb(sv)->>'deleted_at') is null
+  and {team_filter("to_jsonb(sv)->>'environment_id'")};
 """
 
 
@@ -128,7 +174,7 @@ HOST_RE = re.compile(r"https?://([A-Za-z0-9.*-]+)")
 
 def coolify_domains():
     hosts = set()
-    for (blob,) in psql(DOMAIN_SQL):
+    for (blob,) in psql(domain_sql()):
         hosts.update(h.lower().strip(".") for h in HOST_RE.findall(blob))
     return hosts
 
@@ -137,23 +183,72 @@ def in_zones(host):
     return any(host == z or host.endswith("." + z) for z in ZONES)
 
 
+def denied(host):
+    """Why host may never be routed to Coolify, or None if it may."""
+    if host in DENY_HOSTS:
+        return "served by ace itself"
+    if host in ZONES:
+        return "zone apex"
+    zone = max((z for z in ZONES if host.endswith("." + z)), key=len, default=None)
+    labels = host[: -len(zone) - 1].split(".") if zone else host.split(".")
+    for label in labels:
+        if label in DENY_LABELS:
+            return f"reserved label {label!r}"
+    return None
+
+
 # --- serve -----------------------------------------------------------------
 
 class AskCache:
-    def __init__(self, ttl):
-        self.ttl = ttl
-        self.at = 0.0
-        self.hosts = set()
+    """Domain list for the ask endpoint, refreshed from Coolify's database.
 
-    def get(self):
-        if time.monotonic() - self.at > self.ttl:
-            self.hosts = coolify_domains()
-            self.at = time.monotonic()
-        return self.hosts
+    A miss forces a refresh (a new app's domain may be younger than the
+    cache), but at most once per `min_refresh` seconds, and the miss is then
+    remembered for `negative_ttl` seconds. So a flood of unknown SNI names
+    runs `podman exec psql` a bounded number of times instead of once per
+    request. One lock serialises refreshes across the server's threads.
+    """
+
+    NEGATIVE_MAX = 10000
+
+    def __init__(self, ttl, min_refresh, negative_ttl):
+        self.ttl = ttl
+        self.min_refresh = min_refresh
+        self.negative_ttl = negative_ttl
+        self.at = float("-inf")
+        self.hosts = set()
+        self.negative = {}
+        self.lock = threading.Lock()
+
+    def _refresh(self, now):
+        self.hosts = coolify_domains()
+        self.at = now
+        # New domains may have appeared; forget remembered misses.
+        self.negative.clear()
+
+    def known(self, domain):
+        with self.lock:
+            now = time.monotonic()
+            if self.negative.get(domain, 0) > now:
+                return False
+            if now - self.at > self.ttl:
+                self._refresh(now)
+            if domain in self.hosts:
+                return True
+            if now - self.at >= self.min_refresh:
+                self._refresh(now)
+                if domain in self.hosts:
+                    return True
+            if len(self.negative) >= self.NEGATIVE_MAX:
+                self.negative = {d: t for d, t in self.negative.items() if t > now}
+                if len(self.negative) >= self.NEGATIVE_MAX:
+                    self.negative.clear()
+            self.negative[domain] = now + self.negative_ttl
+            return False
 
 
 def serve(args):
-    cache = AskCache(args.cache_ttl)
+    cache = AskCache(args.cache_ttl, args.min_refresh, args.negative_ttl)
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -163,18 +258,17 @@ def serve(args):
             if url.path != "/ask":
                 return self.reply(404, "not found")
             domain = urllib.parse.parse_qs(url.query).get("domain", [""])[0].lower().strip(".")
-            if not domain or not in_zones(domain):
+            if not domain or len(domain) > 253 or not in_zones(domain):
                 return self.reply(403, "zone not allowed")
+            reason = denied(domain)
+            if reason:
+                return self.reply(403, f"denied: {reason}")
             try:
-                hosts = cache.get()
-                # A new app's domain may be younger than the cache.
-                if domain not in hosts:
-                    cache.at = 0.0
-                    hosts = cache.get()
+                ok = cache.known(domain)
             except Exception as e:  # noqa: BLE001 - refuse rather than crash
                 print(f"ask {domain}: coolify lookup failed: {e}", file=sys.stderr, flush=True)
                 return self.reply(503, "lookup failed")
-            if domain in hosts:
+            if ok:
                 return self.reply(200, "ok")
             return self.reply(404, "unknown domain")
 
@@ -190,8 +284,6 @@ def serve(args):
             if "/health" not in self.path:
                 print(f"{self.address_string()} {fmt % a}", file=sys.stderr, flush=True)
 
-    # Refreshing the domain list per request is cheap but not free; a cache
-    # miss above forces one refresh at most.
     ThreadingHTTPServer((args.listen, args.port), Handler).serve_forever()
 
 
@@ -223,8 +315,9 @@ def parse_mappings(spec):
         except ValueError:
             print(f"skipping unparseable port mapping {entry!r}", file=sys.stderr)
             continue
-        if hi - lo >= MAX_RANGE:
-            print(f"skipping port range {entry!r}: more than {MAX_RANGE} ports", file=sys.stderr)
+        if hi < lo or hi - lo >= MAX_RANGE:
+            print(f"skipping port range {entry!r}: more than COOLIFY_EDGE_MAX_RANGE={MAX_RANGE} ports",
+                  file=sys.stderr)
             continue
         protos = ["tcp", "udp"] if proto in ("tcp+udp", "both") else [proto]
         for p in protos:
@@ -235,8 +328,13 @@ def parse_mappings(spec):
 
 def wanted_rules():
     rules = set()
-    for ip, mappings, public_port in psql(port_sql()):
+    skipped_db = 0
+    for kind, ip, mappings, public_port in psql(port_sql()):
         if ip not in MANAGED_NODES:
+            continue
+        if kind == "db" and not FORWARD_PUBLIC_DATABASES:
+            # Databases on the internet are opt-in (COOLIFY_EDGE_FORWARD_PUBLIC_DATABASES=1).
+            skipped_db += 1
             continue
         ports = parse_mappings(mappings)
         if public_port:
@@ -248,6 +346,9 @@ def wanted_rules():
             print(f"refusing {proto}/{port} -> {ip}: blocked port", file=sys.stderr)
         else:
             allowed.add((proto, ip, port))
+    if skipped_db:
+        print(f"not forwarding {skipped_db} database(s) with published ports "
+              "(COOLIFY_EDGE_FORWARD_PUBLIC_DATABASES is off)", file=sys.stderr)
     return allowed
 
 
@@ -297,6 +398,10 @@ def save_state(state, path=STATE_FILE):
 
 def nat(args):
     wanted = wanted_rules()
+    if len(wanted) > MAX_PORTS:
+        warn(f"refusing to sync NAT: Coolify wants {len(wanted)} forwarded ports, more than "
+             f"COOLIFY_EDGE_MAX_PORTS={MAX_PORTS}; router left unchanged")
+        return 1
     wanted_key = sorted([list(r) for r in wanted])
     state = load_state()
     fresh = time.time() - state.get("checked_at", 0) < args.recheck
@@ -326,7 +431,7 @@ def nat(args):
         # Removals first so a moved port is free before it is re-added.
         router(["configure terminal"] + remove + add + ["end"])
         for line in remove + add:
-            print(line)
+            warn(f"router NAT changed: {line}")
     save_state({"wanted": wanted_key, "checked_at": time.time(), "conflicts": conflicts})
     print(f"in sync: {len(wanted)} wanted, {len(add)} added, {len(remove)} removed, {len(conflicts)} conflicts")
     return 0
@@ -432,31 +537,44 @@ def zone_of(host):
 
 
 def dns_wanted():
-    out = set()
+    """(names to publish, {refused name: reason})."""
+    out, refused = set(), {}
     for host in coolify_domains():
         if "*" in host or host in ZONES or not zone_of(host):
             continue
         if any(host.endswith("." + s) for s in DNS_SKIP_SUFFIXES):
             continue
+        reason = denied(host)
+        if reason:
+            refused[host] = reason
+            continue
         out.add(host)
-    return out
+    return out, refused
 
 
 def dns(args):
-    wanted = dns_wanted()
+    wanted, refused = dns_wanted()
     state = load_state(DNS_STATE_FILE)
+    # Report refused names when the set changes, not every minute.
+    if sorted(refused) != state.get("refused", []):
+        for name, reason in sorted(refused.items()):
+            warn(f"not publishing {name}: {reason}")
     lan_ours = set(state.get("lan", []))
     fresh = time.time() - state.get("checked_at", 0) < args.recheck
-    if set(state.get("wanted", [])) == wanted and (fresh or not (wanted or lan_ours)):
+    if (set(state.get("wanted", [])) == wanted and sorted(refused) == state.get("refused", [])
+            and (fresh or not (wanted or lan_ours))):
         print(f"no change ({len(wanted)} names)")
         return 0
 
     log, conflicts = [], []
 
     def act(msg, fn):
-        log.append(("dry run: " if args.dry_run else "") + msg)
-        if not args.dry_run:
-            fn()
+        if args.dry_run:
+            log.append("dry run: " + msg)
+            return
+        fn()
+        warn(f"DNS changed: {msg}")
+        log.append(msg)
 
     # Public: Cloudflare.
     for zone in sorted({zone_of(h) for h in wanted} | set(ZONES)):
@@ -498,13 +616,14 @@ def dns(args):
         finally:
             tn.logout()
 
-    for line in log:
-        print(line)
+    if args.dry_run:
+        for line in log:
+            print(line)
     for c in conflicts:
         print(f"conflict: {c}", file=sys.stderr)
     if not args.dry_run:
         save_state({"wanted": sorted(wanted), "lan": sorted(lan_now), "checked_at": time.time(),
-                    "conflicts": conflicts}, DNS_STATE_FILE)
+                    "conflicts": conflicts, "refused": sorted(refused)}, DNS_STATE_FILE)
     print(f"in sync: {len(wanted)} names, {len(log)} changes, {len(conflicts)} conflicts")
     return 0
 
@@ -516,6 +635,10 @@ def main():
     s.add_argument("--listen", default="127.0.0.1")
     s.add_argument("--port", type=int, default=9180)
     s.add_argument("--cache-ttl", type=float, default=60)
+    s.add_argument("--min-refresh", type=float, default=5,
+                   help="seconds between database refreshes forced by unknown names")
+    s.add_argument("--negative-ttl", type=float, default=30,
+                   help="seconds an unknown name is answered from cache")
     n = sub.add_parser("nat")
     n.add_argument("--recheck", type=float, default=900, help="seconds between router checks when nothing changed")
     n.add_argument("--dry-run", action="store_true")
@@ -532,7 +655,9 @@ def main():
         return dns(args)
     elif args.cmd == "domains":
         for h in sorted(coolify_domains()):
-            print(h, "" if in_zones(h) else "(outside allowed zones)")
+            reason = None if in_zones(h) else "outside allowed zones"
+            reason = reason or denied(h)
+            print(h, f"(refused: {reason})" if reason else "")
     return 0
 
 

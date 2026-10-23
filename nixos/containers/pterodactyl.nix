@@ -9,6 +9,46 @@ let
   # Host /etc/hosts maps *.prestonhager.com → 127.0.0.1; inside the pod that is
   # loopback, not Caddy on the host. Override so server-side OAuth token calls work.
   zitadelDomain = "zitadel.prestonhager.com";
+
+  # Valkey requires a password. Generated once on the host (no nix-secrets entry) and
+  # handed to Valkey as a config file. The panel entrypoint re-exports the persisted
+  # /pterodactyl/html/.env over the container env, so REDIS_PASSWORD is kept in sync
+  # there; REDISCLI_AUTH (env file) lets `podman exec pterodactyl redis-cli` health
+  # checks authenticate.
+  redisAuthDir = "/var/lib/redis-auth/pterodactyl";
+  redisAuthScript = pkgs.writeShellScript "pterodactyl-redis-auth" ''
+    set -euo pipefail
+    umask 077
+    dir=${redisAuthDir}
+    install -d -m 0700 /var/lib/redis-auth "$dir"
+    if [ ! -s "$dir/password" ]; then
+      od -An -tx1 -N32 /dev/urandom | tr -d ' \n' > "$dir/password.tmp"
+      mv -f "$dir/password.tmp" "$dir/password"
+    fi
+    pw="$(cat "$dir/password")"
+    uid="$(id -u pterodactyl)"
+    gid="$(id -g pterodactyl)"
+    printf 'requirepass %s\n' "$pw" > "$dir/valkey.conf.tmp"
+    chown "$uid:$gid" "$dir/valkey.conf.tmp"
+    chmod 0400 "$dir/valkey.conf.tmp"
+    mv -f "$dir/valkey.conf.tmp" "$dir/valkey.conf"
+    printf 'REDIS_PASSWORD=%s\nREDISCLI_AUTH=%s\n' "$pw" "$pw" > "$dir/app.env.tmp"
+    mv -f "$dir/app.env.tmp" "$dir/app.env"
+
+    # Rewrite REDIS_PASSWORD in the panel's .env in place (keeps owner/mode); printf is
+    # a builtin, so the password never reaches a command line.
+    envf=/pterodactyl/html/.env
+    cur=""
+    if [ -f "$envf" ]; then
+      cur="$(grep '^REDIS_PASSWORD=' "$envf" | head -n1 | cut -d= -f2- || true)"
+    fi
+    if [ -f "$envf" ] && [ "$cur" != "$pw" ]; then
+      grep -v '^REDIS_PASSWORD=' "$envf" > "$dir/panel.env.tmp" || true
+      printf 'REDIS_PASSWORD=%s\n' "$pw" >> "$dir/panel.env.tmp"
+      cat "$dir/panel.env.tmp" > "$envf"
+      rm -f "$dir/panel.env.tmp" /pterodactyl/html/bootstrap/cache/config.php
+    fi
+  '';
 in
 {
   imports = [
@@ -25,10 +65,6 @@ in
       owner = "pterodactyl";
       group = "pterodactyl";
     };
-    "pterodactyl-password" = {
-      sopsFile = "${sops-path}/secrets/containers/pterodactyl.yaml";
-      mode = "0640";
-    };
     "pterodactyl-router-ssh-key" = {
       sopsFile = "${sops-path}/secrets/containers/pterodactyl.yaml";
       mode = "0600";
@@ -42,7 +78,9 @@ in
     isSystemUser = true;
     description = "Pterodactyl";
     group = "pterodactyl";
-    hashedPasswordFile = config.sops.secrets."pterodactyl-password".path;
+    # Service account: no password login. (It used to take a hash from the
+    # pterodactyl-password sops key, which can now be dropped from nix-secrets.)
+    hashedPassword = "!";
   };
   users.groups.pterodactyl = {};
 
@@ -55,6 +93,25 @@ in
     "d /pterodactyl/sockets/mysqld 0770 pterodactyl pterodactyl -"
     "d /pterodactyl/sockets/php 0770 pterodactyl pterodactyl -"
   ];
+
+  systemd.services.pterodactyl-redis-auth = {
+    description = "Generate the Pterodactyl Valkey password and config";
+    before = [
+      "podman-pterodactyl.service"
+      "podman-pterodactyl-redis.service"
+    ];
+    requiredBy = [
+      "podman-pterodactyl.service"
+      "podman-pterodactyl-redis.service"
+    ];
+    after = [ "systemd-tmpfiles-setup.service" ];
+    path = [ pkgs.coreutils pkgs.gnugrep ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = redisAuthScript;
+    };
+  };
 
   # Systemd service to create the pod required by podman containers
   systemd.services.pod-pterodactyl = {
@@ -180,6 +237,7 @@ in
         "--pod=pterodactyl"
         "--env-file=${config.sops.secrets."pterodactyl-env".path}"
         "--env-file=/pterodactyl/secrets/blueprint-extensions.env"
+        "--env-file=${redisAuthDir}/app.env"
       ];
 
       # Finally, the pterodactyl runtime image and version
@@ -220,9 +278,11 @@ in
         "/etc/passwd:/etc/passwd:ro"
         "/etc/group:/etc/group:ro"
         "/pterodactyl/redis:/data"
+        "${redisAuthDir}/valkey.conf:/etc/valkey-auth.conf:ro"
       ];
 
-      cmd = [ "redis-server" "--save" "59" "1" "--loglevel" "warning" ];
+      # Pod-local (the panel uses REDIS_HOST=127.0.0.1) and password-protected.
+      cmd = [ "redis-server" "/etc/valkey-auth.conf" "--bind" "127.0.0.1" "--save" "59" "1" "--loglevel" "warning" ];
 
       extraOptions = [ "--pod=pterodactyl" ];
 

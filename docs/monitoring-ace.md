@@ -146,7 +146,7 @@ Provisioned rules appear under **Alerting → Alert rules** in folder **Ace Aler
 |----------|--------|
 | **Trigger** | After each `ace-version-check` run, `ace-service-update-dispatch` starts `ace-service-auto-update@SERVICE` for each enabled, out-of-date service |
 | **Patch / minor** | Bumps pinned versions in `/etc/nixos` nix modules, commits, pushes to the deployment branch, then runs a **constrained** `nixos-rebuild switch --flake /etc/nixos#ace` (`-j 4`, `max-jobs 4`, `cores 12`, serialized with flock) |
-| **Major** | Sends an approval email (same SMTP + recipients as Grafana alerts) with breaking-change notes and **Approve** / **Deny** links at https://update.prestonhager.com |
+| **Major** | Sends an approval email (same SMTP + recipients as Grafana alerts) with breaking-change notes and **Approve** / **Deny** links at https://update.prestonhager.com. Opening a link only shows a confirmation page; the upgrade is approved or denied when you press its button (a POST), so mail link scanners that prefetch URLs cannot trigger it |
 | **Result email** | Success or failure notification after each attempted update |
 | **Registry** | `/etc/ace-service-update/registry.json` — enable/disable services and bump rules |
 | **Persistence** | All enabled services use `nix-bump` (or `occ-app` for Nextcloud apps). Image tags live in nix expressions; the next rebuild reproduces the same versions. **Do not** use floating `:latest` `podman-pull` updates — those diverge from nix and are wiped on rebuild. |
@@ -232,6 +232,33 @@ To use the UI:
 On ace itself, `curl http://127.0.0.1:9090/` returns 302 to `/graph`; `/-/healthy` returns `Prometheus Server is Healthy.`
 
 Grafana reads Prometheus at `http://host.containers.internal:9090` (internal; not exposed via Caddy).
+
+### Host listeners and the podman0 firewall
+
+`podman0` (the default rootful Podman bridge, `10.88.0.0/16`) is **not** a trusted interface: it carries every default-network container and, through the wg-portal container, the WireGuard VPN clients. Only these host ports are opened on it (`networking.firewall.interfaces.podman0` in `nixos/monitoring/exporters.nix`), on top of the global allow list:
+
+| Port | Used by |
+|------|---------|
+| 53 tcp/udp | DNS from containers and VPN clients |
+| 80, 443 tcp; 443 udp | Caddy vhosts reached from containers via `host-gateway` (Zitadel OIDC, Nextcloud) and from VPN clients |
+| 2020 tcp | Caddy metrics (Prometheus) |
+| 3100 tcp | Loki API (Grafana datasource) |
+| 9100, 9115 tcp | node_exporter, blackbox_exporter (Prometheus) |
+
+Ports that containers publish on `10.88.0.1` (Prometheus 9090, Grafana 8082, wg-portal metrics 8787, Technitium API 5380, Pushgateway 9091) are DNATed by netavark and do not pass through `nixos-fw`. Other Podman networks (Coolify's `podman1`, runner networks) get nothing beyond the global allow list.
+
+Listener bindings:
+
+| Service | Listens on | Reached by |
+|---------|-----------|------------|
+| node_exporter | `10.88.0.1:9100` | Prometheus |
+| blackbox_exporter | `10.88.0.1:9115` | Prometheus |
+| Loki HTTP / gRPC | `192.168.5.5:3100` / `127.0.0.1:9096` | Alloy on ace, crux, nova, mars (per-source `nixos-fw` rules); Grafana via `192.168.5.5:3100` |
+| Pushgateway | `192.168.5.5:9091`, `10.88.0.1:9091` | crux probe timer (raw-table rule drops other LAN sources); Prometheus |
+
+node_exporter and blackbox_exporter start after `podman-prometheus.service` and retry every 5s until `10.88.0.1` exists.
+
+A weekly `podman-image-prune.timer` removes dangling (untagged) images only; tagged images, containers and volumes are kept.
 
 ### Troubleshooting
 

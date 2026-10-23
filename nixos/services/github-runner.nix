@@ -6,6 +6,7 @@
 
 let
   cfg = config.homelab.github-runners;
+  netCfg = config.homelab.github-runner-network;
   sops-path = builtins.toString inputs.nix-secrets;
 
   # Tools GitHub-hosted Ubuntu runners commonly provide that CI scripts expect.
@@ -519,12 +520,26 @@ let
   # Passed to the container: short-lived registration/remove tokens only.
   instanceEnvPath = cname: "/run/github-runner/${cname}.tokens.env";
 
+  # The PAT goes to curl as a config file on stdin (bash here-string), never as
+  # an argv element: argv is world-readable in /proc and `ps`.
   githubApi = ''
     gh_api() {
-      curl -fsS --max-time 30 -H "Authorization: Bearer $pat" \
+      curl -fsS --max-time 30 -K - \
         -H "Accept: application/vnd.github+json" \
-        -H "X-GitHub-Api-Version: 2022-11-28" "$@"
+        -H "X-GitHub-Api-Version: 2022-11-28" "$@" \
+        <<< "header = \"Authorization: Bearer $pat\""
     }
+  '';
+
+  # Host-side wipe of a runner's bind-mounted workdir. Runs before each start
+  # and after each stop, so checkout credentials (_temp/git-credentials-*) and
+  # sources do not sit on the host between jobs.
+  wipeWorkdir = name: i: pkgs.writeShellScript "github-runner-wipe-${name}-${toString i}" ''
+    set -euo pipefail
+    export PATH=${lib.makeBinPath [ pkgs.coreutils pkgs.findutils ]}
+    d=${lib.escapeShellArg (workDir name i)}
+    install -d -m 0700 "$d"
+    find "$d" -mindepth 1 -maxdepth 1 -exec rm -rf --one-file-system -- {} +
   '';
 
   # ExecStartPre: mint a registration and a remove token (each valid ~1h) with the PAT.
@@ -596,6 +611,8 @@ let
     dontStrip = true;
   };
 in {
+  imports = [ ./github-runner/network.nix ];
+
   options.homelab.github-runners = {
     enable = lib.mkEnableOption ''
       Self-hosted GitHub Actions runners.
@@ -700,6 +717,8 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    homelab.github-runner-network.enable = lib.mkIf (cfg.backend == "container") true;
+
     assertions = [
       {
         assertion = enabledRunners != { };
@@ -795,10 +814,13 @@ in {
       [
         "d ${toolsDir} 0755 root root -"
         "d ${toolsDir}/bin 0755 root root -"
+        # 0700 all the way down: jobs leave checkout credentials and sources in
+        # the workdirs, which are none of any other host user's business.
+        "d /var/lib/github-runner 0700 root root -"
       ]
       ++ lib.concatMap ({ name, r, i, ... }: [
-        "d /var/lib/github-runner/${name}-${toString i} 0755 root root -"
-        "d ${workDir name i} 0755 root root -"
+        "d /var/lib/github-runner/${name}-${toString i} 0700 root root -"
+        "d ${workDir name i} 0700 root root -"
       ]) containerInstances
       ++ [ "d /run/github-runner 0750 root root -" ]
     );
@@ -963,15 +985,21 @@ in {
                 TOKENS[$envf]="$t"
                 printf '%s' "$t"
               }
+              # PAT via curl config on stdin, never argv (visible in ps).
+              gh_get() {
+                local token="$1"; shift
+                curl -fsS --max-time 30 -K - \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" "$@" \
+                  <<< "header = \"Authorization: Bearer ''${token}\""
+              }
               runners_json_for() {
                 local repo="$1" token="$2" cache_key="$3" json
                 if [ -n "''${RUNNER_JSON[$cache_key]+x}" ]; then
                   printf '%s' "''${RUNNER_JSON[$cache_key]}"
                   return 0
                 fi
-                json="$(curl -fsS -H "Authorization: Bearer ''${token}" \
-                  -H "Accept: application/vnd.github+json" \
-                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                json="$(gh_get "$token" \
                   "https://api.github.com/repos/''${repo}/actions/runners" || true)"
                 RUNNER_JSON[$cache_key]="$json"
                 printf '%s' "$json"
@@ -996,25 +1024,18 @@ in {
                 ' | head -n1 || true)"
                 [ -z "$ghost" ] && continue
                 echo "homelab-ci: ghost-watch recovering $gname ($unit) repo=$repo"
-                runs="$(curl -fsS -H "Authorization: Bearer ''${token}" \
-                  -H "Accept: application/vnd.github+json" \
-                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                runs="$(gh_get "$token" \
                   "https://api.github.com/repos/''${repo}/actions/runs?status=in_progress&per_page=20" \
                   | jq -r '.workflow_runs[]?.id' || true)"
                 for run_id in $runs; do
                   [ -z "$run_id" ] && continue
-                  hit="$(curl -fsS -H "Authorization: Bearer ''${token}" \
-                    -H "Accept: application/vnd.github+json" \
-                    -H "X-GitHub-Api-Version: 2022-11-28" \
+                  hit="$(gh_get "$token" \
                     "https://api.github.com/repos/''${repo}/actions/runs/''${run_id}/jobs" \
                     | jq -r --arg n "$gname" \
                       '[.jobs[]? | select(.runner_name==$n and .status=="in_progress")] | length' || echo 0)"
                   if [ "''${hit:-0}" != "0" ]; then
                     echo "homelab-ci: cancelling run $run_id for $gname"
-                    curl -fsS -X POST \
-                      -H "Authorization: Bearer ''${token}" \
-                      -H "Accept: application/vnd.github+json" \
-                      -H "X-GitHub-Api-Version: 2022-11-28" \
+                    gh_get "$token" -X POST \
                       "https://api.github.com/repos/''${repo}/actions/runs/''${run_id}/cancel" >/dev/null || true
                   fi
                 done
@@ -1041,9 +1062,10 @@ in {
       # Container units: depend on env + tools + image; always restart (ephemeral
       # runners exit 0 after each job and must come back online).
       ++ (lib.optionals (cfg.backend == "container") (
-        map ({ name, r, cname, runnerName, ... }: {
+        map ({ name, r, i, cname, runnerName, ... }: {
           "${containerUnitName cname}" = {
             after = [
+              netCfg.unit
               "github-runner-env-${name}.service"
               "github-runner-tools-bin.service"
               "github-runner-image.service"
@@ -1051,7 +1073,7 @@ in {
             ];
             # The PAT file is needed to mint tokens. Image and tools are only wanted:
             # a failed rebake must not keep runners down on the image we already have.
-            requires = [ "github-runner-env-${name}.service" ];
+            requires = [ netCfg.unit "github-runner-env-${name}.service" ];
             wants = [
               "podman.socket"
               "github-runner-tools-bin.service"
@@ -1061,8 +1083,14 @@ in {
             serviceConfig = {
               Restart = lib.mkForce "always";
               RestartSec = "5";
-              ExecStartPre = lib.mkAfter [ "${mintRunnerTokens name r cname}" ];
-              ExecStopPost = lib.mkAfter [ "${deleteRunnerByName name r cname runnerName}" ];
+              ExecStartPre = lib.mkAfter [
+                "${wipeWorkdir name i}"
+                "${mintRunnerTokens name r cname}"
+              ];
+              ExecStopPost = lib.mkAfter [
+                "${deleteRunnerByName name r cname runnerName}"
+                "${wipeWorkdir name i}"
+              ];
             };
           };
         }) containerInstances
@@ -1143,9 +1171,13 @@ in {
             extraOptions = [
               "--memory=${if r.container.memory != null then r.container.memory else cfg.containerMemory}"
               "--cpus=${if r.container.cpus != null then r.container.cpus else cfg.containerCpus}"
-              # Nested docker/podman via host socket
+              # No SELinux on NixOS; kept so an opted-in docker socket mount works.
               "--security-opt=label=disable"
-            ];
+              # Jobs already run as container root; setuid binaries add nothing.
+              "--security-opt=no-new-privileges"
+            ]
+            # Dedicated bridge with internet-only egress (see github-runner/network.nix).
+            ++ netCfg.podmanOptions;
           };
         }) containerInstances
       )

@@ -15,7 +15,12 @@ in {
 
   virtualisation.oci-containers.containers.pushgateway = {
     autoStart = true;
-    ports = [ "9091:9091/tcp" ];
+    # Only the two consumers' paths: crux pushes to the LAN address, Prometheus (a
+    # podman0 container) scrapes via the podman0 gateway. Not 0.0.0.0 (tailnet etc.).
+    ports = [
+      "192.168.5.5:9091:9091/tcp"
+      "10.88.0.1:9091:9091/tcp"
+    ];
     user = "pushgateway:pushgateway";
     volumes = [
       "/etc/passwd:/etc/passwd:ro"
@@ -29,7 +34,7 @@ in {
   };
 
   # Accept metric pushes from the crux external probe timer only (not WAN, not other LAN
-  # hosts). The port stays on 0.0.0.0 for crux, but netavark DNATs it in nat PREROUTING
+  # hosts). The LAN binding stays for crux, but netavark DNATs it in nat PREROUTING
   # before nixos-fw sees it, so the filter is in raw PREROUTING. Loopback and podman0
   # (the Prometheus scrape) are untouched.
   networking.firewall.extraCommands = lib.mkAfter ''

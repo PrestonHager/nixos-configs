@@ -75,7 +75,7 @@ NixOS modules:
 | File | Purpose |
 |------|---------|
 | `nixos/containers/pterodactyl-test-sso.nix` | Seed Zitadel provider, SocialiteProviders driver, test admin role sync (`pterodactyl_test_admin`) |
-| `nixos/containers/pterodactyl-test.nix` | Proxy/session `.env` (`TRUSTED_PROXIES`, `SESSION_*`), Zitadel host-gateway on pod |
+| `nixos/containers/pterodactyl-test.nix` | Proxy/session/debug `.env` (`TRUSTED_PROXIES`, `SESSION_*`, `APP_DEBUG`, `LOG_LEVEL`), extension secrets without the router key, Zitadel host-gateway on pod |
 
 OAuth client ID/secret come from sops (`secrets/containers/pterodactyl-oauth.yaml`) — same credentials as production; only `ZITADEL_REDIRECT_URI` and `APP_URL` differ.
 
@@ -85,20 +85,31 @@ SSO redirect URL for testing:
 
 Break-glass local login remains at `/auth/login`.
 
+## Access
+
+The test panel runs a work-in-progress checkout, so it is **not on the internet**: `nixos/caddy/pterodactyl.nix` wraps the vhost in the shared `lanOnly` guard (`nixos/caddy/lib.nix`), which allows ace itself, `192.168.5.0/24`, the Tailscale tailnet and WireGuard VPN clients and returns 403 to everyone else. From off-site, connect to the tailnet or the VPN first.
+
 ## CSRF / session behind Caddy
 
-Laravel must trust Caddy as a reverse proxy. The test panel env file (`/var/lib/pterodactyl-test/pterodactyl.env`) sets:
+Caddy talks FastCGI to php-fpm and passes the client address as `REMOTE_ADDR` and `HTTPS=on`, so Laravel sees HTTPS without trusting forwarded headers from clients. `pterodactyl-test-env.service` enforces these values in the env file (`/var/lib/pterodactyl-test/pterodactyl.env`) on every boot, including for an env file created by an older configuration, and `pterodactyl-test-sso-configure` writes the same values:
 
 | Variable | Value |
 |----------|-------|
 | `APP_URL` | `https://test.panel.prestonhager.com` |
-| `TRUSTED_PROXIES` | `*` |
-| `SESSION_DOMAIN` | `.prestonhager.com` |
+| `APP_DEBUG` | `false` |
+| `LOG_LEVEL` | `info` |
+| `TRUSTED_PROXIES` | `127.0.0.1,::1,10.88.0.1` (local callers only) |
+| `SESSION_DOMAIN` | `test.panel.prestonhager.com` (host-only) |
+| `SESSION_COOKIE` | `pterodactyl_test_session` (distinct from production) |
 | `SESSION_SECURE_COOKIE` | `true` |
 | `SESSION_SAME_SITE` | `lax` |
 | `SESSION_DRIVER` | `redis` |
 
-Without `TRUSTED_PROXIES`, Laravel treats requests as HTTP and CSRF/session cookies fail behind HTTPS Caddy.
+`pterodactyl-test-laravel-env-refresh` re-runs `artisan config:clear` whenever these enforced values change.
+
+## Extension secrets
+
+The test panel does not get the production secrets directory. `pterodactyl-test-extensions-env.service` builds `/var/lib/pterodactyl-test/secrets` from `/pterodactyl/secrets` **without the router SSH key** (and without `PORTFORWARD_SSH_KEY_FILE`), and the container mounts that at `/pterodactyl/secrets`. The Port Forward extension's settings on the test panel are always written with `dry_run = true` (`pterodactyl-test-blueprint-extensions-configure.nix`), so the test panel can never change NAT on the router. The Technitium and Cloudflare DNS tokens are still provided for the DNS extension.
 
 ## Features on test panel
 
@@ -171,8 +182,10 @@ nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-pterodactyl-test-admin-setup.js
 Verify:
 
 ```bash
+# 200 from the LAN/tailnet, 403 from anywhere else
 curl -sS -o /dev/null -w '%{http_code}\n' https://test.panel.prestonhager.com/
-grep -E 'TRUSTED_PROXIES|SESSION_' /var/lib/pterodactyl-test/pterodactyl.env
+grep -E 'TRUSTED_PROXIES|SESSION_|APP_DEBUG|LOG_LEVEL' /var/lib/pterodactyl-test/pterodactyl.env
+podman exec pterodactyl-test ls /pterodactyl/secrets   # no pterodactyl-router-ssh-key
 podman exec pterodactyl-test php /var/www/pterodactyl/artisan route:list | grep sociallogin
 podman exec pterodactyl-test php /var/www/pterodactyl/artisan --version
 runuser -u prestonh -- bash /home/prestonh/Projects/panel/blueprint.sh -info

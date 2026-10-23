@@ -198,17 +198,17 @@ reverseZoneFile = mkZoneFile {
         return 0
       fi
 
-      zone_exists=$(${pkgs.curl}/bin/curl -sf -H "Authorization: Bearer $token" \
+      zone_exists=$(${pkgs.curl}/bin/curl -sf -H "@$tmp/auth" \
         "$API/api/zones/list" \
         | ${pkgs.jq}/bin/jq -r --arg z "$ZONE" 'if ([.response.zones[]?.name == $z] | any) then "true" else "false" end')
 
       if [ "$zone_exists" = "true" ]; then
-        ${pkgs.curl}/bin/curl -sf -X POST -H "Authorization: Bearer $token" \
+        ${pkgs.curl}/bin/curl -sf -X POST -H "@$tmp/auth" \
           -H "Content-Type: text/plain" \
           --data-binary "@$ZONE_FILE" \
           "$API/api/zones/import?zone=$ZONE&overwrite=true&overwriteZone=true"
       else
-        ${pkgs.curl}/bin/curl -sf -X POST -H "Authorization: Bearer $token" \
+        ${pkgs.curl}/bin/curl -sf -X POST -H "@$tmp/auth" \
           -F "zoneFile=@$ZONE_FILE" \
           "$API/api/zones/create?zone=$ZONE&type=Primary"
       fi
@@ -224,11 +224,15 @@ reverseZoneFile = mkZoneFile {
     done
     ${pkgs.curl}/bin/curl -sf "$API/api/sso/status" >/dev/null
 
-    pass=$(${pkgs.coreutils}/bin/cat "$PASS_FILE")
+    # Secrets go through files (curl name@file, -H @file), never argv: this host has
+    # no hidepid, so any local user can read other processes' command lines.
+    tmp=$(${pkgs.coreutils}/bin/mktemp -d)
+    trap '${pkgs.coreutils}/bin/rm -rf "$tmp"' EXIT
     token=$(${pkgs.curl}/bin/curl -sf -X POST "$API/api/user/login" \
       --data-urlencode "user=admin" \
-      --data-urlencode "pass=$pass" \
+      --data-urlencode "pass@$PASS_FILE" \
       | ${pkgs.jq}/bin/jq -r .token)
+    printf 'Authorization: Bearer %s\n' "$token" > "$tmp/auth"
 
     sync_one "${internalZone}" "${internalZoneFile}" "${zoneHashFile internalZone}"
     sync_one "${publicZone}" "${publicZoneFile}" "${zoneHashFile publicZone}"

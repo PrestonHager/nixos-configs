@@ -6,6 +6,8 @@
 //   in-place self-update would run a different version than the Nix config.
 //   (AUTOUPDATE=false in the container env does the same at every boot via
 //   `php artisan app:init`; this also covers a toggle in the UI.)
+// - Self-registration off: accounts come from Zitadel SSO (coolify-sso.nix)
+//   or are created by the root user; a toggle in the UI is reverted.
 // - Built-in `localhost` server (id 0, host.docker.internal) force-disabled:
 //   Coolify here runs under Podman with no Docker daemon or SSH to the host,
 //   so that server can never be used. force_disabled makes isFunctional() and
@@ -23,6 +25,11 @@ if ($settings->is_auto_update_enabled) {
     $settings->is_auto_update_enabled = false;
     $settings->save();
     $changes[] = 'disabled auto-update';
+}
+if ($settings->is_registration_enabled) {
+    $settings->is_registration_enabled = false;
+    $settings->save();
+    $changes[] = 'disabled self-registration';
 }
 
 $localhost = Server::with('settings')->find(0);

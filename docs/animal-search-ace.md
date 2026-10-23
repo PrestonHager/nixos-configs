@@ -140,16 +140,21 @@ instead of failing. Technitium listens on `192.168.5.5:53` and
 ```
 /stor/animal-search/production/
 ├── current -> releases/<sha>        # bind-mounted read-only at /app
-├── releases/
+├── releases/                        # root-owned live releases (runner never sees these)
 │   ├── bootstrap/                   # installed by Nix on first activation
-│   └── <sha>/                       # one directory per successful deploy
-└── mariadb/                         # database files
+│   └── <sha>/                       # one directory per deploy (newest 5 + live + previous kept)
+├── mariadb/                         # database files
+├── deploy-state/                    # 0700 root: claimed request, last.log, status
+└── inbox/                           # the deploy runner's only view of this host
+    ├── releases/<sha>/              # staged by the workflow  -> runner sees .../production/releases
+    └── deploy/{request,result,last.log}                       -> runner sees .../production/deploy
 ```
 
-A deploy is: write `releases/<sha>`, run migrations, repoint `current`, restart
-the app container. Because `current` is a symlink resolved at container start,
-rollback is a symlink swap plus a restart, and old releases stay on disk for
-`deploy.yml`'s prune step to collect.
+A deploy is: stage `inbox/releases/<sha>`, write `inbox/deploy/request`; the
+host copies the release into `releases/<sha>`, runs migrations, repoints
+`current`, restarts the app container and publishes the result. Because
+`current` is a symlink resolved at container start, rollback is a symlink swap
+plus a restart.
 
 `animal-search-<env>-bootstrap.service` installs a placeholder `entry.mjs` that
 answers `503` with a JSON body naming the environment, so a fresh host is never
@@ -185,12 +190,72 @@ and the old uid `999` belongs to `nm-iodine`.
 
 `.github/workflows/deploy.yml` in
 `NMSU-CS-CS371/software-development-semester-project-group-5` builds the app on
-the `adopter-central` self-hosted runner, migrates, activates, smoke-tests, and
-rolls back on failure. It triggers on pushes to `main` and `workflow_dispatch`
-only — never on pull requests, so a branch cannot deploy. `main` additionally
-requires one approving PR review.
+the `adopter-central` self-hosted runner and hands the release to the host,
+which migrates, activates, smoke-tests and rolls back on failure. Production
+deploys come from pushes to `main` (one approving review required) or
+`workflow_dispatch`; staging also deploys PR heads that carry the
+`staging-deploy` label.
 
 See `db/DEPLOYMENT.md` in the app repo for the workflow-side reference.
+
+### Runner ↔ host contract
+
+The runner (`github-runner-nmsu`, see `github-runner.md`) runs workflows from a
+repository other students can push to, so the host treats everything it writes
+as hostile. The runner gets exactly two binds per environment
+(`services.animalSearch.runnerVolumes`, passed to
+`homelab.github-runner-persistent.extraVolumes` in `hosts/ace/default.nix`):
+
+| Inside the runner | Host path | Purpose |
+|---|---|---|
+| `/stor/animal-search/<env>/releases` | `/stor/animal-search/<env>/inbox/releases` | staged release trees |
+| `/stor/animal-search/<env>/deploy` | `/stor/animal-search/<env>/inbox/deploy` | `request` in, `result` + `last.log` out |
+
+It has no Podman socket, no view of `current`, live releases or MariaDB data,
+and no network path to the host (see the runner isolation model).
+
+The workflow side is unchanged from before:
+
+1. Stage the release in `$RELEASE_ROOT/<sha>` (`server/entry.mjs` required;
+   `scripts/migrate.mjs` + `db/schema.sql` optional).
+2. `rm -f deploy/result`, write the 40-character lowercase commit sha to
+   `deploy/request.tmp`, rename it to `deploy/request`.
+3. Poll `deploy/result` for `<sha> <status>`; `cat deploy/last.log`.
+   Statuses: `ok`, `rejected`, `migrate-failed`, `health-failed`, `error`.
+   A malformed request is answered with `invalid rejected`.
+4. Prune old trees in `$RELEASE_ROOT` (this now prunes the inbox only; the host
+   prunes live releases itself).
+
+The workflow's `Roll back` step is a no-op on this runner (it never sees
+`current` and has no Podman); the host rolls back on its own when the health
+check fails. Its leftover references to the Podman socket and to writing
+`current` can be deleted from `deploy.yml` at leisure.
+
+`animal-search-<env>-deploy.path` (`PathExists=` on `inbox/deploy/request`)
+starts `animal-search-<env>-deploy.service`, which runs three steps:
+
+1. **claim** (systemd-sandboxed: read-only system, only the environment root
+   writable, MariaDB data hidden, no network sockets, reduced capabilities):
+   renames `request` into the root-only `deploy-state/` (a symlink, FIFO or
+   directory planted there is moved, never opened or followed), requires a
+   regular file holding a 40-hex sha, and copies `inbox/releases/<sha>` into
+   `releases/.incoming/` with GNU tar, which does not follow symlinks while
+   reading. setuid/setgid and group/world-write bits are stripped.
+2. **activate** (full privileges, root-owned paths only): moves the copy into
+   `releases/<sha>`, runs migrations in the pod as the app uid with no
+   capabilities, repoints `current`, restarts the app, health-checks
+   `127.0.0.1:<port>` for 90 s and rolls back on failure, then prunes.
+3. **publish** (sandboxed, `ExecStopPost`, runs on every outcome): writes
+   `last.log` and `result` in `deploy-state/` and renames them into
+   `inbox/deploy/`. Rename replaces whatever entry is there without following
+   it. Nothing from the request is echoed back.
+
+Watching a deploy on the host:
+
+```bash
+journalctl -u animal-search-production-deploy -f
+cat /stor/animal-search/production/deploy-state/last.log
+```
 
 ## Operating
 

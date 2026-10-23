@@ -16,7 +16,39 @@ Enabled on **ace** (`hosts/ace/default.nix`) with **container backend** (Amazon 
 
 **Org / user-wide runners:** not available. `PrestonHager` is a personal GitHub user (not an Organization). `GET /orgs/PrestonHager/actions/runners` returns **404**. GitHub only supports org-scoped shared runners on Organizations. Personal accounts must register runners **per repository**. Ace therefore runs separate repo-scoped sets (`soundbytes-app` + `EverPuzzle`). To also serve `nixos-configs`, add another set (more CPU/RAM) or use a GitHub Organization.
 
-Token: nix-secrets `secrets/github-runner.yaml` key `token` (shared PAT for both repos; rendered to the host-only `/run/github-runner/<attr>.env` as `ACCESS_TOKEN=`). The PAT never enters a runner container: each container start mints a registration and remove token (`/run/github-runner/<unit>.tokens.env`), and `ExecStopPost` deletes a leftover registration by name with the PAT. Fine-grained PAT needs **Self-hosted runners: Read and write** on each registered repo.
+Token: nix-secrets `secrets/github-runner.yaml` key `token` (shared PAT for both repos; rendered to the host-only `/run/github-runner/<attr>.env` as `ACCESS_TOKEN=`). The PAT never enters a runner container: each container start mints a registration and remove token (`/run/github-runner/<unit>.tokens.env`), and `ExecStopPost` deletes a leftover registration by name with the PAT. The host scripts hand the PAT to `curl` as a config on stdin (`curl -K -`), never as a command-line argument, so it does not show up in `ps` or `/proc/*/cmdline`. Fine-grained PAT needs **Self-hosted runners: Read and write** on each registered repo.
+
+A third, separately managed runner (`github-runner-nmsu`, module `nixos/services/github-runner-persistent.nix`) serves the NMSU class repo and deploys Animal Search; see [Persistent runner](#persistent-runner-github-runner-nmsu).
+
+## Isolation model
+
+Runner jobs run code from repositories other people can push to, as root inside the container. The design assumes a job is hostile and limits what it can reach:
+
+| Layer | What it does |
+|-------|--------------|
+| Network | All runner containers sit on the dedicated Podman network `ghrunner` (bridge `ghrunner0`, `10.250.250.0/24`, `isolate=true`, no gateway DNS) instead of the default `podman` network. Module: `nixos/services/github-runner/network.nix`. |
+| Egress filter | `raw/PREROUTING` and `FORWARD` drop anything from `ghrunner0` to a host-local address or to private, CGNAT (Tailscale), link-local, loopback, multicast and reserved ranges. `nixos-fw` (INPUT) refuses everything from the bridge before the globally open ports. IPv6 from the bridge is dropped. Result: internet only — no host services, no LAN, no other pods. |
+| DNS | Containers use public resolvers (`1.1.1.1`, `9.9.9.9`) because the host's resolvers (Technitium, Tailscale) live on blocked ranges. |
+| Host socket | No Podman/Docker socket is mounted (`container.mountDockerSocket` and `mountPodmanSocket` default to `false`). Job-level `container:` therefore does not work on these runners. |
+| Shared tools | `/var/lib/github-runner-tools` is mounted as an overlay (`:O`) in every runner, so job writes never reach the copy other runners use. Only `github-runner-tools-bootstrap` / `-tools-bin` (host units) write it. |
+| Workdirs | `/var/lib/github-runner` and every per-runner dir are `0700`. The host wipes `/var/lib/github-runner/<name>-<i>/work` before each container start and after each stop, so checkout credentials (`_temp/git-credentials-*`) do not linger between jobs. |
+| Privileges | `--security-opt=no-new-privileges`. Containers still run as root without a user namespace (see below). |
+
+The `ghrunner0` bridge must never be added to `networking.firewall.trustedInterfaces`; an assertion in the network module fails the build if it is.
+
+**Why no `--userns=auto` yet:** it needs a `containers` entry in `/etc/subuid`/`/etc/subgid`, id-mapped (`:idmap`) or chowned (`:U`) bind mounts for the workdir and the persistent runner's state, and re-testing the baked image's dnf/toolchain paths under a mapped root. It is the next step, not a drop-in flag.
+
+**Checking the filter on ace:**
+
+```bash
+systemctl status github-runner-network
+podman network inspect ghrunner --format '{{.NetworkInterface}} {{range .Subnets}}{{.Subnet}}{{end}}'
+iptables -t raw -S homelab-ghr-egress
+iptables -S nixos-fw | head -3          # first rule refuses -i ghrunner0
+podman exec github-runner-ace-1 cat /etc/resolv.conf
+```
+
+Changing `homelab.github-runner-network.subnet` or `interface` needs the old network removed: stop the runner units, `podman network rm ghrunner`, then `systemctl restart github-runner-network` and start the runners. The unit refuses to start (and runners stay down) while the existing network does not match the configuration.
 
 Verify Online: **soundbytes-app** / **EverPuzzle** → **Settings → Actions → Runners**. On ace:
 
@@ -78,7 +110,7 @@ Mitigations in this module:
 
 1. **Baked image** — `github-runner-image.service` builds the configured tag from `homelab.github-runners.containerfile`. Ace uses `Containerfile.al2023` → `localhost/homelab-github-runner:al2023` (base `amazonlinux:2023` + dnf toolchain + **Node 20 LTS** from the official linux-x64 tarball into `/usr/local` + official Actions runner; myoung34 scripts for register/deregister). Ephemeral restarts should log `homelab-ci: toolchain present (baked image)` instead of downloading packages every time. Ubuntu Noble remains available via the default `Containerfile` / `ubuntu-noble` tag.
 2. **Deregister order** — `DISABLE_AUTOMATIC_DEREGISTRATION=true`; homelab entrypoint deregisters with `config.sh remove` **while** `.runner` exists, else deletes the runner by name via the GitHub API.
-3. **Workdir wipe** — each start clears `$RUNNER_WORKDIR` contents (bind-mounted `/var/lib/github-runner/<name>-<i>/work`).
+3. **Workdir wipe** — the host clears `/var/lib/github-runner/<name>-<i>/work` (mode `0700`) before each container start and after each stop; the entrypoint also clears `$RUNNER_WORKDIR` on start.
 4. **Ghost recovery** — timer `github-runner-ghost-watch.timer` (every ~5 min) cancels stuck jobs and restarts offline+busy units; ops script `scripts/github-runner-recover-ghost.sh` (also `github-runner-recover-ghost` on PATH on ace).
 
 ### Ghost recovery (manual)
@@ -120,6 +152,37 @@ rm -f /var/lib/github-runner-tools/image.stamp
 systemctl restart github-runner-image.service
 ```
 
+## Persistent runner (`github-runner-nmsu`)
+
+Module `nixos/services/github-runner-persistent.nix`, option namespace `homelab.github-runner-persistent`. One non-ephemeral runner registered once by hand against the NMSU-CS-CS371 group-5 repo (that org cannot mint a PAT for the ephemeral flow). GitHub shows it as `adopter-central`.
+
+| Item | Value |
+|------|-------|
+| Registration | `/var/lib/github-runner-nmsu` (`0700`; `.runner`, `.credentials`, `.credentials_rsaparams` and friends `0600` via tmpfiles) |
+| Mount | state dir **read-only** at `/runner-state`; the start script copies the registration (`0600`) into the image's `/actions-runner` |
+| Runner binaries | from the baked image (latest release, refreshed daily) — not from the state dir |
+| Writes | `_work`, `_diag`, self-updates live in the container filesystem and are discarded on restart |
+| Network | `ghrunner` (same egress filter as above) |
+| Host access | only `homelab.github-runner-persistent.extraVolumes`; on ace that is `services.animalSearch.runnerVolumes` (the Animal Search inboxes, see `animal-search-ace.md`) |
+
+Jobs can read the registration (same uid as the listener — inherent to self-hosted runners) but cannot modify the host copy or leave a modified runner behind across a restart. Within one container lifetime, consecutive jobs share the container filesystem; `systemctl restart podman-github-runner-nmsu` returns it to a clean image.
+
+**Re-registering** (rotation, or after deleting the runner in GitHub): stop the unit, then as root
+
+```bash
+podman run --rm --entrypoint bash -e RUNNER_ALLOW_RUNASROOT=1 \
+  -v /var/lib/github-runner-nmsu:/runner-state localhost/homelab-github-runner:al2023 -c \
+  'cd /actions-runner && ./config.sh --unattended --url <repo-url> --token <registration-token> \
+     --name adopter-central --labels <labels> && \
+   cp .runner .credentials .credentials_rsaparams /runner-state/ && \
+   chmod 0600 /runner-state/.runner /runner-state/.credentials*'
+systemctl start podman-github-runner-nmsu
+```
+
+Override the entrypoint as shown: the image's default entrypoint de-registers the runner on exit.
+
+Do not add broad binds to `extraVolumes`: anything mounted read-write there is writable by every job, and a root process that later follows symlinks in such a tree is a privilege-escalation path. Mount only narrow inboxes whose consumer treats the contents as untrusted.
+
 ## Backend: container vs native
 
 | | `backend = "container"` (ace default) | `backend = "native"` |
@@ -134,7 +197,7 @@ systemctl restart github-runner-image.service
 | Node (PATH) | AL2023 bakes Node 20 (`node`/`npm`/`npx` in `/usr/local`); entrypoint also prepends Actions `externals/node20/bin` as fallback | Included in `parityPackages` (`nodejs_20`) |
 | Node externals | Actions runner ships `externals/node20` + `node24` (hashFiles / JS actions) | Module ships `node20`+`node24` externals |
 | openssl CLI | AL2023 bake installs `openssl` (+ devel) | Via `parityPackages` / system |
-Workflows do **not** need a job-level `container:` for Ubuntu parity — the **runner itself** is Ubuntu. Optional job `container:` still works via the mounted Podman socket.
+Workflows do **not** need a job-level `container:` for Ubuntu parity — the **runner itself** is Ubuntu/AL2023. Job `container:` only works when `container.mountDockerSocket` is enabled, which gives jobs root on the host; ace leaves it off.
 
 ## Few steps to join GitHub
 

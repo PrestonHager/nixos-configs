@@ -1,13 +1,14 @@
 { config, pkgs, lib ? pkgs.lib, ... }:
 
-# TLS certificates for Pterodactyl Wings nodes.
+# TLS certificates for Pterodactyl Wings nodes. Only nodes enabled in
+# ./lib.nix (wingsNodes) get a vhost, a certificate and a copy job; a
+# disconnected node gets none, so Caddy neither proxies to nor renews for it.
 let
-  nodes = {
-    crux = "crux.lc1.nm.us.prestonhager.com";
-    nova = "nova.lc1.nm.us.prestonhager.com";
-    elara = "elara.lc1.nm.us.prestonhager.com";
-    zenith = "zenith.lc1.nm.us.prestonhager.com";
-  };
+  caddyLib = import ./lib.nix;
+  nodes = builtins.listToAttrs (map (name: {
+    inherit name;
+    value = caddyLib.wingsDomain name;
+  }) caddyLib.activeWingsNodes);
   domains = builtins.attrValues nodes;
   caddyCertDir =
     "/var/lib/caddy/.local/share/caddy/certificates/acme-v02.api.letsencrypt.org-directory";

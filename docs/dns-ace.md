@@ -168,6 +168,14 @@ Working pattern (same as grafana):
 
 `ip1.lc1.nm.us.prestonhager.com` A → `98.249.78.62` (Cisco WAN / NAT → ace `:443`).
 
+A public DNS record does not make a site public. Admin surfaces answer only ace itself, `192.168.5.0/24`, the Tailscale tailnet (`100.64.0.0/10`, `fd7a:115c:a1e0::/48`) and WireGuard clients (`192.168.20.0/24`), via the shared `lanOnly` / `lanGuard` helpers in `nixos/caddy/lib.nix`; everyone else gets 403:
+
+| Restricted to LAN/tailnet/VPN | Public |
+|---|---|
+| `test.panel`, `wg`, `metrics.wg`, `prometheus`, `serverdocs`, `coolify` (except `/webhooks/*`), `dns` web console, `vault` `/admin`, `matrix` `/_synapse/admin`, `ai`, `phorge`, spacetime management paths | `panel`, `grafana`, `vault`, `cloud`, `zitadel`, `jellyfin`, `matrix`, `update` (GET is read-only), DoH `/dns-query`, `animal-search`, Coolify apps, Wings node hosts |
+
+Because the check is on the connecting address, a LAN or tailnet client should reach ace directly (Technitium answers `ace.internal` → `192.168.5.5`; tailnet clients need Technitium as their DNS server or a route to `192.168.5.0/24`). A tailnet client that resolves the public IP connects from its own public address and gets 403. Public ace vhosts also get HSTS (1 year), `X-Content-Type-Options: nosniff` and a `Referrer-Policy` unless the app sets its own (`securityHeaders` in `lib.nix`).
+
 After changing proxy status, purge Cloudflare cache for the hostname. Verify from outside LAN:
 
 ```bash
