@@ -14,6 +14,7 @@ in {
     ./promtail.nix
     ./suricata.nix
     ./grafana-security-alerting.nix
+    ./podman-image-prune.nix
   ];
 
   environment.etc."prometheus/prometheus.yml".text = (import ./prometheus-config.nix {
