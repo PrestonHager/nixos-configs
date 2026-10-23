@@ -25,7 +25,8 @@ rec {
     "127.0.0.0/8"
     "::1/128"
     "192.168.5.0/24" # server LAN
-    "100.64.0.0/10" # Tailscale tailnet (tailscale0)
+    "100.64.0.0/10" # Tailscale tailnet (tailscale0), IPv4
+    "fd7a:115c:a1e0::/48" # Tailscale tailnet, IPv6
     "192.168.20.0/24" # WireGuard VPN clients (wg-portal)
   ];
 

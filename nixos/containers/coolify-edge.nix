@@ -109,13 +109,21 @@ let
   # Sandbox for all three units. They run as root because they need
   # `podman exec` into coolify-db (root's container storage) and the router
   # key; the rest of the system is read-only to them. Podman writes its
-  # exec-session state under /var/lib/containers and /run.
+  # storage lock and exec-session state under /var/lib/containers and /run,
+  # and takes netavark's lock in /run/lock (tested with systemd-run).
   hardening = {
     NoNewPrivileges = true;
     ProtectSystem = "strict";
     ProtectHome = true;
     PrivateTmp = true;
-    ReadWritePaths = [ "-/var/lib/containers" "-/run/containers" "-/run/libpod" "-/run/crun" ];
+    ReadWritePaths = [
+      "-/var/lib/containers"
+      "-/run/containers"
+      "-/run/libpod"
+      "-/run/crun"
+      "-/run/lock"
+      "-/run/netns"
+    ];
     StateDirectory = "coolify-edge";
     StateDirectoryMode = "0700";
     RestrictAddressFamilies = [ "AF_UNIX" "AF_INET" "AF_INET6" "AF_NETLINK" ];
