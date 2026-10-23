@@ -18,7 +18,7 @@
 
 ## Status (Oct 2026)
 
-**Online.** elara answers SSH from ace as root (authorized keys in `hosts/elara/default.nix` and `hosts/pterodactyl-nodes/default.nix`). Checked read-only on 2026-10-18: `wings` is `active` and the host runs NixOS 26.11. The deployed Wings binary was 1.12.3, older than the 1.13.4 the flake currently pins, so elara has not been rebuilt from the current tree yet.
+**Online.** elara answers SSH from ace as root with root@ace's automation key; root's keys are declared only in `hosts/pterodactyl-nodes/default.nix` (the bootstrap-era `root@ph-nixos` RSA key was removed, and `~/.ssh/authorized_keys` files are ignored). Checked read-only on 2026-10-18: `wings` is `active` and the host runs NixOS 26.11. The deployed Wings binary was 1.12.3, older than the 1.13.4 the flake currently pins, so elara has not been rebuilt from the current tree yet.
 
 `disko.nix` is kept in git for a future `nixos-anywhere` install; `disko.enableConfig = false`, so a switch never formats disks.
 

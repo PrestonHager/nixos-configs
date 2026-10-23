@@ -334,6 +334,9 @@ Reference: existing email alert rules in `docs/monitoring-ace.md` (service down,
 - Untrusted workload surface (game servers, user containers).
 - Prioritize forwarding logs to ace; local fail2ban for SSH.
 - Limit east-west: ace ↔ node only required ports (Wings, NFS, panel API).
+- Containers are confined to internet egress: `DOCKER-USER` drops container traffic to private, CGNAT/tailnet, link-local and ULA destinations, and the host firewall refuses new connections from container bridges to the node (`nixos/security/container-egress.nix`, TC-2.6). The same module covers Coolify apps on mars, whose published ports also refuse private sources other than ace → :80 (`nixos/coolify-node.nix`).
+- ace exports TLS shares only to active nodes, read-only with `root_squash` (`nixos/nfs/default.nix`).
+- SSH: only Nix-declared keys, no forwarding, automation keys bound to `from="192.168.5.5"` (TC-1.7). fail2ban ignores only ace and the tailnet (TC-1.6).
 - Reference: `docs/site/src/pterodactyl-nodes/crux.md`, nova page.
 
 ### Astracap (192.168.5.1)

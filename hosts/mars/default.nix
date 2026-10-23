@@ -6,8 +6,9 @@ let
   marsIp = "192.168.5.15";
   bootstrapPubkey =
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAZG4s8GtqKZoahIUsFwbXsMnuUrrlSDmN2nzt39pDiS bootstrap@homelab";
+  # Only from ace itself, and never for forwarding.
   aceDeployPubkey =
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDEMydexGEchoOPoh8jDiecyTkmgj/Tfxap7U+lQQfPW root@ace (nixos-configs automation)";
+    ''from="192.168.5.5",no-port-forwarding,no-agent-forwarding,no-X11-forwarding ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDEMydexGEchoOPoh8jDiecyTkmgj/Tfxap7U+lQQfPW root@ace (nixos-configs automation)'';
 in
 {
   imports = [
@@ -57,7 +58,10 @@ in
   # sops-install-secrets abort, so users came up without passwords.
   sops.age.keyFile = lib.mkForce null;
 
-  homelab.coolifyNode.address = marsIp;
+  homelab.coolifyNode = {
+    address = marsIp;
+    lanInterface = "eno1";
+  };
 
   services.openssh = {
     enable = true;
@@ -72,6 +76,9 @@ in
   # key is the workstation key. Coolify's key comes from coolify-node.nix.
   users.users.root.openssh.authorizedKeys.keys = [ bootstrapPubkey aceDeployPubkey ];
   users.users.prestonh.openssh.authorizedKeys.keys = [ bootstrapPubkey ];
+  # Only declared keys count (nixos/security/ssh.nix); bootstrapPubkey is the
+  # admin workstation's key, so this cannot lock the workstation out.
+  homelab.security.ssh.declarativeKeysOnly = true;
 
   # Coolify deploys and builds with this Docker (it never installs its own).
   virtualisation.docker = {

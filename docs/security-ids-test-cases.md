@@ -34,7 +34,7 @@ journalctl -u sshd -u fail2ban --since "5 min ago" --no-pager | tail -20
 |---------|-----|
 | `auditd` inactive | `journalctl -u auditd`; check `security.audit.enable` in rebuild |
 | No failed-login lines | Verify test used password/disallowed user; keys-only may not log "Failed password" |
-| fail2ban not banning WAN IP | LAN `192.168.5.0/24` is in `ignoreIP` by design — test from outside LAN or temporarily remove ignore for drill |
+| fail2ban not banning | `ignoreIP` is loopback, ace (`192.168.5.5`) and the tailnet (`100.64.0.0/10`) only; other LAN hosts are bannable. See TC-1.6 |
 
 **Deliverables**
 
@@ -222,6 +222,63 @@ curl -sf http://192.168.5.5:3100/ready
 
 ---
 
+### TC-1.6 — fail2ban sshd jail matches OpenSSH 10 logins
+
+**Setup**
+
+- `nixos/security/fail2ban.nix`: `journalmatch = _SYSTEMD_UNIT=sshd.service + _COMM=sshd + _COMM=sshd-session` (OpenSSH 10 logs authentication from `sshd-session`); `ignoreIP` = `127.0.0.1/8`, `::1`, `192.168.5.5`, `100.64.0.0/10`.
+- A test client on the LAN that is **not** ace and not on the tailnet, e.g. a spare laptop. The admin workstation reaches hosts over the tailnet if its LAN address gets banned.
+
+**Execution**
+
+```bash
+# On the target host (crux, elara or mars)
+fail2ban-client get sshd journalmatch      # must include _COMM=sshd-session
+fail2ban-client get sshd ignoreip          # no 192.168.5.0/24
+# From the test client: 6 failed logins inside 10 minutes
+for i in $(seq 6); do ssh -o BatchMode=yes -o PubkeyAuthentication=no nobody@<host> true; done
+# On the target host
+fail2ban-client status sshd                # "Total failed" > 0, test client listed as banned
+fail2ban-client set sshd unbanip <test-client-ip>
+```
+
+**Troubleshooting**
+
+| Symptom | Fix |
+|---------|-----|
+| `Total failed` stays 0 | `journalctl -u sshd -o verbose -n 5 | grep _COMM` and compare with the journalmatch; the host was not rebuilt |
+| Workstation banned | Reach the host over Tailscale (ignored) or from ace, then `fail2ban-client set sshd unbanip <ip>` |
+
+**Interpretation**
+
+- **Pass:** Failures from a non-ignored LAN client are counted and the client is banned for `bantime` (1h).
+- **Fail:** Failures appear in `journalctl -u sshd` but not in the jail's counters.
+
+---
+
+### TC-1.7 — SSH hardening and declared keys
+
+**Setup**
+
+- `nixos/security/ssh.nix`: forwarding off on every `homelab.security` host; `declarativeKeysOnly` on the Wings nodes and mars.
+
+**Execution**
+
+```bash
+sshd -T | grep -Ei '^(allowtcpforwarding|allowagentforwarding|allowstreamlocalforwarding|authorizedkeysfile)'
+# expect "no" for the forwarding lines; on nodes/mars AuthorizedKeysFile is /etc/ssh/authorized_keys.d/%u only
+ssh-keygen -lf /etc/ssh/authorized_keys.d/root   # compare fingerprints with the admin and automation keys
+# From the workstation: must fail with "administratively prohibited"
+ssh -N -L 9999:192.168.5.1:22 root@<host>
+```
+
+**Interpretation**
+
+- **Pass:** Logins with declared keys work; local forwarding is refused; keys present only in `~/.ssh/authorized_keys` are not accepted.
+- **Fail:** Any forwarding allowed, or an undeclared key still logs in.
+
+---
+
 ## Phase 2 — Detection rules
 
 ### TC-2.1 — AIDE file integrity
@@ -229,29 +286,31 @@ curl -sf http://192.168.5.5:3100/ready
 **Setup**
 
 - `homelab.security.phase2.enable = true` on all hosts.
-- Run `nixos-rebuild switch` to init AIDE DB (`services.aide`).
+- Every activation (boot or `nixos-rebuild switch`) re-baselines the database after `/etc` is rebuilt (`homelabAideInit` activation script).
+- Volatile paths are excluded in `nixos/security/aide.nix` (random seed, timer stamps, `/etc/letsencrypt`, shell history and Docker client state under `/root`, logs in `/root`, Docker/Wings/Coolify data).
 
 **Execution**
 
 ```bash
-systemctl is-active aidecheck.timer
-systemctl start aidecheck.service
-journalctl -u aidecheck --since "10 min ago"
+systemctl list-timers aide-check
+systemctl start aide-check.service; systemctl is-failed aide-check.service   # expect "inactive" (passed)
+journalctl -t homelab-aide -n 5
 # Controlled change (revert after):
-sudo touch /etc/aide-test && systemctl start aidecheck.service
+touch /etc/aide-test && systemctl start aide-check.service   # expect failure listing /etc/aide-test
+rm /etc/aide-test && systemctl start aide-check.service      # passes again
 ```
 
 **Troubleshooting**
 
 | Symptom | Fix |
 |---------|-----|
-| AIDE init failed | `journalctl -u aideinit`; ensure `/var/lib/aide` writable |
-| Too many false positives | Exclude volatile paths in `nixos/security/aide.nix` rules |
+| AIDE init failed | `systemctl start aide-init`; ensure `/var/lib/aide` writable |
+| Daily check fails on the same paths | Check whether they change on their own; if so, exclude them in `nixos/security/aide.nix` |
 
 **Deliverables**
 
-- `aidecheck.service` exit code non-zero on tamper
-- Journal entries from `aidecheck`
+- `aide-check.service` exit code non-zero on tamper
+- Journal entries tagged `homelab-aide`
 
 **Interpretation**
 
@@ -402,6 +461,35 @@ curl -s http://127.0.0.1:9100/metrics | grep homelab_cisco_config_drift
 
 ---
 
+### TC-2.6 — Container egress isolation (Wings nodes, mars)
+
+**Setup**
+
+- `homelab.security.containerEgress` on crux/elara (bridges `pterodactyl0`, `docker0`, `br+`) and mars (`docker0`, `br+`; DNS to ace, plus HTTPS to ace from `docker0` only).
+- mars: `coolify-ingress` chain for published ports (ace to :80 only from private sources).
+
+**Execution**
+
+```bash
+# On the node: rules in place, jump first in DOCKER-USER
+iptables -S DOCKER-USER; iptables -S homelab-ctr-egress; ip6tables -S homelab-ctr-egress
+# From a throwaway container on the game network (removed afterwards)
+docker run --rm --network pterodactyl_nw --dns 1.1.1.1 alpine sh -c '
+  wget -q -O /dev/null -T 5 https://example.com && echo internet-ok
+  nc -z -w 3 192.168.5.5 22   && echo LAN-OPEN || echo lan-blocked
+  nc -z -w 3 172.18.0.1 22    && echo HOST-OPEN || echo host-blocked'
+journalctl -k --since -5min --grep ctr-egress-drop
+```
+
+On mars use `--network coolify` (and `--network bridge` for the sentinel exception: only ace :53 and :443 open).
+
+**Interpretation**
+
+- **Pass:** `internet-ok`, `lan-blocked`, `host-blocked`; game servers still reachable on their published ports from LAN and WAN; Coolify apps still load through ace.
+- **Fail:** Any LAN or host port reachable from a container, or published ports broken.
+
+---
+
 ## Phase 3 — Response stubs (manual / tabletop)
 
 ### TC-3.1 — fail2ban persistent ban (stub)
@@ -413,7 +501,7 @@ curl -s http://127.0.0.1:9100/metrics | grep homelab_cisco_config_drift
 
 **Execution**
 
-Tabletop: simulate repeated WAN SSH failures; verify fail2ban ban; confirm operator LAN IP still reachable.
+Tabletop: simulate repeated WAN SSH failures; verify fail2ban ban; confirm the operator still gets in over the tailnet (ignored) or via ace. LAN addresses other than ace are not whitelisted.
 
 **Troubleshooting**
 
