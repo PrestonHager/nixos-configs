@@ -160,7 +160,10 @@ PY
       fi
     }
     set_kv APP_URL "${panelPublicUrl}"
-    set_kv TRUSTED_PROXIES "*"
+    # Caddy reaches php-fpm over FastCGI and passes the client as
+    # REMOTE_ADDR, so only local callers may set X-Forwarded-*; "*" let any
+    # client spoof its IP and scheme.
+    set_kv TRUSTED_PROXIES "127.0.0.1,::1,10.88.0.1"
     set_kv ZITADEL_CLIENT_ID "$PTERODACTYL_OIDC_CLIENT_ID"
     set_kv ZITADEL_CLIENT_SECRET "$PTERODACTYL_OIDC_CLIENT_SECRET"
     set_kv ZITADEL_BASE_URL "${zitadelIssuer}"

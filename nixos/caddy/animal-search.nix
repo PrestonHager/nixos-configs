@@ -13,10 +13,14 @@
 # in acme-dns.nix, so no inbound 80/443 to the apps is needed.
 { ... }:
 
+let
+  caddyLib = import ./lib.nix;
+in
 {
   services.caddy.virtualHosts = {
     "animal-search.prestonhager.com" = {
       extraConfig = ''
+        ${caddyLib.securityHeaders}
         reverse_proxy 127.0.0.1:4322 {
           header_up X-Forwarded-Host {host}
           header_up X-Deploy-Environment production
@@ -26,6 +30,7 @@
 
     "staging.animal-search.prestonhager.com" = {
       extraConfig = ''
+        ${caddyLib.securityHeaders}
         reverse_proxy 127.0.0.1:4323 {
           header_up X-Forwarded-Host {host}
           header_up X-Deploy-Environment staging

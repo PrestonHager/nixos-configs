@@ -146,7 +146,7 @@ Provisioned rules appear under **Alerting → Alert rules** in folder **Ace Aler
 |----------|--------|
 | **Trigger** | After each `ace-version-check` run, `ace-service-update-dispatch` starts `ace-service-auto-update@SERVICE` for each enabled, out-of-date service |
 | **Patch / minor** | Bumps pinned versions in `/etc/nixos` nix modules, commits, pushes to the deployment branch, then runs a **constrained** `nixos-rebuild switch --flake /etc/nixos#ace` (`-j 4`, `max-jobs 4`, `cores 12`, serialized with flock) |
-| **Major** | Sends an approval email (same SMTP + recipients as Grafana alerts) with breaking-change notes and **Approve** / **Deny** links at https://update.prestonhager.com |
+| **Major** | Sends an approval email (same SMTP + recipients as Grafana alerts) with breaking-change notes and **Approve** / **Deny** links at https://update.prestonhager.com. Opening a link only shows a confirmation page; the upgrade is approved or denied when you press its button (a POST), so mail link scanners that prefetch URLs cannot trigger it |
 | **Result email** | Success or failure notification after each attempted update |
 | **Registry** | `/etc/ace-service-update/registry.json` — enable/disable services and bump rules |
 | **Persistence** | All enabled services use `nix-bump` (or `occ-app` for Nextcloud apps). Image tags live in nix expressions; the next rebuild reproduces the same versions. **Do not** use floating `:latest` `podman-pull` updates — those diverge from nix and are wiped on rebuild. |

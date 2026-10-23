@@ -5,7 +5,7 @@ How to use the **DNS Records** and **Port Forward** Blueprint extensions on the 
 | Panel | URL | Extensions |
 |-------|-----|------------|
 | **Production** | https://panel.prestonhager.com | DNS Records + Port Forward + Social Login |
-| **Test** | https://test.panel.prestonhager.com | DNS Records + Social Login (no Port Forward) |
+| **Test** | https://test.panel.prestonhager.com (LAN, tailnet and VPN only) | DNS Records + Social Login (Port Forward is dry-run only) |
 
 ---
 

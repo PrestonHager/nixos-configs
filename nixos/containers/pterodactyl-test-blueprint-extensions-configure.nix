@@ -42,7 +42,9 @@ let
       return (string) $json["result"][0]["id"];
     }
 
-    $dryRun = getenv("PORTFORWARD_DRY_RUN") !== "0";
+    // The test panel never changes the router: always a dry run, and the
+    // router SSH key is not mounted into the container (pterodactyl-test.nix).
+    $dryRun = true;
 
     $portforward = [
       "enabled" => true,
@@ -128,20 +130,16 @@ let
       exit 0
     fi
 
-    portforward_dry_run=1
-    if [ -f /pterodactyl/secrets/pterodactyl-router-ssh-key ]; then
-      portforward_dry_run=0
-    fi
-
+    # Port forwarding on the test panel is always a dry run: it has no router
+    # key (pterodactyl-test.nix mounts a secrets dir without it).
     ${pkgs.coreutils}/bin/cp ${configurePhp} ${testPanelDir}/configure-test-extensions.php
     ${pkgs.coreutils}/bin/chown prestonh:users ${testPanelDir}/configure-test-extensions.php
     ${pkgs.podman}/bin/podman exec \
-      -e PORTFORWARD_DRY_RUN="$portforward_dry_run" \
       pterodactyl-test \
       php /var/www/pterodactyl/configure-test-extensions.php
     ${pkgs.coreutils}/bin/rm -f ${testPanelDir}/configure-test-extensions.php
 
-    echo "pterodactyl-test-blueprint-extensions-configure: homelab defaults applied (portforward dry_run=$portforward_dry_run)"
+    echo "pterodactyl-test-blueprint-extensions-configure: homelab defaults applied (portforward dry_run=1)"
   '';
 in
 {
