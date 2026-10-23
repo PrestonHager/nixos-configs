@@ -15,6 +15,13 @@
 #                           Caddy DNS-01 token) and Technitium -> ace for the
 #                           LAN. *.apps names are covered by the wildcard.
 #
+# Guard rails (environment below, details in edge-sync.py): only the Root
+# Team's apps; ace's own hostnames and names with reserved labels (login,
+# admin, vault, ...) are never accepted; databases are not forwarded unless
+# opted in; at most COOLIFY_EDGE_MAX_PORTS ports and no range wider than
+# COOLIFY_EDGE_MAX_RANGE; every router/DNS change is logged at warning level.
+# The ask endpoint caches misses so unknown SNI floods do not hit the DB.
+#
 # All read Coolify's database with `podman exec coolify-db psql`; nothing on
 # the Coolify side has to be configured. The NAT and DNS units only call the
 # router / DNS APIs when the wanted set changed or every 15 minutes, which also
@@ -42,17 +49,49 @@ let
   script = ./coolify/edge-sync.py;
   python = "${pkgs.python3}/bin/python3";
 
+  # Every hostname ace's Caddy serves itself (and its aliases). Coolify must
+  # never get a certificate, a CNAME or traffic for one of these.
+  ownHosts = lib.unique (lib.filter (h: h != "" && !(lib.hasInfix "*" h) && !(lib.hasInfix ":" h))
+    (map (h: lib.removePrefix "https://" (lib.removePrefix "http://" h))
+      (lib.concatLists (lib.mapAttrsToList (name: vh: [ name ] ++ (vh.serverAliases or [ ]))
+        config.services.caddy.virtualHosts))));
+
   environment = {
     PODMAN = "${pkgs.podman}/bin/podman";
     SSH = "${pkgs.openssh}/bin/ssh";
     # Coolify server IPs whose published ports are forwarded from the WAN.
     COOLIFY_EDGE_NODES = marsIp;
+    # Only the Root Team's apps (team 0) are routed; with self-registration
+    # off (coolify/instance-settings.php) it is the only team anyway.
+    COOLIFY_EDGE_TEAM_IDS = "0";
     # Hostnames the catch-all may get certificates for. Caddy issues them with
     # the Cloudflare DNS-01 token (acme-dns.nix), so only zones on that
     # Cloudflare account work. *.apps.prestonhager.com has its own wildcard site.
     COOLIFY_EDGE_ZONES = "prestonhager.com";
-    # SSH (router + hosts), DNS, HTTP(S) and DoT stay with ace / the router.
-    COOLIFY_EDGE_BLOCKED_PORTS = "22 53 80 443 853 3380";
+    # Never routed to Coolify: ace's own vhosts, and any name with one of these
+    # labels below the zone (so an app cannot claim e.g. login.prestonhager.com
+    # or admin.foo.prestonhager.com for phishing).
+    COOLIFY_EDGE_DENY_HOSTS = lib.concatStringsSep " " ownHosts;
+    COOLIFY_EDGE_DENY_LABELS = lib.concatStringsSep " " [
+      "login" "sso" "auth" "oauth" "oidc" "id" "account" "accounts"
+      "vault" "admin" "mail" "smtp" "imap" "mx" "autodiscover" "autoconfig"
+      "www" "zitadel" "panel" "cloud" "grafana" "prometheus" "metrics"
+      "coolify" "dns" "ns" "ns1" "ns2" "wg" "vpn" "update" "matrix" "git"
+      "ace" "mars" "crux" "elara" "lc1" "internal" "ip1" "acme"
+    ];
+    # Databases are not forwarded from the WAN unless this is "1".
+    COOLIFY_EDGE_FORWARD_PUBLIC_DATABASES = "0";
+    # Refuse to sync when more than this many ports would be forwarded, and
+    # skip any single range wider than COOLIFY_EDGE_MAX_RANGE ports.
+    COOLIFY_EDGE_MAX_PORTS = "50";
+    COOLIFY_EDGE_MAX_RANGE = "20";
+    # Never forwarded: SSH, DNS, HTTP(S), DoT and other ports that belong to
+    # ace / the router or are common attack surface (mail, SMB, NFS, RDP,
+    # SNMP, LDAP, Technitium, Prometheus).
+    COOLIFY_EDGE_BLOCKED_PORTS = lib.concatStringsSep " " (map toString [
+      21 22 23 25 53 80 111 135 137 138 139 161 162 389 443 445 465 587 636
+      853 993 995 2049 3380 3389 5380 9090 9100
+    ]);
     COOLIFY_EDGE_WAN_INTERFACE = "GigabitEthernet0/0";
     COOLIFY_EDGE_ROUTER_SSH_CONFIG = "${routerSshConfig}";
     COOLIFY_EDGE_ROUTER_HOST = "astracap";
@@ -67,16 +106,33 @@ let
     COOLIFY_EDGE_TECHNITIUM_PASSWORD_FILE = "/stor/technitium/secrets/admin-password";
   };
 
+  # Sandbox for all three units. They run as root because they need
+  # `podman exec` into coolify-db (root's container storage) and the router
+  # key; the rest of the system is read-only to them. Podman writes its
+  # exec-session state under /var/lib/containers and /run.
+  hardening = {
+    NoNewPrivileges = true;
+    ProtectSystem = "strict";
+    ProtectHome = true;
+    PrivateTmp = true;
+    ReadWritePaths = [ "-/var/lib/containers" "-/run/containers" "-/run/libpod" "-/run/crun" ];
+    StateDirectory = "coolify-edge";
+    StateDirectoryMode = "0700";
+    RestrictAddressFamilies = [ "AF_UNIX" "AF_INET" "AF_INET6" "AF_NETLINK" ];
+    ProtectKernelModules = true;
+    ProtectKernelLogs = true;
+    ProtectClock = true;
+    RestrictRealtime = true;
+  };
+
   # Shared by the two timer-driven jobs.
   syncUnit = description: job: extraAfter: {
     inherit description environment;
     after = [ "podman-coolify-db.service" "network-online.target" ] ++ extraAfter;
     wants = [ "network-online.target" ];
     requires = [ "podman-coolify-db.service" ];
-    serviceConfig = {
+    serviceConfig = hardening // {
       Type = "oneshot";
-      StateDirectory = "coolify-edge";
-      StateDirectoryMode = "0700";
       TimeoutStartSec = "3min";
       ExecStart = "${python} ${script} ${job}";
     };
@@ -98,7 +154,7 @@ in
     before = [ "caddy.service" ];
     wantedBy = [ "multi-user.target" ];
     inherit environment;
-    serviceConfig = {
+    serviceConfig = hardening // {
       ExecStart = "${python} ${script} serve --listen 127.0.0.1 --port ${toString askPort}";
       Restart = "always";
       RestartSec = 5;

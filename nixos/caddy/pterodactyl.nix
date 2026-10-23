@@ -1,24 +1,16 @@
 { config, lib, ... }:
 
 let
-  websocketHosts = {
-    "nova.lc1.nm.us.prestonhager.com" = {
-      ip = "192.168.5.7";
+  caddyLib = import ./lib.nix;
+
+  # Wings websocket proxying, only for nodes enabled in lib.nix wingsNodes.
+  websocketHosts = builtins.listToAttrs (map (name: {
+    name = caddyLib.wingsDomain name;
+    value = {
+      inherit (caddyLib.wingsNodes.${name}) ip;
       port = "443";
     };
-    "elara.lc1.nm.us.prestonhager.com" = {
-      ip = "192.168.5.8";
-      port = "443";
-    };
-    "zenith.lc1.nm.us.prestonhager.com" = {
-      ip = "192.168.5.9";
-      port = "443";
-    };
-    "crux.lc1.nm.us.prestonhager.com" = {
-      ip = "192.168.5.6";
-      port = "443";
-    };
-  };
+  }) caddyLib.activeWingsNodes);
 
   phpBlock = { hostPath, containerPath, phpPort ? "9001" }:
     ''
@@ -55,7 +47,11 @@ let
           max_size 100m
       }
 
-      respond /.ht* 403
+      # A handle (not a bare respond) so it runs before the file_server
+      # handle below; Caddy orders respond after handle.
+      handle /.ht* {
+        respond 403
+      }
 
       ${lib.optionalString oauth ''
       handle /oauth2/* {
@@ -118,11 +114,12 @@ in {
         hostPath = "/pterodactyl/html/public";
         containerPath = "/var/www/pterodactyl";
       };
-      "test.panel.prestonhager.com".extraConfig = panelSite {
+      # Test panel: runs a work-in-progress checkout, so LAN/tailnet/VPN only.
+      "test.panel.prestonhager.com".extraConfig = caddyLib.lanOnly (panelSite {
         hostPath = "/pterodactyl-test/public";
         containerPath = "/var/www/pterodactyl";
         phpPort = "9002";
-      };
+      });
     } // builtins.mapAttrs (websocketHost: websocketConfig: {
       extraConfig = ''
         @ws path_regexp wsSuffix .*/ws(/.*)?$

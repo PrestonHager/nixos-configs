@@ -1,6 +1,7 @@
 { config, lib, ... }:
 
 let
+  caddyLib = import ./lib.nix;
   # Never serve the web installer, backups, logs, or anything that is only
   # meant for the CLI. A LocalSettings.php.bak once leaked every secret
   # this way, and debug.log leaked session data. Case-sensitive on purpose:
@@ -22,6 +23,7 @@ in
 {
   services.caddy = {
     virtualHosts."loftiawiki.org".extraConfig = ''
+      ${caddyLib.securityHeaders}
       root * /mw/html
       @dotFiles {
         path */.*
@@ -60,7 +62,9 @@ in
         root * /mw/mediawiki-1.45.3
         # Staging copy used only while upgrading: LAN admins only, and the same
         # private-path rules as the production vhost above.
-        @notLan not remote_ip 192.168.5.0/24 127.0.0.1/32
+        # No handle blocks in this site, so respond (ordered before
+        # php_fastcgi/file_server) runs first. Ranges: lib.nix lanRanges.
+        @notLan not remote_ip ${caddyLib.lanRangesStr}
         respond @notLan 403
         @dotFiles {
           path */.*

@@ -201,8 +201,10 @@ PY
       fi
     }
     set_kv APP_URL "${panelPublicUrl}"
-    set_kv TRUSTED_PROXIES "*"
-    set_kv SESSION_DOMAIN ".prestonhager.com"
+    # Same values pterodactyl-test-env enforces (see pterodactyl-test.nix).
+    set_kv TRUSTED_PROXIES "127.0.0.1,::1,10.88.0.1"
+    set_kv SESSION_DOMAIN "test.panel.prestonhager.com"
+    set_kv SESSION_COOKIE "pterodactyl_test_session"
     set_kv SESSION_SECURE_COOKIE "true"
     set_kv SESSION_SAME_SITE "lax"
     set_kv ZITADEL_CLIENT_ID "$PTERODACTYL_OIDC_CLIENT_ID"
