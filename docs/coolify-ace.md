@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Dashboard | https://coolify.prestonhager.com |
+| Dashboard | https://coolify.prestonhager.com (LAN, tailnet and WireGuard only; see [Access](#access)) |
 | Apps | `https://<name>.apps.prestonhager.com`, or any other `prestonhager.com` name (see [Routing](#routing-traffic-to-apps)) |
 | Version | Coolify 4.4.6 (pinned by digest) |
 | Deploy server | mars (192.168.5.15), Coolify proxy (Traefik) on :80 |
@@ -36,6 +36,20 @@ flowchart LR
 - **DNS**: Cloudflare CNAMEs `coolify` and `*.apps` → `ip1.lc1.nm.us.prestonhager.com`; Technitium has the same names → ace for the LAN (`technitium-zones.nix`).
 - **Containers** run on the `coolify` Podman network (not a pod), so restarting one of them never strands the others in a dead network namespace.
 
+## Access
+
+`nixos/caddy/coolify.nix` splits `coolify.prestonhager.com` by path:
+
+| Path | Who can reach it | Why |
+|---|---|---|
+| `/webhooks/*` | anyone | GitHub (App and manual webhooks) must reach it to trigger deploys; Coolify checks the webhook secret |
+| `/api/*` | LAN, tailnet, WireGuard | token-authenticated API; nothing outside the LAN uses it (Sentinel on mars and the health probes are local). `publicApi = true` in `coolify.nix` opens it, e.g. for deploys from GitHub-hosted Actions runners |
+| `/app/*` (realtime), `/terminal/ws` (web terminal), everything else (dashboard, login, Zitadel callback) | LAN, tailnet, WireGuard | admin surface |
+
+"LAN, tailnet, WireGuard" is the shared `lanOnly` guard in `nixos/caddy/lib.nix` (`192.168.5.0/24`, `100.64.0.0/10` and the tailnet IPv6 range, `192.168.20.0/24`, loopback); everyone else gets 403. Off-site, connect to the tailnet or the VPN first, and make sure the name resolves to ace's LAN address (Technitium) rather than the public IP. Apps (`*.apps.prestonhager.com` and the on-demand catch-all) stay public.
+
+Registration is pinned off by `coolify-instance-settings` (a UI toggle is reverted on the next run; Coolify itself also turns it off after creating the first user). Coolify 4.4.6 only lets the generic `oidc` provider create accounts while registration is off; the `zitadel` provider used here does not, so a Zitadel user who has never signed in to Coolify cannot create an account by signing in. See [Signing in and adding users](#signing-in-and-adding-users).
+
 ## Routing traffic to apps
 
 Everything an app in Coolify needs from outside (DNS, TLS, proxying, port forwards) is derived from what is configured in Coolify; there is nothing to add in Nix or by hand per app.
@@ -48,7 +62,12 @@ Everything an app in Coolify needs from outside (DNS, TLS, proxying, port forwar
 | `https://` (catch-all) | mars:80 | issued on demand, per hostname |
 | `http://` (catch-all) | 308 redirect to HTTPS | — |
 
-Caddy always prefers the most specific site, so the catch-alls only see hostnames that none of ace's own services claim. Before Caddy issues an on-demand certificate it asks `coolify-edge-ask` (`127.0.0.1:9180/ask?domain=…`), which says yes only when an application, preview or service in Coolify uses that hostname **and** it is inside `COOLIFY_EDGE_ZONES` (`prestonhager.com`). Any other name fails the TLS handshake, so stray SNI never reaches Let's Encrypt. Certificates use the same Cloudflare DNS-01 token as everything else, so only names in Cloudflare zones that token can edit work.
+Caddy always prefers the most specific site, so the catch-alls only see hostnames that none of ace's own services claim. Before Caddy issues an on-demand certificate it asks `coolify-edge-ask` (`127.0.0.1:9180/ask?domain=…`), which says yes only when an application, preview or service of the Root Team (`COOLIFY_EDGE_TEAM_IDS`) uses that hostname, it is inside `COOLIFY_EDGE_ZONES` (`prestonhager.com`), **and** it is not reserved:
+
+- `COOLIFY_EDGE_DENY_HOSTS`: every hostname ace's own Caddy serves (generated from `services.caddy.virtualHosts`), and the zone apex;
+- `COOLIFY_EDGE_DENY_LABELS`: any name with a sensitive label below the zone, such as `login`, `sso`, `auth`, `admin`, `vault`, `mail`, `www`, `zitadel`, `panel`, `cloud`, `grafana`, `coolify`, `dns`, `wg` or `prometheus` (full list in `coolify-edge.nix`), so `admin.group5.prestonhager.com` is refused too.
+
+Refused names also get no DNS records. The ask endpoint remembers unknown names for 30 seconds and re-reads Coolify's database at most every 5 seconds on a miss, so a flood of random SNI names cannot run a database query per request. Any other name fails the TLS handshake, so stray SNI never reaches Let's Encrypt. Certificates use the same Cloudflare DNS-01 token as everything else, so only names in Cloudflare zones that token can edit work.
 
 To give an app a custom name such as `group5.prestonhager.com`, set the app's domain in Coolify to `http://group5.prestonhager.com` (always `http://`; TLS is ace's job) and deploy. Within a minute `coolify-edge-dns` creates:
 
@@ -60,9 +79,11 @@ When the domain is removed from Coolify, both records are deleted. Only records 
 **Other ports (TCP/UDP).** `coolify-edge-nat` (timer, every minute) forwards from the WAN every host port that Coolify publishes on mars:
 
 - an application's **Ports Mappings** (`8080:80`, `25565:25565/udp`, `27000-27010:27000-27010`; mappings bound to `127.0.0.1` are skipped), and
-- a database with **Make it publicly available** (its public port).
+- only if `COOLIFY_EDGE_FORWARD_PUBLIC_DATABASES = "1"` (default off): a database with **Make it publicly available** (its public port) or its own port mappings. With the default, a public database is reachable from the LAN only.
 
-It writes `ip nat inside source static <tcp|udp> 192.168.5.15 <port> interface GigabitEthernet0/0 <port>` on Astracap and removes `192.168.5.15` lines Coolify no longer wants. Lines for other inside addresses (ace's :80/:443, Pterodactyl game ports) are never touched; a port already forwarded elsewhere is reported as a conflict and skipped. Ports 22, 53, 80, 443, 853 and 3380 are never forwarded. The WAN port equals the host port. Rules live in running-config only (like the Pterodactyl extension's); the timer re-checks the router every 15 minutes while any rule is wanted, so they come back after a router reboot. While no app publishes a port it never logs in to the router.
+Limits: a range wider than `COOLIFY_EDGE_MAX_RANGE` (20) ports is skipped, and if more than `COOLIFY_EDGE_MAX_PORTS` (50) ports would be forwarded in total the job refuses to change the router at all and the unit fails. Every NAT line it adds or removes is logged at warning priority (`journalctl -p warning -u coolify-edge-nat`).
+
+It writes `ip nat inside source static <tcp|udp> 192.168.5.15 <port> interface GigabitEthernet0/0 <port>` on Astracap and removes `192.168.5.15` lines Coolify no longer wants. Lines for other inside addresses (ace's :80/:443, Pterodactyl game ports) are never touched; a port already forwarded elsewhere is reported as a conflict and skipped. Ports in `COOLIFY_EDGE_BLOCKED_PORTS` are never forwarded: SSH, DNS, HTTP(S), DoT and the router's own ports, plus common mail, SMB, NFS, RDP, SNMP and LDAP ports and ace's admin ports (full list in `coolify-edge.nix`). The WAN port equals the host port. Rules live in running-config only (like the Pterodactyl extension's); the timer re-checks the router every 15 minutes while any rule is wanted, so they come back after a router reboot. While no app publishes a port it never logs in to the router.
 
 Docker Compose services (Coolify *Services* and the Docker Compose build pack) are not covered: their `ports:` are not stored in a column Coolify exposes. Publish such ports through an application's Ports Mappings instead.
 
@@ -70,7 +91,8 @@ The NAT job logs in as `pterofwd` with the Pterodactyl port-forward key. That ac
 
 ```bash
 journalctl -u coolify-edge-nat -n 20      # what it added/removed, conflicts
-journalctl -u coolify-edge-dns -n 20      # CNAMEs added/removed, conflicts
+journalctl -u coolify-edge-dns -n 20      # CNAMEs added/removed, conflicts, refused names
+journalctl -p warning -u 'coolify-edge-*' # only the changes (router/DNS) and refusals
 journalctl -u coolify-edge-ask -f         # on-demand TLS decisions
 cat /var/lib/coolify-edge/{nat,dns}.json  # last wanted sets
 systemctl start coolify-edge-nat coolify-edge-dns   # sync now
@@ -98,7 +120,7 @@ To add someone:
 
 1. Create the user in Zitadel (Console → Users → New), or use an existing one. Their email must be verified.
 2. Console → Projects → **Coolify** → Authorizations → **New** → pick the user and `coolify_admin` or `coolify_member`.
-3. They sign in at https://coolify.prestonhager.com with **Sign in with Zitadel**. Coolify creates their account on first login.
+3. They sign in at https://coolify.prestonhager.com (from the LAN, tailnet or VPN) with **Sign in with Zitadel**. Registration is pinned off, so for a brand-new user turn on **Settings → Configuration → Registration** just before their first login; `coolify-instance-settings` turns it off again on the next boot or switch (or run `systemctl restart coolify-instance-settings` right after).
 4. Within 5 minutes `coolify-zitadel-roles.timer` adds them to the Root Team with the matching role (run `systemctl start coolify-zitadel-roles` on ace to do it now).
 
 To remove someone, delete their Coolify authorization in Zitadel. They can no longer sign in, and the next sync removes them from the Root Team. The original owner account (preston@hagerfamily.com, user 0) is never changed by the sync.
@@ -110,7 +132,7 @@ cd ~/nixos-secrets   # on a machine with the root age key
 sops -d --extract '["coolify-env"]' secrets/containers/coolify.yaml | grep ROOT_USER_PASSWORD
 ```
 
-Public registration is off (Settings → Configuration). New accounts only come from Zitadel.
+Public registration is off (Settings → Configuration) and pinned off by `coolify-instance-settings`. New accounts only come from Zitadel, during a short window with registration on (step 3 above); the dashboard is not reachable from the internet in any case.
 
 ## Hosting the CS371 group 5 project
 
@@ -123,7 +145,7 @@ The repository is private, so Coolify needs credentials. Pick one:
 - **GitHub App (recommended; gives push-to-deploy):** Coolify → **Sources** → **+ Add** → **GitHub App**. Name it e.g. `coolify-ace`, keep the webhook endpoint `https://coolify.prestonhager.com`, and choose **Register now**. The app can be owned by any account or organization, not only the one that owns the repository. A GitHub App is installable only on its owner's account until it is made public, though: if you register it on your own account (or another org), open GitHub → the app's settings → **Advanced** → **Make public**, then **Install** it on `NMSU-CS-CS371` and select only the group 5 repository. An org owner has to approve the install if you are not one.
 - **Deploy key (no org approval needed, manual or webhook deploys):** Coolify → **Keys & Tokens** → **Private Keys** → **+ Add** → **Generate new ED25519 key**, name it `group5-deploy`. Copy the public key into the repository: GitHub → repo → Settings → **Deploy keys** → Add (read-only). Requires admin on the repository.
 
-GitHub Actions runners are separate from this: a self-hosted runner serves only the repository or organization it is registered to, whatever owns the Coolify app. A workflow can trigger a deploy through Coolify's API (Keys & Tokens → API tokens, then `GET https://coolify.prestonhager.com/api/v1/deploy?uuid=<app uuid>` with `Authorization: Bearer <token>`) or the application's deploy webhook.
+GitHub Actions runners are separate from this: a self-hosted runner serves only the repository or organization it is registered to, whatever owns the Coolify app. A workflow can trigger a deploy through Coolify's API (Keys & Tokens → API tokens, then `GET https://coolify.prestonhager.com/api/v1/deploy?uuid=<app uuid>` with `Authorization: Bearer <token>`) or the application's deploy webhook. The API is only reachable from the LAN/tailnet (see [Access](#access)), so this works from a self-hosted runner on the LAN; GitHub-hosted runners should rely on the GitHub App or the manual GitHub webhook (`/webhooks/*`, public) instead.
 
 ### 2. Create the application
 

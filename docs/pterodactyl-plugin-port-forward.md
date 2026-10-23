@@ -23,7 +23,8 @@
 ### Default safety
 
 - **Extension disabled** in schema until `pterodactyl-blueprint-extensions-configure.service` enables it (or admin enables manually)
-- **Dry-run ON** until sops key `pterodactyl-router-ssh-key` is mounted — then configure service sets **dry-run OFF**
+- **Dry-run ON** until sops key `pterodactyl-router-ssh-key` is mounted — then configure service sets **dry-run OFF** (production panel only)
+- The **test panel** never gets the router key and is always dry-run (see [pterodactyl-test-blueprint.md](./pterodactyl-test-blueprint.md#extension-secrets))
 - Blocked ports: 22, 80, 443, 3380
 - Allowed range: 1024–65535
 
