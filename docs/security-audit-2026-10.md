@@ -17,7 +17,7 @@ No logins were attempted on anything that needed a password, and nothing was exp
 
 | Severity | Found | Fixed in config (deployed) | Needs owner action | Planned / accepted |
 |---|---|---|---|---|
-| Critical | 2 | 1 | 1 (switch) | — |
+| Critical | 2 | 2 | — | — |
 | High | 16 | 9 | 5 | 2 |
 | Medium | 23 | 15 | 3 | 5 |
 | Low and info | ~40 | most | a few | rest |
@@ -62,17 +62,26 @@ See [Coolify](../ace/coolify.md) and [DNS](dns.md).
 
 See [IDS test cases](security-ids-test-cases.md) (TC-1.6, TC-1.7, TC-2.6) and [mars](../poweredge/mars.md).
 
+### Switch (Astraquasar, 2026-10-23)
+
+- No signs of compromise: only the `admin` account exists, recent logins come only from the admin workstation, and the known implant check returned the normal login page.
+- The HTTP and HTTPS web UI servers are disabled (ports 80/443 closed), the reversible enable password is removed, and `login block-for` / `login on-failure log` are set. Saved to startup-config.
+
+### Deployment (2026-10-23)
+
+ace, mars, crux and elara run the hardened configuration. elara had drifted to a June generation with password SSH enabled and was redeployed; crux and elara were rebooted into their new kernels. The panel containers also gained a tmpfs `/tmp` (the Nix-built runtime image ships without one).
+
 ## Needs owner action
 
 These need credentials or console access that automation does not have.
 
 | Item | Severity | What to do |
 |---|---|---|
-| Astraquasar web UI | Critical | Disable `ip http server` / `ip http secure-server` after checking for signs of compromise; plan an IOS-XE upgrade (16.12.10a or later). |
+| Astraquasar IOS-XE | High | The web UI is off (see Fixed); plan an IOS-XE upgrade to 16.12.10a or later. |
 | Astracap services reachable from the WAN | High | Disable the router's DNS server, add an inbound ACL and uRPF on the WAN interface, turn off CDP/proxy-ARP/redirects there. Needs `aaa authorization exec` so admin sessions land at privilege 15 (see [Astracap](network-astracap.md)). |
 | iDRACs | High | Disable IPMI over LAN and the VNC server, disable SNMP where unused, raise the minimum TLS version, rotate the root passwords, update firmware. The mars iDRAC6 is end of life; keep its switch port shut when not in use. |
 | Old secrets in git history | Medium | A Yubico OTP API key and an old user password hash were once committed. Rotate the Yubico credentials and confirm the user's password has changed since. |
-| Switch management | Medium | Remove reversible (type 7) passwords, require keys for SSH, add NTP and syslog to ace. |
+| Switch management | Medium | Remove the remaining type 7 VTY passwords (with `aaa new-model` in a maintenance window), require keys for SSH, add NTP and syslog to ace. |
 | Production panel cookie domain | Low | The live panel `.env` still scopes its session cookie to `.prestonhager.com`; make it host-only once the SSO cookie setup allows. |
 
 ## Planned
