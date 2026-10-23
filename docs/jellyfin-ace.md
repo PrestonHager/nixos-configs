@@ -142,6 +142,8 @@ systemctl restart podman-jellyfin.service
 
 Jellyfin runs with `--add-host=zitadel.prestonhager.com:host-gateway` so server-side OIDC discovery and token exchange reach Caddy on the host (same pattern as Grafana and Nextcloud).
 
+Port 8096 is published on `127.0.0.1` (Caddy, version check) and `192.168.5.5` (LAN TV/app clients that connect to `http://192.168.5.5:8096` directly and log in with Jellyfin credentials). It is not published on other host addresses (tailnet, Podman bridges); remote clients use https://jellyfin.prestonhager.com.
+
 ## Verification on ace
 
 ```bash
