@@ -495,7 +495,9 @@ in
     www-data = {
       isSystemUser = true;
       group = "www-data";
-      extraGroups = [ "podman" ];
+      # Not in the podman group: /run/podman/podman.sock is root:podman 0660, so that
+      # would make every PHP worker root-equivalent. Nothing on the host runs podman
+      # as www-data (the occ/cron units run as root and use `podman exec -u www-data`).
     };
     mysql = {
       isSystemUser = true;
