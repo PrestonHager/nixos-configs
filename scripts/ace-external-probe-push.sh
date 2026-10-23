@@ -36,7 +36,6 @@ DEFAULT_TARGETS=(
   "https://zitadel.prestonhager.com/"
   "https://jellyfin.prestonhager.com/"
   "https://vault.prestonhager.com/"
-  "https://wg.prestonhager.com/"
   "https://loftiawiki.org/"
 )
 

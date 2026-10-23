@@ -32,7 +32,7 @@ flowchart LR
   Z[Zitadel] -. OIDC .- D
 ```
 
-- **TLS** terminates on ace's Caddy with Cloudflare DNS-01 certificates (the `*.apps` wildcard needs DNS-01). Coolify's proxy on mars only serves HTTP on :80, and a `DOCKER-USER` rule on mars drops :80 from anything but ace. Traefik trusts `X-Forwarded-*` from ace (`--entrypoints.http.forwardedHeaders.trustedIPs=192.168.5.5/32` in the proxy configuration), so apps see `https`.
+- **TLS** terminates on ace's Caddy with Cloudflare DNS-01 certificates (the `*.apps` wildcard needs DNS-01). Coolify's proxy on mars only serves HTTP on :80, and mars's `coolify-ingress` chain (`nixos/coolify-node.nix`) drops new connections from private sources other than ace→:80, while app containers cannot reach the LAN ([mars](../poweredge/mars.md)). Traefik trusts `X-Forwarded-*` from ace (`--entrypoints.http.forwardedHeaders.trustedIPs=192.168.5.5/32` in the proxy configuration), so apps see `https`.
 - **DNS**: Cloudflare CNAMEs `coolify` and `*.apps` → `ip1.lc1.nm.us.prestonhager.com`; Technitium has the same names → ace for the LAN (`technitium-zones.nix`).
 - **Containers** run on the `coolify` Podman network (not a pod), so restarting one of them never strands the others in a dead network namespace.
 
