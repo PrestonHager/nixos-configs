@@ -17,7 +17,10 @@ Dell PowerEdge **R410** host. Paired with a dedicated iDRAC 6 OOB interface.
 
 - `hosts/mars/default.nix`: static IP, GRUB (no UEFI on the R410, so the systemd-boot default from `nixos/default.nix` is forced off), Docker with `liveRestore` and a weekly prune, keys-only SSH, node security agents and log shipping to Loki on ace.
 - `hosts/mars/disko.nix`: GPT on `wwn-0x6d4ae520a94a3800154129fa075a156a` with a 1 MiB BIOS boot partition, 8 GiB swap and ext4 `/`.
-- `nixos/coolify-node.nix` with `homelab.coolifyNode.address = "192.168.5.15"`: Coolify's `coolify@ace` key for root, `git`/`curl`/`jq`, and a `DOCKER-USER` rule that drops port 80 from anything but ace.
+- `nixos/coolify-node.nix` with `homelab.coolifyNode = { address = "192.168.5.15"; lanInterface = "eno1"; }`: Coolify's `coolify@ace` key for root (only from ace, no forwarding), `git`/`curl`/`jq`, and the container firewall:
+  - **Inbound** (`coolify-ingress` chain, jumped from `DOCKER-USER`): on `eno1`, new connections to published container ports from private, CGNAT/tailnet or link-local sources are dropped, except ace to port 80 (the Traefik proxy Caddy forwards to). Public sources (internet clients that `coolify-edge-nat` forwards through the router) reach whatever Coolify publishes.
+  - **Outbound** (`homelab.security.containerEgress`): app containers reach the internet but not the LAN, the tailnet or mars itself. Exceptions: DNS to ace (Docker hands containers the host's resolvers), and HTTPS to ace from the default `docker0` bridge only, for `coolify-sentinel`'s metrics push to `coolify.prestonhager.com`. Traffic between Docker networks (Traefik to apps) is left to Docker.
+- SSH: only Nix-declared keys count and forwarding is off (`nixos/security/ssh.nix`).
 - sops decrypts with the host SSH key only (`sops.age.keyFile = null`). Mars's age key is a recipient of `secrets/users.yaml` and the home-manager secrets in nixos-secrets, nothing else.
 
 ## Deploying
@@ -37,8 +40,13 @@ The Traefik proxy (`coolify-proxy`, `/data/coolify/proxy/docker-compose.yml`) se
 ```bash
 docker ps                                   # coolify-proxy, coolify-sentinel, apps
 docker logs coolify-proxy --tail 50
-iptables -S DOCKER-USER                     # expect the :80 drop rule (only ace may connect)
+iptables -S DOCKER-USER                     # jumps to coolify-ingress and homelab-docker-user
+iptables -S coolify-ingress                 # ace -> :80 RETURN, then private-source DROPs
+iptables -S homelab-ctr-egress              # private-destination drops for app containers
+journalctl -k --grep ctr-egress-drop        # containers that tried to reach the LAN
 ```
+
+From a LAN client other than ace, `curl -m 5 http://192.168.5.15/` must time out; through ace's Caddy, app domains still load.
 
 ## Install notes (2026-10-20)
 

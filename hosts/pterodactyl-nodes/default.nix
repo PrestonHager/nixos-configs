@@ -5,8 +5,10 @@ let
   host = config.networking.hostName;
   bootstrapPubkey =
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAZG4s8GtqKZoahIUsFwbXsMnuUrrlSDmN2nzt39pDiS bootstrap@homelab";
+  # root@ace's automation key (nixos/ace-git-identity.nix): only from ace
+  # itself, and never for forwarding.
   aceDeployPubkey =
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDEMydexGEchoOPoh8jDiecyTkmgj/Tfxap7U+lQQfPW root@ace (nixos-configs automation)";
+    ''from="192.168.5.5",no-port-forwarding,no-agent-forwarding,no-X11-forwarding ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDEMydexGEchoOPoh8jDiecyTkmgj/Tfxap7U+lQQfPW root@ace (nixos-configs automation)'';
 in
 {
   imports = [
@@ -31,6 +33,10 @@ in
   # own key from nixos/ace-git-identity.nix, so no workstation agent forwarding.
   users.users.root.openssh.authorizedKeys.keys = [ bootstrapPubkey aceDeployPubkey ];
   users.users.prestonh.openssh.authorizedKeys.keys = [ bootstrapPubkey ];
+  # Only the keys declared here count; stray ~/.ssh/authorized_keys files are
+  # ignored (nixos/security/ssh.nix). bootstrapPubkey is the admin
+  # workstation's key, so this cannot lock the workstation out.
+  homelab.security.ssh.declarativeKeysOnly = true;
 
   sops.secrets = {
     "pterodactyl-db-password" = {
@@ -80,16 +86,18 @@ in
         if [ -d /var/lib/pterodactyl ]; then
           # Docker install/start runs as root and leaves root-owned files Wings cannot write.
           chown -R pterodactyl:pterodactyl /var/lib/pterodactyl
-          find /var/lib/pterodactyl -type d -exec chmod 0750 {} \;
-          find /var/lib/pterodactyl -maxdepth 1 -type f -exec chmod 0640 {} \;
-          find /var/lib/pterodactyl/archives /var/lib/pterodactyl/backups -type f -exec chmod 0640 {} \; 2>/dev/null || true
-          find /var/lib/pterodactyl/volumes -type f -name '*.sh' -exec chmod u+x {} \; 2>/dev/null || true
-          find /var/lib/pterodactyl/volumes -type f -name VintagestoryServer -exec chmod u+x {} \; 2>/dev/null || true
+          # `{} +` batches paths into a few chmods: one exec per file every
+          # 5 minutes flooded the root-exec audit rule (nixos/security/audit.nix).
+          find /var/lib/pterodactyl -type d -exec chmod 0750 {} +
+          find /var/lib/pterodactyl -maxdepth 1 -type f -exec chmod 0640 {} +
+          find /var/lib/pterodactyl/archives /var/lib/pterodactyl/backups -type f -exec chmod 0640 {} + 2>/dev/null || true
+          find /var/lib/pterodactyl/volumes -type f -name '*.sh' -exec chmod u+x {} + 2>/dev/null || true
+          find /var/lib/pterodactyl/volumes -type f -name VintagestoryServer -exec chmod u+x {} + 2>/dev/null || true
         fi
         if [ -d /var/log/pterodactyl ]; then
           chown -R pterodactyl:pterodactyl /var/log/pterodactyl
-          find /var/log/pterodactyl -type d -exec chmod 0750 {} \;
-          find /var/log/pterodactyl -type f -exec chmod 0640 {} \;
+          find /var/log/pterodactyl -type d -exec chmod 0750 {} +
+          find /var/log/pterodactyl -type f -exec chmod 0640 {} +
         fi
       '';
       RemainAfterExit = true;
@@ -208,6 +216,17 @@ in
     extraCommands = ''
       iptables -A nixos-fw -m conntrack --ctstate RELATED,ESTABLISHED -j nixos-fw-accept
     '';
+  };
+
+  # Game containers get the internet only: no LAN, no tailnet, no services on
+  # the node itself (nixos/security/container-egress.nix). pterodactyl0 is
+  # Wings' pterodactyl_nw; docker0 and br+ cover Docker's default and any
+  # other networks. Wings hands containers public resolvers (1.1.1.1/1.0.0.1,
+  # docker.network.dns in /etc/pterodactyl/config.yml), so DNS needs no LAN
+  # exception.
+  homelab.security.containerEgress = {
+    enable = true;
+    bridges = [ "pterodactyl0" "docker0" "br+" ];
   };
 
   homelab.security = {

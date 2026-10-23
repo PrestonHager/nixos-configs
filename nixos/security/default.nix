@@ -63,6 +63,8 @@ in {
     ./cisco-syslog.nix
     ./cisco-backup.nix
     ./node-metrics.nix
+    ./ssh.nix
+    ./container-egress.nix
     ./response/default.nix
   ];
 }
