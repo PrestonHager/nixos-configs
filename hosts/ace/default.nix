@@ -168,12 +168,12 @@ in {
     enable = true;
     memory = "4096m";
     cpus = "4";
-    # The deploy job stages release trees here and repoints the `current`
-    # symlink.
     mountPodmanSocket = false;
-    extraVolumes = [
-      "/stor/animal-search:/stor/animal-search"
-    ];
+    # Only the Animal Search inboxes (staged releases + deploy request/result),
+    # mounted at the paths deploy.yml uses. A root unit on the host validates
+    # and copies the release; the job never sees live releases or MariaDB
+    # data. See docs/animal-search-ace.md.
+    extraVolumes = config.services.animalSearch.runnerVolumes;
   };
 
   services.animalSearch = {
