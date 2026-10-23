@@ -238,6 +238,9 @@ in
         "--env-file=${config.sops.secrets."pterodactyl-env".path}"
         "--env-file=/pterodactyl/secrets/blueprint-extensions.env"
         "--env-file=${redisAuthDir}/app.env"
+        # The Nix-built runtime image has no /tmp; PHP (uploads, composer
+        # during SSO setup) needs a writable temp dir.
+        "--tmpfs=/tmp:rw,mode=1777,size=512m"
       ];
 
       # Finally, the pterodactyl runtime image and version

@@ -573,6 +573,8 @@ EOF
         "--pod=pterodactyl-test"
         "--env-file=${testEnvFile}"
         "--env-file=${testSecretsDir}/blueprint-extensions.env"
+        # The Nix-built runtime image has no /tmp (see pterodactyl.nix).
+        "--tmpfs=/tmp:rw,mode=1777,size=512m"
       ];
       image = "pterodactyl-runtime:v${version}";
       imageFile = pterodactylImages.runtimeImage;
