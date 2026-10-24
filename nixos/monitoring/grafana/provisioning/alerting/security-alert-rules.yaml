@@ -203,8 +203,10 @@ groups:
               # SYN-scan hits from the static infra range (.1-.20: router, switch, ace,
               # nodes) are blackbox probes and log shipping, not scans. Everything else,
               # including SYN scans from LAN clients, still alerts.
+              # Only severity 1-2 (high/medium) pages; ET Open's severity-3 INFO and
+              # POLICY hits stay in Loki for triage.
               expr: >-
-                sum(count_over_time({job="suricata"} | json | event_type="alert"
+                sum(count_over_time({job="suricata"} | json | event_type="alert" and alert_severity <= 2
                 and (alert_signature != "ET SCAN SYN Scan detected" or src_ip !~ "192\\.168\\.5\\.([1-9]|1[0-9]|20)") [5m])) > 0
               instant: true
               intervalMs: 1000
