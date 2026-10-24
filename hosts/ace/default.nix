@@ -72,6 +72,10 @@ in {
     claude-code
   ];
 
+  # Run generic (non-Nix) Linux binaries, e.g. the Claude CLI that the Claude
+  # desktop app downloads to ~/.claude/remote for SSH sessions.
+  programs.nix-ld.enable = true;
+
   # Configure networking for the host
   networking = {
     defaultGateway = "192.168.5.1";
