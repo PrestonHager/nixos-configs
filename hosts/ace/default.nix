@@ -66,9 +66,10 @@ in {
   # Add prestonh to jellyfin group to allow for rsync into /jf/media folder
   users.users.prestonh.extraGroups = [ "jellyfin" ];
 
-  # Add lynis an auditing tool to system packages
+  # Add lynis an auditing tool and the Claude Code CLI to system packages
   environment.systemPackages = with pkgs; [
     lynis
+    claude-code
   ];
 
   # Configure networking for the host
