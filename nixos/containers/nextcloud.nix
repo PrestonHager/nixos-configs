@@ -20,11 +20,11 @@ let
     cp ${pkgs.pkgsStatic.rclone}/bin/.rclone-wrapped $out/bin/rclone
     chmod +x $out/bin/rclone
   '';
-  # 34.0.1 not published on Docker Hub (see nextcloud/docker#2584); use latest 34.0.x patch
-  nextcloudImage = "docker.io/library/nextcloud:34.0.3";
-  clamavImage = "docker.io/clamav/clamav:1.5.3";
-  # whiteboard v1.5.9, pinned by digest (stable now points at 2.0.0, not approved)
-  whiteboardImage = "ghcr.io/nextcloud-releases/whiteboard@sha256:b60b7633f90d106ac6922f9bc27e1a1ca2442488b740fefdae4c812f34e9cebc";
+  nextcloudImage = "docker.io/library/nextcloud:35.0.2";
+  clamavImage = "docker.io/clamav/clamav:1.5.4";
+  # whiteboard v2.1.2, pinned by digest. Nextcloud 35 needs the 2.x app, which
+  # needs a 2.x collaboration server.
+  whiteboardImage = "ghcr.io/nextcloud-releases/whiteboard@sha256:fd714528ae29beb9e9ad56589c031f7c6c688979b5e0cfbba7bb546cf75a0e43";
   whiteboardPort = 3002;
   nextcloudPublicUrl = "https://cloud.prestonhager.com";
   nextcloudPushUrl = "${nextcloudPublicUrl}/push";
