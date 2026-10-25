@@ -46,8 +46,14 @@ in
       IdentityFile ${keyPath}
   '';
 
-  programs.git.config.includeIf = {
-    "gitdir:/etc/nixos/".path = repoGitConfig;
-    "gitdir:/home/prestonh/nixos-secrets/".path = repoGitConfig;
-  };
+  # A file of its own so `gits` (users/prestonh/config/nushell/aliases.nu)
+  # can include it after the user's git config, keeping root's key in these
+  # repos instead of the user's.
+  environment.etc."git/root-identity".text = ''
+    [includeIf "gitdir:/etc/nixos/"]
+      path = ${repoGitConfig}
+    [includeIf "gitdir:/home/prestonh/nixos-secrets/"]
+      path = ${repoGitConfig}
+  '';
+  programs.git.config.include.path = "/etc/git/root-identity";
 }

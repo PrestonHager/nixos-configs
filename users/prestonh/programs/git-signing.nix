@@ -3,27 +3,24 @@
 let
   pubKey = lib.fileContents ../ssh/git-signing-ed25519.pub;
   email = "preston@hagerfamily.com";
-  signingKeyPath = "${config.home.homeDirectory}/.ssh/git_signing_ed25519";
+  # The public key: ssh-keygen signs with ~/.ssh/git_signing_ed25519 when it
+  # has been synced, otherwise with the matching key in the SSH agent
+  # (Bitwarden, or forwarded), so signing works without syncing to disk.
+  signingKeyPath = "${config.home.homeDirectory}/.ssh/git_signing_ed25519.pub";
   allowedSignersPath = "${config.home.homeDirectory}/.ssh/allowed_signers";
 in
 {
   # Public key + allowed_signers are non-secret (verification / identity).
-  # Private key: Vaultwarden SSH item `git-signing-ed25519`, synced to
-  # ~/.ssh/git_signing_ed25519 via `sync-git-signing-key` (see docs/git-commit-signing.md).
+  # Private key: Vaultwarden SSH item `git-signing-ed25519`, either served by
+  # the SSH agent or synced to ~/.ssh/git_signing_ed25519 via
+  # `sync-git-signing-key` (see docs/git-commit-signing.md).
   home.file.".ssh/git_signing_ed25519.pub".text = "${pubKey}\n";
   home.file.".ssh/allowed_signers".text = "${email} ${pubKey}\n";
 
   programs.git = {
     enable = true;
-    settings = {
-      gpg = {
-        format = "ssh";
-        ssh.allowedSignersFile = allowedSignersPath;
-      };
-      user.signingkey = signingKeyPath;
-      commit.gpgsign = true;
-      tag.gpgsign = true;
-    };
+    settings.gpg.ssh.allowedSignersFile = allowedSignersPath;
+    # Sets gpg.format, user.signingkey, commit.gpgsign and tag.gpgsign
     signing = {
       signByDefault = true;
       key = signingKeyPath;

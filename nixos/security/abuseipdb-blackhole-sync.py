@@ -85,7 +85,9 @@ def fetch_allow_ranges():
     try:
         nets += get("https://www.cloudflare.com/ips-v4", timeout=30).decode().split()
         meta = json.loads(get("https://api.github.com/meta", timeout=30))
-        for k in ("hooks", "web", "api", "git", "packages", "pages", "importer", "actions", "dependabot", "copilot"):
+        # GitHub's own infrastructure only. Not "actions": that is ~7,000 Azure ranges
+        # (any Azure VM), which exempted ~6% of the list on the first sync.
+        for k in ("hooks", "web", "api", "git", "packages", "pages", "importer"):
             nets += [n for n in meta.get(k, []) if ":" not in n]
         if len(nets) < 50:
             raise ValueError(f"only {len(nets)} ranges")

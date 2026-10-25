@@ -31,7 +31,7 @@ flowchart LR
 
 **Fail-open.** If ace, BIRD or the session goes down, the router withdraws the routes and blocks nothing; it does not drop other traffic. If no fresh list has been downloaded for 48 hours, the sync withdraws everything, because AbuseIPDB scores decay and stale entries block addresses that are no longer bad.
 
-**Never blocked:** private, CGNAT/tailnet, loopback, link-local and multicast ranges; our WAN address; the public resolvers (1.1.1.1, 1.0.0.1, 8.8.8.8, 8.8.4.4, Quad9); Cloudflare's ranges; GitHub's published ranges (webhooks, Actions runners, API, git, packages). The Cloudflare and GitHub ranges are refreshed with every download. Add more with `homelab.security.abuseipdbBlackhole.allowlist`. The router repeats the private/special-use exclusion in its own prefix-list.
+**Never blocked:** private, CGNAT/tailnet, loopback, link-local and multicast ranges; our WAN address; the public resolvers (1.1.1.1, 1.0.0.1, 8.8.8.8, 8.8.4.4, Quad9); Cloudflare's ranges; GitHub's own published ranges (webhooks, web, API, git, packages, pages; not the Actions runner ranges, which cover all of Azure). The Cloudflare and GitHub ranges are refreshed with every download. Add more with `homelab.security.abuseipdbBlackhole.allowlist`. The router repeats the private/special-use exclusion in its own prefix-list.
 
 ### The 95% threshold and AbuseIPDB plans
 

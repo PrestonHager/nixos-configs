@@ -12,7 +12,7 @@ SSH signing key for **Preston Hager** (`preston@hagerfamily.com`), using Git `gp
 | Fingerprint | `SHA256:555Xyg5MNgr0Y0eIvIde9qgUchwNPtUnBfk+9uQ7S0w` |
 | Vaultwarden item | **`git-signing-ed25519`** (SSH key) |
 | Public key in repo | `users/prestonh/ssh/git-signing-ed25519.pub` |
-| Private key on disk | `~/.ssh/git_signing_ed25519` (synced from Bitwarden; never committed) |
+| Private key | SSH agent (Bitwarden, or forwarded), or `~/.ssh/git_signing_ed25519` synced from Bitwarden; never committed |
 
 ## Design
 
@@ -62,6 +62,8 @@ sync-git-signing-key                               # writes ~/.ssh/git_signing_e
 git commit -S ...
 ```
 
+`user.signingkey` is the **public** key (`~/.ssh/git_signing_ed25519.pub`): `ssh-keygen` signs with the synced private key next to it when present, otherwise with the matching key in the SSH agent, so syncing is optional when the Bitwarden agent is available.
+
 Verification of others’ commits uses `~/.ssh/allowed_signers` (installed by home-manager from the in-repo public key).
 
 `sync-git-signing-key` is a command installed by the home-manager module (`writeShellApplication` in `git-signing.nix`); it replaced the old `scripts/sync-git-signing-key.sh`, which was removed in commit `572c200`.
@@ -75,11 +77,13 @@ Root on ace signs and pushes with **its own key**, so no SSH agent forwarding is
 | Key comment | `root@ace (nixos-configs automation)` (ed25519) |
 | Module | `nixos/ace-git-identity.nix` (imported by `hosts/ace/default.nix`) |
 | Private key | nix-secrets `secrets/hosts/ace/git.yaml` → sops secret `ace-root-ssh-key` (root, `0400`; age recipients: root admin + ace) |
-| Repos | `/etc/nixos` and `/home/prestonh/nixos-secrets` (git `includeIf gitdir:`) |
+| Repos | `/etc/nixos` and `/home/prestonh/nixos-secrets` (git `includeIf gitdir:` in `/etc/git/root-identity`, included from `/etc/gitconfig`) |
 | Commit identity | Preston Hager `<preston@hagerfamily.com>`, `gpg.format = ssh`, `user.signingkey` = the sops key |
 | GitHub | Public key added to the account as both an **Authentication** key and a **Signing** key; revoke it there to cut ace off |
 
 The module also adds an SSH `Match host github.com localuser root` block with `IdentityFile` pointing at the sops key, and an `allowedSignersFile` that trusts both this key and the personal signing key above, so `git verify-commit` works on ace for either.
+
+The nushell `gits` command (root git with prestonh's git config) includes `/etc/git/root-identity` after the user config, so root's key still signs in these repos; elsewhere it signs with prestonh's key through the preserved `SSH_AUTH_SOCK`.
 
 Why: commits and pushes from ace used to rely on agent forwarding from a workstation, and Bitwarden's SSH agent **always prompts** for forwarded requests, by design. With root's own key, `git -C /etc/nixos commit -S` and `git push` work unattended. Do not use `ssh -A` to ace for this.
 
