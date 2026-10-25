@@ -86,11 +86,22 @@ Ace sends operational emails through Grafana’s built-in SMTP relay (same iClou
 |-------|-------------------|-------|----------|
 | **Service down** | `probe_success{probe_location=~"local\|lan",job=~"blackbox.*"} == 0` | 5m | critical |
 | **Major update** | `ace_service_version_behind == 3`, unless the service is held (`ace_service_version_held == 1`) | immediate | critical |
-| **Patch/minor update** | `ace_service_version_behind == 1 or == 2` | 1h | warning |
+| **Patch/minor update** | `ace_service_version_behind_in_series == 1 or == 2` (so held and major-behind services still alert on updates in their series) | 1h | warning |
+| **Nightly nixpkgs update failed** | `ace_nixpkgs_update_success < 1` | immediate | warning |
+| **nixpkgs input stale** | nixpkgs revision in `flake.lock` older than 4 days | 1h | warning |
 
 Local and LAN blackbox probes are included; external probes are excluded (often flaky). Version metrics come from the `ace-version-check` timer (node_exporter textfile collector) and appear on the **Ace Service Versions** Grafana dashboard (`ace-versions`).
 
-Tracked services (metric label `service=…`): Grafana, **Prometheus**, Nextcloud, Zitadel, Matrix Synapse, Technitium, Jellyfin, Vaultwarden, Caddy, Pterodactyl panel, notify_push, and prefixed sidecars (`nextcloud-mariadb`, `nextcloud-redis`, `nextcloud-clamav`, `pterodactyl-mariadb`, `pterodactyl-redis`). Standalone stack services use their short name (for example `prometheus`, not a sidecar prefix).
+Every container on ace reports a version: 34 services, including sidecar databases and caches (`nextcloud-mariadb`, `matrix-postgres`, `mediawiki-redis`, `animal-search-node`, …). Digest-pinned images are read from the image itself: Synapse from its OCI version label, the image renderer by mapping the commit its `--version` prints to a release tag, Pushgateway from `--version`, and official Postgres/MariaDB/Valkey/Redis/Node images from `PG_VERSION`, `MARIADB_VERSION` and similar. OCI labels are not used generically (Coolify's label is its base image's).
+
+Each service has two lags:
+
+| Metric | Meaning |
+|---|---|
+| `ace_service_version_behind` | Against the newest release overall (0 current, 1 patch, 2 minor, 3 major, 4 unknown) |
+| `ace_service_version_behind_in_series` | Against the newest release in the running **series**: the update that needs no major upgrade. A series is the major version, or major.minor for MariaDB (11.4 and 11.8 are different LTS series) and MediaWiki (1.45 → 1.46 needs matching extension branches) |
+
+`ace_service_version_info` carries `current`, `latest` and `latest_in_series` labels. The **Ace Service Versions** dashboard shows both lags, a *Safe updates (in series)* count and a *Held on a major* count. Auto-update takes an in-series update before (and regardless of) a pending, held or denied major.
 
 ### SMTP
 
@@ -210,6 +221,30 @@ Verify admin:
 curl -s http://127.0.0.1:8082/api/user -H "Cookie: ..."   # or check Profile → Server Admin in UI
 nix shell nixpkgs#sqlite -c sqlite3 /grafana/data/grafana.db \
   "SELECT email, is_admin FROM user WHERE email='admin@prestonhager.com';"
+```
+
+## Nightly nixpkgs updates
+
+`ace-nixpkgs-update.timer` runs `nixos/monitoring/scripts/ace-nixpkgs-update.sh` every night at 04:30 (±20 min, after the 03:30 backup):
+
+1. Skips if `/etc/nixos` has uncommitted changes, then fast-forwards to `origin/<branch>`.
+2. `nix flake update nixpkgs` (other inputs, including the K80's `nixpkgs-cuda114`, are not touched). Nothing to do if the revision is unchanged.
+3. Builds ace's system with the same limits as service bumps (`-j 4`, 12 cores). A failed build never touches the running system.
+   - If the only failure is the fixed-output hash of Caddy's plugin source (it changes whenever nixpkgs moves Caddy), the new hash is accepted only after a second independent fetch agrees and the vendored `caddy-dns/cloudflare` is the version pinned in `nixos/caddy/acme-dns.nix`.
+4. `nixos-rebuild switch`. If units fail on the new generation, it switches back to the previous one.
+5. Commits `flake.lock` (and the Caddy hash, if changed) as `flake: nightly nixpkgs update` and pushes.
+
+On any failure `flake.lock` is restored, an email goes to the alert recipients with the log tail, and **Ace nightly nixpkgs update failed** fires. The whole run holds `/run/ace-service-update-rebuild.lock`, so service bumps wait, and `homelab-git-drift` skips its check instead of reporting the in-progress `flake.lock` as drift.
+
+Metrics (`/var/lib/node-exporter-textfile/ace_nixpkgs.prom`): `ace_nixpkgs_update_success`, `ace_nixpkgs_update_last_run_timestamp_seconds`, `ace_nixpkgs_input_timestamp_seconds{rev}`, and `ace_reboot_required` (1 when the running generation's kernel or initrd has not been booted; the updater never reboots).
+
+Only ace switches automatically. The other hosts (crux, elara, mars, …) pick up the new `flake.lock` the next time they are deployed.
+
+```bash
+systemctl list-timers ace-nixpkgs-update
+systemctl start ace-nixpkgs-update     # run now
+journalctl -u ace-nixpkgs-update -e
+cat /var/lib/node-exporter-textfile/ace_nixpkgs.prom
 ```
 
 ## Prometheus
