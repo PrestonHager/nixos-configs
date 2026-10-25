@@ -40,8 +40,8 @@ let
   dbId = 10000;
   appId = 10001;
   # Pinned by digest to what was running; was the floating tags mariadb:11.4 / node:22-slim.
-  mariadbImage = "docker.io/library/mariadb@sha256:1b46b73d4b629022dfa29e6db3bb0d63b5df714fc3bfbe5057d63d76d8f6054b"; # mariadb 11.4.12
-  nodeImage = "docker.io/library/node@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c"; # node 22.23.3-slim
+  mariadbImage = "docker.io/library/mariadb@sha256:250e1609e93c0e6aecf64bfbab2d84d5e89d2481540fe77447ff6c855c3b1873"; # mariadb 11.4.13
+  nodeImage = "docker.io/library/node@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d"; # node 22.23.4-slim
 
   envType = lib.types.submodule {
     options = {

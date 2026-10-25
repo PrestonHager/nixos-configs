@@ -183,7 +183,7 @@ in {
 
   virtualisation.oci-containers.containers.zitadel-db = {
     autoStart = true;
-    image = "docker.io/library/postgres@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229"; # postgres 16.14-alpine (was 16-alpine)
+    image = "docker.io/library/postgres@sha256:f4610795587492cd4fb887c2dc3de301b813278bb6f616992061141b5f15ac36"; # postgres 16.15-alpine
     extraOptions = [ "--pod=zitadel-pod" ];
     environmentFiles = [ config.sops.secrets."zitadel-db-env".path ];
     volumes = [

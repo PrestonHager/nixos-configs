@@ -3,7 +3,7 @@
 let
   sops-path = builtins.toString inputs.nix-secrets;
   matrixDomain = "matrix.prestonhager.com";
-  synapseImage = "docker.io/matrixdotorg/synapse@sha256:e98ab72138d90fa8b8876c6421fe78a9fdb181c0d7cc690ad740e5173e0c65e6"; # synapse v1.163.0
+  synapseImage = "docker.io/matrixdotorg/synapse@sha256:c3c21919a322f74d177a43bce8031adc81ef839ddd117a8dd03cfec350e76e02"; # synapse v1.163.2
   synapseDataDir = "/matrix/data";
   synapsePostgresDir = "/matrix/postgres";
   synapseOidcDir = ./matrix;
@@ -230,7 +230,7 @@ in {
 
   virtualisation.oci-containers.containers.matrix-db = {
     autoStart = true;
-    image = "docker.io/library/postgres@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229"; # postgres 16.14-alpine (was 16-alpine)
+    image = "docker.io/library/postgres@sha256:f4610795587492cd4fb887c2dc3de301b813278bb6f616992061141b5f15ac36"; # postgres 16.15-alpine
     extraOptions = [ "--pod=matrix-pod" ];
     environmentFiles = [ config.sops.secrets."matrix-db-env".path ];
     environment = {

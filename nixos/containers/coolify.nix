@@ -26,8 +26,8 @@ let
   network = "coolify";
 
   # Pinned by digest (podman rejects tag+digest references). Versions:
-  # coolify 4.4.6, postgres 15-alpine, redis 7-alpine as of 2026-10-18.
-  coolifyImage = "ghcr.io/coollabsio/coolify@sha256:5e13a1b4c2abcce69a3ed840c67f3e24244f9a75e72d5ce88a9f2636ba67b2cc";
+  # coolify 4.5.0 (2026-10-24), postgres 15.19-alpine, redis 7.4.11-alpine.
+  coolifyImage = "ghcr.io/coollabsio/coolify@sha256:d96931bef961ab5c173edfca190e03d4b77e93dee622da780ddfa22cfa2b77cf";
   postgresImage = "docker.io/library/postgres@sha256:25d430274d8a31184f9435cc5b2f56aff254952065bbbcac0c51acedb5a1d1e7";
   redisImage = "docker.io/library/redis@sha256:ca0acbb137c1dc3339c8b147a58fd6f42775d4599327b50e7b116c23de501af2";
 

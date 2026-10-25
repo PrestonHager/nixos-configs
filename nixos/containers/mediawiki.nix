@@ -314,7 +314,7 @@ in
         "--env-file=${config.sops.secrets."mediawiki-environment".path}"
       ];
 
-      image = "docker.io/library/mariadb@sha256:1b46b73d4b629022dfa29e6db3bb0d63b5df714fc3bfbe5057d63d76d8f6054b"; # mariadb 11.4.12 (was mariadb:11.4)
+      image = "docker.io/library/mariadb@sha256:250e1609e93c0e6aecf64bfbab2d84d5e89d2481540fe77447ff6c855c3b1873"; # mariadb 11.4.13
     };
     # Redis is not required, but is a great cache system
     "mediawiki-redis" = {

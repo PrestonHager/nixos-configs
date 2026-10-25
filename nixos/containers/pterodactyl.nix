@@ -269,7 +269,7 @@ in
         "--env-file=${config.sops.secrets."pterodactyl-env".path}"
       ];
 
-      image = "mariadb:12.3.2";
+      image = "mariadb:12.3.3";
     };
     # Redis is not required, but is a great cache system
     "pterodactyl-redis" = {
