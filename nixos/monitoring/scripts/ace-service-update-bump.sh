@@ -89,7 +89,7 @@ if [[ "$(cat "$path")" == "$(cat "$tmp")" ]]; then
       break
     fi
   done < <(jq -c --arg s "$SERVICE" '.[$s].bumpRules[]?' "$ACE_REGISTRY")
-  if [[ "$already_at_target" -eq 1 ]]; then
+  if [[ "$already_at_target" -eq 1 ]] && git diff --quiet HEAD -- "$NIX_FILE"; then
     rebuild_lock="/run/ace-service-update-rebuild.lock"
     rebuild_log="$(mktemp)"
     if flock -w 3600 "$rebuild_lock" \
@@ -110,11 +110,15 @@ if [[ "$(cat "$path")" == "$(cat "$tmp")" ]]; then
     echo "nixos-rebuild switch failed while ${NIX_FILE} already targets ${TARGET}" >&2
     exit 1
   fi
-  echo "No version lines changed in ${NIX_FILE} for target ${TARGET}" >&2
-  exit 1
+  if [[ "$already_at_target" -ne 1 ]]; then
+    echo "No version lines changed in ${NIX_FILE} for target ${TARGET}" >&2
+    exit 1
+  fi
+  # At the target but uncommitted: an earlier run rebuilt from a dirty tree
+  # without committing. Commit it below so /etc/nixos does not drift.
+else
+  mv "$tmp" "$path"
 fi
-
-mv "$tmp" "$path"
 
 git add "$NIX_FILE"
 if git diff --cached --quiet; then

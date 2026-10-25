@@ -237,6 +237,19 @@ emit_service() {
   printf 'ace_service_up_to_date{service="%s"} %s\n' "$service" "$up_to_date"
   printf 'ace_service_version_behind{service="%s",current="%s",latest="%s",status="%s"} %s\n' \
     "$service" "${current:-unknown}" "${latest:-unknown}" "$STATUS" "$BEHIND"
+  emit_hold "$service" "$current"
+}
+
+# A registry "holdMajor" keeps a service on one major release on purpose (see its
+# "holdReason"). The major-version alert skips services with this metric.
+emit_hold() {
+  local service="$1" current="$2" hold
+  [[ -n "${ACE_REGISTRY:-}" && -f "$ACE_REGISTRY" ]] || return 0
+  hold="$(jq -r --arg s "$service" '.[$s].holdMajor // empty' "$ACE_REGISTRY")"
+  [[ -n "$hold" ]] || return 0
+  parse_semver "$current" || return 0
+  [[ "$MAJOR" == "$hold" ]] || return 0
+  printf 'ace_service_version_held{service="%s",major="%s"} 1\n' "$service" "$hold"
 }
 
 current_grafana() {

@@ -544,7 +544,10 @@ groups:
             datasourceUid: prometheus
             model:
               editorMode: code
-              expr: ace_service_version_behind{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 3
+              # Services held on a major release in the update registry (holdMajor) are skipped.
+              expr: >-
+                (ace_service_version_behind{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 3)
+                unless on (service) ace_service_version_held == 1
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200

@@ -81,6 +81,8 @@
     "enabled": true,
     "strategy": "nix-bump",
     "nixFile": "nixos/containers/jellyfin.nix",
+    "holdMajor": "10",
+    "holdReason": "The SSO plugin (Zitadel login) has no build for Jellyfin 12 yet, and the 12.0 database migration cannot be rolled back without a restore. Remove this hold once a plugin release targets the 12 ABI.",
     "bumpRules": [
       { "match": "jellyfinVersion = \"", "suffix": "\"", "prefix": "" }
     ],
