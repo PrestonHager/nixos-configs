@@ -43,10 +43,25 @@ flowchart LR
 | Path | Who can reach it | Why |
 |---|---|---|
 | `/webhooks/*` | anyone | GitHub (App and manual webhooks) must reach it to trigger deploys; Coolify checks the webhook secret |
-| `/api/*` | LAN, tailnet, WireGuard | token-authenticated API; nothing outside the LAN uses it (Sentinel on mars and the health probes are local). `publicApi = true` in `coolify.nix` opens it, e.g. for deploys from GitHub-hosted Actions runners |
+| `/api/*` | LAN, tailnet, WireGuard, and GitHub-hosted Actions runners | token-authenticated API. Animal Search's deploy workflow runs on GitHub-hosted runners and calls it (see [GitHub Actions access to the API](#github-actions-access-to-the-api)). `githubActionsApi = false` in `nixos/caddy/coolify.nix` makes it LAN-only again |
 | `/app/*` (realtime), `/terminal/ws` (web terminal), everything else (dashboard, login, Zitadel callback) | LAN, tailnet, WireGuard | admin surface |
 
 "LAN, tailnet, WireGuard" is the shared `lanOnly` guard in `nixos/caddy/lib.nix` (`192.168.5.0/24`, `100.64.0.0/10` and the tailnet IPv6 range, `192.168.20.0/24`, loopback); everyone else gets 403. Off-site, connect to the tailnet or the VPN first, and make sure the name resolves to ace's LAN address (Technitium) rather than the public IP. Apps (`*.apps.prestonhager.com` and the on-demand catch-all) stay public.
+
+### GitHub Actions access to the API
+
+The GitHub runner ranges are the `actions` list from `https://api.github.com/meta` (about 7,000 IPv4 and IPv6 CIDRs, changed often), so they are fetched rather than written into Nix:
+
+- `coolify-github-actions-ips.service` (on boot, on every switch, and every 6 hours from its timer) downloads the list. It rejects a list with fewer than 100 entries or anything that is not a CIDR, runs `caddy validate` on the generated matcher, then writes `/var/lib/coolify-github-actions/matcher.caddy` (`@github_actions { remote_ip … }`) and reloads Caddy if the list changed. On any failure it keeps the current file, and the unit fails.
+- The vhost `import`s that file. On a fresh host, tmpfiles first creates it holding only `192.0.2.0/32` (TEST-NET-1), so Caddy starts and the API stays closed until the first successful fetch.
+
+These are shared GitHub/Azure addresses: any GitHub Actions job, in any repository, connects from them. The allowlist only keeps the rest of the internet away; the API token still does the authorizing, so keep tokens scoped (`deploy`, `read`, `write`, never `root`) and revoke unused ones in **Keys & Tokens**. Self-hosted runners on the LAN already match the LAN rule.
+
+```bash
+systemctl start coolify-github-actions-ips    # refresh now
+journalctl -u coolify-github-actions-ips -n 5 # "<n> ranges, unchanged|updated"
+grep -c remote_ip /var/lib/coolify-github-actions/matcher.caddy
+```
 
 Registration is pinned off by `coolify-instance-settings` (a UI toggle is reverted on the next run; Coolify itself also turns it off after creating the first user). Coolify 4.4.6 only lets the generic `oidc` provider create accounts while registration is off; the `zitadel` provider used here does not, so a Zitadel user who has never signed in to Coolify cannot create an account by signing in. See [Signing in and adding users](#signing-in-and-adding-users).
 
@@ -138,6 +153,17 @@ Public registration is off (Settings → Configuration) and pinned off by `cooli
 
 Repository: https://github.com/NMSU-CS-CS371/software-development-semester-project-group-5 (private).
 
+**Current setup (Animal Search, 2026-10-25):** Coolify project **Animal Search**, two Docker Image apps on mars that run `ghcr.io/nmsu-cs-cs371/software-development-semester-project-group-5`. The repo's `deploy-coolify.yml` builds and pushes that image on GitHub-hosted runners, pins the app to the commit's tag through the API and triggers the deploy. mars's server **Wildcard Domain** is `http://apps.prestonhager.com`, so new apps default to `http://<uuid>.apps.prestonhager.com`.
+
+| Environment | App uuid (`COOLIFY_APP_UUID`) | URL | Image tag |
+|---|---|---|---|
+| staging | `til4tnx6t6nf05gia9lhydwn` | https://til4tnx6t6nf05gia9lhydwn.apps.prestonhager.com | `staging`, then the commit SHA |
+| production | `v50rlefzhzwuofnh9aj89bfm` | https://v50rlefzhzwuofnh9aj89bfm.apps.prestonhager.com | `production`, then the commit SHA |
+
+Both expose port 4321 (no port mappings) with a health check on `/`. The workflow's GitHub environments need `COOLIFY_URL=https://coolify.prestonhager.com`, `COOLIFY_APP_UUID` and `APP_URL` as variables, and `COOLIFY_TOKEN` as a secret. mars pulls the image with its `ghcr.io` login in `/root/.docker/config.json`. This is separate from the Podman deployment at `animal-search.prestonhager.com` ([Animal Search on ace](animal-search-ace.md)).
+
+The steps below are the general procedure.
+
 ### 1. Give Coolify access to the repository
 
 The repository is private, so Coolify needs credentials. Pick one:
@@ -145,7 +171,7 @@ The repository is private, so Coolify needs credentials. Pick one:
 - **GitHub App (recommended; gives push-to-deploy):** Coolify → **Sources** → **+ Add** → **GitHub App**. Name it e.g. `coolify-ace`, keep the webhook endpoint `https://coolify.prestonhager.com`, and choose **Register now**. The app can be owned by any account or organization, not only the one that owns the repository. A GitHub App is installable only on its owner's account until it is made public, though: if you register it on your own account (or another org), open GitHub → the app's settings → **Advanced** → **Make public**, then **Install** it on `NMSU-CS-CS371` and select only the group 5 repository. An org owner has to approve the install if you are not one.
 - **Deploy key (no org approval needed, manual or webhook deploys):** Coolify → **Keys & Tokens** → **Private Keys** → **+ Add** → **Generate new ED25519 key**, name it `group5-deploy`. Copy the public key into the repository: GitHub → repo → Settings → **Deploy keys** → Add (read-only). Requires admin on the repository.
 
-GitHub Actions runners are separate from this: a self-hosted runner serves only the repository or organization it is registered to, whatever owns the Coolify app. A workflow can trigger a deploy through Coolify's API (Keys & Tokens → API tokens, then `GET https://coolify.prestonhager.com/api/v1/deploy?uuid=<app uuid>` with `Authorization: Bearer <token>`) or the application's deploy webhook. The API is only reachable from the LAN/tailnet (see [Access](#access)), so this works from a self-hosted runner on the LAN; GitHub-hosted runners should rely on the GitHub App or the manual GitHub webhook (`/webhooks/*`, public) instead.
+GitHub Actions runners are separate from this: a self-hosted runner serves only the repository or organization it is registered to, whatever owns the Coolify app. A workflow can trigger a deploy through Coolify's API (Keys & Tokens → API tokens, then `GET https://coolify.prestonhager.com/api/v1/deploy?uuid=<app uuid>` with `Authorization: Bearer <token>`) or the application's deploy webhook. The API answers the LAN/tailnet and GitHub-hosted Actions runners (see [GitHub Actions access to the API](#github-actions-access-to-the-api)), so both self-hosted and GitHub-hosted runners can call it.
 
 ### 2. Create the application
 
