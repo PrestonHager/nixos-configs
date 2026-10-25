@@ -60,11 +60,18 @@ let
       # that also dumped the version-specific mysql schema (mysql.proc errors when
       # restoring into another version) and server-internal datadir entries such as
       # `#mysql50##binlog_cache_files`, whose CREATE DATABASE aborted a plain
-      # restore (found by the 2026-10-25 restore test).
+      # restore (found by the 2026-10-25 restore test). --system=users fails on
+      # the animal-search instances (collation clash in their old mysql.user);
+      # their accounts come from the container env on a fresh datadir anyway.
       dump "$c" ${podman} exec "$c" sh -c \
         'export MYSQL_PWD="$MARIADB_ROOT_PASSWORD"
          dbs=$(mariadb -uroot -N -e "select schema_name from information_schema.schemata where schema_name not in (\"mysql\", \"information_schema\", \"performance_schema\", \"sys\") and schema_name not like \"#mysql50#%\"")
-         exec mariadb-dump -uroot --system=users --single-transaction --routines --events --triggers --databases $dbs'
+         users=--system=users
+         if ! mariadb-dump -uroot --system=users --no-data --databases sys >/dev/null 2>&1; then
+           users=""
+           echo "accounts not dumped (--system=users fails here)" >&2
+         fi
+         exec mariadb-dump -uroot $users --single-transaction --routines --events --triggers --databases $dbs'
     done
 
     # nextcloud-db: the root and app passwords in its container env no longer
