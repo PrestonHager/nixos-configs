@@ -39,9 +39,9 @@ See [IDS test cases](security-ids-test-cases.md), TC-2.2.
 
 1. **No off-site backup.** restic writes to `/stor` in the same chassis. This is already in the audit's *Planned* list, and it remains the biggest single risk.
 2. **The external probe is blind.** The WAN-path alert reports that correctly, but nothing has checked public reachability from outside for at least 30 days. A small off-site VPS, or another network on the tailnet running `ace-external-probe-push`, would fix it without touching the router.
-3. **Digest-pinned services report version "unknown".** Synapse (pinned v1.163.0, latest 1.163.2), the Grafana image renderer (v5.12.7, latest 5.12.9) and Pushgateway are pinned by digest, and `ace-version-check` reads versions from tags. Their lag never shows in Grafana. Read the version from a label, or keep the version in a nix variable next to the digest.
-4. **Sidecar majors behind (not alerted):** MariaDB 12.3 → 13.0 (Nextcloud, Pterodactyl), Valkey 8.1 → 9.1 (Pterodactyl, MediaWiki). Minor: nextcloud-redis 8.8 → 8.10, Coolify 4.4.6 → 4.5.0, MediaWiki 1.45 → 1.46. Patch: Caddy 2.11.4 → 2.11.7 (comes with nixpkgs).
-5. **nixpkgs is three weeks old** (2026-10-03). A routine `nix flake update nixpkgs` brings the kernel, Caddy and host packages up to date. Do it as its own change, with a rebuild and a reboot.
+3. ~~**Digest-pinned services report version "unknown".**~~ **Fixed in the follow-up:** every container reports a version. See below.
+4. ~~**Services behind.**~~ **Fixed in the follow-up:** every update within the running release series is applied. The remaining majors are listed below with the reason each is not taken.
+5. ~~**nixpkgs is three weeks old.**~~ **Fixed in the follow-up:** nixpkgs is at 2026-10-23 and now updates nightly.
 
 ### Housekeeping
 
@@ -64,3 +64,58 @@ Nothing on the audit's *Needs owner action* list was closed by this review: the 
 | `suricata: load the ET Open ruleset, rotate eve.json` | IDS rules, rule tuning, alert severity gate, log rotation |
 | `ace updates: declarative major holds; commit already-applied bumps` | `holdMajor` for Jellyfin, plus the bump-script fix |
 | `docs: …` | These pages |
+
+## Follow-up: version tracking, updates and nightly nixpkgs (same day)
+
+### Every service reports its version
+
+`ace-version-check` now tracks all **34** containers on ace, none unknown. The sidecar databases and caches, zitadel-login and animal-search's Node are new. Digest-pinned images are read from the image: Synapse's OCI label, the renderer's commit mapped to its release tag, Pushgateway's `--version`, and the `PG_VERSION`/`MARIADB_VERSION`/`VALKEY_VERSION`/`REDIS_VERSION`/`NODE_VERSION` variables of official images. A stopped container reports unknown instead of a guessed version.
+
+Each service has a second lag, `ace_service_version_behind_in_series`: the newest release in its running series (major, or major.minor for MariaDB and MediaWiki). That is what can be taken without a major upgrade. The patch/minor alert and auto-update use it, so held and major-behind services still get their safe updates. See [Monitoring](../ace/monitoring.md).
+
+### Updates applied (release notes checked for each)
+
+| Service | From → to | Notes |
+|---|---|---|
+| Matrix Synapse | 1.163.0 → 1.163.2 | Dependency security bumps |
+| Coolify | 4.4.6 → 4.5.0 | Additive migrations; nothing coolify-edge queries changes; the API-token changes affect nothing configured here |
+| Grafana image renderer | 5.12.7 → 5.12.9 | Go and Chromium |
+| Postgres (Matrix, Zitadel) | 16.14 → 16.15 | Security fixes, no dump/restore. Only `plpgsql` is installed, so the pgcrypto/btree_gist/ltree notes do not apply |
+| MariaDB (Nextcloud, Pterodactyl) | 12.3.2 → 12.3.3 | Maintenance |
+| MariaDB (MediaWiki, animal-search, test panel) | 11.4.12 → 11.4.13 | Maintenance |
+| Redis (Nextcloud) | 8.8.0 → 8.10.2 | New commands, security fixes |
+| Node (animal-search) | 22.23.3 → 22.23.4 | Patch |
+| MediaWiki | 1.45.3 → 1.45.6 | Nine CVEs fixed in 1.45.5. `/mw/html` was 1.45.3 core over a 1.44 tree (1.44-era bundled extensions and resources, a hand-edited 1.44 `Resources.php`). It is replaced with a clean, signed tarball plus the settings files, eight non-bundled extensions, the Citizen and Loftia skins and the logo assets. Smoke-tested against the live database first; `update.php` ran clean. The old tree is at `/mw/html.bak-1.45.3`, and a tarball of it and a DB dump are in `/stor/backup` |
+| nixpkgs | 2026-10-03 → 2026-10-23 | Kernel 7.3, systemd 262, Caddy 2.11.7, OpenSSH 10.6p1, OpenSSL 3.5.9, Podman 5.8.9. The Caddy plugin vendor hash was re-pinned after two fetches agreed. `sambaFull` is built without CephFS because ceph 20.2.4 fails to build at this revision |
+
+### Majors not taken, and why
+
+| Service | Running → latest | Why not |
+|---|---|---|
+| Jellyfin | 10.11.11 → 12.3 | Held: no SSO plugin build for 12, and the migration is one-way |
+| MariaDB (all six) | 11.4 / 12.3 → 13.0 | 11.4 and 12.3 are LTS series with fixes for years. Moving series is an in-place data upgrade that cannot be undone without a restore |
+| Postgres (Matrix, Zitadel, Coolify) | 15 / 16 → 18 | Needs `pg_upgrade` or a dump and restore |
+| Valkey (Pterodactyl, MediaWiki, test panel) | 8.1 → 9.1 | Writes a newer RDB format that 8.x cannot read back. Plan it with the apps |
+| Redis (Coolify) | 7.4 → 8.10 | Coolify ships 7.4. Follow Coolify's own pin |
+| Node (animal-search) | 22 → 26 | The app's runtime. Its CI should move first |
+| MediaWiki | 1.45 → 1.46 | Needs REL1_46 branches of Wikibase and the other non-bundled extensions, and the wiki launches on 2026-11-03 |
+
+### Nightly nixpkgs updates
+
+`ace-nixpkgs-update.timer` updates the nixpkgs input every night at 04:30. It builds first, then switches, rolls back if units fail or ace loses its default route or internet, then commits and pushes `flake.lock`. Failures send email and fire **Ace nightly nixpkgs update failed**. A nixpkgs revision older than 4 days fires **Ace nixpkgs input stale**. See [Monitoring](../ace/monitoring.md).
+
+### Outage during the nixpkgs switch (19:28 to about 20:08)
+
+**What happened.** The switch to the new nixpkgs restarted `bond0-netdev`, which deletes and recreates the bond, plus the bond and NIC address units. It did not restart `network-setup`, which owns the default route. ace was left without a default route, so it was unreachable from other subnets and the internet. Units that needed the internet (Blueprint installs, Packagist) timed out, and the switch took 17 minutes. The host was hard-reset at about 20:07 and booted the new generation (kernel 7.3).
+
+**Second problem, at boot.** ace-version-check ran before the Pterodactyl container was up, and `current_pterodactyl` fell back to a hard-coded "1.11.11". Auto-update then "bumped" the panel to the pin it already had, and the bump script's already-at-target path ran `nixos-rebuild switch` 40 seconds into boot. Units not yet started (Zitadel, Nextcloud, Grafana) were left inactive until started by hand.
+
+**Fixes (deployed):**
+
+- The bond, the address units and `network-setup` no longer restart on switch. Their changes apply at the next boot.
+- The nightly updater rolls back if there is no default route or no internet after a switch.
+- A stopped container reports an unknown version, not a guess. Already-at-target-and-committed bumps do nothing instead of rebuilding.
+- The nightly timer is not `Persistent`, so a missed run never fires during boot or mid-switch. The first activation had fired it during the switch at 19:28:46. It waited on the rebuild lock and did nothing.
+- Podman 5.8.9 moved pod host entries to `.InfraConfig.HostAdd`, so the Grafana and Zitadel pod scripts were recreating their pods on every start. Fixed.
+
+After recovery: no failed units, all public endpoints 200, all 34 services current within their series.
