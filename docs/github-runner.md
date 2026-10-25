@@ -18,7 +18,7 @@ Enabled on **ace** (`hosts/ace/default.nix`) with **container backend** (Amazon 
 
 Token: nix-secrets `secrets/github-runner.yaml` key `token` (shared PAT for both repos; rendered to the host-only `/run/github-runner/<attr>.env` as `ACCESS_TOKEN=`). The PAT never enters a runner container: each container start mints a registration and remove token (`/run/github-runner/<unit>.tokens.env`), and `ExecStopPost` deletes a leftover registration by name with the PAT. The host scripts hand the PAT to `curl` as a config on stdin (`curl -K -`), never as a command-line argument, so it does not show up in `ps` or `/proc/*/cmdline`. Fine-grained PAT needs **Self-hosted runners: Read and write** on each registered repo.
 
-A third, persistent runner (`github-runner-nmsu`, registered on GitHub as `adopter-central` for the NMSU class repo) deployed the old Podman Animal Search on ace. It was removed on 2026-10-25 with that deployment, since the app now builds on GitHub-hosted runners and deploys to Coolify ([Coolify on ace](coolify-ace.md#hosting-the-cs371-group-5-project)).
+A third, persistent runner (`github-runner-nmsu`, registered on GitHub as `adopter-central` for the NMSU class repo) deployed the old Podman Animal Search on ace. It was removed on 2026-10-25 with that deployment, since the app now builds on GitHub-hosted runners and deploys to Coolify ([Coolify on ace](../ace/coolify.md#hosting-the-cs371-group-5-project)).
 
 ## Isolation model
 

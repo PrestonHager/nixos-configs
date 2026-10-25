@@ -327,6 +327,24 @@ rm /etc/aide-test && systemctl start aide-check.service      # passes again
 - IDS listens on `bond0` (SPAN optional later — see plan §4.3).
 - Rules: the ET Open ruleset in `/var/lib/suricata/rules/suricata.rules` (`suricata-update.timer`, daily: download, `suricata -T`, then reload with SIGUSR2) plus `/etc/suricata/rules/local.rules` (sid 9000001, SYN count to any port except 80/443).
 - Grafana **Suricata scan or exploit alert** pages only on `alert.severity` 1–2, and not on the local SYN rule from the infra range `192.168.5.1–20`.
+  - There is one alert instance per signature, so the email's summary names the rule that fired (for example `Suricata: ET WEB_SERVER …`).
+  - The email has **Go to dashboard** / **Go to panel** buttons that open the **Security → Suricata alerts** dashboard (`/d/suricata-alerts`), plus a runbook link to this page.
+  - `keepFiringFor: 30m`: a scanner sending bursts a few minutes apart keeps one alert open instead of resolving and re-firing (and re-emailing) between bursts.
+
+**Triage with the Suricata alerts dashboard** (`https://grafana.prestonhager.com/d/suricata-alerts`):
+
+| Panel | Answers |
+|---|---|
+| Who: top sources | Which addresses triggered alerts. Click one to filter the whole dashboard to it, or look it up on AbuseIPDB. |
+| What: top signatures | Which ET rules fired, with severity and category. The SID links to the rule's documentation. |
+| Where: targets | Which ace address, port and HTTP virtual host was hit. |
+| Events | One readable line per alert (`sev`, signature, source → target, host, method, URL, `status=`). Expand a line for every EVE field. |
+
+The *Severity* selector switches between the paging filter and all severities. The *Filter* box takes a regex over the raw event (IP, hostname, signature).
+
+What Suricata sees: packets on `bond0`. Plain HTTP on port 80 is inspected; HTTPS on 443 is encrypted, so probes sent straight to HTTPS do not show up. A 3xx/4xx or an empty response in `status=` means nothing was served.
+
+Example (2026-10-25): five Google Cloud addresses sent web-exploit probes (Next.js middleware bypass CVE-2025-29927, Vite file read CVE-2025-30208, React2Shell CVE-2025-55182, `/proc/self/environ`, prototype pollution) to port 80 for `vpn.`, `ai.prestonhager.com` and `ticketing.damor.store`. They got Caddy's empty `200`, nothing from an app. That exposed a Caddy bug: the health-check site bound to `192.168.5.5:80` took over all port-80 traffic to ace's LAN IP, so internet clients got an empty page instead of the redirect to HTTPS. Fixed in `nixos/caddy/loopback-health.nix`.
 - `eve.json` rotates daily (logrotate, 7 kept, compressed); Suricata reopens it on SIGHUP.
 
 ```bash
