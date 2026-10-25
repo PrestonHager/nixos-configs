@@ -84,6 +84,8 @@ Caddy always prefers the most specific site, so the catch-alls only see hostname
 
 Refused names also get no DNS records. The ask endpoint remembers unknown names for 30 seconds and re-reads Coolify's database at most every 5 seconds on a miss, so a flood of random SNI names cannot run a database query per request. Any other name fails the TLS handshake, so stray SNI never reaches Let's Encrypt. Certificates use the same Cloudflare DNS-01 token as everything else, so only names in Cloudflare zones that token can edit work.
 
+Coolify's own **DNS validation** (which wants an A record for mars on every app domain, and otherwise shows the domain as mismatched) is pinned off by `coolify-instance-settings`: app names resolve to ace on purpose. After changing an app's domain, **redeploy** it: Traefik routes on container labels, which are only written when the container is created, so until then the new name gets a 503 from Traefik.
+
 To give an app a custom name such as `group5.prestonhager.com`, set the app's domain in Coolify to `http://group5.prestonhager.com` (always `http://`; TLS is ace's job) and deploy. Within a minute `coolify-edge-dns` creates:
 
 - **Cloudflare:** CNAME `group5` → `ip1.lc1.nm.us.prestonhager.com`, DNS only, comment `managed by coolify-edge (nixos-configs)`. It uses the Caddy DNS-01 token (`cloudflare-acme-env`).
@@ -157,10 +159,12 @@ Repository: https://github.com/NMSU-CS-CS371/software-development-semester-proje
 
 | Environment | App uuid (`COOLIFY_APP_UUID`) | URL | Image tag |
 |---|---|---|---|
-| staging | `til4tnx6t6nf05gia9lhydwn` | https://til4tnx6t6nf05gia9lhydwn.apps.prestonhager.com | `staging`, then the commit SHA |
-| production | `v50rlefzhzwuofnh9aj89bfm` | https://v50rlefzhzwuofnh9aj89bfm.apps.prestonhager.com | `production`, then the commit SHA |
+| staging | `til4tnx6t6nf05gia9lhydwn` | https://staging.animal-search.apps.prestonhager.com | `staging`, then the commit SHA |
+| production | `v50rlefzhzwuofnh9aj89bfm` | https://animal-search.apps.prestonhager.com | `production`, then the commit SHA |
 
-Both expose port 4321 (no port mappings) with a health check on `/`. The workflow's GitHub environments need `COOLIFY_URL=https://coolify.prestonhager.com`, `COOLIFY_APP_UUID` and `APP_URL` as variables, and `COOLIFY_TOKEN` as a secret. mars pulls the image with its `ghcr.io` login in `/root/.docker/config.json`. This is separate from the Podman deployment at `animal-search.prestonhager.com` ([Animal Search on ace](animal-search-ace.md)).
+`staging.animal-search.apps…` is two labels under `apps`, so neither the `*.apps` Caddy site nor its wildcard certificate covers it; the on-demand catch-all serves it instead (DNS is still covered, because DNS wildcards match any depth).
+
+Both expose port 4321 (no port mappings). Coolify cannot read the Dockerfile of a Docker Image app, so `custom_healthcheck_found` was set by hand (with the Dockerfile's 10 s interval, 3 s timeout, 10 s start period, 5 retries): Coolify then waits on the image's own `HEALTHCHECK` (a `node -e fetch(...)` probe). Its built-in HTTP check would run `curl`/`wget`, which `node:22-slim` does not have. The workflow's GitHub environments need `COOLIFY_URL=https://coolify.prestonhager.com`, `COOLIFY_APP_UUID` and `APP_URL` as variables, and `COOLIFY_TOKEN` as a secret. mars pulls the image with its `ghcr.io` login in `/root/.docker/config.json`. This is separate from the Podman deployment at `animal-search.prestonhager.com` ([Animal Search on ace](animal-search-ace.md)).
 
 The steps below are the general procedure.
 
@@ -171,7 +175,7 @@ The repository is private, so Coolify needs credentials. Pick one:
 - **GitHub App (recommended; gives push-to-deploy):** Coolify → **Sources** → **+ Add** → **GitHub App**. Name it e.g. `coolify-ace`, keep the webhook endpoint `https://coolify.prestonhager.com`, and choose **Register now**. The app can be owned by any account or organization, not only the one that owns the repository. A GitHub App is installable only on its owner's account until it is made public, though: if you register it on your own account (or another org), open GitHub → the app's settings → **Advanced** → **Make public**, then **Install** it on `NMSU-CS-CS371` and select only the group 5 repository. An org owner has to approve the install if you are not one.
 - **Deploy key (no org approval needed, manual or webhook deploys):** Coolify → **Keys & Tokens** → **Private Keys** → **+ Add** → **Generate new ED25519 key**, name it `group5-deploy`. Copy the public key into the repository: GitHub → repo → Settings → **Deploy keys** → Add (read-only). Requires admin on the repository.
 
-GitHub Actions runners are separate from this: a self-hosted runner serves only the repository or organization it is registered to, whatever owns the Coolify app. A workflow can trigger a deploy through Coolify's API (Keys & Tokens → API tokens, then `GET https://coolify.prestonhager.com/api/v1/deploy?uuid=<app uuid>` with `Authorization: Bearer <token>`) or the application's deploy webhook. The API answers the LAN/tailnet and GitHub-hosted Actions runners (see [GitHub Actions access to the API](#github-actions-access-to-the-api)), so both self-hosted and GitHub-hosted runners can call it.
+GitHub Actions runners are separate from this: a self-hosted runner serves only the repository or organization it is registered to, whatever owns the Coolify app. A workflow can trigger a deploy through Coolify's API (Keys & Tokens → API tokens, then `POST https://coolify.prestonhager.com/api/v1/deploy?uuid=<app uuid>` (Coolify 4.5 answers a GET with 405) with `Authorization: Bearer <token>`) or the application's deploy webhook. The API answers the LAN/tailnet and GitHub-hosted Actions runners (see [GitHub Actions access to the API](#github-actions-access-to-the-api)), so both self-hosted and GitHub-hosted runners can call it.
 
 ### 2. Create the application
 

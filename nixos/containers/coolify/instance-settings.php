@@ -8,6 +8,10 @@
 //   `php artisan app:init`; this also covers a toggle in the UI.)
 // - Self-registration off: accounts come from Zitadel SSO (coolify-sso.nix)
 //   or are created by the root user; a toggle in the UI is reverted.
+// - DNS validation off: it requires each app domain to have an A record for
+//   the deploy server (mars, 192.168.5.15), but app names deliberately
+//   resolve to ace's Caddy, which forwards to mars. The check could only
+//   ever report "mismatched".
 // - Built-in `localhost` server (id 0, host.docker.internal) force-disabled:
 //   Coolify here runs under Podman with no Docker daemon or SSH to the host,
 //   so that server can never be used. force_disabled makes isFunctional() and
@@ -30,6 +34,11 @@ if ($settings->is_registration_enabled) {
     $settings->is_registration_enabled = false;
     $settings->save();
     $changes[] = 'disabled self-registration';
+}
+if ($settings->is_dns_validation_enabled) {
+    $settings->is_dns_validation_enabled = false;
+    $settings->save();
+    $changes[] = 'disabled DNS validation';
 }
 
 $localhost = Server::with('settings')->find(0);

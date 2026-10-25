@@ -8,9 +8,9 @@
 # Client id/secret: nix-secrets secrets/containers/coolify.yaml, coolify-zitadel-env.
 #
 # coolify-zitadel-oauth      writes the credentials into Coolify's oauth_settings.
-# coolify-instance-settings  keeps auto-update and self-registration off and
-#                            the unusable built-in localhost server (id 0)
-#                            force-disabled.
+# coolify-instance-settings  keeps auto-update, self-registration and DNS
+#                            validation off and the unusable built-in
+#                            localhost server (id 0) force-disabled.
 # coolify-email-settings     points Coolify's SMTP at the iCloud+ account
 #                            Nextcloud/Grafana/Zitadel use (password from
 #                            nextcloud-environment SMTP_PASSWORD).
