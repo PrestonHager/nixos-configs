@@ -22,6 +22,15 @@ let
       exit 0
     fi
 
+    # The automated updaters (service bumps, nightly nixpkgs) hold this lock while
+    # flake.lock or a pin is changed but not yet committed. Keep the last result
+    # instead of reporting that window as drift.
+    if [ -e /run/ace-service-update-rebuild.lock ] \
+      && ! flock -n /run/ace-service-update-rebuild.lock true; then
+      logger -t homelab-git-drift "automated update in progress; skipping check"
+      exit 0
+    fi
+
     cd "$NIXOS"
     git fetch "$REMOTE" "$BRANCH" 2>/dev/null || true
 

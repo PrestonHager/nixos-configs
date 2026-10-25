@@ -528,6 +528,118 @@ groups:
         labels:
           severity: warning
           alert_type: backup
+      - uid: ace_nixpkgs_update_failed
+        title: Ace nightly nixpkgs update failed
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              # 0 after a failed build, switch or push (the run emails the log).
+              expr: ace_nixpkgs_update_success
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 1
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 0s
+        annotations:
+          description: >-
+            ace-nixpkgs-update could not build, switch or push the newer nixpkgs. ace still runs its previous generation and flake.lock is unchanged. Check: journalctl -u ace-nixpkgs-update. See docs/monitoring-ace.md (Nightly nixpkgs updates).
+          summary: Nightly nixpkgs update failed on ace
+        labels:
+          severity: warning
+          alert_type: nixpkgs_update
+      - uid: ace_nixpkgs_stale
+        title: Ace nixpkgs input stale
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              # Age in seconds of the nixpkgs revision ace is built from.
+              expr: time() - max(ace_nixpkgs_input_timestamp_seconds)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 345600
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 1h
+        annotations:
+          description: >-
+            The nixpkgs revision in flake.lock is more than 4 days old: nightly updates have been failing or skipped (dirty /etc/nixos, lock busy, timer not running). Check: systemctl list-timers ace-nixpkgs-update; journalctl -u ace-nixpkgs-update.
+          summary: ace's nixpkgs is more than 4 days old
+        labels:
+          severity: warning
+          alert_type: nixpkgs_update
   - orgId: 1
     name: ace-version-updates
     folder: Ace Alerts

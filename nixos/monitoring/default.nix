@@ -8,6 +8,7 @@ in {
     ./ace-health-exporter.nix
     ./ace-version-check.nix
     ./ace-service-auto-update.nix
+    ./ace-nixpkgs-update.nix
     ./lan-dns-prober.nix
     ./grafana-alerting.nix
     ./loki.nix
