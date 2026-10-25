@@ -123,9 +123,6 @@ in {
     NetworkManager-wait-online.enable = lib.mkForce false;
   };
 
-  # Staging MediaWiki 1.45.6 on upgrade.loftiawiki.org; turn off after the swap.
-  homelab.mediawiki.enableUpgrade = true;
-
   homelab.security = {
     enable = true;
     hostName = "ace";

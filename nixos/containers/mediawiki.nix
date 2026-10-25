@@ -20,15 +20,15 @@ let
     # upgrade.loftiawiki.org vhost, its /etc/hosts entry and its probe.
     enableUpgrade = config.homelab.mediawiki.enableUpgrade;
     upgradeVersion = "1.45.6";
-    version = "1.45.3";
+    version = "1.45.6";
     # Run nix-shell -p nix-prefetch-docker --run "nix-prefetch-docker --image-name mediawiki --image-tag <VERSION>-fpm-alpine"
     # then paste the nix data below when upgrading version
     dockerImage = {
       imageName = "mediawiki";
-      imageDigest = "sha256:95989cf1a61a1476f65ff8db8abfe10d54b9f5769ef0a3cb433ace81673d2f20";
-      hash = "sha256-roD1HrBppnuO6kybxT3KRP7H5n9cWjR+/cUv1sKw4Pw=";
+      imageDigest = "sha256:1008cceff943ba9e9cb8f2d2fcce3f818580743ae303b888fc0ea2ee54e6cedf";
+      hash = "sha256-blpT1u9cRs57FDPk8TpGGcAObRQh8LaNB3YKPJe4lZA=";
       finalImageName = "mediawiki";
-      finalImageTag = "1.45.3-fpm-alpine";
+      finalImageTag = "1.45.6-fpm-alpine";
     };
     upgradeDockerImage = {
       imageName = "mediawiki";
