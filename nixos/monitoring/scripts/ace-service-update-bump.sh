@@ -90,25 +90,12 @@ if [[ "$(cat "$path")" == "$(cat "$tmp")" ]]; then
     fi
   done < <(jq -c --arg s "$SERVICE" '.[$s].bumpRules[]?' "$ACE_REGISTRY")
   if [[ "$already_at_target" -eq 1 ]] && git diff --quiet HEAD -- "$NIX_FILE"; then
-    rebuild_lock="/run/ace-service-update-rebuild.lock"
-    rebuild_log="$(mktemp)"
-    if flock -w 3600 "$rebuild_lock" \
-      env NIX_BUILD_CORES=12 \
-      nixos-rebuild switch \
-        --flake "${ACE_NIXOS_DIR}#ace" \
-        -j 4 \
-        --option max-jobs 4 \
-        --option cores 12 \
-        >"$rebuild_log" 2>&1; then
-      rm -f "$rebuild_log"
-      printf 'Already at %s in %s; ran nixos-rebuild switch --flake %s#ace\n' \
-        "$TARGET" "$NIX_FILE" "$ACE_NIXOS_DIR"
-      exit 0
-    fi
-    cat "$rebuild_log" >&2
-    rm -f "$rebuild_log"
-    echo "nixos-rebuild switch failed while ${NIX_FILE} already targets ${TARGET}" >&2
-    exit 1
+    # Pinned and committed already, so the running system has it: the version
+    # metric that triggered this run is stale (e.g. read while the container was
+    # still starting). Do not rebuild for it; one such rebuild ran mid-boot and
+    # left units unstarted.
+    printf 'Already at %s in %s and committed; nothing to do\n' "$TARGET" "$NIX_FILE"
+    exit 0
   fi
   if [[ "$already_at_target" -ne 1 ]]; then
     echo "No version lines changed in ${NIX_FILE} for target ${TARGET}" >&2

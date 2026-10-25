@@ -552,7 +552,9 @@ current_pterodactyl() {
     normalize_version "$v"
     return 0
   fi
-  printf '%s\n' "1.11.11"
+  # Not running (for example during boot): unknown, never a guess. A made-up
+  # old version once made auto-update rebuild ace in the middle of boot.
+  printf '%s\n' ""
 }
 
 current_nextcloud_redis() {

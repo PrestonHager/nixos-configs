@@ -54,7 +54,10 @@ in
       # After the 03:30 restic backup, so a bad update has a fresh snapshot behind it.
       OnCalendar = "*-*-* 04:30:00";
       RandomizedDelaySec = "20min";
-      Persistent = true;
+      # Not Persistent: a catch-up run would fire as soon as the timer starts,
+      # i.e. during boot or in the middle of a switch. A missed night waits for
+      # the next one; "Ace nixpkgs input stale" covers repeated misses.
+      Persistent = false;
     };
   };
 }
