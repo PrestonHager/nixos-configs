@@ -205,9 +205,10 @@ groups:
               # including SYN scans from LAN clients, still alerts.
               # Only severity 1-2 (high/medium) pages; ET Open's severity-3 INFO and
               # POLICY hits stay in Loki for triage.
+              # One series per signature, so the email names what fired.
               expr: >-
-                sum(count_over_time({job="suricata"} | json | event_type="alert" and alert_severity <= 2
-                and (alert_signature != "ET SCAN SYN Scan detected" or src_ip !~ "192\\.168\\.5\\.([1-9]|1[0-9]|20)") [5m])) > 0
+                sum by (alert_signature) (count_over_time({job="suricata"} | json | event_type="alert" and alert_severity <= 2
+                and (alert_signature != "ET SCAN SYN Scan detected" or src_ip !~ "192\\.168\\.5\\.([1-9]|1[0-9]|20)") [5m]))
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
@@ -244,10 +245,18 @@ groups:
         noDataState: OK
         execErrState: Alerting
         for: 1m
+        # Scanners come in bursts a few minutes apart; without this each gap
+        # resolved the alert and the next burst sent another email.
+        keep_firing_for: 30m
         annotations:
+          summary: "Suricata: {{ $labels.alert_signature }}"
           description: >-
-            Suricata raised at least one alert in the last 5 minutes. Review EVE JSON in Loki.
-          summary: Suricata IDS alert
+            {{ $values.A.Value }} Suricata alert event(s) in the last 5 minutes for
+            "{{ $labels.alert_signature }}". Use "Go to dashboard" below for who sent
+            it, which host and port it hit, the HTTP status, and the raw events.
+          runbook_url: https://serverdocs.prestonhager.com/shared/security-ids-test-cases.html
+          __dashboardUid__: suricata-alerts
+          __panelId__: "10"
         labels:
           severity: warning
           alert_type: suricata

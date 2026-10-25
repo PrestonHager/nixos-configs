@@ -135,6 +135,8 @@ in {
     (etcPath "grafana/provisioning/dashboards/ace.yaml")
     (etcPath "grafana/provisioning/dashboards/crux.yaml")
     (etcPath "grafana/provisioning/dashboards/lan.yaml")
+    (etcPath "grafana/provisioning/dashboards/security.yaml")
+    (etcPath "grafana/dashboards/security/suricata-alerts.json")
     (etcPath "grafana/dashboards/ace/ace-uptime.json")
     (etcPath "grafana/dashboards/ace/ace-overview.json")
     (etcPath "grafana/dashboards/ace/ace-services.json")
@@ -235,6 +237,7 @@ in {
       "${etcPath "grafana/provisioning/dashboards/ace.yaml"}:/etc/grafana/provisioning/dashboards/ace.yaml:ro"
       "${etcPath "grafana/provisioning/dashboards/crux.yaml"}:/etc/grafana/provisioning/dashboards/crux.yaml:ro"
       "${etcPath "grafana/provisioning/dashboards/lan.yaml"}:/etc/grafana/provisioning/dashboards/lan.yaml:ro"
+      "${etcPath "grafana/provisioning/dashboards/security.yaml"}:/etc/grafana/provisioning/dashboards/security.yaml:ro"
       "${grafanaAlertingDir}/contact-points.yaml:/etc/grafana/provisioning/alerting/contact-points.yaml:ro"
       "${etcPath "grafana/provisioning/alerting/alert-rules.yaml"}:/etc/grafana/provisioning/alerting/alert-rules.yaml:ro"
       "${etcPath "grafana/provisioning/alerting/notification-policies.yaml"}:/etc/grafana/provisioning/alerting/notification-policies.yaml:ro"
@@ -248,6 +251,7 @@ in {
       "${etcPath "grafana/dashboards/crux/crux-uptime.json"}:/etc/grafana/dashboards/crux/crux-uptime.json:ro"
       "${etcPath "grafana/dashboards/crux/crux-http-probes.json"}:/etc/grafana/dashboards/crux/crux-http-probes.json:ro"
       "${etcPath "grafana/dashboards/lan/lan-status.json"}:/etc/grafana/dashboards/lan/lan-status.json:ro"
+      "${etcPath "grafana/dashboards/security/suricata-alerts.json"}:/etc/grafana/dashboards/security/suricata-alerts.json:ro"
       "${etcPath "grafana/dashboards/lan/network-topology.json"}:/etc/grafana/dashboards/lan/network-topology.json:ro"
     ] ++ map (name: "${etcPath name}:/etc/${name}:ro") optionalProvisioning;
   };

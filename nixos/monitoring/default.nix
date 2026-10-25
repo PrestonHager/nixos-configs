@@ -94,6 +94,20 @@ in {
           path: /etc/grafana/dashboards/lan
   '';
 
+  environment.etc."grafana/provisioning/dashboards/security.yaml".text = ''
+    apiVersion: 1
+    providers:
+      - name: Security
+        orgId: 1
+        folder: Security
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: false
+        options:
+          path: /etc/grafana/dashboards/security
+  '';
+
   environment.etc."grafana/dashboards/ace/ace-overview.json".source = "${grafanaDashboards}/ace-overview.json";
   environment.etc."grafana/dashboards/ace/ace-services.json".source = "${grafanaDashboards}/ace-services.json";
   environment.etc."grafana/dashboards/ace/ace-uptime.json".source = "${grafanaDashboards}/ace-uptime.json";
@@ -105,4 +119,5 @@ in {
   environment.etc."grafana/dashboards/crux/crux-http-probes.json".source = "${grafanaDashboards}/crux-http-probes.json";
   environment.etc."grafana/dashboards/lan/lan-status.json".source = "${grafanaDashboards}/lan-status.json";
   environment.etc."grafana/dashboards/lan/network-topology.json".source = "${grafanaDashboards}/network-topology.json";
+  environment.etc."grafana/dashboards/security/suricata-alerts.json".source = "${grafanaDashboards}/suricata-alerts.json";
 }
