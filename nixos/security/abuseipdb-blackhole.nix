@@ -147,8 +147,8 @@ in
       serviceConfig = {
         Type = "oneshot";
         ExecStart = syncScript;
-        StateDirectory = "abuseipdb-blackhole";
-        StateDirectoryMode = "0750";
+        # The directory comes from tmpfiles (root:bird); StateDirectory= would re-own
+        # it root:root and BIRD, which runs as bird, could no longer read the routes.
       };
     };
 
