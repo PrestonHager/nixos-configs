@@ -713,8 +713,6 @@ mkdir -p "$OUT_DIR" "$CACHE_DIR"
   track_hub pterodactyl-mariadb "$(current_pterodactyl_mariadb)" library/mariadb xyz 2
   track_hub pterodactyl-test-mariadb "$(image_version pterodactyl-test-db MARIADB_VERSION)" library/mariadb xyz 2
   track_hub mediawiki-mariadb "$(image_version mediawiki-db MARIADB_VERSION)" library/mariadb xyz 2
-  track_hub animal-search-production-mariadb "$(image_version animal-search-production-db MARIADB_VERSION)" library/mariadb xyz 2
-  track_hub animal-search-staging-mariadb "$(image_version animal-search-staging-db MARIADB_VERSION)" library/mariadb xyz 2
   track_hub matrix-postgres "$(image_version matrix-db PG_VERSION)" library/postgres xy
   track_hub zitadel-postgres "$(image_version zitadel-db PG_VERSION)" library/postgres xy
   track_hub coolify-postgres "$(image_version coolify-db PG_VERSION)" library/postgres xy
@@ -724,8 +722,6 @@ mkdir -p "$OUT_DIR" "$CACHE_DIR"
   track_gh pterodactyl-redis "$(current_pterodactyl_redis)" valkey-io/valkey
   track_gh pterodactyl-test-redis "$(image_version pterodactyl-test-redis VALKEY_VERSION)" valkey-io/valkey
   track_gh mediawiki-redis "$(image_version mediawiki-redis VALKEY_VERSION)" valkey-io/valkey
-  # Both animal-search environments run the same pinned node image.
-  track_hub animal-search-node "$(image_version animal-search-production-app NODE_VERSION)" library/node
 
   # Monitor-only.
   track_gh grafana-image-renderer "$(current_grafana_image_renderer)" grafana/grafana-image-renderer

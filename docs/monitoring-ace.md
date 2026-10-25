@@ -92,7 +92,7 @@ Ace sends operational emails through Grafana’s built-in SMTP relay (same iClou
 
 Local and LAN blackbox probes are included; external probes are excluded (often flaky). Version metrics come from the `ace-version-check` timer (node_exporter textfile collector) and appear on the **Ace Service Versions** Grafana dashboard (`ace-versions`).
 
-Every container on ace reports a version: 34 services, including sidecar databases and caches (`nextcloud-mariadb`, `matrix-postgres`, `mediawiki-redis`, `animal-search-node`, …). Digest-pinned images are read from the image itself: Synapse from its OCI version label, the image renderer by mapping the commit its `--version` prints to a release tag, Pushgateway from `--version`, and official Postgres/MariaDB/Valkey/Redis/Node images from `PG_VERSION`, `MARIADB_VERSION` and similar. OCI labels are not used generically (Coolify's label is its base image's).
+Every container on ace reports a version: 31 services, including sidecar databases and caches (`nextcloud-mariadb`, `matrix-postgres`, `mediawiki-redis`, …). Digest-pinned images are read from the image itself: Synapse from its OCI version label, the image renderer by mapping the commit its `--version` prints to a release tag, Pushgateway from `--version`, and official Postgres/MariaDB/Valkey/Redis/Node images from `PG_VERSION`, `MARIADB_VERSION` and similar. OCI labels are not used generically (Coolify's label is its base image's).
 
 Each service has two lags:
 

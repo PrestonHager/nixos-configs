@@ -9,7 +9,7 @@ Plan for the major-version upgrades that the [2026-10-24 review](./config-review
 | 1 | Jellyfin | 10.11.11 | **12.3** with an SSO plugin fork | **High:** 10.11 has had no release since 2026-06-06 and is internet-facing | Next free evening, after a staging test |
 | 2 | MediaWiki | 1.45.6 | **1.47 LTS** (skip 1.46) | **Deadline:** 1.45 ends December 2026 | After the 2026-11-03 Loftia launch, once 1.47.0 is out (due November 2026) |
 | 3 | Postgres (Matrix, Zitadel) | 16.15 | **17** | Low: 16 is supported to 2028-11 | Any quiet hour in the next six months |
-| 4 | Node (animal-search) | 22.23 | **26 LTS** | Low: 22 is supported to 2027-04-30 | After 2026-10-28 (26 becomes LTS), CI first |
+| 4 | Node (animal-search) | — | — | Not on ace any more: the app moved to Coolify on 2026-10-25 and its image is built upstream | — |
 | 5 | Valkey (Pterodactyl, MediaWiki, test panel) | 8.1.10 | **9.1** | Low: 8.1 still gets fixes | With the next panel maintenance |
 | — | MariaDB (all six) | 11.4 / 12.3 LTS | **Stay on LTS**; optionally consolidate 11.4 → 12.3 | None | Optional |
 | — | Postgres (Coolify) | 15.19 | Follow Coolify upstream | Before 15 ends (2027-11) | When Coolify moves |
@@ -140,6 +140,8 @@ MediaWiki supports upgrading straight from 1.39 or newer, so 1.45 → 1.47 is on
 
 ## 4. Node 22 → 26 LTS (animal-search)
 
+**Superseded (2026-10-25):** the Podman deployment on ace was removed; Animal Search now runs on Coolify (mars) from an image its own repository builds (`node:22-slim` in its Dockerfile). The Node upgrade belongs in that repository. The notes below are kept for reference.
+
 - Node 26 becomes LTS on 2026-10-28 and is supported to 2029-04. 22 ends 2027-04-30.
 - The release's direct requirements allow it: Astro needs Node `>=22.12.0` and sharp `>=20.9.0`.
 - The image must stay glibc (`node:26-slim`, not alpine), because sharp's binaries are glibc-only.
@@ -178,7 +180,7 @@ MediaWiki supports upgrading straight from 1.39 or newer, so 1.45 → 1.47 is on
   - Nextcloud 35 supports MariaDB 10.11, 11.4, 11.8 and 12.3 only.
   - Nothing should move to 13.0.
 - **Version check.** `ace-version-check` compares MariaDB against the newest tag, so every instance shows "major behind" for 13.0. Change the MariaDB rows to compare against the newest **LTS** series, so the dashboard shows real lag.
-- **Optional consolidation.** Moving the 11.4 instances (MediaWiki, animal-search ×2, test panel) to 12.3 would mean one MariaDB image. Restoring their dumps into 12.3.3 was rehearsed on 2026-10-25 with no errors, and table counts matched. In place: bump the pin; `MARIADB_AUTO_UPGRADE=1` runs `mariadb-upgrade`. Not needed for support reasons.
+- **Optional consolidation.** Moving the 11.4 instances (MediaWiki, test panel) to 12.3 would mean one MariaDB image. Restoring their dumps into 12.3.3 was rehearsed on 2026-10-25 with no errors, and table counts matched. In place: bump the pin; `MARIADB_AUTO_UPGRADE=1` runs `mariadb-upgrade`. Not needed for support reasons.
 
 ## Redis (Coolify): follow upstream
 

@@ -16,7 +16,7 @@ Before each snapshot, `homelab-db-dumps` writes to `/stor/backup/dumps/`:
 
 | Dump | How |
 |---|---|
-| `mediawiki-db`, `pterodactyl-db`, `pterodactyl-test-db`, `animal-search-{production,staging}-db` | `mariadb-dump` as root of the application databases plus accounts (`--system=users --insert-ignore`; accounts are skipped on the animal-search instances, where that option fails). Not `--all-databases`: see [Restore tests](#restore-tests) |
+| `mediawiki-db`, `pterodactyl-db`, `pterodactyl-test-db` | `mariadb-dump` as root of the application databases plus accounts (`--system=users --insert-ignore`; accounts are skipped on any instance where that option fails). Not `--all-databases`: see [Restore tests](#restore-tests) |
 | `nextcloud-db` | `mariadb-dump --databases nextcloud` with the credentials from Nextcloud's `config.php` (the env passwords no longer match) |
 | `coolify-db`, `matrix-db`, `zitadel-db` | `pg_dumpall` |
 | `vaultwarden.sqlite3` | SQLite online `.backup` (consistent while running) |

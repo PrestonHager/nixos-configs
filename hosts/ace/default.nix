@@ -14,7 +14,6 @@ in {
     ../../nixos/ace-git-identity.nix
     # Nightly DB dumps + restic snapshots to /stor
     ../../nixos/backup.nix
-    ../../nixos/containers/animal-search.nix
     ../../nixos
     ../../nixos/headless
     ../../nixos/security
@@ -27,8 +26,6 @@ in {
     ../../nixos/matrix.nix
     # GitHub Actions self-hosted runners � docs/github-runner.md
     ../../nixos/services/github-runner.nix
-    # pre-registered, non-ephemeral runner (no PAT; see module header)
-    ../../nixos/services/github-runner-persistent.nix
     # hardware configuration for the MSI Summit E16 Flip
     ../../hardware/dell-poweredge-730xd/hardware-configuration.nix
     # yubico keys
@@ -179,22 +176,6 @@ in {
         extraLabels = [ "ace-al2023-x64-4" "ace-ubuntu-x64-4" ];
       };
     };
-  };
-
-  homelab.github-runner-persistent = {
-    enable = true;
-    memory = "4096m";
-    cpus = "4";
-    mountPodmanSocket = false;
-    # Only the Animal Search inboxes (staged releases + deploy request/result),
-    # mounted at the paths deploy.yml uses. A root unit on the host validates
-    # and copies the release; the job never sees live releases or MariaDB
-    # data. See docs/animal-search-ace.md.
-    extraVolumes = config.services.animalSearch.runnerVolumes;
-  };
-
-  services.animalSearch = {
-    enable = true;
   };
 
   services.tailscale = {

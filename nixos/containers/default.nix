@@ -7,7 +7,6 @@
     # properly in the virtualisation.oci-containers.backend varaible correctly.
     #./forgejo.nix
     ./pod-infra.nix
-    ./animal-search.nix
     ./coolify.nix
     ./coolify-sso.nix
     ./coolify-edge.nix

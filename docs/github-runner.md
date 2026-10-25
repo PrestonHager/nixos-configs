@@ -18,7 +18,7 @@ Enabled on **ace** (`hosts/ace/default.nix`) with **container backend** (Amazon 
 
 Token: nix-secrets `secrets/github-runner.yaml` key `token` (shared PAT for both repos; rendered to the host-only `/run/github-runner/<attr>.env` as `ACCESS_TOKEN=`). The PAT never enters a runner container: each container start mints a registration and remove token (`/run/github-runner/<unit>.tokens.env`), and `ExecStopPost` deletes a leftover registration by name with the PAT. The host scripts hand the PAT to `curl` as a config on stdin (`curl -K -`), never as a command-line argument, so it does not show up in `ps` or `/proc/*/cmdline`. Fine-grained PAT needs **Self-hosted runners: Read and write** on each registered repo.
 
-A third, separately managed runner (`github-runner-nmsu`, module `nixos/services/github-runner-persistent.nix`) serves the NMSU class repo and deploys Animal Search; see [Persistent runner](#persistent-runner-github-runner-nmsu).
+A third, persistent runner (`github-runner-nmsu`, registered on GitHub as `adopter-central` for the NMSU class repo) deployed the old Podman Animal Search on ace. It was removed on 2026-10-25 with that deployment, since the app now builds on GitHub-hosted runners and deploys to Coolify ([Coolify on ace](coolify-ace.md#hosting-the-cs371-group-5-project)).
 
 ## Isolation model
 
@@ -36,7 +36,7 @@ Runner jobs run code from repositories other people can push to, as root inside 
 
 The `ghrunner0` bridge must never be added to `networking.firewall.trustedInterfaces`; an assertion in the network module fails the build if it is.
 
-**Why no `--userns=auto` yet:** it needs a `containers` entry in `/etc/subuid`/`/etc/subgid`, id-mapped (`:idmap`) or chowned (`:U`) bind mounts for the workdir and the persistent runner's state, and re-testing the baked image's dnf/toolchain paths under a mapped root. It is the next step, not a drop-in flag.
+**Why no `--userns=auto` yet:** it needs a `containers` entry in `/etc/subuid`/`/etc/subgid`, id-mapped (`:idmap`) or chowned (`:U`) bind mounts for the workdirs, and re-testing the baked image's dnf/toolchain paths under a mapped root. It is the next step, not a drop-in flag.
 
 **Checking the filter on ace:**
 
@@ -151,37 +151,6 @@ Rebuild the image after Containerfile or base digest changes, or when a new `act
 rm -f /var/lib/github-runner-tools/image.stamp
 systemctl restart github-runner-image.service
 ```
-
-## Persistent runner (`github-runner-nmsu`)
-
-Module `nixos/services/github-runner-persistent.nix`, option namespace `homelab.github-runner-persistent`. One non-ephemeral runner registered once by hand against the NMSU-CS-CS371 group-5 repo (that org cannot mint a PAT for the ephemeral flow). GitHub shows it as `adopter-central`.
-
-| Item | Value |
-|------|-------|
-| Registration | `/var/lib/github-runner-nmsu` (`0700`; `.runner`, `.credentials`, `.credentials_rsaparams` and friends `0600` via tmpfiles) |
-| Mount | state dir **read-only** at `/runner-state`; the start script copies the registration (`0600`) into the image's `/actions-runner` |
-| Runner binaries | from the baked image (latest release, refreshed daily) — not from the state dir |
-| Writes | `_work`, `_diag`, self-updates live in the container filesystem and are discarded on restart |
-| Network | `ghrunner` (same egress filter as above) |
-| Host access | only `homelab.github-runner-persistent.extraVolumes`; on ace that is `services.animalSearch.runnerVolumes` (the Animal Search inboxes, see `animal-search-ace.md`) |
-
-Jobs can read the registration (same uid as the listener — inherent to self-hosted runners) but cannot modify the host copy or leave a modified runner behind across a restart. Within one container lifetime, consecutive jobs share the container filesystem; `systemctl restart podman-github-runner-nmsu` returns it to a clean image.
-
-**Re-registering** (rotation, or after deleting the runner in GitHub): stop the unit, then as root
-
-```bash
-podman run --rm --entrypoint bash -e RUNNER_ALLOW_RUNASROOT=1 \
-  -v /var/lib/github-runner-nmsu:/runner-state localhost/homelab-github-runner:al2023 -c \
-  'cd /actions-runner && ./config.sh --unattended --url <repo-url> --token <registration-token> \
-     --name adopter-central --labels <labels> && \
-   cp .runner .credentials .credentials_rsaparams /runner-state/ && \
-   chmod 0600 /runner-state/.runner /runner-state/.credentials*'
-systemctl start podman-github-runner-nmsu
-```
-
-Override the entrypoint as shown: the image's default entrypoint de-registers the runner on exit.
-
-Do not add broad binds to `extraVolumes`: anything mounted read-write there is writable by every job, and a root process that later follows symlinks in such a tree is a privilege-escalation path. Mount only narrow inboxes whose consumer treats the contents as untrusted.
 
 ## Backend: container vs native
 

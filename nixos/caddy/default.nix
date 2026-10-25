@@ -10,7 +10,6 @@
     ./acme-dns.nix
     ./certificates.nix
     # Reverse proxy configuration
-    ./animal-search.nix
     ./coolify.nix
     #./forgejo.nix
     ./jellyfin.nix

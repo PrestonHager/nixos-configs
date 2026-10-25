@@ -23,8 +23,6 @@ let
     "mediawiki-db"
     "pterodactyl-db"
     "pterodactyl-test-db"
-    "animal-search-production-db"
-    "animal-search-staging-db"
   ];
   postgresContainers = [ "coolify-db" "matrix-db" "zitadel-db" ];
 
@@ -60,9 +58,10 @@ let
       # that also dumped the version-specific mysql schema (mysql.proc errors when
       # restoring into another version) and server-internal datadir entries such as
       # `#mysql50##binlog_cache_files`, whose CREATE DATABASE aborted a plain
-      # restore (found by the 2026-10-25 restore test). --system=users fails on
-      # the animal-search instances (collation clash in their old mysql.user);
-      # their accounts come from the container env on a fresh datadir anyway.
+      # restore (found by the 2026-10-25 restore test). Where --system=users
+      # fails (a collation clash in an old mysql.user, seen on the retired
+      # animal-search instances), accounts are skipped: they come from the
+      # container env on a fresh datadir anyway.
       # --insert-ignore makes the account section CREATE USER IF NOT EXISTS, so a
       # restore into a fresh server does not stop at its built-in mariadb.sys.
       dump "$c" ${podman} exec "$c" sh -c \

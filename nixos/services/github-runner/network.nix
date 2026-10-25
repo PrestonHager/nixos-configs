@@ -1,7 +1,6 @@
 # Dedicated, egress-filtered Podman network for GitHub Actions runner containers.
 #
-# Imported by nixos/services/github-runner.nix and
-# nixos/services/github-runner-persistent.nix; either one enables it.
+# Imported and enabled by nixos/services/github-runner.nix.
 #
 # Runner jobs execute code from repositories that other people can push to, as
 # root inside the container. They must not be able to reach anything on the

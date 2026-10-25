@@ -162,6 +162,15 @@ Repository: https://github.com/NMSU-CS-CS371/software-development-semester-proje
 | staging | `til4tnx6t6nf05gia9lhydwn` | https://staging.animal-search.apps.prestonhager.com | `staging`, then the commit SHA |
 | production | `v50rlefzhzwuofnh9aj89bfm` | https://animal-search.apps.prestonhager.com | `production`, then the commit SHA |
 
+Each environment also has its own MariaDB resource on mars (created 2026-10-25), `mariadb:11.4`, not public (no host port; reachable only on the `coolify` Docker network):
+
+| Environment | Database resource | uuid (= `DB_HOST`) | `DB_NAME` | Backups (local on mars, keep 14) |
+|---|---|---|---|---|
+| staging | `animal-search-staging-db` | `vvk7rsqyudzbnlqtwlvb0vxk` | `animal_search_staging` | daily 03:30 UTC |
+| production | `animal-search-production-db` | `d4qstbqgxnza1vd2s4ri255v` | `animal_search` | daily 03:00 UTC |
+
+Both use user `animal_search` with a generated 64-character password (each database has its own). The apps get `DB_HOST`, `DB_PORT=3306`, `DB_USER`, `DB_PASSWORD` and `DB_NAME` as runtime-only environment variables (not build variables, so they never reach the image). Copy the values from the database's page in Coolify if they ever change. All Coolify apps share the `coolify` network, so staging can open a TCP connection to production's database: the separate credentials are what keep them apart. Dumps land in `/data/coolify/backups/databases/root-team-0/<name>-<uuid>/` on mars; they are not copied off mars (ace's `nixos/backup.nix` only covers ace). Schema and migrations are the app's job: load `db/schema.sql` once, then use a **Pre-deployment command** or the workflow to migrate.
+
 `staging.animal-search.apps…` is two labels under `apps`, so neither the `*.apps` Caddy site nor its wildcard certificate covers it; the on-demand catch-all serves it instead (DNS is still covered, because DNS wildcards match any depth).
 
 Both expose port 4321 (no port mappings). Coolify cannot read the Dockerfile of a Docker Image app, so `custom_healthcheck_found` was set by hand (with the Dockerfile's 10 s interval, 3 s timeout, 10 s start period, 5 retries): Coolify then waits on the image's own `HEALTHCHECK` (a `node -e fetch(...)` probe). Its built-in HTTP check would run `curl`/`wget`, which `node:22-slim` does not have. The workflow's GitHub environments need `COOLIFY_URL=https://coolify.prestonhager.com`, `COOLIFY_APP_UUID` and `APP_URL` as variables, and `COOLIFY_TOKEN` as a secret. mars pulls the image with its `ghcr.io` login in `/root/.docker/config.json`. This is separate from the Podman deployment at `animal-search.prestonhager.com` ([Animal Search on ace](animal-search-ace.md)).

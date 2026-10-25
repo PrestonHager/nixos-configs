@@ -15,13 +15,10 @@ declare -A src=(
   [pterodactyl-db]=/pterodactyl/data
   [pterodactyl-test-db]=/pterodactyl-test/data
   [mediawiki-db]=/mw/data
-  [animal-search-production-db]=/stor/animal-search/production/mariadb
-  [animal-search-staging-db]=/stor/animal-search/staging/mariadb
 )
 declare -A ver=(
   [nextcloud-db]=12.3.3 [pterodactyl-db]=12.3.3
   [pterodactyl-test-db]=11.4.13 [mediawiki-db]=11.4.13
-  [animal-search-production-db]=11.4.13 [animal-search-staging-db]=11.4.13
 )
 if [[ -n "${2:-}" ]]; then
   for k in "${!ver[@]}"; do ver[$k]="$2"; done
