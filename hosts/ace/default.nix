@@ -136,7 +136,7 @@ in {
     # key to nix-secrets, and routerConfigured after pasting the router config.
     abuseipdbBlackhole = {
       enable = true;
-      apiKeyConfigured = false;
+      apiKeyConfigured = true;
       routerConfigured = false;
     };
   };
