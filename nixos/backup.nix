@@ -56,8 +56,15 @@ let
     for c in ${lib.concatStringsSep " " mariadbContainers}; do
       running "$c" || { echo "skipping $c (not running)"; continue; }
       # MYSQL_PWD, not -p<password>: argv of container processes shows up in host `ps`.
+      # Application databases plus accounts (--system=users), not --all-databases:
+      # that also dumped the version-specific mysql schema (mysql.proc errors when
+      # restoring into another version) and server-internal datadir entries such as
+      # `#mysql50##binlog_cache_files`, whose CREATE DATABASE aborted a plain
+      # restore (found by the 2026-10-25 restore test).
       dump "$c" ${podman} exec "$c" sh -c \
-        'export MYSQL_PWD="$MARIADB_ROOT_PASSWORD"; exec mariadb-dump -uroot --all-databases --single-transaction --routines --events --triggers'
+        'export MYSQL_PWD="$MARIADB_ROOT_PASSWORD"
+         dbs=$(mariadb -uroot -N -e "select schema_name from information_schema.schemata where schema_name not in (\"mysql\", \"information_schema\", \"performance_schema\", \"sys\") and schema_name not like \"#mysql50#%\"")
+         exec mariadb-dump -uroot --system=users --single-transaction --routines --events --triggers --databases $dbs'
     done
 
     # nextcloud-db: the root and app passwords in its container env no longer
