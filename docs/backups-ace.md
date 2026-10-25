@@ -16,7 +16,7 @@ Before each snapshot, `homelab-db-dumps` writes to `/stor/backup/dumps/`:
 
 | Dump | How |
 |---|---|
-| `mediawiki-db`, `pterodactyl-db`, `pterodactyl-test-db`, `animal-search-{production,staging}-db` | `mariadb-dump --all-databases` as root |
+| `mediawiki-db`, `pterodactyl-db`, `pterodactyl-test-db`, `animal-search-{production,staging}-db` | `mariadb-dump` as root of the application databases plus accounts (`--system=users --insert-ignore`; accounts are skipped on the animal-search instances, where that option fails). Not `--all-databases`: see [Restore tests](#restore-tests) |
 | `nextcloud-db` | `mariadb-dump --databases nextcloud` with the credentials from Nextcloud's `config.php` (the env passwords no longer match) |
 | `coolify-db`, `matrix-db`, `zitadel-db` | `pg_dumpall` |
 | `vaultwarden.sqlite3` | SQLite online `.backup` (consistent while running) |
@@ -55,6 +55,24 @@ cp vaultwarden.sqlite3 /vw-data/db.sqlite3 && rm -f /vw-data/db.sqlite3-wal /vw-
 ```
 
 Restart the app afterwards. For containers in a pod (Pterodactyl, MediaWiki), restart the app container after its database so it rejoins the pod network.
+
+## Restore tests
+
+On 2026-10-25 every dump was restored into a throwaway, network-less container, with table counts compared against the live datadirs. That test found that the old `--all-databases` MariaDB dumps could not be restored as made:
+
+- The MediaWiki and test-panel dumps aborted at line 23 on `CREATE DATABASE` for the server-internal `#mysql50##binlog_cache_files` datadir entry.
+- Restores into another MariaDB version failed on `mysql.proc`.
+
+With the current format, all six MariaDB dumps restore with zero errors on their own version and on 12.3.3, and every table count matches. The Postgres dumps restore cleanly on their own versions and on 17.
+
+Repeat the test after changing dump options: `scripts/backup-restore-test-mariadb.sh` (optionally with a MariaDB version, to rehearse a series move) exits non-zero on any error or table-count mismatch.
+
+```bash
+# plain restore of one dump into a scratch MariaDB, no network
+podman run -d --rm --name rt --network none -e MARIADB_ROOT_PASSWORD=rt docker.io/library/mariadb:11.4.13
+zcat /stor/backup/dumps/mediawiki-db.sql.gz | podman exec -i rt mariadb -uroot -prt   # must print no ERROR
+podman rm -f rt
+```
 
 ## Known issues
 
