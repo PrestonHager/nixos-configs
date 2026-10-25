@@ -66,10 +66,17 @@ let
       - /etc/suricata/rules/local.rules
     classification-file: ${ruleDir}/classification.config
     reference-config-file: ${pkgs.suricata}/etc/suricata/reference.config
+    threshold-file: /etc/suricata/threshold.config
   '';
   # Busy clients open many connections to the public web ports; counting those
   # as a scan alerted on ordinary internet traffic. A real port scan touches
   # other ports too, so 80/443 are left out of the count.
+  # Known-benign hits from ace itself. ET 2019102 ("SSDP Amplification Scan")
+  # fires on ace's own UPnP discovery to the router (tailscaled's port mapper
+  # probes the gateway on 1900/udp); it paged after ET Open was enabled.
+  thresholdConfig = pkgs.writeText "suricata-threshold.config" ''
+    suppress gen_id 1, sig_id 2019102, track by_src, ip 192.168.5.5
+  '';
   localRules = pkgs.writeText "suricata-local.rules" ''
     # Homelab tuning — alert on SYN scans (controlled test: nmap -sS)
     alert tcp any any -> $HOME_NET ![80,443] (msg:"ET SCAN SYN Scan detected"; flags:S; threshold: type both, track by_src, count 20, seconds 60; priority:2; sid:9000001; rev:2;)
@@ -82,13 +89,14 @@ in {
   config = lib.mkIf (cfg.enable && cfg.suricata.enable && cfg.role == "central") {
     environment.etc."suricata/suricata.yaml".source = suricataYaml;
     environment.etc."suricata/rules/local.rules".source = localRules;
+    environment.etc."suricata/threshold.config".source = thresholdConfig;
 
     systemd.services.suricata = {
       description = "Suricata IDS (IDS mode)";
       after = [ "network-online.target" "systemd-modules-load.service" "suricata-update.service" ];
       wants = [ "network-online.target" "suricata-update.service" ];
       wantedBy = [ "multi-user.target" ];
-      restartTriggers = [ suricataYaml localRules ];
+      restartTriggers = [ suricataYaml localRules thresholdConfig ];
       serviceConfig = {
         Type = "simple";
         ExecStart = "${pkgs.suricata}/bin/suricata -c /etc/suricata/suricata.yaml -i bond0 --af-packet";
