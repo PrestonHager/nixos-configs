@@ -162,7 +162,7 @@ in {
         fi
         if ${pkgs.podman}/bin/podman pod exists zitadel-pod; then
           additions="$(${pkgs.podman}/bin/podman pod inspect zitadel-pod \
-            --format '{{range .HostAdditions}}{{.Host}}:{{.IP}} {{end}}' 2>/dev/null || true)"
+            --format '{{range .InfraConfig.HostAdd}}{{.}} {{end}}' 2>/dev/null || true)"
           if [ -z "''${additions}" ] || ! printf '%s' "''${additions}" | grep -q "${zitadelDomain}:''${hostGw}"; then
             ${pkgs.podman}/bin/podman pod stop -t 10 zitadel-pod || true
             ${pkgs.podman}/bin/podman pod rm -f zitadel-pod || true

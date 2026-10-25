@@ -34,6 +34,8 @@ in
       nix
       config.system.build.nixos-rebuild
       util-linux
+      iproute2
+      curl
     ];
     serviceConfig = {
       Type = "oneshot";

@@ -173,7 +173,7 @@ in {
           hostGw="10.88.0.1"
         fi
         if ${pkgs.podman}/bin/podman pod exists grafana-pod; then
-          if ! ${pkgs.podman}/bin/podman pod inspect grafana-pod --format '{{range .HostAdditions}}{{.Host}}:{{.IP}} {{end}}' \
+          if ! ${pkgs.podman}/bin/podman pod inspect grafana-pod --format '{{range .InfraConfig.HostAdd}}{{.}} {{end}}' \
             | grep -q "${zitadelDomain}:''${hostGw}"; then
             ${pkgs.podman}/bin/podman pod stop -t 10 grafana-pod || true
             ${pkgs.podman}/bin/podman pod rm -f grafana-pod || true

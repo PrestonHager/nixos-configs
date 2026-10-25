@@ -133,11 +133,20 @@ run() {
   fi
 
   previous="$(readlink -f /nix/var/nix/profiles/system)"
-  if ! constrained nixos-rebuild switch --flake "${NIXOS_DIR}#ace" >"$buildlog" 2>&1; then
-    # Units failed to start on the new generation: go back to the old one.
+  rollback() {
     "${previous}/bin/switch-to-configuration" switch >>"$buildlog" 2>&1 || true
     nix-env -p /nix/var/nix/profiles/system --set "$previous" >>"$buildlog" 2>&1 || true
+  }
+  if ! constrained nixos-rebuild switch --flake "${NIXOS_DIR}#ace" >"$buildlog" 2>&1; then
+    # Units failed to start on the new generation: go back to the old one.
+    rollback
     fail "switch failed; rolled back to ${previous##*/}" "$buildlog"
+  fi
+  # A switch once left ace without its default route (see hosts/ace/default.nix).
+  if ! ip -4 route show default | grep -q . \
+    || ! curl -fsS -o /dev/null --max-time 20 https://github.com; then
+    rollback
+    fail "no default route or internet after the switch; rolled back to ${previous##*/}" "$buildlog"
   fi
   rm -f "$buildlog"
 

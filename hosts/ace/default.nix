@@ -105,10 +105,22 @@ in {
     };
   };
 
-  # NetworkManager-wait-online times out on this host every boot/switch and
-  # makes nixos-rebuild switch return non-zero. Disable the wait entirely.
-  systemd.services.NetworkManager-wait-online = {
-    enable = lib.mkForce false;
+  # Never tear down the uplink during a live switch. On 2026-10-24 a nixpkgs
+  # update changed these units; the switch restarted bond0-netdev (which deletes
+  # and recreates the bond) and the address units, but not network-setup, which
+  # owns the default route. ace was left with no default route, unreachable from
+  # other subnets and the internet, until a hard reset. Changes to these units
+  # now apply at the next boot.
+  systemd.services = lib.genAttrs [
+    "bond0-netdev"
+    "network-addresses-bond0"
+    "network-addresses-eno1"
+    "network-addresses-eno3"
+    "network-setup"
+  ] (_: { restartIfChanged = false; }) // {
+    # NetworkManager-wait-online times out on this host every boot/switch and
+    # makes nixos-rebuild switch return non-zero. Disable the wait entirely.
+    NetworkManager-wait-online.enable = lib.mkForce false;
   };
 
   homelab.security = {
