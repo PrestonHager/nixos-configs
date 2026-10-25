@@ -63,6 +63,8 @@ let
       # restore (found by the 2026-10-25 restore test). --system=users fails on
       # the animal-search instances (collation clash in their old mysql.user);
       # their accounts come from the container env on a fresh datadir anyway.
+      # --insert-ignore makes the account section CREATE USER IF NOT EXISTS, so a
+      # restore into a fresh server does not stop at its built-in mariadb.sys.
       dump "$c" ${podman} exec "$c" sh -c \
         'export MYSQL_PWD="$MARIADB_ROOT_PASSWORD"
          dbs=$(mariadb -uroot -N -e "select schema_name from information_schema.schemata where schema_name not in (\"mysql\", \"information_schema\", \"performance_schema\", \"sys\") and schema_name not like \"#mysql50#%\"")
@@ -71,7 +73,7 @@ let
            users=""
            echo "accounts not dumped (--system=users fails here)" >&2
          fi
-         exec mariadb-dump -uroot $users --single-transaction --routines --events --triggers --databases $dbs'
+         exec mariadb-dump -uroot $users --insert-ignore --single-transaction --routines --events --triggers --databases $dbs'
     done
 
     # nextcloud-db: the root and app passwords in its container env no longer
