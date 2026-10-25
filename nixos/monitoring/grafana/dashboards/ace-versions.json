@@ -1,22 +1,42 @@
 {
   "uid": "ace-versions",
   "title": "Ace Service Versions",
-  "tags": ["ace", "versions", "upgrades"],
+  "tags": [
+    "ace",
+    "versions",
+    "upgrades"
+  ],
   "schemaVersion": 39,
   "version": 1,
   "refresh": "5m",
-  "time": { "from": "now-7d", "to": "now" },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
   "description": "Installed vs latest upstream release for Ace services.",
   "links": [
-    { "title": "Ace Services", "type": "dashboard", "url": "/d/ace-services" },
-    { "title": "Host Overview", "type": "dashboard", "url": "/d/ace-overview" }
+    {
+      "title": "Ace Services",
+      "type": "dashboard",
+      "url": "/d/ace-services"
+    },
+    {
+      "title": "Host Overview",
+      "type": "dashboard",
+      "url": "/d/ace-overview"
+    }
   ],
   "panels": [
     {
       "id": 1,
       "type": "row",
       "title": "Summary",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "collapsed": false,
       "panels": []
     },
@@ -24,14 +44,27 @@
       "id": 2,
       "title": "Up to date",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }]
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
           }
         }
       },
@@ -39,7 +72,13 @@
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "value"
       },
       "targets": [
@@ -54,14 +93,27 @@
       "id": 3,
       "title": "Patch / minor behind",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "yellow", "value": null }]
+            "steps": [
+              {
+                "color": "yellow",
+                "value": null
+              }
+            ]
           }
         }
       },
@@ -69,7 +121,13 @@
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "value"
       },
       "targets": [
@@ -84,14 +142,27 @@
       "id": 4,
       "title": "Major behind",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "red", "value": null }]
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              }
+            ]
           }
         }
       },
@@ -99,7 +170,13 @@
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "value"
       },
       "targets": [
@@ -114,14 +191,27 @@
       "id": 5,
       "title": "Unknown",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "orange", "value": null }]
+            "steps": [
+              {
+                "color": "orange",
+                "value": null
+              }
+            ]
           }
         }
       },
@@ -129,7 +219,13 @@
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "value"
       },
       "targets": [
@@ -141,10 +237,115 @@
       ]
     },
     {
+      "id": 6,
+      "title": "Safe updates (in series)",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "yellow",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "count(ace_service_version_behind_in_series == 1 or ace_service_version_behind_in_series == 2) or vector(0)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "description": "Services with a patch or minor release in their current release series: no major or series upgrade needed."
+    },
+    {
+      "id": 7,
+      "title": "Held on a major",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "count(ace_service_version_held == 1) or vector(0)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "description": "Services pinned to a major release by holdMajor in the update registry."
+    },
+    {
       "id": 10,
       "type": "row",
       "title": "Version table",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
       "collapsed": false,
       "panels": []
     },
@@ -153,15 +354,29 @@
       "title": "Service versions",
       "description": "Green = current, yellow = patch/minor behind, red = major behind",
       "type": "table",
-      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "custom": { "align": "auto", "filterable": true }
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Status" },
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
             "properties": [
               {
                 "id": "mappings",
@@ -169,18 +384,89 @@
                   {
                     "type": "value",
                     "options": {
-                      "0": { "color": "green", "index": 0, "text": "Current" },
-                      "1": { "color": "yellow", "index": 1, "text": "Patch behind" },
-                      "2": { "color": "yellow", "index": 2, "text": "Minor behind" },
-                      "3": { "color": "red", "index": 3, "text": "Major behind" },
-                      "4": { "color": "orange", "index": 4, "text": "Unknown" }
+                      "0": {
+                        "color": "green",
+                        "index": 0,
+                        "text": "Current"
+                      },
+                      "1": {
+                        "color": "yellow",
+                        "index": 1,
+                        "text": "Patch behind"
+                      },
+                      "2": {
+                        "color": "yellow",
+                        "index": 2,
+                        "text": "Minor behind"
+                      },
+                      "3": {
+                        "color": "red",
+                        "index": 3,
+                        "text": "Major behind"
+                      },
+                      "4": {
+                        "color": "orange",
+                        "index": 4,
+                        "text": "Unknown"
+                      }
                     }
                   }
                 ]
               },
               {
                 "id": "custom.cellOptions",
-                "value": { "type": "color-background" }
+                "value": {
+                  "type": "color-background"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "In-series status"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "color": "green",
+                        "index": 0,
+                        "text": "Current"
+                      },
+                      "1": {
+                        "color": "yellow",
+                        "index": 1,
+                        "text": "Patch behind"
+                      },
+                      "2": {
+                        "color": "yellow",
+                        "index": 2,
+                        "text": "Minor behind"
+                      },
+                      "3": {
+                        "color": "red",
+                        "index": 3,
+                        "text": "Major behind"
+                      },
+                      "4": {
+                        "color": "orange",
+                        "index": 4,
+                        "text": "Unknown"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
               }
             ]
           }
@@ -189,7 +475,12 @@
       "options": {
         "showHeader": true,
         "cellHeight": "sm",
-        "sortBy": [{ "desc": false, "displayName": "Service" }]
+        "sortBy": [
+          {
+            "desc": false,
+            "displayName": "Service"
+          }
+        ]
       },
       "targets": [
         {
@@ -197,22 +488,44 @@
           "format": "table",
           "instant": true,
           "refId": "A"
+        },
+        {
+          "expr": "ace_service_version_behind_in_series",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
         }
       ],
       "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
         {
           "id": "organize",
           "options": {
             "excludeByName": {
               "Time": true,
               "__name__": true,
-              "status": true
+              "status": true,
+              "instance": true,
+              "job": true
+            },
+            "indexByName": {
+              "service": 0,
+              "current": 1,
+              "latest": 2,
+              "Value #A": 3,
+              "latest_in_series": 4,
+              "Value #B": 5
             },
             "renameByName": {
               "service": "Service",
               "current": "Current",
               "latest": "Latest",
-              "Value": "Status"
+              "Value #A": "Status",
+              "latest_in_series": "Latest in series",
+              "Value #B": "In-series status"
             }
           }
         }

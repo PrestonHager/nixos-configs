@@ -21,8 +21,10 @@ while IFS= read -r line; do
     continue
   fi
 
+  # A denied major still gets updates within its current series.
   if major_denied_for "$service" "$latest"; then
-    continue
+    mapfile -t series < <(read_series_metrics "$service" || true)
+    [[ "${series[1]:-}" == "1" || "${series[1]:-}" == "2" ]] || continue
   fi
 
   if systemctl is-active --quiet "ace-service-auto-update@${service}.service"; then

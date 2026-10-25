@@ -602,7 +602,11 @@ groups:
             datasourceUid: prometheus
             model:
               editorMode: code
-              expr: ace_service_version_behind{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 1 or ace_service_version_behind{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 2
+              # In-series lag, so a held or major-behind service still alerts on patch
+              # and minor releases of the series it runs.
+              expr: >-
+                ace_service_version_behind_in_series{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 1
+                or ace_service_version_behind_in_series{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 2
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
