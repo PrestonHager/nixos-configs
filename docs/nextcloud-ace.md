@@ -7,10 +7,36 @@ Implementation: `nixos/containers/nextcloud.nix`, Caddy `nixos/caddy/nextcloud.n
 | Field | Value |
 |-------|-------|
 | URL | https://cloud.prestonhager.com |
-| Version | Nextcloud 34 (official container image, pinned in `nextcloud.nix`) |
+| Version | Nextcloud **35.0.2** (official container image, pinned as `nextcloudImage` in `nextcloud.nix`) |
 | Auth | Zitadel OIDC via `user_oidc` app; local login remains available (`?direct=1`) |
 | Break-glass local admin | `nextcloud-admin` (password in sops `nextcloud-environment`) |
-| Whiteboard WebSocket | `ghcr.io/nextcloud-releases/whiteboard:stable` sidecar in the Nextcloud pod; public URL `https://cloud.prestonhager.com/whiteboard` (Caddy proxies to `127.0.0.1:3002`) |
+| Whiteboard WebSocket | `ghcr.io/nextcloud-releases/whiteboard` **v2.1.2** sidecar (pinned by digest) in the Nextcloud pod; public URL `https://cloud.prestonhager.com/whiteboard` (Caddy proxies to `127.0.0.1:3002`) |
+
+## Major version upgrade (34 → 35, 2026-10-24)
+
+Bumped `nextcloudImage` to `35.0.2`, the whiteboard collaboration server to v2.1.2 (Nextcloud 35 needs whiteboard app 2.x, and the 2.x app needs a 2.x server) and ClamAV to 1.5.4, in one commit, after a fresh restic snapshot. The container entrypoint runs the core upgrade on start.
+
+Before bumping, check that every enabled app has a release for the new major:
+
+```bash
+curl -s https://apps.nextcloud.com/api/v1/platform/35.0.2/apps.json -o /tmp/nc.json
+podman exec -u www-data nextcloud php occ app:list --shipped=false
+# for each enabled app: jq '[.[]|select(.id=="APP")|.releases[].version][0]' /tmp/nc.json
+```
+
+`digitalsignage` has no Nextcloud 35 release (its `max-version` is 34), so the upgrade disabled it. Re-enable it once a compatible release is published.
+
+**App store updates unpacked into a nested folder.** During this upgrade the updater extracted `integration_youtube`, `cospend`, `files_antivirus` and `user_saml` as `custom_apps/APP/APP/`, on top of the old files. The leftover `appinfo/` was missing, so every `occ` call failed (`Cannot redeclare class …` or `Could not resolve …\ConfigLexicon`), Nextcloud stayed in maintenance mode, and `nextcloud-occ-maintain.service` failed. Find and fix such apps with:
+
+```bash
+podman exec nextcloud sh -c 'cd /var/www/html/custom_apps; for d in */; do d=${d%/}; [ -f "$d/appinfo/info.xml" ] || echo "broken: $d"; done'
+# for each broken APP whose nested copy is complete:
+podman exec -u www-data nextcloud sh -c 'cd /var/www/html/custom_apps && mv APP APP.broken && mv APP.broken/APP APP && mv APP.broken /tmp/'
+podman exec -u www-data nextcloud php occ upgrade --no-interaction
+systemctl restart nextcloud-occ-maintain.service
+```
+
+After the upgrade, `occ` reports schema differences that are not from this upgrade: leftover `memories_*` indexes (the Memories app is disabled), `oc_files_antivirus.fileid` type, and `oc_share_external.id` autoincrement.
 
 ## Major version upgrade (31 → 34)
 

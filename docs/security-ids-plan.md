@@ -1,8 +1,8 @@
 # Homelab IDS & Security Monitoring — Deployment Plan
 
-**Status:** Phase 1 deployed; Phase 2 core deployed on ace/crux (AIDE init pending first successful check on some hosts); Phase 3 response stubs on ace. Nova unreachable at verification time.  
+**Status:** Phase 1 deployed; Phase 2 deployed (Suricata runs the ET Open ruleset since 2026-10-24, updated daily); Phase 3 response stubs on ace.  
 **Test cases:** [`security-ids-test-cases.md`](security-ids-test-cases.md)  
-**Updated:** 2026-06-27  
+**Updated:** 2026-10-24  
 **Branch:** `dell-poweredge-r730xd`  
 **Scope:** ace, crux, nova (NixOS); Astracap router; Astraquasar switch; LAN `192.168.5.0/24` (and related subnets)
 
@@ -194,7 +194,7 @@ SSH access patterns: `docs/network-ssh-ace.md` (`ssh astracap`, `ssh astraquasar
 
 | Detection | Tool | Placement | Phase | Notes |
 |-----------|------|-----------|-------|-------|
-| **Port scans, lateral movement** | Suricata (IDS mode) or Zeek | ace (NIC or SPAN feed) | 2 | Start with ET Open ruleset; tune for homelab noise |
+| **Port scans, lateral movement** | Suricata (IDS mode) | ace (NIC; SPAN later) | 2 | ET Open ruleset (daily `suricata-update`) plus a local SYN-count rule; Grafana pages on severity 1–2 only |
 | **DNS anomalies** | Technitium query logs + Suricata DNS rules | ace | 2 | ace is LAN DNS (`192.168.5.5:53`) |
 | **Encrypted C2** | Zeek + JA3/SNI heuristics (limited) | ace | 3 | Expect gaps; defense in depth only |
 | **East-west Wings traffic** | SPAN crux ↔ nova ↔ ace segments | Astraquasar | 2–3 | Requires switch mirror config |
@@ -359,7 +359,7 @@ Reference: existing email alert rules in `docs/monitoring-ace.md` (service down,
 | Run `nix-store --verify` on each host | Weekly (timer) |
 | AIDE database update after `nixos-rebuild` | Each deploy |
 | Cisco config backup diff | Daily |
-| Suricata ruleset update | Weekly |
+| Suricata ruleset update | Daily (`suricata-update.timer`, automatic) |
 | Tabletop: SSH brute force + nmap | Quarterly |
 | Review Grafana Security folder noise | Monthly |
 

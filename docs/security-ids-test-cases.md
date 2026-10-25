@@ -325,6 +325,15 @@ rm /etc/aide-test && systemctl start aide-check.service      # passes again
 
 - ace: `homelab.security.suricata.enable = true` (`nixos/monitoring/suricata.nix`).
 - IDS listens on `bond0` (SPAN optional later — see plan §4.3).
+- Rules: the ET Open ruleset in `/var/lib/suricata/rules/suricata.rules` (`suricata-update.timer`, daily: download, `suricata -T`, then reload with SIGUSR2) plus `/etc/suricata/rules/local.rules` (sid 9000001, SYN count to any port except 80/443).
+- Grafana **Suricata scan or exploit alert** pages only on `alert.severity` 1–2, and not on the local SYN rule from the infra range `192.168.5.1–20`.
+- `eve.json` rotates daily (logrotate, 7 kept, compressed); Suricata reopens it on SIGHUP.
+
+```bash
+systemctl list-timers suricata-update
+journalctl -u suricata-update -n 20      # "Writing rules ... enabled: N"
+journalctl -u suricata | grep 'rules successfully loaded'   # expect 0 rules failed
+```
 
 **Execution**
 
@@ -342,6 +351,8 @@ nmap -sS -T4 192.168.5.5
 |---------|-----|
 | suricata won't start | `journalctl -u suricata`; verify `CAP_NET_RAW`; interface name |
 | No alerts on nmap | Tune local.rules threshold; confirm EVE `alert` type enabled |
+| `suricata-update` fails with `pyyaml is required` | It must run under the PyYAML Python from `suricata.nix` (`suricataUpdatePython`), not the script's own shebang |
+| Rules fail to load after an update | `journalctl -u suricata-update`; the `-T` test keeps the old rules. A new ET variable may need adding to `vars` in `suricata.nix` |
 | High CPU | Reduce `detect-engine profile`; defer SPAN until hardware validated |
 
 **Deliverables**

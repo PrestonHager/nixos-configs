@@ -51,6 +51,7 @@
 
 - [GitHub Actions runners](shared/github-runner.md)
 - [Security audit (Oct 2026)](shared/security-audit.md)
+- [Configuration review (2026-10-24)](shared/config-review.md)
 - [IDS & Security Monitoring Plan](shared/security-ids-plan.md)
 - [IDS Test Cases](shared/security-ids-test-cases.md)
 - [Network topology](shared/network-topology.md)

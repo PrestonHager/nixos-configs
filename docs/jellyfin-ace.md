@@ -9,7 +9,7 @@ Implementation: `nixos/containers/jellyfin.nix`, Caddy `nixos/caddy/jellyfin.nix
 | URL | https://jellyfin.prestonhager.com |
 | Version | Jellyfin **10.11.11** (official container image, pinned as `jellyfinVersion`) |
 | Auth | Zitadel OIDC via **SSO Authentication** plugin (`9p4/jellyfin-plugin-sso` **4.0.0.4**, hash-pinned, installed to `plugins/SSO Authentication_4.0.0.4`) |
-| Upgrade hold | Stay on **10.11.x**: there is no SSO plugin build for Jellyfin 12 yet, and upgrading would break Zitadel login. Bump only after a plugin release targets the new ABI |
+| Upgrade hold | Stay on **10.11.x**: there is no SSO plugin build for Jellyfin 12 yet (checked 2026-10-24: latest 4.0.0.4 targets ABI 10.11), and upgrading would break Zitadel login. The 12.0 database migration also cannot be rolled back without a restore. Enforced by `"holdMajor": "10"` in `ace-service-update-registry.json`, which silences the major-version alert and approval mail. Remove the hold once a plugin release targets the 12 ABI |
 | SSO login URL | https://jellyfin.prestonhager.com/sso/OID/start/zitadel |
 | Break-glass local admin | `preston-admin` (existing local account) |
 

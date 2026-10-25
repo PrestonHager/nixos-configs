@@ -13,7 +13,7 @@ Implementation: `nixos/containers/grafana.nix`, `nixos/containers/prometheus.nix
 
 ### Dashboard image export (PNG / PDF)
 
-Grafana 13+ no longer supports the in-process image renderer plugin. ace runs the official remote renderer (`grafana/grafana-image-renderer:v5.8.8`) in the same Podman pod as Grafana so both reach each other on loopback.
+Grafana 13+ no longer supports the in-process image renderer plugin. ace runs the official remote renderer (`grafana/grafana-image-renderer` v5.12.7, pinned by digest in `grafana.nix`) in the same Podman pod as Grafana so both reach each other on loopback.
 
 | Component | URL / port |
 |-----------|------------|
@@ -85,7 +85,7 @@ Ace sends operational emails through Grafana’s built-in SMTP relay (same iClou
 | Alert | Query / condition | `for` | Severity |
 |-------|-------------------|-------|----------|
 | **Service down** | `probe_success{probe_location=~"local\|lan",job=~"blackbox.*"} == 0` | 5m | critical |
-| **Major update** | `ace_service_version_behind == 3` | immediate | critical |
+| **Major update** | `ace_service_version_behind == 3`, unless the service is held (`ace_service_version_held == 1`) | immediate | critical |
 | **Patch/minor update** | `ace_service_version_behind == 1 or == 2` | 1h | warning |
 
 Local and LAN blackbox probes are included; external probes are excluded (often flaky). Version metrics come from the `ace-version-check` timer (node_exporter textfile collector) and appear on the **Ace Service Versions** Grafana dashboard (`ace-versions`).
@@ -157,9 +157,19 @@ Enabled auto-update services (all `nix-bump` unless noted): Grafana, Technitium,
 
 1. Version check writes `ace_service_version_*` metrics.
 2. Auto-update selects an enabled registry service that is behind.
-3. `ace-service-update-bump` edits the pinned version in the service’s nix file under `/etc/nixos`, commits (`ace: bump SERVICE to VERSION`), and pushes `origin/<branch>`.
+3. `ace-service-update-bump` edits the pinned version in the service’s nix file under `/etc/nixos`, commits (`ace: bump SERVICE to VERSION`), and pushes `origin/<branch>`. If the file already has the target version but it is not committed (an earlier run rebuilt from a dirty tree), it commits and pushes that instead of only rebuilding.
 4. Constrained `nixos-rebuild switch --flake /etc/nixos#ace` applies the new pin.
 5. After rebuild, container tags match the nix pins — no ephemeral drift.
+
+### Holding a service on a major release
+
+When a major upgrade is known to break something, add `holdMajor` (the major to stay on, as a string) and `holdReason` to the service's row in `nixos/monitoring/scripts/ace-service-update-registry.json`. While the running version is on that major:
+
+- `ace-version-check` exports `ace_service_version_held{service,major} 1`;
+- **Ace service major version behind** skips the service (minor and patch updates within the held major still apply);
+- `ace-service-auto-update` logs the hold and sends no approval mail.
+
+Current holds: **Jellyfin on 10** (see [Jellyfin](./jellyfin.md)). Delete the two keys and rebuild to release a hold.
 
 Manual run for one service:
 
