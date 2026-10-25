@@ -247,7 +247,7 @@ groups:
         for: 1m
         # Scanners come in bursts a few minutes apart; without this each gap
         # resolved the alert and the next burst sent another email.
-        keep_firing_for: 30m
+        keepFiringFor: 30m
         annotations:
           summary: "Suricata: {{ $labels.alert_signature }}"
           description: >-
