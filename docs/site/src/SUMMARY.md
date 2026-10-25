@@ -57,6 +57,7 @@
 - [IDS Test Cases](shared/security-ids-test-cases.md)
 - [Network topology](shared/network-topology.md)
 - [Astracap router](shared/network-astracap.md)
+- [AbuseIPDB blackhole](shared/network-abuseipdb-blackhole.md)
 - [Astraquasar switch](shared/network-astraquasar.md)
 - [Network & SSH / Bitwarden](shared/network-ssh.md)
 - [Git commit signing (SSH)](shared/git-commit-signing.md)

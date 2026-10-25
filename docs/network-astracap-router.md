@@ -78,6 +78,8 @@ Router IOS also has **`ip name-server 192.168.5.2`** and **`192.168.5.5`** and *
 
 No extended ACLs on data-plane interfaces in the documented config; edge filtering is primarily NAT + VTY `access-class 1`.
 
+Addresses AbuseIPDB scores ≥ 95% malicious are blackholed via BGP routes from ace, plus loose uRPF on `Gi0/0`: [AbuseIPDB blackhole](network-abuseipdb-blackhole.md). The router side is an owner step.
+
 ## Physical / CDP
 
 | Local | Remote | Notes |

@@ -65,6 +65,7 @@ in {
     ./node-metrics.nix
     ./ssh.nix
     ./container-egress.nix
+    ./abuseipdb-blackhole.nix
     ./response/default.nix
   ];
 }

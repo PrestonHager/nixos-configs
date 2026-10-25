@@ -131,6 +131,14 @@ in {
     loki.enable = true;
     promtail.enable = true;
     suricata.enable = true;
+    # AbuseIPDB blacklist -> BGP blackhole routes on Astracap
+    # (docs/network-abuseipdb-blackhole.md). Flip apiKeyConfigured after adding the
+    # key to nix-secrets, and routerConfigured after pasting the router config.
+    abuseipdbBlackhole = {
+      enable = true;
+      apiKeyConfigured = false;
+      routerConfigured = false;
+    };
   };
 
   # Cloudflare DNS-01 for Caddy TLS (token in nix-secrets secrets/cloudflare.yaml).
