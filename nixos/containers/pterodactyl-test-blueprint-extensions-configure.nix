@@ -1,7 +1,6 @@
 { config, pkgs, ... }:
 
 let
-  testPanelDir = "/home/prestonh/Projects/panel";
 
   configurePhp = pkgs.writeText "configure-test-extensions.php" ''
     <?php
@@ -125,19 +124,15 @@ let
       exit 0
     fi
 
-    if [ ! -d ${testPanelDir}/.blueprint/extensions/portforward ]; then
+    # Same PHP path under Blueprint (Pterodactyl) and Hydrodactyl.
+    if ! ${pkgs.podman}/bin/podman exec pterodactyl-test test -d /var/www/pterodactyl/app/BlueprintFramework/Extensions/portforward; then
       echo "pterodactyl-test-blueprint-extensions-configure: portforward extension missing, skipping"
       exit 0
     fi
 
     # Port forwarding on the test panel is always a dry run: it has no router
     # key (pterodactyl-test.nix mounts a secrets dir without it).
-    ${pkgs.coreutils}/bin/cp ${configurePhp} ${testPanelDir}/configure-test-extensions.php
-    ${pkgs.coreutils}/bin/chown prestonh:users ${testPanelDir}/configure-test-extensions.php
-    ${pkgs.podman}/bin/podman exec \
-      pterodactyl-test \
-      php /var/www/pterodactyl/configure-test-extensions.php
-    ${pkgs.coreutils}/bin/rm -f ${testPanelDir}/configure-test-extensions.php
+    ${pkgs.podman}/bin/podman exec -i pterodactyl-test php < ${configurePhp}
 
     echo "pterodactyl-test-blueprint-extensions-configure: homelab defaults applied (portforward dry_run=1)"
   '';

@@ -20,6 +20,9 @@
     ./pushgateway.nix
     ./pterodactyl.nix
     ./pterodactyl-test.nix
+    # Panel flavor switch (homelab.panel.{prod,test}.flavor); Pterodactyl by default.
+    ./hydrodactyl.nix
+    ./hydrodactyl-test-node.nix
     #./spacetimedb.nix
     #./sui.nix
     ./vaultwarden.nix

@@ -141,6 +141,12 @@ in {
     };
   };
 
+  # Both panels run Hydrodactyl (docs/hydrodactyl-migration-plan.md).
+  homelab.panel.prod.flavor = "hydrodactyl";
+  homelab.panel.test.flavor = "hydrodactyl";
+  # Throwaway Wings node for test.panel (no access to the real nodes).
+  homelab.panel.test.wingsNode.enable = true;
+
   # Cloudflare DNS-01 for Caddy TLS (token in nix-secrets secrets/cloudflare.yaml).
   homelab.caddy.cloudflareAcme = {
     enable = true;

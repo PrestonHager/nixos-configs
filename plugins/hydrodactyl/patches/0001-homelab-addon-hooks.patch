@@ -1,0 +1,156 @@
+diff --git a/config/app.php b/config/app.php
+index d4b7cec36..58e12c74f 100644
+--- a/config/app.php
++++ b/config/app.php
+@@ -210,6 +210,8 @@ return [
+     Pterodactyl\Providers\EventServiceProvider::class,
+     Pterodactyl\Providers\HashidsServiceProvider::class,
+     Pterodactyl\Providers\ObserverServiceProvider::class,
++    // Before RouteServiceProvider: its routes/base.php ends in an SPA catch-all.
++    Pterodactyl\Addons\AddonsServiceProvider::class,
+     Pterodactyl\Providers\RouteServiceProvider::class,
+     Pterodactyl\Providers\RepositoryServiceProvider::class,
+     Pterodactyl\Providers\ServerOperationServiceProvider::class,
+diff --git a/resources/scripts/components/admin/AdminApp.tsx b/resources/scripts/components/admin/AdminApp.tsx
+index 1b9741b7c..89ab7a584 100644
+--- a/resources/scripts/components/admin/AdminApp.tsx
++++ b/resources/scripts/components/admin/AdminApp.tsx
+@@ -29,6 +29,7 @@ import Sidebar from '@/components/layout/sidebar/Sidebar';
+ import { HeaderProvider } from '@/contexts/HeaderContext';
+ import { SidebarProvider } from '@/contexts/SidebarContext';
+ import I18nProvider, { useTranslation } from '@/i18n/I18nProvider';
++import { addonAdminRoutes, addonAdminServerRoutes, useAddonAdminNav } from '@/addons';
+ import { store } from '@/state';
+ import type { SiteSettings } from '@/state/settings';
+ 
+@@ -140,6 +141,7 @@ const AdminShell = () => {
+     const NavigationSettings = useRef<HTMLAnchorElement>(null);
+     const NavigationApi = useRef<HTMLAnchorElement>(null);
+ 
++    const addonNav = useAddonAdminNav();
+     const navItems: AdminNavItem[] = [
+         {
+             to: '/',
+@@ -231,6 +233,7 @@ const AdminShell = () => {
+             ref: NavigationApi,
+             end: false,
+         },
++        ...addonNav,
+     ];
+ 
+     return (
+@@ -273,6 +276,7 @@ const AdminShell = () => {
+                                         <Route path='mounts' element={<ServerMountsContainer />} />
+                                         <Route path='manage' element={<ServerManageContainer />} />
+                                         <Route path='delete' element={<ServerDeleteContainer />} />
++                                        {addonAdminServerRoutes()}
+                                     </Route>
+                                     <Route path='/mounts' element={<MountsContainer />} />
+                                     <Route path='/mounts/:id' element={<MountViewContainer />} />
+@@ -306,6 +310,7 @@ const AdminShell = () => {
+                                         <Route path='domains/:id' element={<DomainFormContainer />} />
+                                         <Route path='logo' element={<BrandingSettings />} />
+                                     </Route>
++                                    {addonAdminRoutes()}
+                                     <Route path='*' element={<NotFound />} />
+                                 </Routes>
+                             </Suspense>
+diff --git a/resources/scripts/components/admin/servers/ServerLayout.tsx b/resources/scripts/components/admin/servers/ServerLayout.tsx
+index d2ccb2d9d..ab27d0033 100644
+--- a/resources/scripts/components/admin/servers/ServerLayout.tsx
++++ b/resources/scripts/components/admin/servers/ServerLayout.tsx
+@@ -1,4 +1,5 @@
+ import { NavLink, Outlet, useParams } from 'react-router-dom';
++import { addonAdminServerTabs } from '@/addons';
+ import { useServer } from '@/api/admin/useServers';
+ import { MainPageHeader } from '@/components/elements/MainPageHeader';
+ import PageContentBlock from '@/components/elements/PageContentBlock';
+@@ -41,6 +42,7 @@ const ServerLayout = () => {
+                   { label: t('admin.servers.tab_startup'), to: `${base}/startup`, end: false },
+                   { label: t('admin.servers.tab_database'), to: `${base}/database`, end: false },
+                   { label: t('admin.servers.tab_mounts'), to: `${base}/mounts`, end: false },
++                  ...addonAdminServerTabs(base),
+               ]
+             : []),
+         { label: t('admin.servers.tab_manage'), to: `${base}/manage`, end: false },
+diff --git a/resources/scripts/components/auth/LoginContainer.tsx b/resources/scripts/components/auth/LoginContainer.tsx
+index b1ff4ffa4..ed52f9065 100644
+--- a/resources/scripts/components/auth/LoginContainer.tsx
++++ b/resources/scripts/components/auth/LoginContainer.tsx
+@@ -3,6 +3,7 @@ import { Formik } from 'formik';
+ import { useNavigate } from 'react-router-dom';
+ import { object, string } from 'yup';
+ import login from '@/api/auth/login';
++import { SsoButtons } from '@/addons';
+ import LoginFormContainer, { TitleSection } from '@/components/auth/LoginFormContainer';
+ import Button from '@/components/elements/Button';
+ import Captcha, { getCaptchaResponse } from '@/components/elements/Captcha';
+@@ -140,6 +141,7 @@ function LoginContainer() {
+                             {t('auth.login.forgot_password')}
+                         </SecondaryLink>
+                     </div>
++                    <SsoButtons />
+                 </LoginFormContainer>
+             )}
+         </Formik>
+diff --git a/resources/scripts/routers/UnifiedRouter.tsx b/resources/scripts/routers/UnifiedRouter.tsx
+index 88de102ae..e42171a79 100644
+--- a/resources/scripts/routers/UnifiedRouter.tsx
++++ b/resources/scripts/routers/UnifiedRouter.tsx
+@@ -33,6 +33,7 @@ import CommandMenu from '@/components/elements/commandk/CmdK';
+ import ErrorBoundary from '@/components/elements/ErrorBoundary';
+ import Logo from '@/components/elements/HydroLogo';
+ import MainWrapper from '@/components/elements/MainWrapper';
++import { useAddonNav } from '@/addons';
+ import PermissionRoute from '@/components/elements/PermissionRoute';
+ import { NotFound, ServerError } from '@/components/elements/ScreenBlock';
+ import Spinner from '@/components/elements/Spinner';
+@@ -187,7 +188,7 @@ const UnifiedRouter = () => {
+     );
+ 
+     // generate navigation items based on current route
+-    const navItems = useMemo(
++    const coreNavItems = useMemo(
+         () =>
+             isServerRoute
+                 ? id
+@@ -353,6 +354,7 @@ const UnifiedRouter = () => {
+                   ],
+         [isServerRoute, id, egg_name, showInstaller, softwareEnabled, t],
+     );
++    const navItems = useAddonNav(coreNavItems, { isServerRoute, id, eggFeatures });
+     const bottomNavItems = customNavItems;
+ 
+     return (
+diff --git a/resources/scripts/routers/routes.ts b/resources/scripts/routers/routes.ts
+index 47f1c9854..a4dcb5bde 100644
+--- a/resources/scripts/routers/routes.ts
++++ b/resources/scripts/routers/routes.ts
+@@ -14,6 +14,7 @@ import {
+ } from '@gravity-ui/icons';
+ import type { ComponentType, LazyExoticComponent, SVGProps } from 'react';
+ import { lazy } from 'react';
++import { addonAccountRoutes, addonServerRoutes } from '@/addons';
+ 
+ // Every route-level page container is lazy-loaded so each screen is split into
+ // its own chunk and only fetched when that route is actually visited.
+@@ -47,7 +48,7 @@ type RouteComponent = ComponentType | LazyExoticComponent<ComponentType>;
+ // Feature limit types for visibility conditions
+ export type FeatureLimitKey = 'databases' | 'backups' | 'allocations';
+ 
+-interface RouteDefinition {
++export interface RouteDefinition {
+     /**
+      * Route is the path that will be matched against, this field supports wildcards.
+      */
+@@ -281,6 +282,10 @@ const routes: Routes = {
+     ],
+ };
+ 
++// Homelab addons (resources/scripts/addons).
++routes.account.push(...addonAccountRoutes);
++routes.server.push(...addonServerRoutes);
++
+ export default routes;
+ 
+ /**

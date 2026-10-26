@@ -464,14 +464,16 @@ EOF
 
         pod_hosts_ok() {
           $podman pod inspect pterodactyl-test --format '{{range .InfraConfig.HostAdd}}{{.}} {{end}}' 2>/dev/null \
-            | grep -q "${zitadelDomain}:''${hostGw}"
+            | grep -q "${zitadelDomain}:''${hostGw}" \
+            && $podman pod inspect pterodactyl-test --format '{{range .InfraConfig.HostAdd}}{{.}} {{end}}' 2>/dev/null \
+            | grep -q "${testHost}:''${hostGw}"
         }
 
         if $podman pod exists pterodactyl-test && { ! pod_network_ok || ! pod_hosts_ok; }; then
           if ! pod_network_ok; then
             echo "pod-pterodactyl-test: panel cannot reach redis in pod; recreating pod"
           else
-            echo "pod-pterodactyl-test: missing Zitadel host-gateway mapping; recreating pod"
+            echo "pod-pterodactyl-test: missing host-gateway mapping; recreating pod"
           fi
           $podman pod stop -t 30 pterodactyl-test || true
           $podman pod rm -f pterodactyl-test
@@ -479,9 +481,12 @@ EOF
 
         # Publish on loopback only: Caddy is the sole client, and netavark DNATs
         # published ports ahead of nixos-fw, so 0.0.0.0 exposed raw FastCGI to the LAN.
+        # test.panel -> host gateway: the panel reaches its Wings test node through
+        # Caddy on the host (hydrodactyl-test-node.nix).
         $podman pod exists pterodactyl-test || \
         $podman pod create -p 127.0.0.1:9002:9000 \
           --add-host=${zitadelDomain}:''${hostGw} \
+          --add-host=${testHost}:''${hostGw} \
           --add-host=host.containers.internal:host-gateway \
           --memory 4G --cpus 0 pterodactyl-test
       '';
