@@ -137,7 +137,7 @@ in {
     abuseipdbBlackhole = {
       enable = true;
       apiKeyConfigured = true;
-      routerConfigured = false;
+      routerConfigured = true;
     };
   };
 

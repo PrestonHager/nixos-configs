@@ -4,7 +4,7 @@ Astracap drops traffic from IPv4 addresses that [AbuseIPDB](https://www.abuseipd
 
 Implementation: `nixos/security/abuseipdb-blackhole.nix`, `nixos/security/abuseipdb-blackhole-sync.py`, options under `homelab.security.abuseipdbBlackhole` (enabled in `hosts/ace/default.nix`).
 
-**Status:** the ace side is deployed. It announces nothing until two owner steps are done: the [API key](#1-abuseipdb-api-key) and the [router configuration](#2-router-configuration).
+**Status:** live since 2026-10-26. The API key and the router configuration below are in place and saved to Astracap's startup-config; about 10,000 /32s are installed and point at Null0.
 
 ## How it works
 
@@ -66,6 +66,9 @@ Needs `enable` on Astracap (ace's `pterofwd` account lands at privilege 1, and n
 configure terminal
  ! Blackholed addresses get this next hop, which goes nowhere.
  ip route 192.0.2.1 255.255.255.255 Null0 name ABUSEIPDB-BLACKHOLE
+ ! Drop silently: an ICMP unreachable per blackholed packet would be CPU work.
+ interface Null0
+  no ip unreachables
  !
  ! Accept only /32 host routes that are not private or special-use.
  ip prefix-list ABUSEIPDB-HOSTS seq 10 deny 0.0.0.0/8 le 32
@@ -90,6 +93,9 @@ configure terminal
   neighbor 192.168.5.5 remote-as 65105
   neighbor 192.168.5.5 description ace AbuseIPDB blackhole (BIRD)
   neighbor 192.168.5.5 transport connection-mode passive
+  ! Single-hop eBGP only accepts next hops on a connected subnet; without this
+  ! every path shows "192.0.2.1 (inaccessible)" and nothing is installed.
+  neighbor 192.168.5.5 ebgp-multihop 2
   neighbor 192.168.5.5 route-map ABUSEIPDB-IN in
   neighbor 192.168.5.5 route-map DENY-ALL out
   ! More than this and the session drops (fail-open), rather than filling memory.
@@ -99,6 +105,12 @@ configure terminal
  ! internet source matches only the default route and must still pass.
  interface GigabitEthernet0/0
   ip verify unicast source reachable-via any allow-default
+ !
+ ! Not part of the blackhole, but found with it: the router answered DNS on the
+ ! WAN (an open resolver; Suricata's "*.top domain" alert was a resolver survey
+ ! forwarded to ace). Clients get 192.168.5.5 and 1.1.1.1 from DHCP and the
+ ! router's own lookups use ip name-server, so nothing needs it.
+ no ip dns server
 end
 write memory
 ```
@@ -112,6 +124,8 @@ show ip bgp summary                                  ! 192.168.5.5 ... State/Pfx
 show ip route <a listed address>                     ! via 192.0.2.1, then Null0
 show ip interface GigabitEthernet0/0 | include verify
 show ip traffic | include RPF                        ! "unicast RPF" drop counter rising
+show control-plane host open-ports | include 53      ! no DNS Server lines
+show startup-config | include router bgp|verify unicast|dns server|Null0
 ```
 
 On ace:
