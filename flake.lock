@@ -238,11 +238,11 @@
     "pterodactyl-port-forward": {
       "flake": false,
       "locked": {
-        "lastModified": 1788129596,
-        "narHash": "sha256-AFGD1iZRet2gRx0pZpTf2SWj6JMm+na2kOcGCSv4yBE=",
+        "lastModified": 1793068504,
+        "narHash": "sha256-teuIvofZZQ4G+vtlcS77vLty8QZchICv2SFmTUzsXr8=",
         "owner": "PrestonHager",
         "repo": "pterodactyl-blueprint-port-forward",
-        "rev": "17fd22bf6b5129c487d7c349698815374836a2aa",
+        "rev": "52cc85345b1c23850bf7e63637696970f848f7df",
         "type": "github"
       },
       "original": {
