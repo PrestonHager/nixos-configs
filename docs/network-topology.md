@@ -151,7 +151,7 @@ sequenceDiagram
   participant CF as Cloudflare 1.1.1.1
 
   C->>D: DHCP discover
-  D->>C: Offer 192.168.5.x, router 192.168.5.1, DNS 192.168.5.5 + 1.1.1.1
+  D->>C: Offer 192.168.5.x, router 192.168.5.1, DNS 192.168.5.5
   C->>T: Query internal / public names
   T->>CF: Recurse when not authoritative
   CF->>T: Response

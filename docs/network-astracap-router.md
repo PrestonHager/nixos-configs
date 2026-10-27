@@ -12,7 +12,7 @@ SSH access: [Network & SSH / Bitwarden](./network-ssh.md). Homelab overview: [Ne
 | WAN | `GigabitEthernet0/0` — DHCP from ISP modem (`10.0.0.0/24` observed) |
 | LAN | `GigabitEthernet0/2` — `192.168.5.1/24`, NAT inside |
 | DHCP server | Pool **LAN-Pool** for `192.168.5.0/24` |
-| DNS for clients | DHCP option: **192.168.5.5** (Technitium on ace), fallback **1.1.1.1** |
+| DNS for clients | DHCP option: **192.168.5.5** (Technitium on ace) only; the `1.1.1.1` fallback was removed 2026-10-27 because Apple devices used it and got the non-hairpinned WAN IP |
 | NAT | PAT (overload) for all LAN hosts; static TCP **80/443** to **192.168.5.5** (ace) |
 | Management | SSH (publickey only for `prestonh`); VTY restricted by ACL 1 (LAN only) |
 
@@ -58,7 +58,7 @@ Default route: **`0.0.0.0/0` via DHCP** on WAN (learned gateway `10.0.0.1`).
 | Excluded | `192.168.5.1`–`192.168.5.20` (infrastructure / static range) — **DHCP pool floor is `.21`** |
 | Default router | `192.168.5.1` |
 | Domain name | `home.internal` |
-| DNS servers | `192.168.5.5`, `1.1.1.1` |
+| DNS servers | `192.168.5.5` |
 | Lease | 7 days |
 
 Static examples in the excluded range: ace `.5`, crux `.6`, nova `.7`, elara `.8`, zenith `.9`, **ace iDRAC `.10`**, **mars iDRAC `.11`**, sally iDRAC `.12`, mars `.15`, sally `.16` (see [network-topology.md](network-topology.md)).

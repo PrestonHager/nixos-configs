@@ -308,7 +308,7 @@ Technitium already forwards unknown names to 1.1.1.1; `_acme-challenge` subdomai
 
 ## DHCP (house / game LAN)
 
-Astracap already advertises **192.168.5.5** (Technitium) as primary DNS and **1.1.1.1** as secondary — see [Astracap router](./network-astracap.md). Desktops and servers that honor DHCP resolve ace services to LAN IPs. **iOS often does not** (see below).
+Astracap advertises **192.168.5.5** (Technitium) as the only DHCP DNS server (the `1.1.1.1` secondary was removed 2026-10-27) — see [Astracap router](./network-astracap.md). Desktops and servers that honor DHCP resolve ace services to LAN IPs. **iOS often does not** (see below).
 
 ## iPhone / iOS (split-horizon and NAT hairpin)
 
@@ -333,7 +333,7 @@ Desktops/servers work because they use **Technitium** (`192.168.5.5` from DHCP o
 |--------------|----------------|
 | **Limit IP Address Tracking** / iCloud Private Relay | Uses Apple/Cloudflare DNS instead of DHCP → public IP → timeout |
 | **Manual DNS** (1.1.1.1, 8.8.8.8, AdGuard, NextDNS) | Public answers → timeout |
-| **Secondary DNS fallback** to `1.1.1.1` when Technitium is slow | Intermittent public answers → flaky or broken |
+| **Secondary DNS fallback** to `1.1.1.1` (DHCP handed it out until 2026-10-27) | Intermittent public answers → flaky or broken |
 | **Encrypted DNS (DoH)** to a third party | Public answers → timeout |
 
 On **cellular (LTE/5G)**, public DNS is correct and HTTPS should work (grey-cloud CNAME → `ip1.lc1` → `98.249.78.62`). If WiFi fails but LTE works, split-horizon + hairpin is confirmed.
