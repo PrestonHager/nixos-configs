@@ -45,16 +45,15 @@ Create or update the **Pterodactyl** OIDC app in the **Home Lab** project (`3761
 
 Automated setup on ace (admin session API). Updates redirect URIs via the dedicated `oidc_config` endpoint (the generic app PUT no longer persists OIDC redirect changes on Zitadel v4):
 
+This script (`zitadel-pterodactyl-console-setup.js`) and the deploy helper `ace-pterodactyl-oauth-deploy.sh` were removed in commit `572c200`. Recover the setup script if needed:
+
 ```bash
 cd /etc/nixos
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-pterodactyl-console-setup.js
+git show 572c200^:scripts/zitadel-pterodactyl-console-setup.js > /tmp/zitadel-pterodactyl-console-setup.js
+nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-pterodactyl-console-setup.js
 ```
 
-Store credentials in sops, then redeploy:
-
-```bash
-scripts/ace-pterodactyl-oauth-deploy.sh <client_id> <client_secret>
-```
+Store credentials in sops (`pterodactyl-oauth-env`), then `nix flake update nix-secrets` and rebuild ace. `pterodactyl-sso-configure.service` (`nixos/containers/pterodactyl-sso.nix`) seeds the Zitadel provider in the panel from that secret.
 
 ## Panel admin via Zitadel role
 
@@ -70,7 +69,7 @@ Zitadel project roles use a nested object claim. A **Complement Token** action a
 1. Open https://zitadel.prestonhager.com/ui/console/org/actions
 2. **New action** → flow **Complement Token** → name `pterodactylGroups`
 3. Triggers: **Pre Userinfo creation**, **Pre access token creation**
-4. Script (also printed by setup script):
+4. Script (the removed setup script also printed it):
 
 ```javascript
 function pterodactylGroups(ctx, api) {

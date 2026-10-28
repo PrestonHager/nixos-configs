@@ -1,7 +1,7 @@
 { pkgs, ... }:
 
 let
-  version = "1.15.1";
+  version = "1.15.2";
   pterodactyPanelSrc = "https://github.com/pterodactyl/panel.git";
   forkPanelSrc = "https://github.com/PrestonHager/panel.git";
 
@@ -310,11 +310,9 @@ in
 
     config = {
       Entrypoint = [ "/bin/setup-entrypoint" ];
-      Volumes = {
-        "/tmp" = {};
-        "/var/log" = {};
-        "/var/www/pterodactyl" = {};
-      };
+      # No image Volumes: /var/www/pterodactyl is bind-mounted by the container
+      # definitions, and declaring /tmp and /var/log made podman create a new
+      # anonymous volume on every run that was never cleaned up.
       Env = [
         "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
         "GIT_CONFIG_SYSTEM=/etc/gitconfig"
@@ -339,11 +337,9 @@ in
     config = {
       Entrypoint = [ "/bin/runtime-entrypoint" ];
       ExposedPorts = { "9000/tcp" = {}; };
-      Volumes = {
-        "/tmp" = {};
-        "/var/log" = {};
-        "/var/www/pterodactyl" = {};
-      };
+      # No image Volumes: /var/www/pterodactyl is bind-mounted by the container
+      # definitions, and declaring /tmp and /var/log made podman create a new
+      # anonymous volume on every run that was never cleaned up.
       Env = [
         "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
         "PHP_FPM_LISTEN=/run/php-fpm/php-fpm.sock"

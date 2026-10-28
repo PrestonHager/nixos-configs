@@ -4,6 +4,8 @@ let
   sops-path = builtins.toString inputs.nix-secrets;
   zitadelDomain = "zitadel.prestonhager.com";
   loginClientDir = "/zitadel/login-client";
+  # Fixed gid shared with the zitadel-login container (--group-add) for tls.key.
+  loginKeyGid = 10020;
   zitadelRuntimeEnv = "/run/zitadel/container.env";
   zitadelEnvScript = pkgs.writeShellScript "zitadel-container-env" ''
     set -euo pipefail
@@ -36,11 +38,15 @@ let
     if [ ! -f ${loginClientDir}/tls.key ]; then
       ${pkgs.openssl}/bin/openssl genrsa -out ${loginClientDir}/tls.key 4096
       ${pkgs.openssl}/bin/openssl req -new -x509 -key ${loginClientDir}/tls.key -out ${loginClientDir}/tls.crt -days 3650 -subj "/CN=login-client" -batch
-      chown zitadel:zitadel ${loginClientDir}/tls.key ${loginClientDir}/tls.crt
-      # zitadel-login runs as nextjs (uid 1001), not zitadel; key must be world-readable.
-      chmod 644 ${loginClientDir}/tls.key
-      chmod 644 ${loginClientDir}/tls.crt
     fi
+    # zitadel-login runs as nextjs (uid 1001 in the image, which is a real login user
+    # on ace), so the key is neither chowned to that uid nor world-readable: it is
+    # root:zitadel-login-key 0640 and the container gets that gid via --group-add.
+    # The certificate is public.
+    chown root:${toString loginKeyGid} ${loginClientDir}/tls.key
+    chmod 0640 ${loginClientDir}/tls.key
+    chown zitadel:zitadel ${loginClientDir}/tls.crt
+    chmod 0644 ${loginClientDir}/tls.crt
   '';
 in {
   sops.secrets = {
@@ -60,6 +66,7 @@ in {
     group = "zitadel";
   };
   users.groups.zitadel = { };
+  users.groups.zitadel-login-key = { gid = loginKeyGid; };
 
   # postgres:16-alpine runs as uid/gid 70; data dir must be traversable by that user.
   users.users.postgres = {
@@ -125,8 +132,6 @@ in {
       Type = "oneshot";
       RemainAfterExit = true;
       ExecStart = loginClientKeyGen;
-      # Ensure existing keys are readable by zitadel-login (nextjs uid 1001).
-      ExecStartPost = "${pkgs.coreutils}/bin/chmod 644 ${loginClientDir}/tls.key ${loginClientDir}/tls.crt";
     };
   };
 
@@ -157,7 +162,7 @@ in {
         fi
         if ${pkgs.podman}/bin/podman pod exists zitadel-pod; then
           additions="$(${pkgs.podman}/bin/podman pod inspect zitadel-pod \
-            --format '{{range .HostAdditions}}{{.Host}}:{{.IP}} {{end}}' 2>/dev/null || true)"
+            --format '{{range .InfraConfig.HostAdd}}{{.}} {{end}}' 2>/dev/null || true)"
           if [ -z "''${additions}" ] || ! printf '%s' "''${additions}" | grep -q "${zitadelDomain}:''${hostGw}"; then
             ${pkgs.podman}/bin/podman pod stop -t 10 zitadel-pod || true
             ${pkgs.podman}/bin/podman pod rm -f zitadel-pod || true
@@ -167,8 +172,8 @@ in {
           ${pkgs.podman}/bin/podman pod create \
             --name zitadel-pod \
             --add-host=${zitadelDomain}:''${hostGw} \
-            -p 9080:8080 \
-            -p 9081:3000 \
+            -p 127.0.0.1:9080:8080 \
+            -p 127.0.0.1:9081:3000 \
             --memory 8G --cpus 0
         fi
       '';
@@ -178,7 +183,7 @@ in {
 
   virtualisation.oci-containers.containers.zitadel-db = {
     autoStart = true;
-    image = "docker.io/library/postgres:16-alpine";
+    image = "docker.io/library/postgres@sha256:f4610795587492cd4fb887c2dc3de301b813278bb6f616992061141b5f15ac36"; # postgres 16.15-alpine
     extraOptions = [ "--pod=zitadel-pod" ];
     environmentFiles = [ config.sops.secrets."zitadel-db-env".path ];
     volumes = [
@@ -189,7 +194,7 @@ in {
   virtualisation.oci-containers.containers.zitadel = {
     autoStart = true;
     dependsOn = [ "zitadel-db" ];
-    image = "ghcr.io/zitadel/zitadel:v4.19.5";
+    image = "ghcr.io/zitadel/zitadel:v4.20.0";
     cmd = [
       "start-from-init"
       "--masterkeyFromEnv"
@@ -220,8 +225,12 @@ in {
   virtualisation.oci-containers.containers.zitadel-login = {
     autoStart = true;
     dependsOn = [ "zitadel" ];
-    image = "ghcr.io/zitadel/zitadel-login:v4.19.5";
-    extraOptions = [ "--pod=zitadel-pod" ];
+    image = "ghcr.io/zitadel/zitadel-login:v4.20.0";
+    extraOptions = [
+      "--pod=zitadel-pod"
+      # Read access to tls.key (root:zitadel-login-key 0640) without making it world-readable.
+      "--group-add=${toString loginKeyGid}"
+    ];
     environment = {
       ZITADEL_API_URL = "http://127.0.0.1:8080";
       ZITADEL_EXTERNALDOMAIN = "${zitadelDomain}";

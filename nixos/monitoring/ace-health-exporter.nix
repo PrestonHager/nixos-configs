@@ -5,7 +5,12 @@
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
-    path = with pkgs; [ bash coreutils jq podman sudo ];
+    # server-health.sh needs awk/ps/vmstat/ss/mount/host; without them the load check
+    # read an empty value and always warned.
+    path = with pkgs; [
+      bash coreutils jq podman sudo
+      gawk gnugrep gnused procps iproute2 util-linux curl dnsutils findutils systemd
+    ];
     serviceConfig = {
       Type = "oneshot";
       User = "root";

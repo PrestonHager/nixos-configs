@@ -45,6 +45,23 @@ read_service_metrics() {
   printf '%s\n' "$current" "$latest" "$behind" "$status"
 }
 
+# Latest release in the service's current release series and how far behind it
+# is (ace_service_version_behind_in_series): what can be updated without a major
+# upgrade. Prints latest_in_series and behind; nothing if the metric is missing.
+read_series_metrics() {
+  local service="$1" line
+
+  [[ -f "$ACE_VERSIONS_PROM" ]] || return 1
+  line="$(
+    grep -E "^ace_service_version_behind_in_series\\{service=\"${service}\"" "$ACE_VERSIONS_PROM" 2>/dev/null \
+      | head -1 || true
+  )"
+  [[ -n "$line" ]] || return 1
+  printf '%s\n' \
+    "$(printf '%s' "$line" | sed -n 's/.*latest_in_series="\([^"]*\)".*/\1/p')" \
+    "$(printf '%s' "$line" | awk '{print $NF}')"
+}
+
 registry_enabled() {
   local service="$1"
   jq -e --arg s "$service" '.[$s].enabled == true' "$ACE_REGISTRY" >/dev/null 2>&1

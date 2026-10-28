@@ -3,7 +3,7 @@
 let
   sops-path = builtins.toString inputs.nix-secrets;
   matrixDomain = "matrix.prestonhager.com";
-  synapseImage = "matrixdotorg/synapse:v1.131.0";
+  synapseImage = "docker.io/matrixdotorg/synapse@sha256:c3c21919a322f74d177a43bce8031adc81ef839ddd117a8dd03cfec350e76e02"; # synapse v1.163.2
   synapseDataDir = "/matrix/data";
   synapsePostgresDir = "/matrix/postgres";
   synapseOidcDir = ./matrix;
@@ -133,18 +133,25 @@ EOF
     chmod 0640 "$homeserver"
   '';
 in {
-  sops.secrets = {
+  # restartUnits, not restartTriggers on the paths: the /run/secrets path never
+  # changes when the secret value does, so path triggers never fired.
+  sops.secrets = let
+    restartUnits = [ "matrix-synapse-init.service" "podman-matrix-synapse.service" ];
+  in {
     "matrix-db-env" = {
       sopsFile = "${sops-path}/secrets/containers/matrix.yaml";
       key = "matrix-db-env";
+      restartUnits = restartUnits ++ [ "podman-matrix-db.service" ];
     };
     "matrix-secrets" = {
       sopsFile = "${sops-path}/secrets/containers/matrix.yaml";
       key = "matrix-secrets";
+      inherit restartUnits;
     };
     "matrix-oauth-env" = {
       sopsFile = "${sops-path}/secrets/containers/matrix.yaml";
       key = "matrix-oauth-env";
+      inherit restartUnits;
     };
   };
 
@@ -187,12 +194,7 @@ in {
       RemainAfterExit = true;
       ExecStart = synapseInitScript;
     };
-    restartTriggers = [
-      config.sops.secrets."matrix-db-env".path
-      config.sops.secrets."matrix-secrets".path
-      config.sops.secrets."matrix-oauth-env".path
-      synapseInitScript
-    ];
+    restartTriggers = [ synapseInitScript ];
   };
 
   systemd.services.pod-matrix = {
@@ -217,7 +219,7 @@ in {
         if ! ${pkgs.podman}/bin/podman pod exists matrix-pod; then
           ${pkgs.podman}/bin/podman pod create \
             --name matrix-pod \
-            -p ${toString synapsePort}:8008 \
+            -p 127.0.0.1:${toString synapsePort}:8008 \
             --add-host=${zitadelDomain}:host-gateway \
             --memory 4G --cpus 0
         fi
@@ -228,7 +230,7 @@ in {
 
   virtualisation.oci-containers.containers.matrix-db = {
     autoStart = true;
-    image = "docker.io/library/postgres:16-alpine";
+    image = "docker.io/library/postgres@sha256:f4610795587492cd4fb887c2dc3de301b813278bb6f616992061141b5f15ac36"; # postgres 16.15-alpine
     extraOptions = [ "--pod=matrix-pod" ];
     environmentFiles = [ config.sops.secrets."matrix-db-env".path ];
     environment = {
@@ -270,11 +272,6 @@ in {
       "podman-zitadel-login.service"
     ];
     before = [ "caddy.service" ];
-    restartTriggers = [
-      config.sops.secrets."matrix-db-env".path
-      config.sops.secrets."matrix-secrets".path
-      config.sops.secrets."matrix-oauth-env".path
-      synapseInitScript
-    ];
+    restartTriggers = [ synapseInitScript ];
   };
 }

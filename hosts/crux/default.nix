@@ -34,5 +34,8 @@
     ../../nixos/monitoring/promtail.nix
   ];
 
+  # Was a Coolify deploy server until 2026-10-20; mars replaced it
+  # (docs/coolify-ace.md).
+
   homelab.security.nodeExporter.enable = false;
 }

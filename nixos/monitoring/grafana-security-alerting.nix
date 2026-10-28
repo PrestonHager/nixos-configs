@@ -16,7 +16,9 @@ in {
           uid: loki
           orgId: 1
           access: proxy
-          url: http://127.0.0.1:3100
+          # Grafana runs in a container; Loki listens on the host's LAN address only
+          # (podman0 -> 192.168.5.5:3100 is allowed in nixos-fw, see exporters.nix).
+          url: http://192.168.5.5:3100
           isDefault: false
           editable: false
           jsonData:

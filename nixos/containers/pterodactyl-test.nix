@@ -14,6 +14,16 @@ let
   setupMarker = "/var/lib/pterodactyl-test/setup-complete";
   adminCredentialsFile = "/var/lib/pterodactyl-test/admin-credentials";
   zitadelDomain = "zitadel.prestonhager.com";
+  testHost = "test.panel.prestonhager.com";
+  # Who may set X-Forwarded-* for the panel. Caddy talks FastCGI to php-fpm
+  # and passes the client as REMOTE_ADDR, so only local callers qualify; "*"
+  # let any client spoof its IP and scheme.
+  trustedProxies = "127.0.0.1,::1,10.88.0.1";
+  # Extension secrets for the test panel: the production set minus the
+  # router SSH key (the test panel must never change the router's NAT).
+  # Mounted at /pterodactyl/secrets inside the container, so the paths in
+  # blueprint-extensions.env stay the same.
+  testSecretsDir = "/var/lib/pterodactyl-test/secrets";
 
   panelUpdateEnvLines = pkgs.lib.mapAttrsToList (n: v: "${n}=${v}") panelUpdateEnvStock;
 
@@ -212,17 +222,17 @@ in
         HASHIDS=$(rand_pass)
         cat > "$ENV" <<EOF
 APP_ENV=production
-APP_DEBUG=true
+APP_DEBUG=false
 APP_THEME=pterodactyl
 APP_TIMEZONE=UTC
-APP_URL=https://test.panel.prestonhager.com
+APP_URL=https://${testHost}
 APP_LOCALE=en
 APP_ENVIRONMENT_ONLY=false
 APP_KEY=$APP_KEY
 
 LOG_CHANNEL=daily
 LOG_DEPRECATIONS_CHANNEL=null
-LOG_LEVEL=debug
+LOG_LEVEL=info
 
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
@@ -240,11 +250,12 @@ REDIS_PORT=6379
 CACHE_DRIVER=redis
 QUEUE_CONNECTION=redis
 SESSION_DRIVER=redis
-SESSION_DOMAIN=.prestonhager.com
+SESSION_DOMAIN=${testHost}
+SESSION_COOKIE=pterodactyl_test_session
 SESSION_SECURE_COOKIE=true
 SESSION_SAME_SITE=lax
 
-TRUSTED_PROXIES=*
+TRUSTED_PROXIES=${trustedProxies}
 
 HASHIDS_SALT=$HASHIDS
 HASHIDS_LENGTH=8
@@ -277,11 +288,63 @@ EOF
       ${ensureEnvVar "PTERODACTYL_UPDATE_GIT_REMOTE" "origin"}
       ${ensureEnvVar "PTERODACTYL_UPDATE_GIT_STRATEGY" "auto"}
 
-      set_kv APP_URL "https://test.panel.prestonhager.com"
-      set_kv TRUSTED_PROXIES "*"
-      set_kv SESSION_DOMAIN ".prestonhager.com"
+      # Enforced on every boot, also for an .env created before these
+      # defaults changed (the heredoc above only runs for a new file).
+      set_kv APP_URL "https://${testHost}"
+      set_kv APP_DEBUG "false"
+      set_kv LOG_LEVEL "info"
+      set_kv TRUSTED_PROXIES "${trustedProxies}"
+      # Host-only cookie with its own name: with .prestonhager.com the test
+      # and production panels shared one session cookie across every
+      # subdomain.
+      set_kv SESSION_DOMAIN "${testHost}"
+      set_kv SESSION_COOKIE "pterodactyl_test_session"
       set_kv SESSION_SECURE_COOKIE "true"
       set_kv SESSION_SAME_SITE "lax"
+    '';
+  };
+
+  # Derive the test panel's extension secrets from the production ones
+  # (pterodactyl-extensions.nix), leaving out the router SSH key and its
+  # PORTFORWARD_SSH_KEY_FILE line, so the port-forward extension on the test
+  # panel can only ever run as a dry run.
+  systemd.services.pterodactyl-test-extensions-env = {
+    description = "Write test panel Blueprint extension secrets (without the router key)";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "pterodactyl-blueprint-extensions-env.service" ];
+    wants = [ "pterodactyl-blueprint-extensions-env.service" ];
+    before = [ "podman-pterodactyl-test.service" ];
+    requiredBy = [ "podman-pterodactyl-test.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    path = [ pkgs.coreutils pkgs.gnugrep ];
+    script = ''
+      set -euo pipefail
+      src=/pterodactyl/secrets
+      dst=${testSecretsDir}
+      install -d -m 0750 -o pterodactyl -g pterodactyl "$dst"
+      rm -f "$dst/pterodactyl-router-ssh-key"
+
+      tmp="$dst/blueprint-extensions.env.tmp"
+      if [ -f "$src/blueprint-extensions.env" ]; then
+        grep -v -E '^PORTFORWARD_SSH_KEY_FILE=' "$src/blueprint-extensions.env" > "$tmp" || true
+      else
+        : > "$tmp"
+      fi
+      chown pterodactyl:pterodactyl "$tmp"
+      chmod 0640 "$tmp"
+      mv -f "$tmp" "$dst/blueprint-extensions.env"
+
+      for f in portforward-ssh-config pterodactyl-technitium-api-token pterodactyl-cloudflare-api-token; do
+        if [ -f "$src/$f" ]; then
+          install -m 0600 -o pterodactyl -g pterodactyl "$src/$f" "$dst/$f"
+        else
+          rm -f "$dst/$f"
+        fi
+      done
+      chmod 0640 "$dst/portforward-ssh-config" 2>/dev/null || true
     '';
   };
 
@@ -401,22 +464,29 @@ EOF
 
         pod_hosts_ok() {
           $podman pod inspect pterodactyl-test --format '{{range .InfraConfig.HostAdd}}{{.}} {{end}}' 2>/dev/null \
-            | grep -q "${zitadelDomain}:''${hostGw}"
+            | grep -q "${zitadelDomain}:''${hostGw}" \
+            && $podman pod inspect pterodactyl-test --format '{{range .InfraConfig.HostAdd}}{{.}} {{end}}' 2>/dev/null \
+            | grep -q "${testHost}:''${hostGw}"
         }
 
         if $podman pod exists pterodactyl-test && { ! pod_network_ok || ! pod_hosts_ok; }; then
           if ! pod_network_ok; then
             echo "pod-pterodactyl-test: panel cannot reach redis in pod; recreating pod"
           else
-            echo "pod-pterodactyl-test: missing Zitadel host-gateway mapping; recreating pod"
+            echo "pod-pterodactyl-test: missing host-gateway mapping; recreating pod"
           fi
           $podman pod stop -t 30 pterodactyl-test || true
           $podman pod rm -f pterodactyl-test
         fi
 
+        # Publish on loopback only: Caddy is the sole client, and netavark DNATs
+        # published ports ahead of nixos-fw, so 0.0.0.0 exposed raw FastCGI to the LAN.
+        # test.panel -> host gateway: the panel reaches its Wings test node through
+        # Caddy on the host (hydrodactyl-test-node.nix).
         $podman pod exists pterodactyl-test || \
-        $podman pod create -p 9002:9000 \
+        $podman pod create -p 127.0.0.1:9002:9000 \
           --add-host=${zitadelDomain}:''${hostGw} \
+          --add-host=${testHost}:''${hostGw} \
           --add-host=host.containers.internal:host-gateway \
           --memory 4G --cpus 0 pterodactyl-test
       '';
@@ -432,6 +502,8 @@ EOF
     ];
     wants = [ "podman-pterodactyl-test.service" ];
     wantedBy = [ "multi-user.target" ];
+    # Re-run (config:clear) whenever the enforced .env values change.
+    restartTriggers = [ config.systemd.services.pterodactyl-test-env.script ];
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
@@ -497,14 +569,17 @@ EOF
         "${testPanelDir}:/var/www/pterodactyl"
         "/pterodactyl-test/sockets/mysqld:/run/mysqld"
         "/pterodactyl-test/sockets/php:/run/php-fpm"
-        "/pterodactyl/secrets:/pterodactyl/secrets:ro"
+        # Not /pterodactyl/secrets: that holds the router SSH key.
+        "${testSecretsDir}:/pterodactyl/secrets:ro"
         "${testEnvFile}:/var/www/pterodactyl/.env:U"
       ];
       environment = panelUpdateEnvStock;
       extraOptions = [
         "--pod=pterodactyl-test"
         "--env-file=${testEnvFile}"
-        "--env-file=/pterodactyl/secrets/blueprint-extensions.env"
+        "--env-file=${testSecretsDir}/blueprint-extensions.env"
+        # The Nix-built runtime image has no /tmp (see pterodactyl.nix).
+        "--tmpfs=/tmp:rw,mode=1777,size=512m"
       ];
       image = "pterodactyl-runtime:v${version}";
       imageFile = pterodactylImages.runtimeImage;
@@ -525,7 +600,7 @@ EOF
         "--pod=pterodactyl-test"
         "--env-file=${testEnvFile}"
       ];
-      image = "mariadb:11.4";
+      image = "docker.io/library/mariadb@sha256:250e1609e93c0e6aecf64bfbab2d84d5e89d2481540fe77447ff6c855c3b1873"; # mariadb 11.4.13
     };
 
     pterodactyl-test-redis = {
@@ -538,7 +613,7 @@ EOF
       ];
       cmd = [ "redis-server" "--save" "59" "1" "--loglevel" "warning" ];
       extraOptions = [ "--pod=pterodactyl-test" ];
-      image = "redis:7.4";
+      image = "docker.io/valkey/valkey@sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507"; # valkey 8.1.10-alpine (BSD fork of Redis; cache/sessions only)
     };
   };
 }

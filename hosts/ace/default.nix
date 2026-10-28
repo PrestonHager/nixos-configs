@@ -10,7 +10,10 @@ in {
     # unblocks nixpkgs python3.12-inline-snapshot test failure (ceph/samba/HM chain)
     ../../modules/overlays-inline-snapshot.nix
     ../../nixos/local-service-hosts.nix
-    ../../nixos/containers/animal-search.nix
+    # root's own GitHub + signing key (no agent forwarding needed)
+    ../../nixos/ace-git-identity.nix
+    # Nightly DB dumps + restic snapshots to /stor
+    ../../nixos/backup.nix
     ../../nixos
     ../../nixos/headless
     ../../nixos/security
@@ -23,8 +26,6 @@ in {
     ../../nixos/matrix.nix
     # GitHub Actions self-hosted runners � docs/github-runner.md
     ../../nixos/services/github-runner.nix
-    # pre-registered, non-ephemeral runner (no PAT; see module header)
-    ../../nixos/services/github-runner-persistent.nix
     # hardware configuration for the MSI Summit E16 Flip
     ../../hardware/dell-poweredge-730xd/hardware-configuration.nix
     # yubico keys
@@ -47,6 +48,12 @@ in {
     size = 32 * 1024; # MiB
   }];
 
+  # Redis (coolify-redis and the other Redis containers) warns "Memory overcommit
+  # must be enabled" and can fail BGSAVE/fork under memory pressure without it.
+  # The vm.overcommit_* entries in nixos/default.nix boot.kernelParams lack the
+  # sysctl. prefix and are ignored by the kernel, so set it here.
+  boot.kernel.sysctl."vm.overcommit_memory" = 1;
+
   # Memory-bound host: keep concurrent derivations low, give each build more cores.
   nix.settings = {
     max-jobs = 4;
@@ -56,10 +63,15 @@ in {
   # Add prestonh to jellyfin group to allow for rsync into /jf/media folder
   users.users.prestonh.extraGroups = [ "jellyfin" ];
 
-  # Add lynis an auditing tool to system packages
+  # Add lynis an auditing tool and the Claude Code CLI to system packages
   environment.systemPackages = with pkgs; [
     lynis
+    claude-code
   ];
+
+  # Run generic (non-Nix) Linux binaries, e.g. the Claude CLI that the Claude
+  # desktop app downloads to ~/.claude/remote for SSH sessions.
+  programs.nix-ld.enable = true;
 
   # Configure networking for the host
   networking = {
@@ -90,10 +102,22 @@ in {
     };
   };
 
-  # NetworkManager-wait-online times out on this host every boot/switch and
-  # makes nixos-rebuild switch return non-zero. Disable the wait entirely.
-  systemd.services.NetworkManager-wait-online = {
-    enable = lib.mkForce false;
+  # Never tear down the uplink during a live switch. On 2026-10-24 a nixpkgs
+  # update changed these units; the switch restarted bond0-netdev (which deletes
+  # and recreates the bond) and the address units, but not network-setup, which
+  # owns the default route. ace was left with no default route, unreachable from
+  # other subnets and the internet, until a hard reset. Changes to these units
+  # now apply at the next boot.
+  systemd.services = lib.genAttrs [
+    "bond0-netdev"
+    "network-addresses-bond0"
+    "network-addresses-eno1"
+    "network-addresses-eno3"
+    "network-setup"
+  ] (_: { restartIfChanged = false; }) // {
+    # NetworkManager-wait-online times out on this host every boot/switch and
+    # makes nixos-rebuild switch return non-zero. Disable the wait entirely.
+    NetworkManager-wait-online.enable = lib.mkForce false;
   };
 
   homelab.security = {
@@ -107,7 +131,21 @@ in {
     loki.enable = true;
     promtail.enable = true;
     suricata.enable = true;
+    # AbuseIPDB blacklist -> BGP blackhole routes on Astracap
+    # (docs/network-abuseipdb-blackhole.md). Flip apiKeyConfigured after adding the
+    # key to nix-secrets, and routerConfigured after pasting the router config.
+    abuseipdbBlackhole = {
+      enable = true;
+      apiKeyConfigured = true;
+      routerConfigured = true;
+    };
   };
+
+  # Both panels run Hydrodactyl (docs/hydrodactyl-migration-plan.md).
+  homelab.panel.prod.flavor = "hydrodactyl";
+  homelab.panel.test.flavor = "hydrodactyl";
+  # Throwaway Wings node for test.panel (no access to the real nodes).
+  homelab.panel.test.wingsNode.enable = true;
 
   # Cloudflare DNS-01 for Caddy TLS (token in nix-secrets secrets/cloudflare.yaml).
   homelab.caddy.cloudflareAcme = {
@@ -152,22 +190,6 @@ in {
         extraLabels = [ "ace-al2023-x64-4" "ace-ubuntu-x64-4" ];
       };
     };
-  };
-
-  homelab.github-runner-persistent = {
-    enable = true;
-    memory = "4096m";
-    cpus = "4";
-    # The deploy job stages release trees here and repoints the `current`
-    # symlink.
-    mountPodmanSocket = false;
-    extraVolumes = [
-      "/stor/animal-search:/stor/animal-search"
-    ];
-  };
-
-  services.animalSearch = {
-    enable = true;
   };
 
   services.tailscale = {

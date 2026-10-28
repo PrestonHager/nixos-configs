@@ -18,9 +18,11 @@ groups:
             datasourceUid: loki
             model:
               editorMode: code
+              # != "org_id=": Loki logs every query it runs (org_id=fake ...), and
+              # this query's own text contains the search words, so it matched itself.
               expr: >-
                 sum by (host) (count_over_time({job="systemd-journal"}
-                |= "Failed password" or |= "Invalid user" [5m])) > 10
+                != "org_id=" |~ "Failed password|Invalid user" [5m])) > 10
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
@@ -198,8 +200,15 @@ groups:
             datasourceUid: loki
             model:
               editorMode: code
+              # SYN-scan hits from the static infra range (.1-.20: router, switch, ace,
+              # nodes) are blackbox probes and log shipping, not scans. Everything else,
+              # including SYN scans from LAN clients, still alerts.
+              # Only severity 1-2 (high/medium) pages; ET Open's severity-3 INFO and
+              # POLICY hits stay in Loki for triage.
+              # One series per signature, so the email names what fired.
               expr: >-
-                sum(count_over_time({job="suricata"} | json | event_type="alert" [5m])) > 0
+                sum by (alert_signature) (count_over_time({job="suricata"} | json | event_type="alert" and alert_severity <= 2
+                and (alert_signature != "ET SCAN SYN Scan detected" or src_ip !~ "192\\.168\\.5\\.([1-9]|1[0-9]|20)") [5m]))
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
@@ -236,10 +245,133 @@ groups:
         noDataState: OK
         execErrState: Alerting
         for: 1m
+        # Scanners come in bursts a few minutes apart; without this each gap
+        # resolved the alert and the next burst sent another email.
+        keepFiringFor: 30m
         annotations:
+          summary: "Suricata: {{ $labels.alert_signature }}"
           description: >-
-            Suricata raised at least one alert in the last 5 minutes. Review EVE JSON in Loki.
-          summary: Suricata IDS alert
+            {{ $values.A.Value }} Suricata alert event(s) in the last 5 minutes for
+            "{{ $labels.alert_signature }}". Use "Go to dashboard" below for who sent
+            it, which host and port it hit, the HTTP status, and the raw events.
+          runbook_url: https://serverdocs.prestonhager.com/shared/security-ids-test-cases.html
+          __dashboardUid__: suricata-alerts
+          __panelId__: "10"
         labels:
           severity: warning
           alert_type: suricata
+  - orgId: 1
+    name: security-abuseipdb
+    folder: Security
+    interval: 5m
+    rules:
+      - uid: sec_abuseipdb_sync
+        title: AbuseIPDB blocklist not updating
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: (homelab_abuseipdb_configured == 1) and on() ((time() - homelab_abuseipdb_last_run_timestamp_seconds > 43200) or on() (max(homelab_abuseipdb_sync_success) == 0))
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 30m
+        annotations:
+          description: >-
+            The AbuseIPDB blacklist sync has not run in 12 hours or its last run failed. After 48 hours without a fresh list, every blackhole route is withdrawn. Check: journalctl -u abuseipdb-blackhole-sync.
+          summary: AbuseIPDB blocklist is not updating
+          runbook_url: https://serverdocs.prestonhager.com/shared/network-abuseipdb-blackhole.html
+        labels:
+          severity: warning
+          alert_type: abuseipdb_blackhole
+      - uid: sec_abuseipdb_bgp
+        title: AbuseIPDB blackhole BGP session down
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: homelab_abuseipdb_bgp_established{router_expected="1"} == 0
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 15m
+        annotations:
+          description: >-
+            BIRD on ace has no BGP session to Astracap, so the router is not blocking AbuseIPDB-listed addresses (it fails open). Check: birdc show protocols all astracap; on the router: show ip bgp summary.
+          summary: AbuseIPDB blackhole BGP session to Astracap is down
+          runbook_url: https://serverdocs.prestonhager.com/shared/network-abuseipdb-blackhole.html
+        labels:
+          severity: warning
+          alert_type: abuseipdb_blackhole

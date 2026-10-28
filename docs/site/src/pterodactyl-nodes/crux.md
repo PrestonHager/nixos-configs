@@ -15,9 +15,14 @@ Pterodactyl Wings node at **192.168.5.6**.
 
 `hosts/crux/default.nix` sets static IP and `/etc/hosts` entries for ace panel and internal names. Imports:
 
-- `hosts/pterodactyl-nodes/` — Wings, Docker, MariaDB (local), NFS LE certs
+- `hosts/pterodactyl-nodes/` — Wings 1.13.4, Docker (`liveRestore = true`), MariaDB (local), NFS LE certs
 - `nixos/monitoring/crux-probes.nix` — blackbox HTTP/TCP probes
 - `nixos/monitoring/crux-prometheus.nix` — local Prometheus scraping ace + crux
+- `nixos/monitoring/promtail.nix` — logs to Loki on ace
+
+crux was also a [Coolify](../ace/coolify.md) deploy server until 2026-10-20. It was removed from Coolify, `nixos/coolify-node.nix` is no longer imported, and the `coolify-proxy`/`coolify-sentinel` containers and `/data/coolify` were deleted. Coolify apps run on [mars](../poweredge/mars.md).
+
+Docker's `liveRestore` keeps game servers running when dockerd restarts during a rebuild.
 
 ## SSH
 

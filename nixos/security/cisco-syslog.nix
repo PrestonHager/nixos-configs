@@ -27,6 +27,10 @@ in {
       "d ${logDir} 0750 root root -"
     ];
 
-    networking.firewall.allowedUDPPorts = lib.mkAfter [ 514 ];
+    # Only the two Cisco devices may send syslog.
+    networking.firewall.extraCommands = lib.mkAfter ''
+      iptables -A nixos-fw -p udp -s ${cfg.cisco.astracapHost} --dport 514 -j nixos-fw-accept
+      iptables -A nixos-fw -p udp -s ${cfg.cisco.astraquasarHost} --dport 514 -j nixos-fw-accept
+    '';
   };
 }

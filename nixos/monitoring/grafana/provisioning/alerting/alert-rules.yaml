@@ -18,7 +18,10 @@ groups:
             datasourceUid: prometheus
             model:
               editorMode: code
-              expr: probe_success{probe_location=~"local|lan",job=~"blackbox.*",service_tier="essential"} == 0
+              # 1 per failing probe, 0 per healthy one, so threshold C (> 0) fires
+              # per series. The old "== 0" filter returned only zeros, and 0 > 0
+              # never fired.
+              expr: 1 - probe_success{probe_location=~"local|lan",job=~"blackbox.*",service_tier="essential"}
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
@@ -57,13 +60,586 @@ groups:
         for: 5m
         annotations:
           description: >-
-            Blackbox probe {{ $labels.job }} for {{ $labels.instance }}
-            ({{ $labels.probe_location }}) has been failing for at least 5 minutes.
+            Blackbox probe {{ $labels.job }} for {{ $labels.instance }} ({{ $labels.probe_location }}) has been failing for at least 5 minutes.
           summary: Service probe failed — {{ $labels.instance }}
         labels:
           severity: critical
           alert_type: service_down
-
+      - uid: ace_scrape_down
+        title: Ace Prometheus scrape target down
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              # 1 per target Prometheus cannot scrape (exporter or service down).
+              expr: 1 - up
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 10m
+        annotations:
+          description: >-
+            Prometheus job {{ $labels.job }} target {{ $labels.instance }} has been unscrapeable for at least 10 minutes.
+          summary: Scrape target down — {{ $labels.job }} {{ $labels.instance }}
+        labels:
+          severity: warning
+          alert_type: monitoring
+      - uid: ace_metrics_absent
+        title: Ace monitoring series missing
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              # absent() returns 1 (labelled with the job) when a whole job has
+              # vanished, which the per-series rules above cannot see. The external
+              # probe is checked through probe_wan_path, which it always pushes;
+              # probe_success is skipped while the WAN path is unreachable.
+              expr: >-
+                absent(up{job="node"}) or absent(up{job="pushgateway-external"}) or absent(probe_success{job="blackbox-http"}) or absent(probe_wan_path{job="external-http-probe"})
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        # No data means every series is present.
+        noDataState: OK
+        execErrState: Alerting
+        for: 10m
+        annotations:
+          description: >-
+            No {{ $labels.job }} series in Prometheus for 10 minutes; that job's alerts cannot fire.
+          summary: Monitoring series missing — {{ $labels.job }}
+        labels:
+          severity: warning
+          alert_type: monitoring
+      - uid: ace_pushgateway_stale
+        title: Ace external probe push stale
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              # Seconds since crux last pushed; the Pushgateway keeps serving the old
+              # values forever, so probe_success alone never goes stale.
+              expr: time() - max by (job) (push_time_seconds{job="external-http-probe"})
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 1200
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          description: >-
+            crux has not pushed external probe results for over 20 minutes (timer runs every 5). External probe data in Grafana is stale.
+          summary: External probe push stale
+        labels:
+          severity: warning
+          alert_type: monitoring
+      - uid: ace_external_probe_failed
+        title: Ace service unreachable from outside
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              # 1 per target that failed over the WAN path. crux only pushes
+              # probe_success when it reached the WAN address (probe_wan_path 1);
+              # the "and" keeps it that way if the script ever changes.
+              expr: >-
+                (1 - probe_success{probe_location="external",job="external-http-probe"}) and on (target, probe_source) (probe_wan_path{probe_location="external",job="external-http-probe"} == 1)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        # No data means the WAN path is down (no probe_success pushed); that case
+        # is ace_external_probe_blind, and a stale push is ace_pushgateway_stale.
+        noDataState: OK
+        execErrState: Alerting
+        for: 10m
+        annotations:
+          description: >-
+            {{ $labels.target }} has failed the external probe from {{ $labels.probe_source }} over the WAN address for at least 10 minutes, while the WAN path itself was reachable. Outside users likely cannot reach it; check the port forward, Caddy and the service.
+          summary: Unreachable from outside — {{ $labels.target }}
+        labels:
+          severity: critical
+          alert_type: service_down
+      - uid: ace_external_probe_blind
+        title: Ace external probe cannot reach the WAN path
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 86400
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              # 1 when no target reached the WAN address at any point in 24h.
+              expr: 1 - max by (probe_source) (max_over_time(probe_wan_path{probe_location="external",job="external-http-probe"}[24h]))
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        # Missing probe_wan_path is ace_metrics_absent's job.
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          description: >-
+            For 24 hours the external probe on {{ $labels.probe_source }} could not open a TCP connection to the public WAN address of any target, so there is no external view of ace services (probe_success{probe_location="external"} is not pushed). This is expected while the probe runs on crux: crux sits behind the same NAT as ace and the router does not do hairpin NAT (NAT loopback), so LAN connections to the WAN address never come back in. It does not mean the services are down. Fix by enabling NAT loopback on the router, or by running ace-external-probe-push from a host outside the LAN.
+          summary: External probe blind (no WAN path, likely hairpin NAT) — {{ $labels.probe_source }}
+        labels:
+          severity: warning
+          alert_type: monitoring
+      - uid: ace_coolify_unit_down
+        title: Coolify container down
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              # 1 per Coolify unit (app, db, redis) that is not in the active state.
+              expr: 1 - node_systemd_unit_state{state="active",name=~"podman-coolify(-db|-redis)?[.]service"}
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          description: >-
+            {{ $labels.name }} on ace has not been active for 5 minutes. The Coolify dashboard and deployments are unavailable. Check: systemctl status {{ $labels.name }}; podman logs coolify
+          summary: Coolify container down — {{ $labels.name }}
+        labels:
+          severity: critical
+          alert_type: service_down
+      - uid: ace_unit_restart_loop
+        title: Ace systemd unit restart loop
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 1800
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              # systemd restarts (Restart=) per unit in the last 30 minutes. Needs
+              # --collector.systemd.enable-restarts-metrics (exporters.nix) and
+              # only covers units in node_exporter's unit whitelist
+              # (caddy and podman-*).
+              expr: increase(node_systemd_service_restart_total[30m])
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 5
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 10m
+        annotations:
+          description: >-
+            {{ $labels.name }} on ace was restarted by systemd more than 5 times in 30 minutes ({{ humanize $values.A.Value }}), and has kept it up for 10 minutes. It is crash-looping. Check: systemctl status {{ $labels.name }}; journalctl -u {{ $labels.name }} -n 100
+          summary: Restart loop — {{ $labels.name }}
+        labels:
+          severity: warning
+          alert_type: service_down
+      - uid: ace_backup_stale
+        title: Ace backup stale
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              # 1 per target Prometheus cannot scrape (exporter or service down).
+              expr: time() - max(homelab_backup_last_success_timestamp_seconds{repo="local"})
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 129600
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 30m
+        annotations:
+          description: >-
+            restic-backups-local has not completed successfully for over 36 hours (or never reported). Check: journalctl -u restic-backups-local; systemctl status restic-backups-local. See docs/backups-ace.md.
+          summary: No successful ace backup in 36 hours
+        labels:
+          severity: warning
+          alert_type: backup
+      - uid: ace_nixpkgs_update_failed
+        title: Ace nightly nixpkgs update failed
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              # 0 after a failed build, switch or push (the run emails the log).
+              expr: ace_nixpkgs_update_success
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 1
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 0s
+        annotations:
+          description: >-
+            ace-nixpkgs-update could not build, switch or push the newer nixpkgs. ace still runs its previous generation and flake.lock is unchanged. Check: journalctl -u ace-nixpkgs-update. See docs/monitoring-ace.md (Nightly nixpkgs updates).
+          summary: Nightly nixpkgs update failed on ace
+        labels:
+          severity: warning
+          alert_type: nixpkgs_update
+      - uid: ace_nixpkgs_stale
+        title: Ace nixpkgs input stale
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              # Age in seconds of the nixpkgs revision ace is built from.
+              expr: time() - max(ace_nixpkgs_input_timestamp_seconds)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 345600
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 1h
+        annotations:
+          description: >-
+            The nixpkgs revision in flake.lock is more than 4 days old: nightly updates have been failing or skipped (dirty /etc/nixos, lock busy, timer not running). Check: systemctl list-timers ace-nixpkgs-update; journalctl -u ace-nixpkgs-update.
+          summary: ace's nixpkgs is more than 4 days old
+        labels:
+          severity: warning
+          alert_type: nixpkgs_update
   - orgId: 1
     name: ace-version-updates
     folder: Ace Alerts
@@ -80,7 +656,10 @@ groups:
             datasourceUid: prometheus
             model:
               editorMode: code
-              expr: ace_service_version_behind{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 3
+              # Services held on a major release in the update registry (holdMajor) are skipped.
+              expr: >-
+                (ace_service_version_behind{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 3)
+                unless on (service) ace_service_version_held == 1
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
@@ -119,13 +698,11 @@ groups:
         for: 0s
         annotations:
           description: >-
-            {{ $labels.service }} is on {{ $labels.current }}; latest upstream is
-            {{ $labels.latest }} (major version behind).
+            {{ $labels.service }} is on {{ $labels.current }}; latest upstream is {{ $labels.latest }} (major version behind).
           summary: Major update available — {{ $labels.service }}
         labels:
           severity: critical
           alert_type: version_major
-
       - uid: ace_version_minor
         title: Ace service minor or patch update available
         condition: C
@@ -137,7 +714,11 @@ groups:
             datasourceUid: prometheus
             model:
               editorMode: code
-              expr: ace_service_version_behind{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 1 or ace_service_version_behind{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 2
+              # In-series lag, so a held or major-behind service still alerts on patch
+              # and minor releases of the series it runs.
+              expr: >-
+                ace_service_version_behind_in_series{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 1
+                or ace_service_version_behind_in_series{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 2
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
@@ -176,8 +757,7 @@ groups:
         for: 1h
         annotations:
           description: >-
-            {{ $labels.service }} is on {{ $labels.current }}; latest upstream is
-            {{ $labels.latest }} (patch or minor update available).
+            {{ $labels.service }} is on {{ $labels.current }}; latest upstream is {{ $labels.latest }} (patch or minor update available).
           summary: Update available — {{ $labels.service }}
         labels:
           severity: warning

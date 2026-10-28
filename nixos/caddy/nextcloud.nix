@@ -23,7 +23,14 @@ in
         file_server
       }
 
+      @metrics path /metrics /metrics/*
+      respond @metrics 404
+
       header Strict-Transport-Security "max-age=15552000; includeSubDomains"
+      header {
+        ?X-Content-Type-Options "nosniff"
+        ?Referrer-Policy "no-referrer"
+      }
 
       handle_path /push/* {
         reverse_proxy http://127.0.0.1:7867 {

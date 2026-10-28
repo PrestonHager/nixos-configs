@@ -15,7 +15,12 @@ in {
 
   virtualisation.oci-containers.containers.pushgateway = {
     autoStart = true;
-    ports = [ "9091:9091/tcp" ];
+    # Only the two consumers' paths: crux pushes to the LAN address, Prometheus (a
+    # podman0 container) scrapes via the podman0 gateway. Not 0.0.0.0 (tailnet etc.).
+    ports = [
+      "192.168.5.5:9091:9091/tcp"
+      "10.88.0.1:9091:9091/tcp"
+    ];
     user = "pushgateway:pushgateway";
     volumes = [
       "/etc/passwd:/etc/passwd:ro"
@@ -25,11 +30,18 @@ in {
     extraOptions = [
       "--add-host=host.containers.internal:host-gateway"
     ];
-    image = "docker.io/prom/pushgateway:v1.11.3";
+    image = "docker.io/prom/pushgateway@sha256:91a56b89b97dd8a5e1e4fa8b5bbbd86dd57a87a2a3cee3a3ce3368b40ef158ef"; # pushgateway v1.11.4
   };
 
-  # Accept metric pushes from crux external probe timer only (not WAN).
+  # Accept metric pushes from the crux external probe timer only (not WAN, not other LAN
+  # hosts). The LAN binding stays for crux, but netavark DNATs it in nat PREROUTING
+  # before nixos-fw sees it, so the filter is in raw PREROUTING. Loopback and podman0
+  # (the Prometheus scrape) are untouched.
   networking.firewall.extraCommands = lib.mkAfter ''
-    iptables -A nixos-fw -p tcp -s ${cruxIp} --dport 9091 -j nixos-fw-accept
+    iptables -t raw -D PREROUTING -p tcp --dport 9091 ! -i podman0 ! -s ${cruxIp} -j DROP 2>/dev/null || true
+    iptables -t raw -A PREROUTING -p tcp --dport 9091 ! -i podman0 ! -s ${cruxIp} -j DROP
+  '';
+  networking.firewall.extraStopCommands = lib.mkAfter ''
+    iptables -t raw -D PREROUTING -p tcp --dport 9091 ! -i podman0 ! -s ${cruxIp} -j DROP 2>/dev/null || true
   '';
 }

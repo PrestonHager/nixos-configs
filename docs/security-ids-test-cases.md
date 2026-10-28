@@ -34,7 +34,7 @@ journalctl -u sshd -u fail2ban --since "5 min ago" --no-pager | tail -20
 |---------|-----|
 | `auditd` inactive | `journalctl -u auditd`; check `security.audit.enable` in rebuild |
 | No failed-login lines | Verify test used password/disallowed user; keys-only may not log "Failed password" |
-| fail2ban not banning WAN IP | LAN `192.168.5.0/24` is in `ignoreIP` by design — test from outside LAN or temporarily remove ignore for drill |
+| fail2ban not banning | `ignoreIP` is loopback, ace (`192.168.5.5`) and the tailnet (`100.64.0.0/10`) only; other LAN hosts are bannable. See TC-1.6 |
 
 **Deliverables**
 
@@ -222,6 +222,63 @@ curl -sf http://192.168.5.5:3100/ready
 
 ---
 
+### TC-1.6 — fail2ban sshd jail matches OpenSSH 10 logins
+
+**Setup**
+
+- `nixos/security/fail2ban.nix`: `journalmatch = _SYSTEMD_UNIT=sshd.service + _COMM=sshd + _COMM=sshd-session` (OpenSSH 10 logs authentication from `sshd-session`); `ignoreIP` = `127.0.0.1/8`, `::1`, `192.168.5.5`, `100.64.0.0/10`.
+- A test client on the LAN that is **not** ace and not on the tailnet, e.g. a spare laptop. The admin workstation reaches hosts over the tailnet if its LAN address gets banned.
+
+**Execution**
+
+```bash
+# On the target host (crux, elara or mars)
+fail2ban-client get sshd journalmatch      # must include _COMM=sshd-session
+fail2ban-client get sshd ignoreip          # no 192.168.5.0/24
+# From the test client: 6 failed logins inside 10 minutes
+for i in $(seq 6); do ssh -o BatchMode=yes -o PubkeyAuthentication=no nobody@<host> true; done
+# On the target host
+fail2ban-client status sshd                # "Total failed" > 0, test client listed as banned
+fail2ban-client set sshd unbanip <test-client-ip>
+```
+
+**Troubleshooting**
+
+| Symptom | Fix |
+|---------|-----|
+| `Total failed` stays 0 | `journalctl -u sshd -o verbose -n 5 | grep _COMM` and compare with the journalmatch; the host was not rebuilt |
+| Workstation banned | Reach the host over Tailscale (ignored) or from ace, then `fail2ban-client set sshd unbanip <ip>` |
+
+**Interpretation**
+
+- **Pass:** Failures from a non-ignored LAN client are counted and the client is banned for `bantime` (1h).
+- **Fail:** Failures appear in `journalctl -u sshd` but not in the jail's counters.
+
+---
+
+### TC-1.7 — SSH hardening and declared keys
+
+**Setup**
+
+- `nixos/security/ssh.nix`: forwarding off on every `homelab.security` host; `declarativeKeysOnly` on the Wings nodes and mars.
+
+**Execution**
+
+```bash
+sshd -T | grep -Ei '^(allowtcpforwarding|allowagentforwarding|allowstreamlocalforwarding|authorizedkeysfile)'
+# expect "no" for the forwarding lines; on nodes/mars AuthorizedKeysFile is /etc/ssh/authorized_keys.d/%u only
+ssh-keygen -lf /etc/ssh/authorized_keys.d/root   # compare fingerprints with the admin and automation keys
+# From the workstation: must fail with "administratively prohibited"
+ssh -N -L 9999:192.168.5.1:22 root@<host>
+```
+
+**Interpretation**
+
+- **Pass:** Logins with declared keys work; local forwarding is refused; keys present only in `~/.ssh/authorized_keys` are not accepted.
+- **Fail:** Any forwarding allowed, or an undeclared key still logs in.
+
+---
+
 ## Phase 2 — Detection rules
 
 ### TC-2.1 — AIDE file integrity
@@ -229,29 +286,31 @@ curl -sf http://192.168.5.5:3100/ready
 **Setup**
 
 - `homelab.security.phase2.enable = true` on all hosts.
-- Run `nixos-rebuild switch` to init AIDE DB (`services.aide`).
+- Every activation (boot or `nixos-rebuild switch`) re-baselines the database after `/etc` is rebuilt (`homelabAideInit` activation script).
+- Volatile paths are excluded in `nixos/security/aide.nix` (random seed, timer stamps, `/etc/letsencrypt`, shell history and Docker client state under `/root`, logs in `/root`, Docker/Wings/Coolify data).
 
 **Execution**
 
 ```bash
-systemctl is-active aidecheck.timer
-systemctl start aidecheck.service
-journalctl -u aidecheck --since "10 min ago"
+systemctl list-timers aide-check
+systemctl start aide-check.service; systemctl is-failed aide-check.service   # expect "inactive" (passed)
+journalctl -t homelab-aide -n 5
 # Controlled change (revert after):
-sudo touch /etc/aide-test && systemctl start aidecheck.service
+touch /etc/aide-test && systemctl start aide-check.service   # expect failure listing /etc/aide-test
+rm /etc/aide-test && systemctl start aide-check.service      # passes again
 ```
 
 **Troubleshooting**
 
 | Symptom | Fix |
 |---------|-----|
-| AIDE init failed | `journalctl -u aideinit`; ensure `/var/lib/aide` writable |
-| Too many false positives | Exclude volatile paths in `nixos/security/aide.nix` rules |
+| AIDE init failed | `systemctl start aide-init`; ensure `/var/lib/aide` writable |
+| Daily check fails on the same paths | Check whether they change on their own; if so, exclude them in `nixos/security/aide.nix` |
 
 **Deliverables**
 
-- `aidecheck.service` exit code non-zero on tamper
-- Journal entries from `aidecheck`
+- `aide-check.service` exit code non-zero on tamper
+- Journal entries tagged `homelab-aide`
 
 **Interpretation**
 
@@ -266,6 +325,33 @@ sudo touch /etc/aide-test && systemctl start aidecheck.service
 
 - ace: `homelab.security.suricata.enable = true` (`nixos/monitoring/suricata.nix`).
 - IDS listens on `bond0` (SPAN optional later — see plan §4.3).
+- Rules: the ET Open ruleset in `/var/lib/suricata/rules/suricata.rules` (`suricata-update.timer`, daily: download, `suricata -T`, then reload with SIGUSR2) plus `/etc/suricata/rules/local.rules` (sid 9000001, SYN count to any port except 80/443).
+- Grafana **Suricata scan or exploit alert** pages only on `alert.severity` 1–2, and not on the local SYN rule from the infra range `192.168.5.1–20`.
+  - There is one alert instance per signature, so the email's summary names the rule that fired (for example `Suricata: ET WEB_SERVER …`).
+  - The email has **Go to dashboard** / **Go to panel** buttons that open the **Security → Suricata alerts** dashboard (`/d/suricata-alerts`), plus a runbook link to this page.
+  - `keepFiringFor: 30m`: a scanner sending bursts a few minutes apart keeps one alert open instead of resolving and re-firing (and re-emailing) between bursts.
+
+**Triage with the Suricata alerts dashboard** (`https://grafana.prestonhager.com/d/suricata-alerts`):
+
+| Panel | Answers |
+|---|---|
+| Who: top sources | Which addresses triggered alerts. Click one to filter the whole dashboard to it, or look it up on AbuseIPDB. |
+| What: top signatures | Which ET rules fired, with severity and category. The SID links to the rule's documentation. |
+| Where: targets | Which ace address, port and HTTP virtual host was hit. |
+| Events | One readable line per alert (`sev`, signature, source → target, host, method, URL, `status=`). Expand a line for every EVE field. |
+
+The *Severity* selector switches between the paging filter and all severities. The *Filter* box takes a regex over the raw event (IP, hostname, signature).
+
+What Suricata sees: packets on `bond0`. Plain HTTP on port 80 is inspected; HTTPS on 443 is encrypted, so probes sent straight to HTTPS do not show up. A 3xx/4xx or an empty response in `status=` means nothing was served.
+
+Example (2026-10-25): five Google Cloud addresses sent web-exploit probes (Next.js middleware bypass CVE-2025-29927, Vite file read CVE-2025-30208, React2Shell CVE-2025-55182, `/proc/self/environ`, prototype pollution) to port 80 for `vpn.`, `ai.prestonhager.com` and `ticketing.damor.store`. They got Caddy's empty `200`, nothing from an app. That exposed a Caddy bug: the health-check site bound to `192.168.5.5:80` took over all port-80 traffic to ace's LAN IP, so internet clients got an empty page instead of the redirect to HTTPS. Fixed in `nixos/caddy/loopback-health.nix`.
+- `eve.json` rotates daily (logrotate, 7 kept, compressed); Suricata reopens it on SIGHUP.
+
+```bash
+systemctl list-timers suricata-update
+journalctl -u suricata-update -n 20      # "Writing rules ... enabled: N"
+journalctl -u suricata | grep 'rules successfully loaded'   # expect 0 rules failed
+```
 
 **Execution**
 
@@ -283,6 +369,8 @@ nmap -sS -T4 192.168.5.5
 |---------|-----|
 | suricata won't start | `journalctl -u suricata`; verify `CAP_NET_RAW`; interface name |
 | No alerts on nmap | Tune local.rules threshold; confirm EVE `alert` type enabled |
+| `suricata-update` fails with `pyyaml is required` | It must run under the PyYAML Python from `suricata.nix` (`suricataUpdatePython`), not the script's own shebang |
+| Rules fail to load after an update | `journalctl -u suricata-update`; the `-T` test keeps the old rules. A new ET variable may need adding to `vars` in `suricata.nix` |
 | High CPU | Reduce `detect-engine profile`; defer SPAN until hardware validated |
 
 **Deliverables**
@@ -402,6 +490,35 @@ curl -s http://127.0.0.1:9100/metrics | grep homelab_cisco_config_drift
 
 ---
 
+### TC-2.6 — Container egress isolation (Wings nodes, mars)
+
+**Setup**
+
+- `homelab.security.containerEgress` on crux/elara (bridges `pterodactyl0`, `docker0`, `br+`) and mars (`docker0`, `br+`; DNS to ace, plus HTTPS to ace from `docker0` only).
+- mars: `coolify-ingress` chain for published ports (ace to :80 only from private sources).
+
+**Execution**
+
+```bash
+# On the node: rules in place, jump first in DOCKER-USER
+iptables -S DOCKER-USER; iptables -S homelab-ctr-egress; ip6tables -S homelab-ctr-egress
+# From a throwaway container on the game network (removed afterwards)
+docker run --rm --network pterodactyl_nw --dns 1.1.1.1 alpine sh -c '
+  wget -q -O /dev/null -T 5 https://example.com && echo internet-ok
+  nc -z -w 3 192.168.5.5 22   && echo LAN-OPEN || echo lan-blocked
+  nc -z -w 3 172.18.0.1 22    && echo HOST-OPEN || echo host-blocked'
+journalctl -k --since -5min --grep ctr-egress-drop
+```
+
+On mars use `--network coolify` (and `--network bridge` for the sentinel exception: only ace :53 and :443 open).
+
+**Interpretation**
+
+- **Pass:** `internet-ok`, `lan-blocked`, `host-blocked`; game servers still reachable on their published ports from LAN and WAN; Coolify apps still load through ace.
+- **Fail:** Any LAN or host port reachable from a container, or published ports broken.
+
+---
+
 ## Phase 3 — Response stubs (manual / tabletop)
 
 ### TC-3.1 — fail2ban persistent ban (stub)
@@ -413,7 +530,7 @@ curl -s http://127.0.0.1:9100/metrics | grep homelab_cisco_config_drift
 
 **Execution**
 
-Tabletop: simulate repeated WAN SSH failures; verify fail2ban ban; confirm operator LAN IP still reachable.
+Tabletop: simulate repeated WAN SSH failures; verify fail2ban ban; confirm the operator still gets in over the tailnet (ignored) or via ace. LAN addresses other than ace are not whitelisted.
 
 **Troubleshooting**
 

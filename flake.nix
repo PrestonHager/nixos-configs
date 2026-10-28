@@ -11,6 +11,7 @@
 
     tree-sitter-parsers = {
       url = "github:ratson/nix-treesitter";
+      # No nixpkgs follows: its conflake helper fails to evaluate against our nixpkgs lib.
     };
 
     sops-nix = {
@@ -21,6 +22,7 @@
     # Our sops repository so we can host secrets seperately
     nix-secrets = {
       url = "git+ssh://git@github.com/PrestonHager/nixos-secrets.git";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     # Our pterodactyl-wings binary for any node branches
@@ -113,6 +115,13 @@
         specialArgs = { inherit inputs docsSite; };
         modules = defaultModules ++ [
           ./hosts/ace
+        ];
+      };
+      # Coolify deploy/build server (PowerEdge R410), not a Wings node.
+      mars = nixpkgs.lib.nixosSystem {
+        specialArgs = { inherit inputs; };
+        modules = defaultModules ++ [
+          ./hosts/mars
         ];
       };
     } // builtins.mapAttrs (name: value: nixpkgs.lib.nixosSystem {

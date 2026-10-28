@@ -137,14 +137,16 @@
     "nix-secrets": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": [
+          "nixpkgs"
+        ]
       },
       "locked": {
-        "lastModified": 1791185037,
-        "narHash": "sha256-ytwbyACpJCB3asH1pDXpBB53Zu49tgm+Z3AXj5LS3tE=",
+        "lastModified": 1792965817,
+        "narHash": "sha256-jHnqFhvzsThI2uZtLuEKOKFrEw5d7jo/UcStNx1hxz8=",
         "ref": "refs/heads/main",
-        "rev": "2bbc018cbe36ef8da4b1abeb0a5bf9fb13b665aa",
-        "revCount": 101,
+        "rev": "406ade6ce7a0e2fd57b21d8fd07cc6f96249dfd1",
+        "revCount": 108,
         "type": "git",
         "url": "ssh://git@github.com/PrestonHager/nixos-secrets.git"
       },
@@ -155,11 +157,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1745930157,
-        "narHash": "sha256-y3h3NLnzRSiUkYpnfvnS669zWZLoqqI6NprtLQ+5dck=",
+        "lastModified": 1792773339,
+        "narHash": "sha256-rZLrzrC6i+jnTAlvPZHogKDulY7WWDEv9hJeHieO7Zw=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "46e634be05ce9dc6d4db8e664515ba10b78151ae",
+        "rev": "3ec636362e1816bc2f0888fa0fa2c69f1bc9e504",
         "type": "github"
       },
       "original": {
@@ -186,22 +188,6 @@
       }
     },
     "nixpkgs_2": {
-      "locked": {
-        "lastModified": 1791048980,
-        "narHash": "sha256-KgItSKML8Xvte0B7/uGnBDsYzSnnKHcOaiUbgWBXLXw=",
-        "owner": "nixos",
-        "repo": "nixpkgs",
-        "rev": "a7868a727837f3c09cee2ce0ca671c76b1589fed",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nixos",
-        "ref": "nixos-unstable",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
-    "nixpkgs_3": {
       "locked": {
         "lastModified": 1738958807,
         "narHash": "sha256-h0WKgHTLkjwjRNTkqByQquS7N/15SqIFMQ356Ww8uCA=",
@@ -273,11 +259,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1780356338,
-        "narHash": "sha256-vsKlR02wl/svTXfU1XTgJESjMj5ncsuuuuwKESOXW3Y=",
+        "lastModified": 1792329161,
+        "narHash": "sha256-oF1Pdg0hujrUxlqBt6lTjVZ3tOAV7raSTEK06bsC91g=",
         "owner": "PrestonHager",
         "repo": "pterodactyl-wings-nix-overlay",
-        "rev": "88dc2ffd825c658cfe351065f0f7b43a7e92c9aa",
+        "rev": "fbbff995c3c03b198c8ac31e8afdf7555107d0a2",
         "type": "github"
       },
       "original": {
@@ -293,7 +279,7 @@
         "disko": "disko",
         "home-manager": "home-manager",
         "nix-secrets": "nix-secrets",
-        "nixpkgs": "nixpkgs_2",
+        "nixpkgs": "nixpkgs",
         "pterodactyl-dns-records": "pterodactyl-dns-records",
         "pterodactyl-minecraft-tools": "pterodactyl-minecraft-tools",
         "pterodactyl-port-forward": "pterodactyl-port-forward",
@@ -355,7 +341,7 @@
     "tree-sitter-parsers": {
       "inputs": {
         "conflake": "conflake",
-        "nixpkgs": "nixpkgs_3"
+        "nixpkgs": "nixpkgs_2"
       },
       "locked": {
         "lastModified": 1739028560,

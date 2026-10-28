@@ -7,6 +7,8 @@
 - [Overview](ace/index.md)
 - [iDRAC (OOB)](ace/idrac.md)
 - [Health Report](ace/health-report.md)
+- [Backups](ace/backups.md)
+- [Coolify](ace/coolify.md)
 - [DNS (Technitium)](shared/dns.md)
 - [LanCache (deprecated)](ace/lancache.md)
 - [Jellyfin](ace/jellyfin.md)
@@ -48,10 +50,14 @@
 # Shared
 
 - [GitHub Actions runners](shared/github-runner.md)
+- [Security audit (Oct 2026)](shared/security-audit.md)
+- [Configuration review (2026-10-24)](shared/config-review.md)
+- [Major upgrades plan](shared/major-upgrades.md)
 - [IDS & Security Monitoring Plan](shared/security-ids-plan.md)
 - [IDS Test Cases](shared/security-ids-test-cases.md)
 - [Network topology](shared/network-topology.md)
 - [Astracap router](shared/network-astracap.md)
+- [AbuseIPDB blackhole](shared/network-abuseipdb-blackhole.md)
 - [Astraquasar switch](shared/network-astraquasar.md)
 - [Network & SSH / Bitwarden](shared/network-ssh.md)
 - [Git commit signing (SSH)](shared/git-commit-signing.md)

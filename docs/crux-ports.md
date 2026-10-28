@@ -1,23 +1,29 @@
 # Crux ports and Astracap forwards
 
-Inventory from live host (`ss` / firewall) and Astracap NAT (Jul 2026). Secrets omitted.
+Inventory from live host (`ss` / firewall) and Astracap NAT (Jul 2026), updated from the Nix config in Oct 2026 (Coolify moved to mars on 2026-10-20). Secrets omitted.
 
 ## Crux service inventory
 
 | Service | Role | Listen | Firewall | Notes |
 |---------|------|--------|----------|-------|
-| Wings | Pterodactyl daemon API / TLS | `0.0.0.0:443` | LAN open | Domain `crux.lc1.nm.us.prestonhager.com` |
+| Wings 1.13.4 | Pterodactyl daemon API / TLS | `0.0.0.0:443` | LAN open | Domain `crux.lc1.nm.us.prestonhager.com`; version from the `pterodactyl-wings` flake input |
 | Wings SFTP | File transfer (panel file manager) | `*:2022` | LAN open | Not Samba; Samba secret exists but service not enabled |
 | SSH | Management | `0.0.0.0:22` | LAN open | |
 | Docker game servers | Per-allocation TCP/UDP | Dynamic (e.g. docker-proxy) | **Not** in Nix `allowedTCPPorts` unless allocation + NAT | Ephemeral; do not hardcode in Prometheus |
 | Prometheus | Local metrics | `*:9090` | **ace only** (`192.168.5.5`) | Grafana datasource `prometheus-crux` |
 | Blackbox exporter | Probe agent | `*:9115` | **ace only** | Scraped by ace Prometheus for LAN HTTP/DNS |
-| Node exporter | Host metrics | `*:9100` | Closed to LAN | Not ace-reachable today |
+| Node exporter | Host metrics | `*:9100` | Closed to LAN | Not ace-reachable today; on elara/mars, `nixos/security/node-metrics.nix` opens it to ace only |
 | MariaDB | Wings local DB | `127.0.0.1:3306` | localhost | Cannot probe from ace |
 | Alloy | Logs → Loki | `127.0.0.1:12345` | localhost | Cannot probe from ace |
 | rpcbind | NFS client helper | `*:111` | Not in allow list | Used for NFS LE certs from ace |
 
 Nix firewall allow list (`hosts/pterodactyl-nodes/default.nix`): **TCP 22, 443, 2022**.
+
+Game containers (`pterodactyl0`, plus `docker0`/`br-*`) are refused by the host firewall for any port on crux itself, and `DOCKER-USER` drops their traffic to private, CGNAT/tailnet, link-local and ULA destinations (`homelab.security.containerEgress`). They keep internet access, with Wings' resolvers `1.1.1.1`/`1.0.0.1`. Check with `iptables -S homelab-ctr-egress` and `journalctl -k --grep ctr-egress-drop`.
+
+### Coolify (removed)
+
+crux was the deploy server for [Coolify on ace](../ace/coolify.md) until 2026-10-20. `nixos/coolify-node.nix` is no longer imported, so the `coolify@ace` key and the `DOCKER-USER` :80 rule are gone, and nothing listens on :80. Coolify apps run on [mars](../poweredge/mars.md).
 
 ## Astracap WAN port forwards
 
@@ -37,7 +43,7 @@ Optional game NAT is managed by the Pterodactyl **portforward** extension when e
 |-----|--------|---------|
 | `blackbox-http-crux` | `https://crux.lc1.nm.us.prestonhager.com/` | Wings API (HTTP 401 = healthy) |
 | `blackbox-tcp-crux` | `.6:443`, `:2022`, `:22`, `:9115`, `:9090` | Wings / SFTP / SSH / monitoring |
-| `blackbox-tcp-lan-hosts` | ace/nova `:443`, Astracap/Astraquasar `:22` | Topology dashboard |
+| `blackbox-tcp-lan-hosts` | ace/nova `:443`, Astracap/Astraquasar `:22`, mars `:80` (Coolify proxy) | Topology and Coolify dashboards |
 
 ## Cannot probe from ace
 
@@ -58,3 +64,4 @@ Optional game NAT is managed by the Pterodactyl **portforward** extension when e
 - [Network topology](../shared/network-topology.md)
 - [Astracap router](../shared/network-astracap.md)
 - [Pterodactyl port forward](../ace/pterodactyl-plugin-port-forward.md)
+- [Coolify on ace](../ace/coolify.md)

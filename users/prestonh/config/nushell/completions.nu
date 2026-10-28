@@ -1,4 +1,6 @@
-let external_completer = {|spans|
+# Takes `place` (not the deprecated positional `spans`); `$place.command`
+# is the token list of the command being completed.
+let external_completer = {|place|
   let carapace_completer = {|spans|
     carapace $spans.0 nushell ...$spans
     | from json
@@ -10,6 +12,8 @@ let external_completer = {|spans|
   let zoxide_completer = {|spans|
     $spans | skip 1 | zoxide query -l $in | lines | where {|x| $x != $env.PWD}
   }
+
+  let spans = $place.command
 
   # Handle aliases/command expansions
   let expanded_alias = scope aliases
@@ -25,8 +29,6 @@ let external_completer = {|spans|
 
   match $spans.0 {
     __zoxide_z | __zoxide_zi => $zoxide_completer,
-    nvims => { |s| do $carapace_completer ($s | update 0 "nvim") },
-    gits => { |s| do $carapace_completer ($s | update 0 "git") },
     _ => $carapace_completer
   } | do $in $spans
 }

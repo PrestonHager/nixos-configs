@@ -9,9 +9,16 @@ let
   zitadelDiscoveryUri = "https://${zitadelDomain}/.well-known/openid-configuration";
   zitadelProjectId = "376196450586990901";
   ssoProviderName = "zitadel";
-  ssoPluginVersion = "3.5.2.4";
-  ssoPluginUrl = "https://github.com/9p4/jellyfin-plugin-sso/releases/download/v${ssoPluginVersion}/sso-authentication_${ssoPluginVersion}.zip";
-  ssoPluginDir = "/jf/config/plugins/SSO Authentication/${ssoPluginVersion}";
+  # 4.x targets Jellyfin ABI 10.11; 3.5.2.4 (ABI 10.9) is skipped as NotSupported.
+  ssoPluginVersion = "4.0.0.4";
+  # Hash-pinned: the plugin DLL runs inside Jellyfin with its privileges. Update the
+  # hash with nix-prefetch-url when bumping ssoPluginVersion.
+  ssoPluginZip = pkgs.fetchurl {
+    url = "https://github.com/9p4/jellyfin-plugin-sso/releases/download/v${ssoPluginVersion}/sso-authentication_${ssoPluginVersion}.zip";
+    hash = "sha256-wJ8WujEFmkNN3X+BHk+WCNS0xFFMyApb8cozvuYeEQc=";
+  };
+  # Jellyfin loads plugins from plugins/<Name>_<version>/ (dll + meta.json).
+  ssoPluginDir = "/jf/config/plugins/SSO Authentication_${ssoPluginVersion}";
   ssoConfigPath = "/jf/config/plugins/configurations/SSO-Auth.xml";
   jellyfinRuntimeEnv = "/run/jellyfin/container.env";
   jellyfinSsoSetupScript = pkgs.writeShellScript "jellyfin-sso-setup" ''
@@ -42,14 +49,19 @@ let
       exit 0
     fi
 
+    # Drop other SSO plugin versions (including the old nested layout) so
+    # Jellyfin does not keep a disabled copy alongside the current one.
+    for d in /jf/config/plugins/"SSO Authentication"*; do
+      if [ -e "$d" ] && [ "$d" != "${ssoPluginDir}" ]; then
+        rm -rf -- "$d"
+      fi
+    done
+
     if [ ! -f "${ssoPluginDir}/SSO-Auth.dll" ]; then
       echo "jellyfin-sso-setup: installing SSO Authentication plugin ${ssoPluginVersion}"
-      tmpdir="$(mktemp -d)"
-      trap 'rm -rf "$tmpdir"' EXIT
-      ${pkgs.curl}/bin/curl -fsSL -o "$tmpdir/sso.zip" "${ssoPluginUrl}"
       mkdir -p "${ssoPluginDir}"
-      ${pkgs.unzip}/bin/unzip -o "$tmpdir/sso.zip" -d "${ssoPluginDir}"
-      chown -R jellyfin:jellyfin "/jf/config/plugins/SSO Authentication"
+      ${pkgs.unzip}/bin/unzip -o ${ssoPluginZip} -d "${ssoPluginDir}"
+      chown -R jellyfin:jellyfin "${ssoPluginDir}"
     fi
 
     prestonhGuid="$(${pkgs.sqlite}/bin/sqlite3 /jf/config/data/jellyfin.db "SELECT Id FROM Users WHERE Username='prestonh' LIMIT 1;" 2>/dev/null || true)"
@@ -156,6 +168,8 @@ in
   sops.secrets."jellyfin-oauth-env" = {
     sopsFile = "${sops-path}/secrets/containers/jellyfin.yaml";
     key = "jellyfin-oauth-env";
+    # The secret path never changes, so a restartTriggers entry on it never fired.
+    restartUnits = [ "podman-jellyfin.service" "jellyfin-sso-setup.service" ];
   };
 
   users.users.jellyfin = {
@@ -188,15 +202,16 @@ in
     };
   };
 
-  systemd.services.podman-jellyfin.restartTriggers = [
-    config.sops.secrets."jellyfin-oauth-env".path
-  ];
-
   virtualisation.oci-containers.containers.jellyfin = {
     autoStart = true;
 
+    # Not 0.0.0.0 (netavark DNATs published ports ahead of nixos-fw, so that also
+    # exposed it on the tailnet and the podman bridges). Loopback for Caddy and the
+    # version check; the LAN address stays for TV/app clients that talk to
+    # http://192.168.5.5:8096 directly (Jellyfin requires its own login there).
     ports = [
-      "8096:8096"
+      "127.0.0.1:8096:8096"
+      "192.168.5.5:8096:8096"
     ];
 
     user = "jellyfin:jellyfin";

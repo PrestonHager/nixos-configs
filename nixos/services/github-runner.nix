@@ -6,6 +6,7 @@
 
 let
   cfg = config.homelab.github-runners;
+  netCfg = config.homelab.github-runner-network;
   sops-path = builtins.toString inputs.nix-secrets;
 
   # Tools GitHub-hosted Ubuntu runners commonly provide that CI scripts expect.
@@ -97,14 +98,25 @@ let
       if [ ! -x "$TOOLS_CARGO/bin/rustup" ]; then
         echo "homelab-ci: installing rustup into $TOOLS ..."
         got_lock=0
+        waited=0
         while ! mkdir "$TOOLS/.bootstrap.lock.d" 2>/dev/null; do
           if [ -x "$TOOLS_CARGO/bin/rustup" ]; then
             break
           fi
+          # A holder that died without its trap (SIGKILL, OOM) leaves the lock behind.
+          if [ "$waited" -ge 600 ]; then
+            echo "homelab-ci: removing stale bootstrap lock"
+            rmdir "$TOOLS/.bootstrap.lock.d" 2>/dev/null || true
+            waited=0
+            continue
+          fi
           sleep 2
+          waited=$((waited + 2))
         done
         if [ -d "$TOOLS/.bootstrap.lock.d" ] && [ ! -x "$TOOLS_CARGO/bin/rustup" ]; then
           got_lock=1
+          # Release the lock even when the install fails under set -e.
+          trap 'rmdir "$TOOLS/.bootstrap.lock.d" 2>/dev/null || true' EXIT
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
             | sh -s -- -y --no-modify-path --default-toolchain stable \
               --profile minimal \
@@ -113,6 +125,7 @@ let
         fi
         if [ "$got_lock" = 1 ]; then
           rmdir "$TOOLS/.bootstrap.lock.d" 2>/dev/null || true
+          trap - EXIT
         fi
       fi
 
@@ -121,6 +134,13 @@ let
           "$TOOLS_CARGO/bin/rustup" toolchain install stable --profile minimal
         "$TOOLS_CARGO/bin/rustup" target add \
           x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu >/dev/null 2>&1 || true
+      fi
+
+      # github-runner-tools-bootstrap runs this once with the tools dir writable;
+      # runner containers only get an overlay of it.
+      if [ "''${HOMELAB_CI_BOOTSTRAP_ONLY:-}" = 1 ]; then
+        echo "homelab-ci: tools bootstrap done"
+        exit 0
       fi
 
       # Cross-link defaults when aarch64 cross gcc exists (Ubuntu bake / optional AL2023).
@@ -159,48 +179,10 @@ let
 
       _HOMELAB_DEREGISTERED=false
 
-      homelab_owner_repo() {
-        local u="''${REPO_URL:-}"
-        u="''${u#https://github.com/}"
-        u="''${u#http://github.com/}"
-        u="''${u%.git}"
-        u="''${u%/}"
-        printf '%s' "$u"
-      }
-
-      homelab_api_delete_runner_by_name() {
-        local name="''${RUNNER_NAME:-}"
-        local token="''${ACCESS_TOKEN:-}"
-        local or id
-        if [ -z "$name" ] || [ -z "$token" ]; then
-          echo "homelab-ci: API delete skipped (missing RUNNER_NAME or ACCESS_TOKEN)"
-          return 0
-        fi
-        or="$(homelab_owner_repo)"
-        if [ -z "$or" ]; then
-          return 0
-        fi
-        echo "homelab-ci: API delete-by-name name=$name repo=$or"
-        id="$(curl -fsS \
-          -H "Authorization: Bearer ''${token}" \
-          -H "Accept: application/vnd.github+json" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          "https://api.github.com/repos/''${or}/actions/runners" \
-          | jq -r --arg n "$name" '.runners[]? | select(.name == $n) | .id' \
-          | head -n1 || true)"
-        if [ -n "''${id:-}" ] && [ "$id" != "null" ]; then
-          curl -fsS -X DELETE \
-            -H "Authorization: Bearer ''${token}" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/''${or}/actions/runners/''${id}" \
-            && echo "homelab-ci: deleted runner id=$id" \
-            || echo "homelab-ci: API delete failed for id=$id (may already be gone)"
-        else
-          echo "homelab-ci: no server-side runner named $name"
-        fi
-      }
-
+      # The GitHub PAT never enters the container (jobs run as root here and could
+      # read it). The host mints a short-lived registration token (RUNNER_TOKEN) and
+      # remove token (HOMELAB_REMOVE_TOKEN) before each start, and deletes the runner
+      # by name with the PAT after the container stops (ExecStopPost).
       homelab_deregister() {
         local reason="''${1:-EXIT}"
         if [ "''${_HOMELAB_DEREGISTERED}" = "true" ]; then
@@ -208,26 +190,15 @@ let
         fi
         _HOMELAB_DEREGISTERED=true
         echo "homelab-ci: deregister ($reason)"
-        if [ -f /actions-runner/.runner ]; then
+        if [ -f /actions-runner/.runner ] && [ -n "''${HOMELAB_REMOVE_TOKEN:-}" ]; then
           echo "homelab-ci: .runner present — config.sh remove while credentials exist"
-          if [ -n "''${ACCESS_TOKEN:-}" ]; then
-            (
-              cd /actions-runner
-              _TOKEN="$(ACCESS_TOKEN="''${ACCESS_TOKEN}" bash /token.sh)" || true
-              RUNNER_TOKEN="$(printf '%s' "''${_TOKEN:-}" | jq -r .token)"
-              if [ -n "''${RUNNER_TOKEN:-}" ] && [ "''${RUNNER_TOKEN}" != "null" ]; then
-                ./config.sh remove --token "''${RUNNER_TOKEN}" || true
-              else
-                echo "homelab-ci: could not obtain remove token; API fallback"
-                homelab_api_delete_runner_by_name || true
-              fi
-            )
-          else
-            homelab_api_delete_runner_by_name || true
-          fi
+          (
+            cd /actions-runner
+            ./config.sh remove --token "''${HOMELAB_REMOVE_TOKEN}" \
+              || echo "homelab-ci: config.sh remove failed; host deletes by name on stop"
+          )
         else
-          echo "homelab-ci: .runner already gone — API fallback by name"
-          homelab_api_delete_runner_by_name || true
+          echo "homelab-ci: no local registration or remove token; host deletes by name on stop"
         fi
       }
 
@@ -264,7 +235,11 @@ let
     verfile=${lib.escapeShellArg runnerVersionPath}
 
     echo "homelab-ci: ensuring base image $base"
-    podman pull "$base"
+    # A registry outage must not stop runners from starting on the image we already have.
+    if ! podman pull "$base"; then
+      podman image exists "$base" || { echo "homelab-ci: pull failed and no local $base" >&2; exit 1; }
+      echo "homelab-ci: pull failed; using local $base"
+    fi
     # AL2023 Containerfile also FROM myoung34 for entrypoint/token scripts.
     m34_id=""
     if grep -q 'myoung34/github-runner' "$cf" 2>/dev/null; then
@@ -498,10 +473,11 @@ let
 
         mountDockerSocket = lib.mkOption {
           type = lib.types.bool;
-          default = true;
+          default = false;
           description = ''
             Mount host Podman socket at /var/run/docker.sock inside the runner
             so workflow `container:` / docker actions work (ace uses podman + dockerCompat).
+            Off by default: the rootful socket gives every CI job root on the host.
           '';
         };
       };
@@ -539,7 +515,77 @@ let
 
   labelsCsv = r: lib.concatStringsSep "," r.extraLabels;
 
+  # Host-only: holds the PAT (ACCESS_TOKEN=…) for the token minting and ghost-watch units.
   envFilePath = name: "/run/github-runner/${name}.env";
+  # Passed to the container: short-lived registration/remove tokens only.
+  instanceEnvPath = cname: "/run/github-runner/${cname}.tokens.env";
+
+  # The PAT goes to curl as a config file on stdin (bash here-string), never as
+  # an argv element: argv is world-readable in /proc and `ps`.
+  githubApi = ''
+    gh_api() {
+      curl -fsS --max-time 30 -K - \
+        -H "Accept: application/vnd.github+json" \
+        -H "X-GitHub-Api-Version: 2022-11-28" "$@" \
+        <<< "header = \"Authorization: Bearer $pat\""
+    }
+  '';
+
+  # Host-side wipe of a runner's bind-mounted workdir. Runs before each start
+  # and after each stop, so checkout credentials (_temp/git-credentials-*) and
+  # sources do not sit on the host between jobs.
+  wipeWorkdir = name: i: pkgs.writeShellScript "github-runner-wipe-${name}-${toString i}" ''
+    set -euo pipefail
+    export PATH=${lib.makeBinPath [ pkgs.coreutils pkgs.findutils ]}
+    d=${lib.escapeShellArg (workDir name i)}
+    install -d -m 0700 "$d"
+    find "$d" -mindepth 1 -maxdepth 1 -exec rm -rf --one-file-system -- {} +
+  '';
+
+  # ExecStartPre: mint a registration and a remove token (each valid ~1h) with the PAT.
+  mintRunnerTokens = name: r: cname: pkgs.writeShellScript "github-runner-mint-${cname}" ''
+    set -euo pipefail
+    export PATH=${lib.makeBinPath [ pkgs.coreutils pkgs.curl pkgs.jq pkgs.gnused ]}
+    pat="$(sed -n 's/^ACCESS_TOKEN=//p' ${lib.escapeShellArg (envFilePath name)} | tr -d '\r\n')"
+    ${githubApi}
+    base="https://api.github.com/repos/${ownerRepoFromUrl r.url}/actions/runners"
+    reg="$(gh_api -X POST "$base/registration-token" | jq -r '.token // empty')"
+    rem="$(gh_api -X POST "$base/remove-token" | jq -r '.token // empty' || true)"
+    if [ -z "$reg" ]; then
+      echo "homelab-ci: could not mint a registration token for ${cname}" >&2
+      exit 1
+    fi
+    umask 077
+    out=${lib.escapeShellArg (instanceEnvPath cname)}
+    printf 'RUNNER_TOKEN=%s\nHOMELAB_REMOVE_TOKEN=%s\n' "$reg" "$rem" > "$out.tmp"
+    mv "$out.tmp" "$out"
+  '';
+
+  # ExecStopPost: delete a runner left registered (killed container, expired remove token).
+  deleteRunnerByName = name: r: cname: runnerName: pkgs.writeShellScript "github-runner-delete-${cname}" ''
+    set -uo pipefail
+    export PATH=${lib.makeBinPath [ pkgs.coreutils pkgs.curl pkgs.jq pkgs.gnused ]}
+    rm -f ${lib.escapeShellArg (instanceEnvPath cname)}
+    pat="$(sed -n 's/^ACCESS_TOKEN=//p' ${lib.escapeShellArg (envFilePath name)} | tr -d '\r\n')"
+    [ -n "$pat" ] || exit 0
+    ${githubApi}
+    base="https://api.github.com/repos/${ownerRepoFromUrl r.url}/actions/runners"
+    id="$(gh_api "$base?per_page=100" \
+      | jq -r --arg n ${lib.escapeShellArg runnerName} '.runners[]? | select(.name == $n) | .id' | head -n1)"
+    if [ -n "$id" ]; then
+      gh_api -X DELETE "$base/$id" >/dev/null \
+        && echo "homelab-ci: deleted leftover runner ${runnerName} (id $id)" \
+        || echo "homelab-ci: delete of ${runnerName} failed (may be busy or gone)"
+    fi
+    exit 0
+  '';
+
+  ownerRepoFromUrl = u:
+    lib.removeSuffix "/" (lib.removeSuffix ".git" (
+      lib.removePrefix "https://github.com/" (
+        lib.removePrefix "http://github.com/" u
+      )
+    ));
   toolsDir = "/var/lib/github-runner-tools";
   workDir = name: i: "/var/lib/github-runner/${name}-${toString i}/work";
 
@@ -565,6 +611,8 @@ let
     dontStrip = true;
   };
 in {
+  imports = [ ./github-runner/network.nix ];
+
   options.homelab.github-runners = {
     enable = lib.mkEnableOption ''
       Self-hosted GitHub Actions runners.
@@ -669,6 +717,8 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    homelab.github-runner-network.enable = lib.mkIf (cfg.backend == "container") true;
+
     assertions = [
       {
         assertion = enabledRunners != { };
@@ -764,10 +814,13 @@ in {
       [
         "d ${toolsDir} 0755 root root -"
         "d ${toolsDir}/bin 0755 root root -"
+        # 0700 all the way down: jobs leave checkout credentials and sources in
+        # the workdirs, which are none of any other host user's business.
+        "d /var/lib/github-runner 0700 root root -"
       ]
       ++ lib.concatMap ({ name, r, i, ... }: [
-        "d /var/lib/github-runner/${name}-${toString i} 0755 root root -"
-        "d ${workDir name i} 0755 root root -"
+        "d /var/lib/github-runner/${name}-${toString i} 0700 root root -"
+        "d ${workDir name i} 0700 root root -"
       ]) containerInstances
       ++ [ "d /run/github-runner 0750 root root -" ]
     );
@@ -834,6 +887,35 @@ in {
           };
         };
       }])
+      # Runners mount the tools dir as an overlay, so first-time rustup install must
+      # happen here, with the real directory writable.
+      ++ (lib.optionals (cfg.backend == "container") [{
+        github-runner-tools-bootstrap = {
+          description = "Install rustup into the shared GitHub runner tools dir";
+          wantedBy = [ "multi-user.target" ];
+          after = [ "github-runner-image.service" "network-online.target" ];
+          wants = [ "github-runner-image.service" "network-online.target" ];
+          before = map ({ cname, ... }: "${containerUnitName cname}.service")
+            containerInstances;
+          unitConfig.ConditionPathExists = "!${toolsDir}/cargo/bin/rustup";
+          serviceConfig = {
+            Type = "oneshot";
+            RemainAfterExit = true;
+            TimeoutStartSec = "30min";
+            ExecStart = lib.escapeShellArgs [
+              "${pkgs.podman}/bin/podman" "run" "--rm"
+              "--security-opt=label=disable"
+              "--entrypoint" "/bootstrap/homelab-entrypoint.sh"
+              "-e" "HOMELAB_CI_BOOTSTRAP_ONLY=1"
+              "-e" "HOMELAB_CI_TOOLS=${toolsDir}"
+              "-v" "${containerEntrypoint}:/bootstrap/homelab-entrypoint.sh:ro"
+              "-v" "${toolsDir}:${toolsDir}"
+              "-v" "/nix/store:/nix/store:ro"
+              cfg.containerImage
+            ];
+          };
+        };
+      }])
       # Symlink nixpkgs toolchains into the shared volume (survives ephemeral restarts).
       ++ (lib.optionals (cfg.backend == "container") [{
         github-runner-tools-bin = {
@@ -864,12 +946,6 @@ in {
       # Multi-repo: one row per instance — owner/repo, GitHub name, systemd unit, env file.
       ++ (lib.optionals (cfg.backend == "container" && enabledRunners != { }) (
         let
-          ownerRepoFromUrl = u:
-            lib.removeSuffix "/" (lib.removeSuffix ".git" (
-              lib.removePrefix "https://github.com/" (
-                lib.removePrefix "http://github.com/" u
-              )
-            ));
           ghostRows = lib.concatLists (
             lib.mapAttrsToList (name: r:
               map (i:
@@ -909,15 +985,21 @@ in {
                 TOKENS[$envf]="$t"
                 printf '%s' "$t"
               }
+              # PAT via curl config on stdin, never argv (visible in ps).
+              gh_get() {
+                local token="$1"; shift
+                curl -fsS --max-time 30 -K - \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" "$@" \
+                  <<< "header = \"Authorization: Bearer ''${token}\""
+              }
               runners_json_for() {
                 local repo="$1" token="$2" cache_key="$3" json
                 if [ -n "''${RUNNER_JSON[$cache_key]+x}" ]; then
                   printf '%s' "''${RUNNER_JSON[$cache_key]}"
                   return 0
                 fi
-                json="$(curl -fsS -H "Authorization: Bearer ''${token}" \
-                  -H "Accept: application/vnd.github+json" \
-                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                json="$(gh_get "$token" \
                   "https://api.github.com/repos/''${repo}/actions/runners" || true)"
                 RUNNER_JSON[$cache_key]="$json"
                 printf '%s' "$json"
@@ -942,25 +1024,18 @@ in {
                 ' | head -n1 || true)"
                 [ -z "$ghost" ] && continue
                 echo "homelab-ci: ghost-watch recovering $gname ($unit) repo=$repo"
-                runs="$(curl -fsS -H "Authorization: Bearer ''${token}" \
-                  -H "Accept: application/vnd.github+json" \
-                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                runs="$(gh_get "$token" \
                   "https://api.github.com/repos/''${repo}/actions/runs?status=in_progress&per_page=20" \
                   | jq -r '.workflow_runs[]?.id' || true)"
                 for run_id in $runs; do
                   [ -z "$run_id" ] && continue
-                  hit="$(curl -fsS -H "Authorization: Bearer ''${token}" \
-                    -H "Accept: application/vnd.github+json" \
-                    -H "X-GitHub-Api-Version: 2022-11-28" \
+                  hit="$(gh_get "$token" \
                     "https://api.github.com/repos/''${repo}/actions/runs/''${run_id}/jobs" \
                     | jq -r --arg n "$gname" \
                       '[.jobs[]? | select(.runner_name==$n and .status=="in_progress")] | length' || echo 0)"
                   if [ "''${hit:-0}" != "0" ]; then
                     echo "homelab-ci: cancelling run $run_id for $gname"
-                    curl -fsS -X POST \
-                      -H "Authorization: Bearer ''${token}" \
-                      -H "Accept: application/vnd.github+json" \
-                      -H "X-GitHub-Api-Version: 2022-11-28" \
+                    gh_get "$token" -X POST \
                       "https://api.github.com/repos/''${repo}/actions/runs/''${run_id}/cancel" >/dev/null || true
                   fi
                 done
@@ -987,23 +1062,35 @@ in {
       # Container units: depend on env + tools + image; always restart (ephemeral
       # runners exit 0 after each job and must come back online).
       ++ (lib.optionals (cfg.backend == "container") (
-        map ({ name, cname, ... }: {
+        map ({ name, r, i, cname, runnerName, ... }: {
           "${containerUnitName cname}" = {
             after = [
+              netCfg.unit
               "github-runner-env-${name}.service"
               "github-runner-tools-bin.service"
               "github-runner-image.service"
               "podman.socket"
             ];
-            requires = [
-              "github-runner-env-${name}.service"
+            # The PAT file is needed to mint tokens. Image and tools are only wanted:
+            # a failed rebake must not keep runners down on the image we already have.
+            requires = [ netCfg.unit "github-runner-env-${name}.service" ];
+            wants = [
+              "podman.socket"
               "github-runner-tools-bin.service"
+              "github-runner-tools-bootstrap.service"
               "github-runner-image.service"
             ];
-            wants = [ "podman.socket" ];
             serviceConfig = {
               Restart = lib.mkForce "always";
               RestartSec = "5";
+              ExecStartPre = lib.mkAfter [
+                "${wipeWorkdir name i}"
+                "${mintRunnerTokens name r cname}"
+              ];
+              ExecStopPost = lib.mkAfter [
+                "${deleteRunnerByName name r cname runnerName}"
+                "${wipeWorkdir name i}"
+              ];
             };
           };
         }) containerInstances
@@ -1044,7 +1131,7 @@ in {
             # Image CMD is dropped when entrypoint is overridden; restore it so
             # myoung34's entrypoint actually starts Runner.Listener.
             cmd = [ "./bin/Runner.Listener" "run" "--startuptype" "service" ];
-            environmentFiles = [ (envFilePath name) ];
+            environmentFiles = [ (instanceEnvPath cname) ];
             environment = {
               REPO_URL = r.url;
               RUNNER_NAME = runnerName;
@@ -1070,7 +1157,10 @@ in {
             volumes =
               [
                 "${containerEntrypoint}:/bootstrap/homelab-entrypoint.sh:ro"
-                "${toolsDir}:${toolsDir}"
+                # Overlay (:O): jobs see a writable copy (rustup can still add a toolchain
+                # for one job) but writes are dropped when the container exits, so one
+                # job cannot plant binaries for the next repo or PR.
+                "${toolsDir}:${toolsDir}:O"
                 # pkgs.zig / pkgs.ffmpeg (and any other Nix-linked tools under
                 # ${toolsDir}/bin) need store paths resolvable inside the Ubuntu container.
                 "/nix/store:/nix/store:ro"
@@ -1081,9 +1171,13 @@ in {
             extraOptions = [
               "--memory=${if r.container.memory != null then r.container.memory else cfg.containerMemory}"
               "--cpus=${if r.container.cpus != null then r.container.cpus else cfg.containerCpus}"
-              # Nested docker/podman via host socket
+              # No SELinux on NixOS; kept so an opted-in docker socket mount works.
               "--security-opt=label=disable"
-            ];
+              # Jobs already run as container root; setuid binaries add nothing.
+              "--security-opt=no-new-privileges"
+            ]
+            # Dedicated bridge with internet-only egress (see github-runner/network.nix).
+            ++ netCfg.podmanOptions;
           };
         }) containerInstances
       )

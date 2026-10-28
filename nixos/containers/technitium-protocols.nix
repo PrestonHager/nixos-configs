@@ -59,15 +59,17 @@ let
     done
     ${pkgs.curl}/bin/curl -sf "$API/api/sso/status" >/dev/null
 
-    pass=$(${pkgs.coreutils}/bin/cat "$PASS_FILE")
+    # Secrets go through files (curl name@file, -H @file), never argv: this host has
+    # no hidepid, so any local user can read other processes' command lines.
+    tmp=$(${pkgs.coreutils}/bin/mktemp -d)
+    trap '${pkgs.coreutils}/bin/rm -rf "$tmp"' EXIT
     token=$(${pkgs.curl}/bin/curl -sf -X POST "$API/api/user/login" \
       --data-urlencode "user=admin" \
-      --data-urlencode "pass=$pass" \
+      --data-urlencode "pass@$PASS_FILE" \
       | ${pkgs.jq}/bin/jq -r .token)
+    printf 'Authorization: Bearer %s\n' "$token" > "$tmp/auth"
 
-    pfx_pass=$(${pkgs.coreutils}/bin/cat "${pfxPasswordFile}")
-
-    ${pkgs.curl}/bin/curl -sf -X POST -H "Authorization: Bearer $token" \
+    ${pkgs.curl}/bin/curl -sf -X POST -H "@$tmp/auth" \
       "$API/api/settings/set" \
       --data-urlencode "enableDnsOverHttp=true" \
       --data-urlencode "dnsOverHttpPort=${toString dohBackendPort}" \
@@ -79,7 +81,7 @@ let
       --data-urlencode "enableDnsOverHttp3=false" \
       --data-urlencode "enableDnsOverQuic=false" \
       --data-urlencode "dnsTlsCertificatePath=${containerPfxPath}" \
-      --data-urlencode "dnsTlsCertificatePassword=$pfx_pass" >/dev/null
+      --data-urlencode "dnsTlsCertificatePassword@${pfxPasswordFile}" >/dev/null
 
     echo "$desired_hash" > "$HASH_FILE"
   '';

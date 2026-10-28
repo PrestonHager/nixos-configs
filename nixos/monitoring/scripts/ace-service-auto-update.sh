@@ -7,7 +7,8 @@ ACE_MAJOR_APPROVED="${ACE_MAJOR_APPROVED:-0}"
 
 run_update() {
   local service="$1"
-  local current latest behind status strategy nix_file tmp detail exit_code
+  local current latest behind status strategy nix_file tmp detail exit_code hold
+  local -a series
 
   if ! registry_enabled "$service"; then
     log "service ${service} is not enabled for auto-update"
@@ -35,7 +36,22 @@ run_update() {
 
   strategy="$(jq -r --arg s "$service" '.[$s].strategy // "nix-bump"' "$ACE_REGISTRY")"
 
+  # A major behind but with a patch/minor in the current series: take that first.
+  # It needs no approval and is not affected by a hold or a denied major.
+  if [[ "$behind" == "3" ]] && mapfile -t series < <(read_series_metrics "$service") \
+    && [[ "${series[1]:-}" == "1" || "${series[1]:-}" == "2" ]]; then
+    log "${service}: taking ${series[0]} in its current series before the major (${latest})"
+    latest="${series[0]}"
+    behind="${series[1]}"
+    status="series_behind"
+  fi
+
   if [[ "$behind" == "3" ]]; then
+    hold="$(jq -r --arg s "$service" '.[$s].holdMajor // empty' "$ACE_REGISTRY")"
+    if [[ -n "$hold" && "${current%%.*}" == "$hold" ]]; then
+      log "${service} is held on major ${hold}: $(jq -r --arg s "$service" '.[$s].holdReason // "no reason given"' "$ACE_REGISTRY")"
+      exit 0
+    fi
     if major_denied_for "$service" "$latest"; then
       log "major upgrade for ${service} to ${latest} was denied"
       exit 0

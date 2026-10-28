@@ -8,15 +8,21 @@ in {
     ./ace-health-exporter.nix
     ./ace-version-check.nix
     ./ace-service-auto-update.nix
+    ./ace-nixpkgs-update.nix
     ./lan-dns-prober.nix
     ./grafana-alerting.nix
     ./loki.nix
     ./promtail.nix
     ./suricata.nix
     ./grafana-security-alerting.nix
+    ./podman-image-prune.nix
   ];
 
-  environment.etc."prometheus/prometheus.yml".text = (import ./prometheus-config.nix { inherit lib; }).prometheusYml;
+  environment.etc."prometheus/prometheus.yml".text = (import ./prometheus-config.nix {
+    inherit lib;
+    # Probe upgrade.loftiawiki.org only while the staging copy exists.
+    mediawikiUpgrade = config.homelab.mediawiki.enableUpgrade or false;
+  }).prometheusYml;
   environment.etc."prometheus/blackbox.yml".text = blackboxCfg.blackboxYml;
 
   environment.etc."grafana/provisioning/datasources/prometheus.yaml".text = ''
@@ -88,14 +94,30 @@ in {
           path: /etc/grafana/dashboards/lan
   '';
 
+  environment.etc."grafana/provisioning/dashboards/security.yaml".text = ''
+    apiVersion: 1
+    providers:
+      - name: Security
+        orgId: 1
+        folder: Security
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: false
+        options:
+          path: /etc/grafana/dashboards/security
+  '';
+
   environment.etc."grafana/dashboards/ace/ace-overview.json".source = "${grafanaDashboards}/ace-overview.json";
   environment.etc."grafana/dashboards/ace/ace-services.json".source = "${grafanaDashboards}/ace-services.json";
   environment.etc."grafana/dashboards/ace/ace-uptime.json".source = "${grafanaDashboards}/ace-uptime.json";
   environment.etc."grafana/dashboards/ace/ace-http-probes.json".source = "${grafanaDashboards}/ace-http-probes.json";
   environment.etc."grafana/dashboards/ace/ace-tcp-probes.json".source = "${grafanaDashboards}/ace-tcp-probes.json";
   environment.etc."grafana/dashboards/ace/ace-versions.json".source = "${grafanaDashboards}/ace-versions.json";
+  environment.etc."grafana/dashboards/ace/coolify.json".source = "${grafanaDashboards}/coolify.json";
   environment.etc."grafana/dashboards/crux/crux-uptime.json".source = "${grafanaDashboards}/crux-uptime.json";
   environment.etc."grafana/dashboards/crux/crux-http-probes.json".source = "${grafanaDashboards}/crux-http-probes.json";
   environment.etc."grafana/dashboards/lan/lan-status.json".source = "${grafanaDashboards}/lan-status.json";
   environment.etc."grafana/dashboards/lan/network-topology.json".source = "${grafanaDashboards}/network-topology.json";
+  environment.etc."grafana/dashboards/security/suricata-alerts.json".source = "${grafanaDashboards}/suricata-alerts.json";
 }

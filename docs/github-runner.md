@@ -16,7 +16,39 @@ Enabled on **ace** (`hosts/ace/default.nix`) with **container backend** (Amazon 
 
 **Org / user-wide runners:** not available. `PrestonHager` is a personal GitHub user (not an Organization). `GET /orgs/PrestonHager/actions/runners` returns **404**. GitHub only supports org-scoped shared runners on Organizations. Personal accounts must register runners **per repository**. Ace therefore runs separate repo-scoped sets (`soundbytes-app` + `EverPuzzle`). To also serve `nixos-configs`, add another set (more CPU/RAM) or use a GitHub Organization.
 
-Token: nix-secrets `secrets/github-runner.yaml` key `token` (shared PAT for both repos; rendered to `/run/github-runner/<attr>.env` as `ACCESS_TOKEN=`). Fine-grained PAT needs **Self-hosted runners: Read and write** on each registered repo.
+Token: nix-secrets `secrets/github-runner.yaml` key `token` (shared PAT for both repos; rendered to the host-only `/run/github-runner/<attr>.env` as `ACCESS_TOKEN=`). The PAT never enters a runner container: each container start mints a registration and remove token (`/run/github-runner/<unit>.tokens.env`), and `ExecStopPost` deletes a leftover registration by name with the PAT. The host scripts hand the PAT to `curl` as a config on stdin (`curl -K -`), never as a command-line argument, so it does not show up in `ps` or `/proc/*/cmdline`. Fine-grained PAT needs **Self-hosted runners: Read and write** on each registered repo.
+
+A third, persistent runner (`github-runner-nmsu`, registered on GitHub as `adopter-central` for the NMSU class repo) deployed the old Podman Animal Search on ace. It was removed on 2026-10-25 with that deployment, since the app now builds on GitHub-hosted runners and deploys to Coolify ([Coolify on ace](../ace/coolify.md#hosting-the-cs371-group-5-project)).
+
+## Isolation model
+
+Runner jobs run code from repositories other people can push to, as root inside the container. The design assumes a job is hostile and limits what it can reach:
+
+| Layer | What it does |
+|-------|--------------|
+| Network | All runner containers sit on the dedicated Podman network `ghrunner` (bridge `ghrunner0`, `10.250.250.0/24`, `isolate=true`, no gateway DNS) instead of the default `podman` network. Module: `nixos/services/github-runner/network.nix`. |
+| Egress filter | `raw/PREROUTING` and `FORWARD` drop anything from `ghrunner0` to a host-local address or to private, CGNAT (Tailscale), link-local, loopback, multicast and reserved ranges. `nixos-fw` (INPUT) refuses everything from the bridge before the globally open ports. IPv6 from the bridge is dropped. Result: internet only — no host services, no LAN, no other pods. |
+| DNS | Containers use public resolvers (`1.1.1.1`, `9.9.9.9`) because the host's resolvers (Technitium, Tailscale) live on blocked ranges. |
+| Host socket | No Podman/Docker socket is mounted (`container.mountDockerSocket` and `mountPodmanSocket` default to `false`). Job-level `container:` therefore does not work on these runners. |
+| Shared tools | `/var/lib/github-runner-tools` is mounted as an overlay (`:O`) in every runner, so job writes never reach the copy other runners use. Only `github-runner-tools-bootstrap` / `-tools-bin` (host units) write it. |
+| Workdirs | `/var/lib/github-runner` and every per-runner dir are `0700`. The host wipes `/var/lib/github-runner/<name>-<i>/work` before each container start and after each stop, so checkout credentials (`_temp/git-credentials-*`) do not linger between jobs. |
+| Privileges | `--security-opt=no-new-privileges`. Containers still run as root without a user namespace (see below). |
+
+The `ghrunner0` bridge must never be added to `networking.firewall.trustedInterfaces`; an assertion in the network module fails the build if it is.
+
+**Why no `--userns=auto` yet:** it needs a `containers` entry in `/etc/subuid`/`/etc/subgid`, id-mapped (`:idmap`) or chowned (`:U`) bind mounts for the workdirs, and re-testing the baked image's dnf/toolchain paths under a mapped root. It is the next step, not a drop-in flag.
+
+**Checking the filter on ace:**
+
+```bash
+systemctl status github-runner-network
+podman network inspect ghrunner --format '{{.NetworkInterface}} {{range .Subnets}}{{.Subnet}}{{end}}'
+iptables -t raw -S homelab-ghr-egress
+iptables -S nixos-fw | head -3          # first rule refuses -i ghrunner0
+podman exec github-runner-ace-1 cat /etc/resolv.conf
+```
+
+Changing `homelab.github-runner-network.subnet` or `interface` needs the old network removed: stop the runner units, `podman network rm ghrunner`, then `systemctl restart github-runner-network` and start the runners. The unit refuses to start (and runners stay down) while the existing network does not match the configuration.
 
 Verify Online: **soundbytes-app** / **EverPuzzle** → **Settings → Actions → Runners**. On ace:
 
@@ -78,7 +110,7 @@ Mitigations in this module:
 
 1. **Baked image** — `github-runner-image.service` builds the configured tag from `homelab.github-runners.containerfile`. Ace uses `Containerfile.al2023` → `localhost/homelab-github-runner:al2023` (base `amazonlinux:2023` + dnf toolchain + **Node 20 LTS** from the official linux-x64 tarball into `/usr/local` + official Actions runner; myoung34 scripts for register/deregister). Ephemeral restarts should log `homelab-ci: toolchain present (baked image)` instead of downloading packages every time. Ubuntu Noble remains available via the default `Containerfile` / `ubuntu-noble` tag.
 2. **Deregister order** — `DISABLE_AUTOMATIC_DEREGISTRATION=true`; homelab entrypoint deregisters with `config.sh remove` **while** `.runner` exists, else deletes the runner by name via the GitHub API.
-3. **Workdir wipe** — each start clears `$RUNNER_WORKDIR` contents (bind-mounted `/var/lib/github-runner/<name>-<i>/work`).
+3. **Workdir wipe** — the host clears `/var/lib/github-runner/<name>-<i>/work` (mode `0700`) before each container start and after each stop; the entrypoint also clears `$RUNNER_WORKDIR` on start.
 4. **Ghost recovery** — timer `github-runner-ghost-watch.timer` (every ~5 min) cancels stuck jobs and restarts offline+busy units; ops script `scripts/github-runner-recover-ghost.sh` (also `github-runner-recover-ghost` on PATH on ace).
 
 ### Ghost recovery (manual)
@@ -130,11 +162,11 @@ systemctl restart github-runner-image.service
 | cargo-lambda | Host symlinks official **musl** release (`v1.6.3`) → `/var/lib/github-runner-tools/cargo/bin/cargo-lambda` (static; works on AL2023 glibc 2.34) | Include yourself; avoid `cargo install` from a newer-glibc host into a shared volume |
 | Zig | Host symlinks `pkgs.zig` → `/var/lib/github-runner-tools/bin/zig` (+ `/nix/store` RO mount); provides `aarch64-linux-gnu.2.34` for Lambda cross-links | Included in `parityPackages` |
 | ffmpeg / ffprobe | Host symlinks `pkgs.ffmpeg` → `…/bin/ffmpeg` and `…/bin/ffprobe` (same tools volume + store mount) | Included in `parityPackages` |
-| Job `container:` | Host Podman socket mounted at `/var/run/docker.sock` | Opt-in `docker.enable` (Docker) |
+| Job `container:` | Opt-in `container.mountDockerSocket` (host Podman socket at `/var/run/docker.sock`; gives jobs host root) | Opt-in `docker.enable` (Docker) |
 | Node (PATH) | AL2023 bakes Node 20 (`node`/`npm`/`npx` in `/usr/local`); entrypoint also prepends Actions `externals/node20/bin` as fallback | Included in `parityPackages` (`nodejs_20`) |
 | Node externals | Actions runner ships `externals/node20` + `node24` (hashFiles / JS actions) | Module ships `node20`+`node24` externals |
 | openssl CLI | AL2023 bake installs `openssl` (+ devel) | Via `parityPackages` / system |
-Workflows do **not** need a job-level `container:` for Ubuntu parity — the **runner itself** is Ubuntu. Optional job `container:` still works via the mounted Podman socket.
+Workflows do **not** need a job-level `container:` for Ubuntu parity — the **runner itself** is Ubuntu/AL2023. Job `container:` only works when `container.mountDockerSocket` is enabled, which gives jobs root on the host; ace leaves it off.
 
 ## Few steps to join GitHub
 
@@ -253,7 +285,7 @@ EverPuzzle workflows use the same label:
 runs-on: ace-al2023-x64-4
 ```
 
-Expect **GLIBC 2.34**, installed Rust targets including `aarch64-unknown-linux-gnu`, `cargo lambda --version` (musl binary on the tools volume), and `zig` / `ffmpeg` / `ffprobe` on `PATH` from `/var/lib/github-runner-tools/{bin,cargo/bin}`. Cold start should **not** re-download packages when using the baked image (`homelab-ci: toolchain present (baked image)`). Rustup still bootstraps once into `/var/lib/github-runner-tools` (shared; flocked). Zig, ffmpeg, and cargo-lambda are provisioned by `github-runner-tools-bin.service` on each rebuild.
+Expect **GLIBC 2.34**, installed Rust targets including `aarch64-unknown-linux-gnu`, `cargo lambda --version` (musl binary on the tools volume), and `zig` / `ffmpeg` / `ffprobe` on `PATH` from `/var/lib/github-runner-tools/{bin,cargo/bin}`. Cold start should **not** re-download packages when using the baked image (`homelab-ci: toolchain present (baked image)`). Rustup bootstraps once into `/var/lib/github-runner-tools` via `github-runner-tools-bootstrap.service`; runner containers mount that directory as an overlay (`:O`), so job writes there are discarded on exit. Zig, ffmpeg, and cargo-lambda are provisioned by `github-runner-tools-bin.service` on each rebuild.
 
 ## Options (summary)
 
@@ -277,7 +309,7 @@ Expect **GLIBC 2.34**, installed Rust targets including `aarch64-unknown-linux-g
 | `runners.<name>.container.memory` / `.cpus` | `null` | Inherit top-level defaults |
 | `runners.<name>.extraPackages` | `[]` | Native only |
 | `runners.<name>.docker.enable` | `false` | Native only; needs `user` + `group` |
-| `runners.<name>.container.mountDockerSocket` | `true` | Podman sock → docker.sock |
+| `runners.<name>.container.mountDockerSocket` | `false` | Podman sock → docker.sock (host root for jobs) |
 | `nodeRuntimes` | `[ "node20" "node24" ]` | Native only |
 | `parityPackages` | curl, wget, jq, … | Native only |
 
@@ -409,8 +441,12 @@ rm -rf /var/lib/github-runner-tools/cargo/registry \
 
 From the repo root (WSL/NixOS):
 
+The helper `scripts/eval-github-runner.nix` was removed in commit `572c200`. It resolves the flake relative to its own location, so recover it back into `scripts/` (and delete it afterwards):
+
 ```bash
+git restore --source=572c200^ -- scripts/eval-github-runner.nix
 nix eval --impure --file scripts/eval-github-runner.nix
+rm scripts/eval-github-runner.nix
 ```
 
 That builds a minimal NixOS system that imports the module once disabled (no secrets) and once enabled with a dummy `tokenFile`. It does **not** contact GitHub.

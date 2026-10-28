@@ -50,18 +50,23 @@ let
     done
     ${pkgs.curl}/bin/curl -sf "$API/api/sso/status" >/dev/null
 
-    pass=$(${pkgs.coreutils}/bin/cat "$PASS_FILE")
+    # Secrets go through files (curl name@file, -H @file), never argv: this host has
+    # no hidepid, so any local user can read other processes' command lines.
+    tmp=$(${pkgs.coreutils}/bin/mktemp -d)
+    trap '${pkgs.coreutils}/bin/rm -rf "$tmp"' EXIT
     token=$(${pkgs.curl}/bin/curl -sf -X POST "$API/api/user/login" \
       --data-urlencode "user=admin" \
-      --data-urlencode "pass=$pass" \
+      --data-urlencode "pass@$PASS_FILE" \
       | ${pkgs.jq}/bin/jq -r .token)
+    printf 'Authorization: Bearer %s\n' "$token" > "$tmp/auth"
+    printf '%s' "$TECHNITIUM_OIDC_CLIENT_SECRET" > "$tmp/client-secret"
 
-    ${pkgs.curl}/bin/curl -sf -X POST -H "Authorization: Bearer $token" \
+    ${pkgs.curl}/bin/curl -sf -X POST -H "@$tmp/auth" \
       "$API/api/admin/sso/set" \
       --data-urlencode "ssoEnabled=true" \
       --data-urlencode "ssoAuthority=${zitadelIssuer}" \
       --data-urlencode "ssoClientId=$TECHNITIUM_OIDC_CLIENT_ID" \
-      --data-urlencode "ssoClientSecret=$TECHNITIUM_OIDC_CLIENT_SECRET" \
+      --data-urlencode "ssoClientSecret@$tmp/client-secret" \
       --data-urlencode "ssoMetadataAddress=${zitadelIssuer}/.well-known/openid-configuration" \
       --data-urlencode "ssoScopes=${ssoScopes}" \
       --data-urlencode "ssoAllowSignup=true" \

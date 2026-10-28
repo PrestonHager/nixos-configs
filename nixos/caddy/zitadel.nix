@@ -1,8 +1,13 @@
 { config, ... }:
 
+let
+  caddyLib = import ./lib.nix;
+in
 {
   services.caddy = {
     virtualHosts."zitadel.prestonhager.com".extraConfig = ''
+      ${caddyLib.securityHeaders}
+
       # Zitadel login UI (v2)
       handle /ui/v2/login* {
         reverse_proxy http://127.0.0.1:9081 {

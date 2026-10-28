@@ -1,0 +1,911 @@
+{
+  "uid": "suricata-alerts",
+  "title": "Suricata alerts",
+  "tags": [
+    "security",
+    "suricata",
+    "ids"
+  ],
+  "description": "What triggered the 'Suricata scan or exploit alert' email: sources, signatures, targets and raw events.",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "refresh": "1m",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "links": [
+    {
+      "title": "IDS runbook",
+      "type": "link",
+      "url": "https://serverdocs.prestonhager.com/shared/security-ids-test-cases.html",
+      "targetBlank": true
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "maxsev",
+        "label": "Severity",
+        "type": "custom",
+        "query": "Paging only (1-2) : 2,All severities : 3",
+        "current": {
+          "text": "Paging only (1-2)",
+          "value": "2"
+        },
+        "options": [
+          {
+            "text": "Paging only (1-2)",
+            "value": "2",
+            "selected": true
+          },
+          {
+            "text": "All severities",
+            "value": "3",
+            "selected": false
+          }
+        ]
+      },
+      {
+        "name": "filter",
+        "label": "Filter (IP, host, signature; regex)",
+        "type": "textbox",
+        "query": "",
+        "current": {
+          "text": "",
+          "value": ""
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Alert events",
+      "description": "Suricata alert events matching the filters in the selected time range.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "sum(count_over_time({job=\"suricata\"} |~ \"(?i)$filter\" | json | event_type=\"alert\" and alert_severity <= $maxsev and (alert_signature != \"ET SCAN SYN Scan detected\" or src_ip !~ \"192\\\\.168\\\\.5\\\\.([1-9]|1[0-9]|20)\") [$__range])) or vector(0)",
+          "refId": "A",
+          "queryType": "instant",
+          "instant": true,
+          "range": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Source addresses",
+      "description": "Distinct source IPs that triggered alerts.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "count(sum by (src_ip) (count_over_time({job=\"suricata\"} |~ \"(?i)$filter\" | json | event_type=\"alert\" and alert_severity <= $maxsev and (alert_signature != \"ET SCAN SYN Scan detected\" or src_ip !~ \"192\\\\.168\\\\.5\\\\.([1-9]|1[0-9]|20)\") [$__range]))) or vector(0)",
+          "refId": "A",
+          "queryType": "instant",
+          "instant": true,
+          "range": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Signatures",
+      "description": "Distinct Suricata/ET rules that fired.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "count(sum by (alert_signature) (count_over_time({job=\"suricata\"} |~ \"(?i)$filter\" | json | event_type=\"alert\" and alert_severity <= $maxsev and (alert_signature != \"ET SCAN SYN Scan detected\" or src_ip !~ \"192\\\\.168\\\\.5\\\\.([1-9]|1[0-9]|20)\") [$__range]))) or vector(0)",
+          "refId": "A",
+          "queryType": "instant",
+          "instant": true,
+          "range": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Target hosts",
+      "description": "Distinct destination IPs.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "count(sum by (dest_ip) (count_over_time({job=\"suricata\"} |~ \"(?i)$filter\" | json | event_type=\"alert\" and alert_severity <= $maxsev and (alert_signature != \"ET SCAN SYN Scan detected\" or src_ip !~ \"192\\\\.168\\\\.5\\\\.([1-9]|1[0-9]|20)\") [$__range]))) or vector(0)",
+          "refId": "A",
+          "queryType": "instant",
+          "instant": true,
+          "range": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Alerts over time, by signature",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "Bursts line up with the alert email. A steady stream from one signature is usually a scanner or a noisy rule.",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "sum by (alert_signature) (count_over_time({job=\"suricata\"} |~ \"(?i)$filter\" | json | event_type=\"alert\" and alert_severity <= $maxsev and (alert_signature != \"ET SCAN SYN Scan detected\" or src_ip !~ \"192\\\\.168\\\\.5\\\\.([1-9]|1[0-9]|20)\") [$__auto]))",
+          "refId": "A",
+          "queryType": "range",
+          "range": true,
+          "legendFormat": "{{alert_signature}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "stacking": {
+              "mode": "normal"
+            },
+            "lineWidth": 1
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "sum"
+          ],
+          "sortBy": "Total",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Who: top sources",
+      "description": "Click an address to filter the dashboard to it, or to look it up on AbuseIPDB.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 0,
+        "y": 12
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "topk(25, sum by (src_ip) (count_over_time({job=\"suricata\"} |~ \"(?i)$filter\" | json | event_type=\"alert\" and alert_severity <= $maxsev and (alert_signature != \"ET SCAN SYN Scan detected\" or src_ip !~ \"192\\\\.168\\\\.5\\\\.([1-9]|1[0-9]|20)\") [$__range])))",
+          "refId": "A",
+          "queryType": "instant",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "src_ip": 0,
+              "Value": 1
+            },
+            "renameByName": {
+              "src_ip": "Source IP",
+              "Value": "Events"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Events",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Source IP"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Show only this source",
+                    "url": "/d/suricata-alerts?${__url_time_range}&var-maxsev=${maxsev}&var-filter=${__value.raw}"
+                  },
+                  {
+                    "title": "Look up on AbuseIPDB",
+                    "url": "https://www.abuseipdb.com/check/${__value.raw}",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Events"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-YlRd"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "What: top signatures",
+      "description": "Severity 1 = high, 2 = medium (these page). Click a signature to filter to it.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 16,
+        "x": 8,
+        "y": 12
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "topk(25, sum by (alert_signature, alert_signature_id, alert_category, alert_severity) (count_over_time({job=\"suricata\"} |~ \"(?i)$filter\" | json | event_type=\"alert\" and alert_severity <= $maxsev and (alert_signature != \"ET SCAN SYN Scan detected\" or src_ip !~ \"192\\\\.168\\\\.5\\\\.([1-9]|1[0-9]|20)\") [$__range])))",
+          "refId": "A",
+          "queryType": "instant",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "alert_signature": 0,
+              "alert_signature_id": 1,
+              "alert_category": 2,
+              "alert_severity": 3,
+              "Value": 4
+            },
+            "renameByName": {
+              "alert_signature": "Signature",
+              "alert_signature_id": "SID",
+              "alert_category": "Category",
+              "alert_severity": "Sev",
+              "Value": "Events"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Events",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Signature"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Show only this signature",
+                    "url": "/d/suricata-alerts?${__url_time_range}&var-maxsev=${maxsev}&var-filter=${__value.raw}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "SID"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Rule documentation (Proofpoint ET)",
+                    "url": "https://threatintel.proofpoint.com/sid/${__value.raw}",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Events"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-YlRd"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Where: targets",
+      "description": "Which ace address, port and virtual host was hit. Port 80/443 traffic from outside arrives at 192.168.5.5 through the router.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 22
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "topk(25, sum by (dest_ip, dest_port, http_hostname) (count_over_time({job=\"suricata\"} |~ \"(?i)$filter\" | json | event_type=\"alert\" and alert_severity <= $maxsev and (alert_signature != \"ET SCAN SYN Scan detected\" or src_ip !~ \"192\\\\.168\\\\.5\\\\.([1-9]|1[0-9]|20)\") [$__range])))",
+          "refId": "A",
+          "queryType": "instant",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "dest_ip": 0,
+              "dest_port": 1,
+              "http_hostname": 2,
+              "Value": 3
+            },
+            "renameByName": {
+              "dest_ip": "Destination",
+              "dest_port": "Port",
+              "http_hostname": "HTTP host",
+              "Value": "Events"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Events",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Events"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-YlRd"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Who x what",
+      "description": "Which source triggered which rule.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "topk(25, sum by (src_ip, alert_signature) (count_over_time({job=\"suricata\"} |~ \"(?i)$filter\" | json | event_type=\"alert\" and alert_severity <= $maxsev and (alert_signature != \"ET SCAN SYN Scan detected\" or src_ip !~ \"192\\\\.168\\\\.5\\\\.([1-9]|1[0-9]|20)\") [$__range])))",
+          "refId": "A",
+          "queryType": "instant",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "src_ip": 0,
+              "alert_signature": 1,
+              "Value": 2
+            },
+            "renameByName": {
+              "src_ip": "Source IP",
+              "alert_signature": "Signature",
+              "Value": "Events"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Events",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Source IP"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Show only this source",
+                    "url": "/d/suricata-alerts?${__url_time_range}&var-maxsev=${maxsev}&var-filter=${__value.raw}"
+                  },
+                  {
+                    "title": "Look up on AbuseIPDB",
+                    "url": "https://www.abuseipdb.com/check/${__value.raw}",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Events"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-YlRd"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "logs",
+      "title": "Events (newest first)",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "One line per Suricata alert. Expand a line for every EVE field (payload metadata, flow id, HTTP headers).",
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "refId": "A",
+          "queryType": "range",
+          "expr": "{job=\"suricata\"} |~ \"(?i)$filter\" | json | event_type=\"alert\" and alert_severity <= $maxsev and (alert_signature != \"ET SCAN SYN Scan detected\" or src_ip !~ \"192\\\\.168\\\\.5\\\\.([1-9]|1[0-9]|20)\") | line_format \"sev{{.alert_severity}} {{.alert_signature}} | {{.src_ip}}:{{.src_port}} -> {{.dest_ip}}:{{.dest_port}} {{with .http_hostname}}{{.}} {{end}}{{with .http_http_method}}{{.}} {{end}}{{with .http_url}}{{.}} {{end}}{{with .http_status}}status={{.}}{{end}}\""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "prettifyLogMessage": false
+      }
+    },
+    {
+      "id": 11,
+      "type": "text",
+      "title": "How to read this",
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 45
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**What pages:** ET Open alerts with severity 1\u20132. SYN-scan hits from the infrastructure range 192.168.5.1\u201320 (probes, log shipping) are excluded. *Paging only* matches the alert rule exactly; *all severities* adds the INFO/POLICY noise.\n\n**What Suricata can see:** packets on ace's own NIC (`bond0`). Plain HTTP (port 80) is inspected; HTTPS (443) is encrypted, so probes that go straight to HTTPS are invisible here.\n\n**Triage:** (1) *Who* \u2014 an outside address hitting many web-exploit signatures is an internet scanner; check it on AbuseIPDB. (2) *Where* \u2014 which virtual host and port. (3) *Did it work?* \u2014 check the `status=` in the events and the app's own logs; a 3xx/4xx or an empty response means nothing was served. (4) A LAN source (192.168.x) is worth a closer look.\n\nRunbook: [IDS test cases, TC-2.2](https://serverdocs.prestonhager.com/shared/security-ids-test-cases.html) \u00b7 [IDS plan](https://serverdocs.prestonhager.com/shared/security-ids-plan.html)"
+      }
+    }
+  ]
+}

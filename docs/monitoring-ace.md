@@ -13,7 +13,7 @@ Implementation: `nixos/containers/grafana.nix`, `nixos/containers/prometheus.nix
 
 ### Dashboard image export (PNG / PDF)
 
-Grafana 13+ no longer supports the in-process image renderer plugin. ace runs the official remote renderer (`grafana/grafana-image-renderer:v5.8.8`) in the same Podman pod as Grafana so both reach each other on loopback.
+Grafana 13+ no longer supports the in-process image renderer plugin. ace runs the official remote renderer (`grafana/grafana-image-renderer` v5.12.7, pinned by digest in `grafana.nix`) in the same Podman pod as Grafana so both reach each other on loopback.
 
 | Component | URL / port |
 |-----------|------------|
@@ -85,12 +85,23 @@ Ace sends operational emails through Grafana’s built-in SMTP relay (same iClou
 | Alert | Query / condition | `for` | Severity |
 |-------|-------------------|-------|----------|
 | **Service down** | `probe_success{probe_location=~"local\|lan",job=~"blackbox.*"} == 0` | 5m | critical |
-| **Major update** | `ace_service_version_behind == 3` | immediate | critical |
-| **Patch/minor update** | `ace_service_version_behind == 1 or == 2` | 1h | warning |
+| **Major update** | `ace_service_version_behind == 3`, unless the service is held (`ace_service_version_held == 1`) | immediate | critical |
+| **Patch/minor update** | `ace_service_version_behind_in_series == 1 or == 2` (so held and major-behind services still alert on updates in their series) | 1h | warning |
+| **Nightly nixpkgs update failed** | `ace_nixpkgs_update_success < 1` | immediate | warning |
+| **nixpkgs input stale** | nixpkgs revision in `flake.lock` older than 4 days | 1h | warning |
 
 Local and LAN blackbox probes are included; external probes are excluded (often flaky). Version metrics come from the `ace-version-check` timer (node_exporter textfile collector) and appear on the **Ace Service Versions** Grafana dashboard (`ace-versions`).
 
-Tracked services (metric label `service=…`): Grafana, **Prometheus**, Nextcloud, Zitadel, Matrix Synapse, Technitium, Jellyfin, Vaultwarden, Caddy, Pterodactyl panel, notify_push, and prefixed sidecars (`nextcloud-mariadb`, `nextcloud-redis`, `nextcloud-clamav`, `pterodactyl-mariadb`, `pterodactyl-redis`). Standalone stack services use their short name (for example `prometheus`, not a sidecar prefix).
+Every container on ace reports a version: 31 services, including sidecar databases and caches (`nextcloud-mariadb`, `matrix-postgres`, `mediawiki-redis`, …). Digest-pinned images are read from the image itself: Synapse from its OCI version label, the image renderer by mapping the commit its `--version` prints to a release tag, Pushgateway from `--version`, and official Postgres/MariaDB/Valkey/Redis/Node images from `PG_VERSION`, `MARIADB_VERSION` and similar. OCI labels are not used generically (Coolify's label is its base image's).
+
+Each service has two lags:
+
+| Metric | Meaning |
+|---|---|
+| `ace_service_version_behind` | Against the newest release overall (0 current, 1 patch, 2 minor, 3 major, 4 unknown) |
+| `ace_service_version_behind_in_series` | Against the newest release in the running **series**: the update that needs no major upgrade. A series is the major version, or major.minor for MariaDB (11.4 and 11.8 are different LTS series) and MediaWiki (1.45 → 1.46 needs matching extension branches) |
+
+`ace_service_version_info` carries `current`, `latest` and `latest_in_series` labels. The **Ace Service Versions** dashboard shows both lags, a *Safe updates (in series)* count and a *Held on a major* count. Auto-update takes an in-series update before (and regardless of) a pending, held or denied major.
 
 ### SMTP
 
@@ -146,7 +157,7 @@ Provisioned rules appear under **Alerting → Alert rules** in folder **Ace Aler
 |----------|--------|
 | **Trigger** | After each `ace-version-check` run, `ace-service-update-dispatch` starts `ace-service-auto-update@SERVICE` for each enabled, out-of-date service |
 | **Patch / minor** | Bumps pinned versions in `/etc/nixos` nix modules, commits, pushes to the deployment branch, then runs a **constrained** `nixos-rebuild switch --flake /etc/nixos#ace` (`-j 4`, `max-jobs 4`, `cores 12`, serialized with flock) |
-| **Major** | Sends an approval email (same SMTP + recipients as Grafana alerts) with breaking-change notes and **Approve** / **Deny** links at https://update.prestonhager.com |
+| **Major** | Sends an approval email (same SMTP + recipients as Grafana alerts) with breaking-change notes and **Approve** / **Deny** links at https://update.prestonhager.com. Opening a link only shows a confirmation page; the upgrade is approved or denied when you press its button (a POST), so mail link scanners that prefetch URLs cannot trigger it |
 | **Result email** | Success or failure notification after each attempted update |
 | **Registry** | `/etc/ace-service-update/registry.json` — enable/disable services and bump rules |
 | **Persistence** | All enabled services use `nix-bump` (or `occ-app` for Nextcloud apps). Image tags live in nix expressions; the next rebuild reproduces the same versions. **Do not** use floating `:latest` `podman-pull` updates — those diverge from nix and are wiped on rebuild. |
@@ -157,9 +168,19 @@ Enabled auto-update services (all `nix-bump` unless noted): Grafana, Technitium,
 
 1. Version check writes `ace_service_version_*` metrics.
 2. Auto-update selects an enabled registry service that is behind.
-3. `ace-service-update-bump` edits the pinned version in the service’s nix file under `/etc/nixos`, commits (`ace: bump SERVICE to VERSION`), and pushes `origin/<branch>`.
+3. `ace-service-update-bump` edits the pinned version in the service’s nix file under `/etc/nixos`, commits (`ace: bump SERVICE to VERSION`), and pushes `origin/<branch>`. If the file already has the target version but it is not committed (an earlier run rebuilt from a dirty tree), it commits and pushes that instead of only rebuilding.
 4. Constrained `nixos-rebuild switch --flake /etc/nixos#ace` applies the new pin.
 5. After rebuild, container tags match the nix pins — no ephemeral drift.
+
+### Holding a service on a major release
+
+When a major upgrade is known to break something, add `holdMajor` (the major to stay on, as a string) and `holdReason` to the service's row in `nixos/monitoring/scripts/ace-service-update-registry.json`. While the running version is on that major:
+
+- `ace-version-check` exports `ace_service_version_held{service,major} 1`;
+- **Ace service major version behind** skips the service (minor and patch updates within the held major still apply);
+- `ace-service-auto-update` logs the hold and sends no approval mail.
+
+Current holds: **Jellyfin on 10** (see [Jellyfin](./jellyfin.md)). Delete the two keys and rebuild to release a hold.
 
 Manual run for one service:
 
@@ -202,6 +223,30 @@ nix shell nixpkgs#sqlite -c sqlite3 /grafana/data/grafana.db \
   "SELECT email, is_admin FROM user WHERE email='admin@prestonhager.com';"
 ```
 
+## Nightly nixpkgs updates
+
+`ace-nixpkgs-update.timer` runs `nixos/monitoring/scripts/ace-nixpkgs-update.sh` every night at 04:30 (±20 min, after the 03:30 backup):
+
+1. Skips if `/etc/nixos` has uncommitted changes, then fast-forwards to `origin/<branch>`.
+2. `nix flake update nixpkgs` (other inputs, including the K80's `nixpkgs-cuda114`, are not touched). Nothing to do if the revision is unchanged.
+3. Builds ace's system with the same limits as service bumps (`-j 4`, 12 cores). A failed build never touches the running system.
+   - If the only failure is the fixed-output hash of Caddy's plugin source (it changes whenever nixpkgs moves Caddy), the new hash is accepted only after a second independent fetch agrees and the vendored `caddy-dns/cloudflare` is the version pinned in `nixos/caddy/acme-dns.nix`.
+4. `nixos-rebuild switch`. If units fail on the new generation, it switches back to the previous one.
+5. Commits `flake.lock` (and the Caddy hash, if changed) as `flake: nightly nixpkgs update` and pushes.
+
+On any failure `flake.lock` is restored, an email goes to the alert recipients with the log tail, and **Ace nightly nixpkgs update failed** fires. The whole run holds `/run/ace-service-update-rebuild.lock`, so service bumps wait, and `homelab-git-drift` skips its check instead of reporting the in-progress `flake.lock` as drift.
+
+Metrics (`/var/lib/node-exporter-textfile/ace_nixpkgs.prom`): `ace_nixpkgs_update_success`, `ace_nixpkgs_update_last_run_timestamp_seconds`, `ace_nixpkgs_input_timestamp_seconds{rev}`, and `ace_reboot_required` (1 when the running generation's kernel or initrd has not been booted; the updater never reboots).
+
+Only ace switches automatically. The other hosts (crux, elara, mars, …) pick up the new `flake.lock` the next time they are deployed.
+
+```bash
+systemctl list-timers ace-nixpkgs-update
+systemctl start ace-nixpkgs-update     # run now
+journalctl -u ace-nixpkgs-update -e
+cat /var/lib/node-exporter-textfile/ace_nixpkgs.prom
+```
+
 ## Prometheus
 
 | Field | Value |
@@ -232,6 +277,33 @@ To use the UI:
 On ace itself, `curl http://127.0.0.1:9090/` returns 302 to `/graph`; `/-/healthy` returns `Prometheus Server is Healthy.`
 
 Grafana reads Prometheus at `http://host.containers.internal:9090` (internal; not exposed via Caddy).
+
+### Host listeners and the podman0 firewall
+
+`podman0` (the default rootful Podman bridge, `10.88.0.0/16`) is **not** a trusted interface: it carries every default-network container and, through the wg-portal container, the WireGuard VPN clients. Only these host ports are opened on it (`networking.firewall.interfaces.podman0` in `nixos/monitoring/exporters.nix`), on top of the global allow list:
+
+| Port | Used by |
+|------|---------|
+| 53 tcp/udp | DNS from containers and VPN clients |
+| 80, 443 tcp; 443 udp | Caddy vhosts reached from containers via `host-gateway` (Zitadel OIDC, Nextcloud) and from VPN clients |
+| 2020 tcp | Caddy metrics (Prometheus) |
+| 3100 tcp | Loki API (Grafana datasource) |
+| 9100, 9115 tcp | node_exporter, blackbox_exporter (Prometheus) |
+
+Ports that containers publish on `10.88.0.1` (Prometheus 9090, Grafana 8082, wg-portal metrics 8787, Technitium API 5380, Pushgateway 9091) are DNATed by netavark and do not pass through `nixos-fw`. Other Podman networks (Coolify's `podman1`, runner networks) get nothing beyond the global allow list.
+
+Listener bindings:
+
+| Service | Listens on | Reached by |
+|---------|-----------|------------|
+| node_exporter | `10.88.0.1:9100` | Prometheus |
+| blackbox_exporter | `10.88.0.1:9115` | Prometheus |
+| Loki HTTP / gRPC | `192.168.5.5:3100` / `127.0.0.1:9096` | Alloy on ace, crux, nova, mars (per-source `nixos-fw` rules); Grafana via `192.168.5.5:3100` |
+| Pushgateway | `192.168.5.5:9091`, `10.88.0.1:9091` | crux probe timer (raw-table rule drops other LAN sources); Prometheus |
+
+node_exporter and blackbox_exporter start after `podman-prometheus.service` and retry every 5s until `10.88.0.1` exists.
+
+A weekly `podman-image-prune.timer` removes dangling (untagged) images only; tagged images, containers and volumes are kept.
 
 ### Troubleshooting
 

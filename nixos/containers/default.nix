@@ -6,7 +6,10 @@
     # Be sure not to mix podman and docker configurations, and set your backend
     # properly in the virtualisation.oci-containers.backend varaible correctly.
     #./forgejo.nix
-    ./animal-search.nix
+    ./pod-infra.nix
+    ./coolify.nix
+    ./coolify-sso.nix
+    ./coolify-edge.nix
     ./grafana.nix
     ./jellyfin.nix
     ./mediawiki.nix
@@ -17,6 +20,9 @@
     ./pushgateway.nix
     ./pterodactyl.nix
     ./pterodactyl-test.nix
+    # Panel flavor switch (homelab.panel.{prod,test}.flavor); Pterodactyl by default.
+    ./hydrodactyl.nix
+    ./hydrodactyl-test-node.nix
     #./spacetimedb.nix
     #./sui.nix
     ./vaultwarden.nix

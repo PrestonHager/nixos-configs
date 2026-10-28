@@ -22,7 +22,7 @@
   services.openssh = {
     enable = true;
     settings = {
-      PasswordAuthentication = true;
+      PasswordAuthentication = false;
       KbdInteractiveAuthentication = false;
       # Only enable if absolutely needed
       # PermitRootLogin = true;

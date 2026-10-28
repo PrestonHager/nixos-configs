@@ -7,12 +7,16 @@ let
   mwjobrunner = pkgs.writeShellScriptBin "mwjobrunner" ''
     MW_INSTALL_PATH="/var/www/html"
     RUN_JOBS="$MW_INSTALL_PATH/maintenance/runJobs.php --maxtime=3600"
+    # The container runs as root; run jobs as php-fpm's user so thumbnails and
+    # uploads written by jobs stay writable by the web workers.
+    # The image ships BusyBox, whose setpriv has no --reuid, so use su.
+    as_www() { su -s /bin/sh www-data -c "$*"; }
     echo Starting job service...
     sleep 60
     echo Started.
     while true; do
-      php $RUN_JOBS --type="enotifNotify"
-      php $RUN_JOBS --wait --maxjobs=20
+      as_www php $RUN_JOBS --type="enotifNotify"
+      as_www php $RUN_JOBS --wait --maxjobs=20
       echo Waiting for 10 seconds...
       sleep 10
     done

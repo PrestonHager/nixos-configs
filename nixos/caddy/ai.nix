@@ -1,5 +1,5 @@
 # ai.prestonhager.com — OpenClaw gateway + optional Ollama API (K80 stack).
-# LAN-only: Caddy @lan remote_ip matcher (RFC1918 + homelab 192.168.5.0/24).
+# LAN-only: shared lanOnly guard (nixos/caddy/lib.nix: LAN, tailnet, WireGuard).
 # Zitadel SSO: Caddy → oauth2-proxy (reverse proxy) → OpenClaw trusted-proxy auth.
 # oauth2-proxy must sit in front of OpenClaw (not forward_auth only) so WebSocket
 # upgrades receive X-Forwarded-Email. /ollama keeps forward_auth (HTTP API only).
@@ -8,6 +8,7 @@
 { config, ... }:
 
 let
+  caddyLib = import ./lib.nix;
   oauthProxy = "127.0.0.1:4181";
 
   oauthProxyHeaders = ''
@@ -48,11 +49,8 @@ in
 {
   services.caddy = {
     virtualHosts."ai.prestonhager.com".extraConfig = ''
-      @lan {
-        remote_ip 192.168.5.0/24 192.168.0.0/16 10.0.0.0/8 172.16.0.0/12
-      }
-
-      handle @lan {
+      ${caddyLib.securityHeaders}
+      ${caddyLib.lanOnly ''
         handle /ollama/* {
           ${oauthForwardAuth}
           uri strip_prefix /ollama
@@ -66,11 +64,7 @@ in
         handle {
           ${oauthReverseProxy}
         }
-      }
-
-      handle {
-        respond "Forbidden" 403
-      }
+      ''}
     '';
   };
 }

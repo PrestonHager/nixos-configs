@@ -166,7 +166,8 @@ let
       exit 0
     fi
 
-    if [ ! -d ${panelRoot}/.blueprint/extensions/portforward ]; then
+    # Same PHP path under Blueprint (Pterodactyl) and Hydrodactyl.
+    if ! ${pkgs.podman}/bin/podman exec pterodactyl test -d /var/www/pterodactyl/app/BlueprintFramework/Extensions/portforward; then
       echo "pterodactyl-blueprint-extensions-configure: portforward extension missing, skipping"
       exit 0
     fi
@@ -176,13 +177,10 @@ let
       portforward_dry_run=0
     fi
 
-    ${pkgs.coreutils}/bin/cp ${configurePhp} ${panelRoot}/configure-production-extensions.php
-    ${pkgs.coreutils}/bin/chown pterodactyl:pterodactyl ${panelRoot}/configure-production-extensions.php
-    ${pkgs.podman}/bin/podman exec \
+    ${pkgs.podman}/bin/podman exec -i \
       -e PORTFORWARD_DRY_RUN="$portforward_dry_run" \
       pterodactyl \
-      php /var/www/pterodactyl/configure-production-extensions.php
-    ${pkgs.coreutils}/bin/rm -f ${panelRoot}/configure-production-extensions.php
+      php < ${configurePhp}
 
     echo "pterodactyl-blueprint-extensions-configure: homelab defaults applied (portforward dry_run=$portforward_dry_run)"
   '';

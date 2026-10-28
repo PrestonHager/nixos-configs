@@ -22,6 +22,15 @@ let
       exit 0
     fi
 
+    # The automated updaters (service bumps, nightly nixpkgs) hold this lock while
+    # flake.lock or a pin is changed but not yet committed. Keep the last result
+    # instead of reporting that window as drift.
+    if [ -e /run/ace-service-update-rebuild.lock ] \
+      && ! flock -n /run/ace-service-update-rebuild.lock true; then
+      logger -t homelab-git-drift "automated update in progress; skipping check"
+      exit 0
+    fi
+
     cd "$NIXOS"
     git fetch "$REMOTE" "$BRANCH" 2>/dev/null || true
 
@@ -66,6 +75,7 @@ in {
       after = [ "network-online.target" ];
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
+      path = [ pkgs.git pkgs.openssh pkgs.util-linux ];
       serviceConfig = {
         Type = "oneshot";
         ExecStart = driftScript;
@@ -75,10 +85,12 @@ in {
     systemd.timers.homelab-git-drift = {
       description = "Periodic /etc/nixos git drift check";
       wantedBy = [ "timers.target" ];
+      # Every 15 minutes: hourly left a stale "unpushed" for up to 70 minutes
+      # after a push. A run is one git fetch plus local git status/rev-list.
       timerConfig = {
-        OnBootSec = "15min";
-        OnUnitActiveSec = "1h";
-        RandomizedDelaySec = "10min";
+        OnBootSec = "5min";
+        OnUnitActiveSec = "15min";
+        RandomizedDelaySec = "1min";
         Unit = "homelab-git-drift.service";
       };
     };

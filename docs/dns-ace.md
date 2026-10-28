@@ -121,7 +121,7 @@ External Cloudflare CNAMEs (blog, github.io sites, dontgetgot, ACM validation, e
 
 ### Cloudflare `ip1.lc1` → LAN mapping
 
-Public Cloudflare CNAMEs that target `ip1.lc1.nm.us.prestonhager.com` (73.26.67.25) are overridden on LAN as follows:
+Public Cloudflare CNAMEs that target `ip1.lc1.nm.us.prestonhager.com` (98.249.78.62) are overridden on LAN as follows:
 
 | Public name | LAN target |
 |-------------|------------|
@@ -138,7 +138,7 @@ These are the **preferred** hostnames for Pterodactyl Wings nodes and TLS — no
 |----------|----------------------|-----------------|
 | `crux.lc1.nm.us.prestonhager.com` | **192.168.5.6** | **192.168.5.6** (Cloudflare A) |
 | `nova.lc1.nm.us.prestonhager.com` | **192.168.5.7** | **192.168.5.7** (Cloudflare A) |
-| `ip1.lc1.nm.us.prestonhager.com` | ace.internal → 192.168.5.5 | **73.26.67.25** (WAN / NAT to ace) |
+| `ip1.lc1.nm.us.prestonhager.com` | ace.internal → 192.168.5.5 | **98.249.78.62** (WAN / NAT to ace) |
 
 Shorter aliases also resolve on LAN when DHCP DNS is 192.168.5.5:
 
@@ -166,7 +166,15 @@ Working pattern (same as grafana):
 | CNAME | `vault` (and other ace apps) | `ip1.lc1.nm.us.prestonhager.com` | DNS only (grey) |
 | CNAME | `update` | `ip1.lc1.nm.us.prestonhager.com` | DNS only (grey) — major upgrade approve/deny links |
 
-`ip1.lc1.nm.us.prestonhager.com` A → `73.26.67.25` (Cisco WAN / NAT → ace `:443`).
+`ip1.lc1.nm.us.prestonhager.com` A → `98.249.78.62` (Cisco WAN / NAT → ace `:443`).
+
+A public DNS record does not make a site public. Admin surfaces answer only ace itself, `192.168.5.0/24`, the Tailscale tailnet (`100.64.0.0/10`, `fd7a:115c:a1e0::/48`) and WireGuard clients (`192.168.20.0/24`), via the shared `lanOnly` / `lanGuard` helpers in `nixos/caddy/lib.nix`; everyone else gets 403:
+
+| Restricted to LAN/tailnet/VPN | Public |
+|---|---|
+| `test.panel`, `wg`, `metrics.wg`, `prometheus`, `serverdocs`, `coolify` (except `/webhooks/*`), `dns` web console, `vault` `/admin`, `matrix` `/_synapse/admin`, `ai`, `phorge`, spacetime management paths | `panel`, `grafana`, `vault`, `cloud`, `zitadel`, `jellyfin`, `matrix`, `update` (GET is read-only), DoH `/dns-query`, `animal-search`, Coolify apps, Wings node hosts |
+
+Because the check is on the connecting address, a LAN or tailnet client should reach ace directly (Technitium answers `ace.internal` → `192.168.5.5`; tailnet clients need Technitium as their DNS server or a route to `192.168.5.0/24`). A tailnet client that resolves the public IP connects from its own public address and gets 403. Public ace vhosts also get HSTS (1 year), `X-Content-Type-Options: nosniff` and a `Referrer-Policy` unless the app sets its own (`securityHeaders` in `lib.nix`).
 
 After changing proxy status, purge Cloudflare cache for the hostname. Verify from outside LAN:
 
@@ -198,7 +206,7 @@ Create a **scoped API token** at [Cloudflare API tokens](https://dash.cloudflare
 | Zone → DNS → Edit | `prestonhager.com` | DNS-01 TXT + optional CNAME upsert |
 | Zone → Zone → Read | `prestonhager.com` | Resolve zone id for API scripts |
 
-One token covers both ACME and `scripts/ace-cloudflare-dns-sync.sh`.
+One token covers both ACME and the CNAME sync script (`ace-cloudflare-dns-sync.sh`, removed in commit `572c200`; see below).
 
 #### Sops secret (nix-secrets repo)
 
@@ -217,10 +225,12 @@ dns-api-token: your_token_here
 
 **On ace** (recommended — has `/var/lib/sops/age/keys.txt`):
 
+The helper `scripts/ace-cloudflare-secrets-setup.sh` was removed in commit `572c200`. Use the manual edit below, or recover the script:
+
 ```bash
 cd /etc/nixos
-sudo scripts/ace-cloudflare-secrets-setup.sh '<your-cloudflare-token>'
-# or: CLOUDFLARE_API_TOKEN='...' sudo scripts/ace-cloudflare-secrets-setup.sh
+git show 572c200^:scripts/ace-cloudflare-secrets-setup.sh > /tmp/ace-cloudflare-secrets-setup.sh
+sudo bash /tmp/ace-cloudflare-secrets-setup.sh '<your-cloudflare-token>'
 ```
 
 Manual edit:
@@ -248,12 +258,15 @@ Caddy reads `CLOUDFLARE_API_TOKEN` from sops via `EnvironmentFile` (`cloudflare-
 
 DNS-01 does **not** create routing records. For WAN clients, ace-hosted names still need grey-cloud CNAME → `ip1.lc1.nm.us.prestonhager.com`:
 
+The sync script `scripts/ace-cloudflare-dns-sync.sh` was removed in commit `572c200`, and no Nix unit replaces it. Recover it to run it:
+
 ```bash
-sudo /etc/nixos/scripts/ace-cloudflare-dns-sync.sh --dry-run   # preview
-sudo /etc/nixos/scripts/ace-cloudflare-dns-sync.sh             # apply
+git -C /etc/nixos show 572c200^:scripts/ace-cloudflare-dns-sync.sh > /tmp/ace-cloudflare-dns-sync.sh
+sudo bash /tmp/ace-cloudflare-dns-sync.sh --dry-run   # preview
+sudo bash /tmp/ace-cloudflare-dns-sync.sh             # apply
 ```
 
-Host list matches `aceHosted` in `nixos/containers/technitium-zones.nix` plus `grafana`, `cloud`, `dns`, `vault`. Does not change `crux`/`nova.lc1` A records or external/github CNAMEs.
+Its host list is hardcoded and dates from before removal (it lacks newer names such as `coolify` and `*.apps`); check it against `technitium-zones.nix` first. The list matched `aceHosted` in `nixos/containers/technitium-zones.nix` plus `grafana`, `cloud`, `dns`, `vault`. Does not change `crux`/`nova.lc1` A records or external/github CNAMEs.
 
 #### Split-horizon and `_acme-challenge`
 
@@ -295,14 +308,14 @@ Astracap already advertises **192.168.5.5** (Technitium) as primary DNS and **1.
 
 ### Root cause (most likely)
 
-**No NAT hairpin** on Astracap. LAN clients that resolve ace hostnames to the **public WAN IP** (`73.26.67.25` via `ip1.lc1.nm.us.prestonhager.com`) cannot reach ace — connections to `:443` on that address **time out** from inside the LAN.
+**No NAT hairpin** on Astracap. LAN clients that resolve ace hostnames to the **public WAN IP** (`98.249.78.62` via `ip1.lc1.nm.us.prestonhager.com`) cannot reach ace — connections to `:443` on that address **time out** from inside the LAN.
 
 Verified from ace (June 2026):
 
 | Resolved target | `https://cloud.prestonhager.com` from LAN |
 |-----------------|----------------------------------------|
 | `192.168.5.5` (Technitium split-horizon) | ✅ HTTP 302 → `/login` |
-| `73.26.67.25` (public DNS path) | ❌ Connection timeout |
+| `98.249.78.62` (public DNS path) | ❌ Connection timeout |
 
 Desktops/servers work because they use **Technitium** (`192.168.5.5` from DHCP or manual config). iPhones often bypass it:
 
@@ -313,17 +326,17 @@ Desktops/servers work because they use **Technitium** (`192.168.5.5` from DHCP o
 | **Secondary DNS fallback** to `1.1.1.1` when Technitium is slow | Intermittent public answers → flaky or broken |
 | **Encrypted DNS (DoH)** to a third party | Public answers → timeout |
 
-On **cellular (LTE/5G)**, public DNS is correct and HTTPS should work (grey-cloud CNAME → `ip1.lc1` → `73.26.67.25`). If WiFi fails but LTE works, split-horizon + hairpin is confirmed.
+On **cellular (LTE/5G)**, public DNS is correct and HTTPS should work (grey-cloud CNAME → `ip1.lc1` → `98.249.78.62`). If WiFi fails but LTE works, split-horizon + hairpin is confirmed.
 
 ### DNS answers (expected)
 
 | Resolver | `cloud.prestonhager.com` | Notes |
 |----------|--------------------------|-------|
 | `@192.168.5.5` (Technitium) | CNAME → `cloud.internal.prestonhager.com` → **192.168.5.5** | Use on LAN |
-| `@1.1.1.1` (public) | CNAME → `ip1.lc1.nm.us.prestonhager.com` → **73.26.67.25** | Use off-LAN only |
+| `@1.1.1.1` (public) | CNAME → `ip1.lc1.nm.us.prestonhager.com` → **98.249.78.62** | Use off-LAN only |
 | AAAA | *(none)* | IPv4 only; not the cause if A record exists |
 
-Repo config for `cloud` is correct: `internalHosts.cloud` and `prestonhagerHosts.cloud` in `technitium-zones.nix`; `cloud` is in `scripts/ace-cloudflare-dns-sync.sh` (grey CNAME to `ip1.lc1`). No Nix zone change required for this symptom.
+Repo config for `cloud` is correct: `internalHosts.cloud` and `prestonhagerHosts.cloud` in `technitium-zones.nix`; `cloud` was in the (since removed) `ace-cloudflare-dns-sync.sh` host list (grey CNAME to `ip1.lc1`). No Nix zone change required for this symptom.
 
 ### Fix on iPhone (WiFi)
 
@@ -344,7 +357,7 @@ Pick **one** approach:
 
 ### Verify on iPhone
 
-- Install a DNS lookup app (or Shortcuts) and query `cloud.prestonhager.com`. On home WiFi you want **192.168.5.5**, not **73.26.67.25**.
+- Install a DNS lookup app (or Shortcuts) and query `cloud.prestonhager.com`. On home WiFi you want **192.168.5.5**, not **98.249.78.62**.
 - Safari: `https://cloud.prestonhager.com` should redirect to `/login`.
 - Toggle WiFi off (LTE only): should still work via public IP.
 

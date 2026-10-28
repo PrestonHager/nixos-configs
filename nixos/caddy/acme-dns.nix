@@ -33,11 +33,12 @@ in {
             # The old hash (sha256-9tO1blZoDhfxBbHMYsJzEWejuAuzM36/56dBR68dVKk=)
             # never matched the real upstream vendor tree; builds only succeeded
             # while a stale copy sat in the store. Re-fetching fails loudly with
-            # "hash mismatch". This value was confirmed by two independent fetches
-            # agreeing, and the tree checks out as caddy-dns/cloudflare v0.2.3
-            # (go.sum h1:4JOrCP/9ivaMyNmZiJtBjHo0pTtxczZT0nB3sQ9G608=) with the
-            # {35,50} token regexp the postPatch below rewrites.
-            hash = "sha256-IJbMYNjWn0Mug/k4whdIwuKsxqaL/2rid8sypaEcsNw=";
+            # "hash mismatch". The vendor tree changes whenever nixpkgs moves Caddy.
+            # Current value (Caddy 2.11.7, nixpkgs 2026-10-23): confirmed by two
+            # independent fetches agreeing; the tree checks out as
+            # caddy-dns/cloudflare v0.2.3 with the {35,50} token regexp the
+            # postPatch below rewrites.
+            hash = "sha256-weP1HzwGvPlLqiAViJus1GN74bps3bI179gomTCb6N4=";
           };
         in
         base.overrideAttrs (old: {

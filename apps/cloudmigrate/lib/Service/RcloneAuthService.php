@@ -57,14 +57,14 @@ class RcloneAuthService {
 
 		$configPath = $this->prepareAuthConfig($userId);
 		$credentials = $this->getCredentials($userId);
+		// Seed the remote in the (0600) config file instead of passing apple_id and
+		// password as `config create` arguments, which any local user could read in ps.
+		$this->writeRemoteConfig($configPath, $credentials);
 
 		$output = $this->runConfigCreate([
-			'config', 'create', self::REMOTE, RcloneRunner::BACKEND,
+			'config', 'update', self::REMOTE,
 			'service', 'drive',
-			'apple_id', $credentials['appleId'],
-			'password', $credentials['password'],
 			'--non-interactive',
-			'--obscure',
 		], $configPath);
 
 		return $this->handleConfigOutput($userId, $configPath, $output);
@@ -80,7 +80,6 @@ class RcloneAuthService {
 			$this->tokenStore->clearIcloudAuthPending($userId);
 			throw new \RuntimeException('Sign-in session expired. Click Restart sign-in and try again.');
 		}
-		$credentials = $this->getCredentials($userId);
 		$result = trim($result);
 		if ($result === '') {
 			throw new \InvalidArgumentException('2FA code is required');
@@ -89,14 +88,13 @@ class RcloneAuthService {
 			$state = $this->getPendingAuthState($userId) ?? '2fa_do';
 		}
 
+		// apple_id and the obscured password are already in $configPath from startAuth.
 		$output = $this->runConfigCreate([
-			'config', 'create', self::REMOTE, RcloneRunner::BACKEND,
+			'config', 'update', self::REMOTE,
 			'--continue',
 			'--state', $state,
 			'--result', $result,
 			'service', 'drive',
-			'apple_id', $credentials['appleId'],
-			'password', $credentials['password'],
 		], $configPath);
 
 		return $this->handleConfigOutput($userId, $configPath, $output);
@@ -128,6 +126,28 @@ class RcloneAuthService {
 			@unlink($configPath);
 		}
 		return $configPath;
+	}
+
+	/**
+	 * @param array{appleId: string, password: string} $credentials
+	 */
+	private function writeRemoteConfig(string $configPath, array $credentials): void {
+		$ini = '[' . self::REMOTE . "]\n"
+			. 'type = ' . RcloneRunner::BACKEND . "\n"
+			. "service = drive\n"
+			. 'apple_id = ' . $this->rcloneRunner->iniEscape($credentials['appleId']) . "\n"
+			. 'password = ' . $this->rcloneRunner->iniEscape(
+				$this->rcloneRunner->obscurePassword($credentials['password'])
+			) . "\n";
+		$old = umask(0077);
+		try {
+			if (file_put_contents($configPath, $ini) === false) {
+				throw new \RuntimeException('Could not write rclone config');
+			}
+		} finally {
+			umask($old);
+		}
+		chmod($configPath, 0600);
 	}
 
 	/**

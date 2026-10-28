@@ -23,7 +23,8 @@
 ### Default safety
 
 - **Extension disabled** in schema until `pterodactyl-blueprint-extensions-configure.service` enables it (or admin enables manually)
-- **Dry-run ON** until sops key `pterodactyl-router-ssh-key` is mounted — then configure service sets **dry-run OFF**
+- **Dry-run ON** until sops key `pterodactyl-router-ssh-key` is mounted — then configure service sets **dry-run OFF** (production panel only)
+- The **test panel** never gets the router key and is always dry-run (see [pterodactyl-test-blueprint.md](./pterodactyl-test-blueprint.md#extension-secrets))
 - Blocked ports: 22, 80, 443, 3380
 - Allowed range: 1024–65535
 
@@ -72,16 +73,19 @@ sudo podman exec pterodactyl php /var/www/pterodactyl/artisan migrate --force
 
 ### Router SSH key (one-time on ace)
 
-Generate a **2048-bit RSA** key, encrypt in nix-secrets, rebuild:
+Generate a **2048-bit RSA** key (IOS 15.x rejects 4096-bit keys in `ip ssh pubkey-chain`), add it to nix-secrets as `pterodactyl-router-ssh-key` (see [Secrets](#secrets-not-in-git)), rebuild ace. `pterodactyl-blueprint-extensions-env.service` (`nixos/containers/pterodactyl-extensions.nix`) copies the key into the panel container.
+
+The helper scripts used here were removed in commit `572c200`: `ace-pterodactyl-router-ssh-deploy.sh` (generate key + sops + rebuild), `get-cisco-enable.ps1`, `astracap-setup-pterofwd.py` (serial console) and `astracap-setup-pterofwd-ssh.py`. Recover one with `git show 572c200^:scripts/<name>`, for example:
 
 ```bash
-# Copy private key to ace (from secure workstation), then:
-sudo bash /etc/nixos/scripts/ace-pterodactyl-router-ssh-deploy.sh /path/to/pterodactyl-router-ssh-key
+git -C /etc/nixos show 572c200^:scripts/ace-pterodactyl-router-ssh-deploy.sh > /tmp/ace-pterodactyl-router-ssh-deploy.sh
+sudo bash /tmp/ace-pterodactyl-router-ssh-deploy.sh /path/to/pterodactyl-router-ssh-key
 ```
 
-Authorize the printed public key on Astracap for user **`pterofwd`** (serial console recommended):
+Authorize the public key on Astracap for user **`pterofwd`** (serial console recommended), with the recovered workstation scripts in a checkout of the repo:
 
 ```powershell
+git restore --source=572c200^ -- scripts/get-cisco-enable.ps1 scripts/astracap-setup-pterofwd.py
 $env:CISCO_ENABLE_PASSWORD = (& scripts/get-cisco-enable.ps1)
 $env:PTEROFWD_PUBKEY = "C:\path\to\pterofwd_astracap.pub"
 $env:ASTRACAP_SERIAL_PORT = "COM6"   # USB console adapter
@@ -89,14 +93,7 @@ python scripts/astracap-setup-pterofwd.py
 Remove-Item Env:CISCO_ENABLE_PASSWORD
 ```
 
-SSH-based alternative (when console unavailable, may require manual IOS `key-string` paste):
-
-```powershell
-$env:CISCO_ENABLE_PASSWORD = (& scripts/get-cisco-enable.ps1)
-$env:PTEROFWD_PUBKEY = "C:\path\to\pterofwd_astracap.pub"
-python scripts/astracap-setup-pterofwd-ssh.py
-Remove-Item Env:CISCO_ENABLE_PASSWORD
-```
+SSH-based alternative (when console unavailable, may require manual IOS `key-string` paste): recover `astracap-setup-pterofwd-ssh.py` the same way and run it with the same environment variables (without `ASTRACAP_SERIAL_PORT`). Or paste the key under `ip ssh pubkey-chain` → `username pterofwd` by hand.
 
 Verify from ace panel container:
 
@@ -133,7 +130,7 @@ pterodactyl-router-ssh-key: |
   -----END OPENSSH PRIVATE KEY-----
 ```
 
-Or run `scripts/ace-pterodactyl-router-ssh-deploy.sh` on ace (encrypts via sops automatically).
+The old `ace-pterodactyl-router-ssh-deploy.sh` did this automatically; it was removed in commit `572c200` (recovery above).
 
 Router SSH user: **`pterofwd`** (dedicated automation account; pubkey in `ip ssh pubkey-chain`).
 
@@ -191,7 +188,7 @@ Removal: prefix with `no `. Running-config only (no `write memory` in v1).
 
 1. Create mapping TCP 25570 → 25570 from server Network tab
 2. On ace: `ssh astracap "show running-config | include 25570"`
-3. External: `nc -vz 73.26.67.25 25570` (if ISP path allows)
+3. External: `nc -vz 98.249.78.62 25570` (if ISP path allows)
 
 ### Troubleshooting
 
@@ -211,6 +208,7 @@ sudo podman exec pterodactyl php artisan tinker --execute="DB::table('portforwar
 - UDP + TCP same port requires two explicit mappings
 - No WAN ACL permit-line management
 - SSH apply not verified in CI; test on ace before disabling dry-run in production
+- `pterofwd` must land at privilege 15, which needs both `username pterofwd privilege 15` and VTY exec authorization; without them `configure terminal` fails and live NAT cannot apply. See [Astracap → Automation account](../shared/network-astracap.md#automation-account-pterofwd). `coolify-edge-nat` uses the same account and key.
 
 ---
 

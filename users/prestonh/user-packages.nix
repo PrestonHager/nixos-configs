@@ -40,7 +40,8 @@
     htop-vim
     iotop
 
-    # samba
-    sambaFull
+    # samba. CephFS off: nothing here serves shares from Ceph, and ceph 20.2.4
+    # fails to build in nixpkgs 2026-10-23 (bundled qatlib), which is not cached.
+    (sambaFull.override { enableCephFS = false; })
   ];
 }

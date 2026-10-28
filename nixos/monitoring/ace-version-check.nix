@@ -18,6 +18,7 @@ in
       User = "root";
       ExecStart = pkgs.writeShellScript "ace-version-check-run" ''
         export CADDY="${caddyBin}"
+        export ACE_REGISTRY="${./scripts/ace-service-update-registry.json}"
         ${builtins.readFile ./scripts/ace-version-check.sh}
       '';
     };

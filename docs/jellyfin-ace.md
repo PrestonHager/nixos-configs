@@ -7,8 +7,9 @@ Implementation: `nixos/containers/jellyfin.nix`, Caddy `nixos/caddy/jellyfin.nix
 | Field | Value |
 |-------|-------|
 | URL | https://jellyfin.prestonhager.com |
-| Version | Jellyfin 10.10.x (official container image) |
-| Auth | Zitadel OIDC via **SSO Authentication** plugin (`9p4/jellyfin-plugin-sso` v3.5.2.4) |
+| Version | Jellyfin **10.11.11** (official container image, pinned as `jellyfinVersion`) |
+| Auth | Zitadel OIDC via **SSO Authentication** plugin (`9p4/jellyfin-plugin-sso` **4.0.0.4**, hash-pinned, installed to `plugins/SSO Authentication_4.0.0.4`) |
+| Upgrade hold | Stay on **10.11.x**: there is no SSO plugin build for Jellyfin 12 yet (checked 2026-10-24: latest 4.0.0.4 targets ABI 10.11), and upgrading would break Zitadel login. The 12.0 database migration also cannot be rolled back without a restore. Enforced by `"holdMajor": "10"` in `ace-service-update-registry.json`, which silences the major-version alert and approval mail. Remove the hold once a plugin release targets the 12 ABI |
 | SSO login URL | https://jellyfin.prestonhager.com/sso/OID/start/zitadel |
 | Break-glass local admin | `preston-admin` (existing local account) |
 
@@ -24,24 +25,15 @@ Create or update the **Jellyfin** OIDC app in the **Home Lab** project (`3761964
 | Auth method | Basic (client secret) |
 | Role assertions | Enabled (ID token + access token) |
 
-Automated setup on ace (admin session API; preferred):
+The Zitadel setup scripts (`zitadel-jellyfin-console-setup.js`, preferred, admin session API; `zitadel-jellyfin-oauth-setup.js`, login-client JWT fallback) and `ace-jellyfin-oauth-deploy.sh` were removed in commit `572c200`. Create the app in the Zitadel console, or recover a script:
 
 ```bash
 cd /etc/nixos
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-jellyfin-console-setup.js
+git show 572c200^:scripts/zitadel-jellyfin-console-setup.js > /tmp/zitadel-jellyfin-console-setup.js
+nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-jellyfin-console-setup.js
 ```
 
-Fallback (login-client JWT; may lack project permissions):
-
-```bash
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-jellyfin-oauth-setup.js
-```
-
-Store the printed `JELLYFIN_OIDC_CLIENT_ID` and `JELLYFIN_OIDC_CLIENT_SECRET` in sops, then redeploy:
-
-```bash
-scripts/ace-jellyfin-oauth-deploy.sh <client_id> <client_secret>
-```
+Store the `JELLYFIN_OIDC_CLIENT_ID` and `JELLYFIN_OIDC_CLIENT_SECRET` in sops (`jellyfin-oauth-env`, see [Sops secrets](#sops-secrets)) and rebuild ace. `jellyfin-sso-setup.service` (`nixos/containers/jellyfin.nix`) then installs the plugin and writes its configuration from that secret.
 
 ## Jellyfin roles via Zitadel
 
@@ -56,14 +48,15 @@ The SSO plugin reads a flat **`groups`** claim. Zitadel project roles use a nest
 
 ### Automated: Complement Token action
 
-Run on ace after roles/grants are configured:
+`scripts/zitadel-jellyfin-groups-action.js` was removed in commit `572c200`; no Nix unit replaces it. Use the console steps below, or recover the script and run it on ace after roles/grants are configured:
 
 ```bash
 cd /etc/nixos
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-jellyfin-groups-action.js
+git show 572c200^:scripts/zitadel-jellyfin-groups-action.js > /tmp/zitadel-jellyfin-groups-action.js
+nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-jellyfin-groups-action.js
 ```
 
-This script:
+The script:
 
 - Creates or updates the `jellyfinGroups` action (ID `376332016783726901` on ace)
 - Attaches it to **Complement Token** triggers (Pre Userinfo + Pre access token)
@@ -112,7 +105,7 @@ function jellyfinGroups(ctx, api) {
 | Preston | `prestonh` | `376197075085302069` | `jellyfin_admin` |
 | Dylan | `dylanh` | `376328957357726005` | `jellyfin_user` |
 
-The setup script creates roles and grants when the login-client API permits it. Verify in **Authorizations** if grants are missing.
+The (now removed) setup script created roles and grants when the login-client API permitted it; otherwise add them in the console. Verify in **Authorizations** if grants are missing.
 
 ## Login (SSO)
 
@@ -141,13 +134,15 @@ nix flake update nix-secrets
 nixos-rebuild switch --flake .#ace
 rm -f /jf/config/.sso-setup-done
 systemctl restart jellyfin-sso-setup.service
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-jellyfin-groups-action.js
+# Re-apply the jellyfinGroups action if needed (console, or the recovered script above)
 systemctl restart podman-jellyfin.service
 ```
 
 ## Container networking
 
 Jellyfin runs with `--add-host=zitadel.prestonhager.com:host-gateway` so server-side OIDC discovery and token exchange reach Caddy on the host (same pattern as Grafana and Nextcloud).
+
+Port 8096 is published on `127.0.0.1` (Caddy, version check) and `192.168.5.5` (LAN TV/app clients that connect to `http://192.168.5.5:8096` directly and log in with Jellyfin credentials). It is not published on other host addresses (tailnet, Podman bridges); remote clients use https://jellyfin.prestonhager.com.
 
 ## Verification on ace
 
@@ -170,9 +165,9 @@ nix shell nixpkgs#sqlite -c sqlite3 /jf/config/data/jellyfin.db \
 | Symptom | Likely cause |
 |---------|----------------|
 | `redirect_uri` mismatch | Add both `/sso/OID/redirect/zitadel` and `/sso/OID/r/zitadel` in Zitadel app |
-| "Check permissions" on login | Missing `groups` claim (complement action uses `grant.roleKeys` instead of `grant.roles`, or action not on Complement Token flow), user has both `jellyfin_admin` and `jellyfin_user`, or OIDC `groups` scope requested (blocks `setClaim`) — run `scripts/zitadel-jellyfin-groups-action.js` |
+| "Check permissions" on login | Missing `groups` claim (complement action uses `grant.roleKeys` instead of `grant.roles`, or action not on Complement Token flow), user has both `jellyfin_admin` and `jellyfin_user`, or OIDC `groups` scope requested (blocks `setClaim`) — fix the `jellyfinGroups` action ([console steps](#manual-complement-token-action-console-fallback)) |
 | OIDC discovery timeout | Missing `host-gateway` for `zitadel.prestonhager.com` on the container |
-| Plugin not loaded | Run `systemctl restart jellyfin-sso-setup.service`; check `/jf/config/plugins/SSO Authentication/` |
+| Plugin not loaded | Run `systemctl restart jellyfin-sso-setup.service`; check `/jf/config/plugins/SSO Authentication_4.0.0.4/` (Jellyfin loads `plugins/<Name>_<version>/`) |
 | SSO button missing on login page | `branding.xml` LoginDisclaimer HTML must be XML entity-escaped (raw `<form>` tags break parsing); check `podman logs jellyfin` for `Error loading configuration file: branding.xml` |
 
 Useful logs:
