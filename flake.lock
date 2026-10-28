@@ -78,6 +78,22 @@
         "type": "github"
       }
     },
+    "flake-compat": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1767039857,
+        "narHash": "sha256-vNpUSpF5Nuw8xvDLj2KCwwksIbjua2LZCqhV1LNRDns=",
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "rev": "5edf11c44bc78a0d334f6334cdaf7d60d732daab",
+        "type": "github"
+      },
+      "original": {
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "type": "github"
+      }
+    },
     "flake-utils": {
       "inputs": {
         "systems": "systems"
@@ -153,6 +169,27 @@
       "original": {
         "type": "git",
         "url": "ssh://git@github.com/PrestonHager/nixos-secrets.git"
+      }
+    },
+    "nixos-wsl": {
+      "inputs": {
+        "flake-compat": "flake-compat",
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1792982269,
+        "narHash": "sha256-5R5CFIKj06qTQevhg/rCFUSAMxfNgdn0oIBL57R7u0Y=",
+        "owner": "nix-community",
+        "repo": "NixOS-WSL",
+        "rev": "e45b24b7df093299072b13bf3144ed0ee340e769",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "NixOS-WSL",
+        "type": "github"
       }
     },
     "nixpkgs": {
@@ -279,6 +316,7 @@
         "disko": "disko",
         "home-manager": "home-manager",
         "nix-secrets": "nix-secrets",
+        "nixos-wsl": "nixos-wsl",
         "nixpkgs": "nixpkgs",
         "pterodactyl-dns-records": "pterodactyl-dns-records",
         "pterodactyl-minecraft-tools": "pterodactyl-minecraft-tools",

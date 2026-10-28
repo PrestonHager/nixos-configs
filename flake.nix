@@ -51,6 +51,11 @@
       flake = false;
     };
 
+    nixos-wsl = {
+      url = "github:nix-community/NixOS-WSL";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -109,6 +114,12 @@
         specialArgs = {inherit inputs;};
         modules = defaultModules ++ [
           ./hosts/ph-nixos
+        ];
+      };
+      ph-nixos-wsl = nixpkgs.lib.nixosSystem {
+        specialArgs = {inherit inputs;};
+        modules = defaultModules ++ [
+          ./hosts/ph-nixos-wsl
         ];
       };
       ace = nixpkgs.lib.nixosSystem {
