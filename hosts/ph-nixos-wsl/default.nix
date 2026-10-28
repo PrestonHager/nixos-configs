@@ -10,9 +10,16 @@
     ../../hardware/msi-summit-e16flip-wsl/hardware-configuration.nix
     # yubico keys
     ../../nixos/yubikey.nix
+    # SSH keys come from the Windows agent (Bitwarden)
+    ../../nixos/wsl-ssh-agent.nix
+    # RISCV-CPU / LibreLane development
+    ../../nixos/librelane.nix
     # include any users
     ../../users/prestonh
   ];
+
+  # The home-manager ssh-agent would replace the Windows agent socket
+  home-manager.users.prestonh.services.ssh-agent.enable = lib.mkForce false;
 
   wsl.enable = true;
   wsl.defaultUser = "prestonh";
