@@ -11,10 +11,6 @@
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 
-  fileSystems."/lib/modules/5.15.167.4-microsoft-standard-WSL2" =
-    { device = "none";
-      fsType = "overlay";
-    };
 
   fileSystems."/mnt/wsl" =
     { device = "none";
