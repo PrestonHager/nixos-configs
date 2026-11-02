@@ -21,7 +21,7 @@ flowchart LR
 2. It keeps IPv4 global-unicast addresses with a score of at least `minConfidence` (95). It drops anything in the allowlist, caps the list at `maxPrefixes` (10,000; highest score and most recently reported first), and writes one `route …/32 blackhole;` per address.
 3. The full BIRD config is checked before BIRD loads the new list (`birdc configure`). If BIRD rejects it, the previous list is restored.
 4. BIRD announces each address to Astracap as a /32 over eBGP. ace connects; the router side is passive.
-5. Astracap accepts only /32s that are not private or special-use, and rewrites their next hop to `192.0.2.1`, which is routed to `Null0`. Outbound traffic to those addresses is dropped. Loose unicast RPF (`allow-default`) on the WAN interface drops inbound packets *from* them, before NAT.
+5. Astracap accepts only /32s that are not private or special-use, and rewrites their next hop to `192.0.2.1`, which is routed to `Null0`. Outbound traffic to those addresses is dropped. Loose unicast RPF (`allow-default`) on the WAN interface drops inbound packets *from* them, before NAT. ACL 150 exempts DHCP replies, so the WAN can get a lease back when it has none.
 
 **Why BGP instead of an ACL.**
 
@@ -101,10 +101,17 @@ configure terminal
   ! More than this and the session drops (fail-open), rather than filling memory.
   neighbor 192.168.5.5 maximum-prefix 12000
  !
+ ! uRPF exceptions. Gi0/0 is a DHCP client: with no lease it has no address and
+ ! no default route, so the modem's offer (from 10.0.0.1) fails uRPF and the
+ ! router never gets its address back (outage after the 2026-11-02 power cycle).
+ ! The list is only consulted for packets that already failed the check.
+ access-list 150 remark uRPF exceptions: DHCP replies from the modem before Gi0/0 has a lease
+ access-list 150 permit udp any eq bootps any eq bootpc
+ !
  ! Drop packets whose source is routed to Null0. allow-default: every other
  ! internet source matches only the default route and must still pass.
  interface GigabitEthernet0/0
-  ip verify unicast source reachable-via any allow-default
+  ip verify unicast source reachable-via any allow-default 150
  !
  ! Not part of the blackhole, but found with it: the router answered DNS on the
  ! WAN (an open resolver; Suricata's "*.top domain" alert was a resolver survey
@@ -122,8 +129,9 @@ Only these lines are saved to NVRAM; the routes themselves are learned at runtim
 ```text
 show ip bgp summary                                  ! 192.168.5.5 ... State/PfxRcd = a number
 show ip route <a listed address>                     ! via 192.0.2.1, then Null0
-show ip interface GigabitEthernet0/0 | include verify
+show ip interface GigabitEthernet0/0 | include verify ! "allow default, ACL 150"; verification drops rising
 show ip traffic | include RPF                        ! "unicast RPF" drop counter rising
+show access-lists 150                                ! matches = DHCP replies uRPF would have dropped
 show control-plane host open-ports | include 53      ! no DNS Server lines
 show startup-config | include router bgp|verify unicast|dns server|Null0
 ```
@@ -135,7 +143,11 @@ birdc show protocols all astracap     # Established; "Routes: … exported"
 cat /var/lib/node-exporter-textfile/abuseipdb_blackhole.prom
 ```
 
-**Undo** (on the router): `router bgp 65100` → `no neighbor 192.168.5.5`, or remove BGP entirely with `no router bgp 65100`. Then `interface GigabitEthernet0/0` → `no ip verify unicast source reachable-via any allow-default`, and `write memory`. On ace, set `enable = false` and rebuild.
+**DHCP test** (a few seconds without internet; run from the LAN side): `release dhcp GigabitEthernet0/0`, then `renew dhcp GigabitEthernet0/0` ("Not in Bound state." is normal) and `show dhcp lease` should be `Bound` within seconds, with `show access-lists 150` matches going up. Tested 2026-11-01: bound after 5 s, 2 matches.
+
+**Keep `ip virtual-reassembly in`** on Gi0/0 and Gi0/2. IOS turns it on with NAT so fragmented packets (large DNS replies, game UDP) can be translated; it has nothing to do with DHCP.
+
+**Undo** (on the router): `router bgp 65100` → `no neighbor 192.168.5.5`, or remove BGP entirely with `no router bgp 65100`. Then `interface GigabitEthernet0/0` → `no ip verify unicast source reachable-via any allow-default 150`, and `write memory`. On ace, set `enable = false` and rebuild.
 
 ## Operations
 
