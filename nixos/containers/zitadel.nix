@@ -194,7 +194,7 @@ in {
   virtualisation.oci-containers.containers.zitadel = {
     autoStart = true;
     dependsOn = [ "zitadel-db" ];
-    image = "ghcr.io/zitadel/zitadel:v4.20.0";
+    image = "ghcr.io/zitadel/zitadel:v4.20.1";
     cmd = [
       "start-from-init"
       "--masterkeyFromEnv"
@@ -225,7 +225,7 @@ in {
   virtualisation.oci-containers.containers.zitadel-login = {
     autoStart = true;
     dependsOn = [ "zitadel" ];
-    image = "ghcr.io/zitadel/zitadel-login:v4.20.0";
+    image = "ghcr.io/zitadel/zitadel-login:v4.20.1";
     extraOptions = [
       "--pod=zitadel-pod"
       # Read access to tls.key (root:zitadel-login-key 0640) without making it world-readable.
