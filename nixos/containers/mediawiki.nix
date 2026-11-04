@@ -143,9 +143,38 @@ in
     "d /mw/data 0770 mediawiki-db mediawiki-db -"
     "d /mw/redis 0770 mediawiki-redis mediawiki-redis -"
     "d /mw/html 0755 www-data www-data -"
+    "d /mw/html/sitemap 0755 www-data www-data -"
     "d /mw/apache2 0770 root root -"
     "d /mw/run 0770 root root -"
   ];
+
+  # XML sitemap for search engines, served at /sitemap.xml by
+  # nixos/caddy/mediawiki.nix and listed in its robots.txt.
+  systemd.services.mediawiki-sitemap = {
+    description = "Generate the MediaWiki XML sitemap";
+    after = [ "podman-mediawiki.service" ];
+    requires = [ "podman-mediawiki.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = lib.concatStringsSep " " [
+        "${config.virtualisation.podman.package}/bin/podman exec -u www-data mediawiki"
+        "php /var/www/html/maintenance/run.php generateSitemap"
+        "--fspath=/var/www/html/sitemap --urlpath=/sitemap"
+        "--server=https://loftiawiki.org --identifier=loftiawiki"
+        "--compress=no --skip-redirects"
+      ];
+    };
+  };
+  systemd.timers.mediawiki-sitemap = {
+    description = "Regenerate the MediaWiki sitemap daily";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "10min";
+      OnCalendar = "daily";
+      Persistent = true;
+      Unit = "mediawiki-sitemap.service";
+    };
+  };
 
   systemd.services.mediawiki-redis-auth = {
     description = "Generate the MediaWiki Valkey password and config";
