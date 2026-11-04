@@ -23,5 +23,7 @@ in {
 
   networking.firewall.extraCommands = lib.mkAfter ''
     iptables -A nixos-fw -p tcp -s ${aceIp} --dport 9090 -j nixos-fw-accept
+    # node_exporter for ace's node-hosts job (Server — crux dashboard).
+    iptables -A nixos-fw -p tcp -s ${aceIp} --dport 9100 -j nixos-fw-accept
   '';
 }

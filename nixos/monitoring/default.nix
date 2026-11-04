@@ -2,6 +2,8 @@
 let
   blackboxCfg = import ./blackbox-config.nix { inherit lib; };
   grafanaDashboards = ./grafana/dashboards;
+  # One dashboard per server in lan-servers.nix (Servers folder).
+  serverDashboards = import ./grafana/server-dashboards.nix { inherit pkgs lib; };
 in {
   imports = [
     ./exporters.nix
@@ -93,6 +95,22 @@ in {
         options:
           path: /etc/grafana/dashboards/lan
   '';
+
+  environment.etc."grafana/provisioning/dashboards/servers.yaml".text = ''
+    apiVersion: 1
+    providers:
+      - name: Servers
+        orgId: 1
+        folder: Servers
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: false
+        options:
+          path: /etc/grafana/dashboards/servers
+  '';
+
+  environment.etc."grafana/dashboards/servers".source = serverDashboards;
 
   environment.etc."grafana/provisioning/dashboards/security.yaml".text = ''
     apiVersion: 1

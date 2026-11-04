@@ -7,6 +7,41 @@ let
   lanIp = "192.168.5.5";
   cruxBlackbox = "192.168.5.6:9115";
   cruxBlackboxCfg = import ./crux-blackbox-config.nix { inherit lib; };
+  # Servers with their own dashboards (lan-servers.nix): node_exporter scrapes,
+  # extra TCP probes and the lifecycle label that keeps planned/disconnected
+  # hosts out of the LAN uptime % and the scrape-down alert.
+  lanServers = import ./lan-servers.nix;
+  lifecycleOf = host: if lanServers ? ${host} then lanServers.${host}.lifecycle else "active";
+  probeTier = lifecycle: if lifecycle == "active" then "essential" else "non-essential";
+  lanServerProbes = lib.concatLists (lib.mapAttrsToList (host: s:
+    map (pr: {
+      targets = [ "${s.ip}:${toString pr.port}" ];
+      labels = {
+        inherit host;
+        inherit (pr) service;
+        service_role = pr.role;
+        probe_location = "local";
+        service_tier = probeTier s.lifecycle;
+        lifecycle = s.lifecycle;
+      };
+    }) s.probes
+    ++ lib.optional (s ? idrac) {
+      targets = [ "${s.idrac.ip}:443" ];
+      labels = {
+        inherit host;
+        service = "idrac";
+        service_role = "oob";
+        probe_location = "local";
+        # Out-of-band only: shown, never alerted on or counted as the host.
+        service_tier = "non-essential";
+        lifecycle = s.idrac.lifecycle;
+      };
+    }
+  ) lanServers);
+  nodeHostStaticConfigs = lib.mapAttrsToList (host: s: {
+    targets = [ "${s.ip}:9100" ];
+    labels = { inherit host; inherit (s) lifecycle; };
+  }) (lib.filterAttrs (_: s: s.nodeExporter) lanServers);
 
   # Essential HTTP targets — included in Health Summary / overall uptime %.
   httpTargetsEssential = [
@@ -126,6 +161,7 @@ let
         service_role = "http";
         probe_location = "local";
         service_tier = "essential";
+        lifecycle = lifecycleOf "mars";
       };
     }
     {
@@ -136,6 +172,7 @@ let
         service_role = "https";
         probe_location = "local";
         service_tier = "essential";
+        lifecycle = lifecycleOf "ace";
       };
     }
     {
@@ -147,6 +184,7 @@ let
         probe_location = "local";
         # Nova is currently offline / not a required Ace dependency.
         service_tier = "non-essential";
+        lifecycle = lifecycleOf "nova";
       };
     }
     {
@@ -158,6 +196,7 @@ let
         probe_location = "local";
         # Offline: not physically connected (Wings node, flake #nova).
         service_tier = "non-essential";
+        lifecycle = lifecycleOf "nova";
       };
     }
     {
@@ -167,8 +206,9 @@ let
         service = "ssh";
         service_role = "management";
         probe_location = "local";
-        # Planned Wings node (Dell OptiPlex).
-        service_tier = "non-essential";
+        # Wings node in service since 2026-10 (Dell OptiPlex).
+        service_tier = "essential";
+        lifecycle = lifecycleOf "elara";
       };
     }
     {
@@ -180,6 +220,7 @@ let
         probe_location = "local";
         # Planned Wings node (Dell OptiPlex); SSH not answering yet.
         service_tier = "non-essential";
+        lifecycle = lifecycleOf "zenith";
       };
     }
     {
@@ -190,6 +231,7 @@ let
         service_role = "management";
         probe_location = "local";
         service_tier = "essential";
+        lifecycle = lifecycleOf "astracap";
       };
     }
     {
@@ -200,11 +242,13 @@ let
         service_role = "management";
         probe_location = "local";
         service_tier = "essential";
+        lifecycle = lifecycleOf "astraquasar";
       };
     }
   ];
 
   lanHttpsTargets = cruxBlackboxCfg.lanHttpTargets;
+  lanHostTcpAll = lanHostTcpStaticConfigs ++ lanServerProbes;
 
   mkBlackboxRelabel = extra: [
     {
@@ -303,6 +347,12 @@ in {
       {
         job_name = "node";
         static_configs = [{ targets = [ "${hostGateway}:9100" ]; }];
+      }
+      {
+        # The other servers' node_exporters (dashboards in the Servers folder).
+        # Their firewalls accept :9100 from ace only.
+        job_name = "node-hosts";
+        static_configs = nodeHostStaticConfigs;
       }
       {
         job_name = "caddy";
@@ -424,7 +474,7 @@ in {
         job_name = "blackbox-tcp-lan-hosts";
         metrics_path = "/probe";
         params = { module = [ "tcp_connect" ]; };
-        static_configs = lanHostTcpStaticConfigs;
+        static_configs = lanHostTcpAll;
         relabel_configs = mkBlackboxRelabel [
           {
             target_label = "probe_location";

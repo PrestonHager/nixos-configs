@@ -322,7 +322,7 @@
     {
       "id": 6,
       "title": "LAN Hosts TCP Up",
-      "description": "443 reachability: ace, crux, nova (crux Prometheus)",
+      "description": "Share of TCP probes up for LAN hosts in service (lifecycle=\"active\"). Planned and disconnected hosts (lan-servers.nix) are left out.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -374,7 +374,7 @@
       },
       "targets": [
         {
-          "expr": "100 * sum(probe_success{job=\"blackbox-tcp-lan\"}) / count(probe_success{job=\"blackbox-tcp-lan\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{job=\"blackbox-tcp-lan\"})) * on() group_left(total) count_values(\"total\", count(probe_success{job=\"blackbox-tcp-lan\"})))",
+          "expr": "100 * sum(probe_success{job=\"blackbox-tcp-lan-hosts\",lifecycle=\"active\"}) / count(probe_success{job=\"blackbox-tcp-lan-hosts\",lifecycle=\"active\"}) * on() group_left(up, total) (count_values(\"up\", sum(probe_success{job=\"blackbox-tcp-lan-hosts\",lifecycle=\"active\"})) * on() group_left(total) count_values(\"total\", count(probe_success{job=\"blackbox-tcp-lan-hosts\",lifecycle=\"active\"})))",
           "refId": "A",
           "legendFormat": "__auto",
           "instant": true,
@@ -546,13 +546,13 @@
       },
       "targets": [
         {
-          "expr": "probe_success{job=\"blackbox-tcp-lan\"}",
+          "expr": "probe_success{job=\"blackbox-tcp-lan-hosts\"}",
           "format": "table",
           "instant": true,
           "refId": "status"
         },
         {
-          "expr": "probe_duration_seconds{job=\"blackbox-tcp-lan\"}",
+          "expr": "probe_duration_seconds{job=\"blackbox-tcp-lan-hosts\"}",
           "format": "table",
           "instant": true,
           "refId": "latency"
@@ -765,7 +765,7 @@
     },
     {
       "id": 12,
-      "title": "Ace HTTP — local vs LAN vs external latency",
+      "title": "Ace HTTP \u2014 local vs LAN vs external latency",
       "type": "bargauge",
       "gridPos": {
         "h": 4,
@@ -1121,7 +1121,7 @@
     },
     {
       "id": 15,
-      "title": "Probe success — all perspectives",
+      "title": "Probe success \u2014 all perspectives",
       "type": "timeseries",
       "gridPos": {
         "h": 8,

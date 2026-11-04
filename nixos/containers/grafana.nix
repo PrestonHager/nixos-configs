@@ -136,6 +136,8 @@ in {
     (etcPath "grafana/provisioning/dashboards/crux.yaml")
     (etcPath "grafana/provisioning/dashboards/lan.yaml")
     (etcPath "grafana/provisioning/dashboards/security.yaml")
+    (etcPath "grafana/provisioning/dashboards/servers.yaml")
+    (etcPath "grafana/dashboards/servers")
     (etcPath "grafana/dashboards/security/suricata-alerts.json")
     (etcPath "grafana/dashboards/ace/ace-uptime.json")
     (etcPath "grafana/dashboards/ace/ace-overview.json")
@@ -238,6 +240,8 @@ in {
       "${etcPath "grafana/provisioning/dashboards/crux.yaml"}:/etc/grafana/provisioning/dashboards/crux.yaml:ro"
       "${etcPath "grafana/provisioning/dashboards/lan.yaml"}:/etc/grafana/provisioning/dashboards/lan.yaml:ro"
       "${etcPath "grafana/provisioning/dashboards/security.yaml"}:/etc/grafana/provisioning/dashboards/security.yaml:ro"
+      "${etcPath "grafana/provisioning/dashboards/servers.yaml"}:/etc/grafana/provisioning/dashboards/servers.yaml:ro"
+      "${etcPath "grafana/dashboards/servers"}:/etc/grafana/dashboards/servers:ro"
       "${grafanaAlertingDir}/contact-points.yaml:/etc/grafana/provisioning/alerting/contact-points.yaml:ro"
       "${etcPath "grafana/provisioning/alerting/alert-rules.yaml"}:/etc/grafana/provisioning/alerting/alert-rules.yaml:ro"
       "${etcPath "grafana/provisioning/alerting/notification-policies.yaml"}:/etc/grafana/provisioning/alerting/notification-policies.yaml:ro"
