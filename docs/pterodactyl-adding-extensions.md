@@ -1,4 +1,7 @@
-﻿# Pterodactyl Blueprint: Adding an Extension (Legacy ABI Recipe)
+# Pterodactyl Blueprint: Adding an Extension (Legacy ABI Recipe)
+
+> **Legacy (Pterodactyl + Blueprint era).** Both panels have run [Hydrodactyl](./pterodactyl.md) since 2026-10-26, and Hydrodactyl cannot run Blueprint extensions. New panel features are native addons in `plugins/hydrodactyl` instead. Kept for reference.
+
 
 **Status:** Worked example = `minecraft-tools` (implemented 2026-08, legacy ABI port)
 **Branch:** `dell-poweredge-r730xd`

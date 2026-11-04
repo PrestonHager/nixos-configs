@@ -10,7 +10,7 @@ Plan for the major-version upgrades that the [2026-10-24 review](./config-review
 | 2 | MediaWiki | 1.45.6 | **1.47 LTS** (skip 1.46) | **Deadline:** 1.45 ends December 2026 | After the 2026-11-03 Loftia launch, once 1.47.0 is out (due November 2026) |
 | 3 | Postgres (Matrix, Zitadel) | 16.15 | **17** | Low: 16 is supported to 2028-11 | Any quiet hour in the next six months |
 | 4 | Node (animal-search) | — | — | Not on ace any more: the app moved to Coolify on 2026-10-25 and its image is built upstream | — |
-| 5 | Valkey (Pterodactyl, MediaWiki, test panel) | 8.1.10 | **9.1** | Low: 8.1 still gets fixes | With the next panel maintenance |
+| 5 | Valkey (Hydrodactyl, MediaWiki, test panel) | 8.1.10 | **9.1** | Low: 8.1 still gets fixes | With the next panel maintenance |
 | — | MariaDB (all six) | 11.4 / 12.3 LTS | **Stay on LTS**; optionally consolidate 11.4 → 12.3 | None | Optional |
 | — | Postgres (Coolify) | 15.19 | Follow Coolify upstream | Before 15 ends (2027-11) | When Coolify moves |
 | — | Redis (Coolify) | 7.4.12 | Follow Coolify upstream | None | When Coolify moves |
@@ -208,7 +208,7 @@ MediaWiki supports upgrading straight from 1.39 or newer, so 1.45 → 1.47 is on
 ## 5. Valkey 8.1 → 9.1
 
 - Valkey 9's behaviour changes are small: auth is checked before command existence, and MULTI error messages include the command's full name.
-- The data is cache, sessions and Pterodactyl's queue.
+- The data is cache, sessions and the panel's queue.
 - The 2026-10-25 RDB copies load on 9.1.2 with identical key counts (panel 1158, test panel 1119, MediaWiki 2245).
 - **Rehearsed on 2026-11-04 with 9.1.3-alpine** (`sha256:bf09d58e…fae0b`), on copies of that day's live `dump.rdb` and the production command lines (`requirepass` file, `--bind 127.0.0.1 --save 59 1 --loglevel warning`; the test panel has no password):
   - No config warnings at startup. Every key loads, and a checksum over every key, type and value matches 8.1.10 on all three (panel 3576, test panel 3574, MediaWiki 879 keys at that moment).
@@ -250,7 +250,7 @@ Coolify v4.6.0 ships `redis:7-alpine`. The archived RDB loads on Redis 8.10.2 (2
 | `db/` | Every database dump from 2026-10-25, plus `vaultwarden.sqlite3` | MariaDB: a plain restore into the same version has 0 errors, and table counts match the live datadirs (Nextcloud 249, panel 52, test panel 58, MediaWiki 98). Also clean into 12.3.3. Postgres: clean into 17 (Matrix, Zitadel) and 15 (Coolify) |
 | `db-legacy-format/` | The same dumps in the old `--all-databases` format | Restore needs the two fixes below |
 | `jellyfin/` | Online `.backup` copies of `jellyfin.db` and `playback_reporting.db`, `config.tar.gz` (plugins, settings, metadata), and the 10.11.11 `jellyfin.nix` | `integrity_check` ok |
-| `kv/` | `dump.rdb` of the Pterodactyl, test-panel and MediaWiki Valkey and of Coolify's Redis | Load on their current versions, and on Valkey 9.1 / Redis 8.10 |
+| `kv/` | `dump.rdb` of the Hydrodactyl, test-panel and MediaWiki Valkey and of Coolify's Redis | Load on their current versions, and on Valkey 9.1 / Redis 8.10 |
 | `mediawiki/` | `html-1.45.6.tar.gz` (code and settings) and `images.tar.gz` | — |
 | `animal-search/` | The live production release | — |
 | `MANIFEST.txt` | Git revision, running images and versions at the time | — |

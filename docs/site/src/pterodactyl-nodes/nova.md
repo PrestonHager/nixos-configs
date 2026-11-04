@@ -1,6 +1,6 @@
 # Nova
 
-Pterodactyl Wings node at **192.168.5.7**.
+Wings node at **192.168.5.7**.
 
 **Status (Oct 2026): physically disconnected.** The flake target is kept as a template so nova can be reattached without new config; the IP stays reserved.
 

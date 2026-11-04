@@ -1,4 +1,7 @@
-# Pterodactyl Blueprint Extension — Port Forwarding / NAT (Router)
+# Port Forwarding / NAT (Router) — design plan
+
+> **Legacy (Pterodactyl + Blueprint era).** Both panels have run [Hydrodactyl](./pterodactyl.md) since 2026-10-26, and Hydrodactyl cannot run Blueprint extensions. Port forwarding now ships as a Hydrodactyl addon ([implementation](./pterodactyl-plugin-port-forward.md)); this is the original design for the Blueprint extension. Kept for reference.
+
 
 **Status:** Planning only (not implemented)  
 **Updated:** 2026-06-26  

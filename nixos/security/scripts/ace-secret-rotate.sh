@@ -12,7 +12,7 @@ set -uo pipefail
 
 STATE="${ACE_ROTATE_STATE:?}"
 PROM="${ACE_ROTATE_PROM:?}"
-ALL=(valkey-pterodactyl valkey-nextcloud valkey-mediawiki technitium-admin technitium-pfx update-signing-key wg-portal-web)
+ALL=(valkey-hydrodactyl valkey-nextcloud valkey-mediawiki technitium-admin technitium-pfx update-signing-key wg-portal-web)
 
 DRY=0
 MAIL=1
@@ -199,7 +199,7 @@ rotate_wg_portal_web() {
 
 run_one() {
   case "$1" in
-    valkey-pterodactyl) rotate_valkey pterodactyl /var/lib/redis-auth/pterodactyl pterodactyl-redis REDIS_PASSWORD \
+    valkey-hydrodactyl) rotate_valkey pterodactyl /var/lib/redis-auth/pterodactyl pterodactyl-redis REDIS_PASSWORD \
                           "pterodactyl" "https://panel.prestonhager.com/auth/login" ;;
     valkey-nextcloud)   rotate_valkey nextcloud /var/lib/redis-auth/nextcloud nextcloud-redis REDIS_HOST_PASSWORD \
                           "nextcloud nextcloud-notify-push" "https://cloud.prestonhager.com/status.php" ;;

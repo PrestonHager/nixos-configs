@@ -1,6 +1,6 @@
 # Crux
 
-Pterodactyl Wings node at **192.168.5.6**.
+Wings node at **192.168.5.6**.
 
 | Field | Value |
 |-------|-------|

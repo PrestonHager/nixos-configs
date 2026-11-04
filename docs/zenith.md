@@ -1,6 +1,6 @@
 # Zenith
 
-Planned **Pterodactyl Wings** node (Dell OptiPlex) at **192.168.5.9**.
+Planned **Wings** node (Dell OptiPlex) at **192.168.5.9**.
 
 | Field | Value |
 |-------|-------|
@@ -10,7 +10,7 @@ Planned **Pterodactyl Wings** node (Dell OptiPlex) at **192.168.5.9**.
 | IPv4 | **`192.168.5.9/24`** reserved (the host config still uses DHCP) |
 | Gateway | `192.168.5.1` |
 | Hardware | Dell OptiPlex — **no hardware config in the repo yet** |
-| Role | Pterodactyl Wings node |
+| Role | Wings node |
 | Switch port | *unassigned* — label when cabled |
 | WAN | None (same pattern as crux — LAN only + outbound PAT) |
 | Preferred TLS / Wings domain (planned) | `zenith.lc1.nm.us.prestonhager.com` |

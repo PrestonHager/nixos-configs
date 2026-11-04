@@ -1,6 +1,6 @@
 # Elara
 
-**Pterodactyl Wings** node (Dell OptiPlex) at **192.168.5.8**.
+**Wings** node (Dell OptiPlex) at **192.168.5.8**.
 
 | Field | Value |
 |-------|-------|
@@ -11,7 +11,7 @@
 | Gateway | `192.168.5.1` |
 | DNS | `192.168.5.5` (ace Technitium), `1.1.1.1` |
 | Hardware | Dell OptiPlex |
-| Role | Pterodactyl Wings node |
+| Role | Wings node |
 | Switch port | *not yet labelled* |
 | WAN | None (same pattern as crux — LAN only + outbound PAT) |
 | Preferred TLS / Wings domain | `elara.lc1.nm.us.prestonhager.com` |

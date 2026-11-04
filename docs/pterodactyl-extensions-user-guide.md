@@ -1,11 +1,13 @@
-# Pterodactyl Blueprint Extensions — User Guide
+# Hydrodactyl Addons — User Guide
 
-How to use the **DNS Records** and **Port Forward** Blueprint extensions on the Preston Hager game server panel.
+How to use the **DNS Records** and **Port Forward** addons on the Preston Hager game server panel (Hydrodactyl).
+
+> **Hydrodactyl (since 2026-10-26).** These features are native Hydrodactyl addons now, not Blueprint extensions. Per server: **Servers → DNS** and **Servers → Port Forward** tabs. Settings: **Admin → Extensions → DNS Records / Port Forward / Single Sign-On**. Sign-in is **Sign in with Zitadel** on the login page. Where the steps below mention the Blueprint menus, use these locations instead.
 
 | Panel | URL | Extensions |
 |-------|-----|------------|
-| **Production** | https://panel.prestonhager.com | DNS Records + Port Forward + Social Login |
-| **Test** | https://test.panel.prestonhager.com (LAN, tailnet and VPN only) | DNS Records + Social Login (Port Forward is dry-run only) |
+| **Production** | https://panel.prestonhager.com | DNS Records + Port Forward + Zitadel SSO |
+| **Test** | https://test.panel.prestonhager.com (LAN, tailnet and VPN only) | DNS Records + Zitadel SSO (Port Forward is dry-run only) |
 
 ---
 
@@ -16,7 +18,7 @@ How to use the **DNS Records** and **Port Forward** Blueprint extensions on the 
 All extension settings and per-server tabs require a **root administrator** account (`root_admin=1` in the panel database).
 
 - **Production:** Sign in with Zitadel SSO. Your Zitadel user must have the `pterodactyl_admin` role, which maps to root admin in the panel.
-- **Test:** Sign in with Zitadel SSO. Your Zitadel user must have the `pterodactyl_test_admin` role for root admin on the test panel (or use the local admin account from `/var/lib/pterodactyl-test/admin-credentials` on ace). The production `pterodactyl_admin` role does **not** grant admin on the test panel.
+- **Test:** Sign in with Zitadel SSO. Since the move to Hydrodactyl the test panel also grants root admin from the `pterodactyl_admin` role (the old `pterodactyl_test_admin` role is not read any more), or use the local admin account from `/var/lib/pterodactyl-test/admin-credentials` on ace.
 
 If you are logged in but do not see **Admin** in the sidebar, or **Extensions** under Admin, you are not a root admin.
 

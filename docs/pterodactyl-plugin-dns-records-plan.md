@@ -1,4 +1,7 @@
-# Pterodactyl Blueprint Extension — DNS Records (SRV)
+# DNS Records (SRV) — design plan
+
+> **Legacy (Pterodactyl + Blueprint era).** Both panels have run [Hydrodactyl](./pterodactyl.md) since 2026-10-26, and Hydrodactyl cannot run Blueprint extensions. The DNS records feature now ships as a Hydrodactyl addon ([implementation](./pterodactyl-plugin-dns-records.md)); this is the original design for the Blueprint extension. Kept for reference.
+
 
 **Status:** Planning (partial implementation exists)  
 **Updated:** 2026-06-26  

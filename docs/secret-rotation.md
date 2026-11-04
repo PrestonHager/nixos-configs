@@ -23,7 +23,7 @@ Module: `nixos/security/secret-rotation.nix`. Script: `nixos/security/scripts/ac
 
 | Name | Secret | What the rotator does | Impact |
 |---|---|---|---|
-| `valkey-pterodactyl` | `/var/lib/redis-auth/pterodactyl/password` | New password, re-runs `pterodactyl-redis-auth` (rewrites `valkey.conf`, `app.env` and the panel `.env`), restarts Valkey and the panel | Panel restarts (≈30 s) |
+| `valkey-hydrodactyl` | `/var/lib/redis-auth/pterodactyl/password` | New password, re-runs `pterodactyl-redis-auth` (rewrites `valkey.conf`, `app.env` and the panel `.env`), restarts Valkey and the panel | Panel restarts (≈30 s) |
 | `valkey-nextcloud` | `/var/lib/redis-auth/nextcloud/password` | Same for `nextcloud-redis`, `nextcloud` and `nextcloud-notify-push` | Nextcloud restarts (≈1 min) |
 | `valkey-mediawiki` | `/var/lib/redis-auth/mediawiki/password` | Same for `mediawiki-redis` and `mediawiki` | Wiki returns 502 while php-redis reinstalls (≈1–2 min) |
 | `technitium-admin` | `/stor/technitium/secrets/admin-password` | Logs in with the old password, calls `/api/user/changePassword`, writes the new one, checks the login, re-runs `technitium-sync-zones` | None |
@@ -37,7 +37,7 @@ Module: `nixos/security/secret-rotation.nix`. Script: `nixos/security/scripts/ac
 
 ```bash
 ace-secret-rotate --dry-run all              # show what would happen, change nothing
-ace-secret-rotate valkey-mediawiki           # rotate one secret now (mails a report)
+ace-secret-rotate valkey-mediawiki           # rotate one secret now (mails only on failure)
 ace-secret-rotate --no-mail technitium-pfx   # no report mail
 systemctl start ace-secret-rotate.service    # the same as the monthly run
 journalctl -u ace-secret-rotate -n 100       # last run
@@ -120,7 +120,7 @@ These passwords are used in two places: inside the database, and in the app's en
 | Matrix | `matrix-oauth-env` `SYNAPSE_OIDC_CLIENT_SECRET` |
 | Nextcloud | `nextcloud-oidc-env` `NEXTCLOUD_OIDC_CLIENT_SECRET` |
 | Jellyfin | `jellyfin-oauth-env` `JELLYFIN_OIDC_CLIENT_SECRET` |
-| Pterodactyl (both panels) | `pterodactyl-oauth-env` `PTERODACTYL_OIDC_CLIENT_SECRET` |
+| Hydrodactyl (both panels) | `pterodactyl-oauth-env` `PTERODACTYL_OIDC_CLIENT_SECRET` |
 | Technitium | `technitium-oidc-env` `TECHNITIUM_OIDC_CLIENT_SECRET` |
 | Coolify | `coolify-zitadel-env` `ZITADEL_CLIENT_SECRET` |
 | wg-portal | `client_secret` inside `wg-portal-config` |

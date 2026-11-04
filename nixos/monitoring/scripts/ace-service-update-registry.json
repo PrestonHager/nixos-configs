@@ -103,17 +103,13 @@
       "Review release notes and verify Ace alert rules after upgrading."
     ]
   },
-  "pterodactyl-panel": {
-    "enabled": true,
-    "strategy": "nix-bump",
-    "nixFile": "nixos/containers/pterodactyl-docker.nix",
-    "bumpRules": [
-      { "match": "version = \"", "suffix": "\"", "prefix": "" }
-    ],
-    "postUpgradeUnits": ["podman-pterodactyl.service"],
+  "hydrodactyl-panel": {
+    "enabled": false,
+    "strategy": "monitor-only",
+    "nixFile": "nixos/containers/hydrodactyl-panel.nix",
     "majorWarnings": [
-      "Major Pterodactyl panel upgrades rebuild the runtime image and run Laravel migrations.",
-      "Game servers and wings daemons may need coordinated updates; schedule downtime before approving."
+      "Monitor-only: bump version and the release tarball hash in nixos/containers/hydrodactyl-panel.nix by hand (nix-bump cannot refresh the hash).",
+      "Hydrodactyl releases run one-way Laravel migrations: take a backup and try the test panel first."
     ]
   },
   "notify_push": {

@@ -658,7 +658,7 @@ groups:
               editorMode: code
               # Services held on a major release in the update registry (holdMajor) are skipped.
               expr: >-
-                (ace_service_version_behind{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 3)
+                (ace_service_version_behind{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|hydrodactyl-panel|notify_push"} == 3)
                 unless on (service) ace_service_version_held == 1
               instant: true
               intervalMs: 1000
@@ -704,12 +704,10 @@ groups:
           severity: critical
           alert_type: version_major
       - uid: ace_version_minor
-        title: Ace service minor or patch update available
-        # Paused: every service this rule covers is in the auto-update registry,
-        # which applies in-series updates itself and mails when one fails, so
-        # this only duplicated that mail. The Ace Service Versions dashboard
-        # still shows in-series lag.
-        isPaused: true
+        title: Ace manual update available
+        # Only services that are not auto-updated (monitor-only in the update
+        # registry): auto-updated ones apply in-series releases themselves and
+        # mail when that fails, so mailing about them too was noise.
         condition: C
         data:
           - refId: A
@@ -722,8 +720,8 @@ groups:
               # In-series lag, so a held or major-behind service still alerts on patch
               # and minor releases of the series it runs.
               expr: >-
-                ace_service_version_behind_in_series{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 1
-                or ace_service_version_behind_in_series{service=~"grafana|prometheus|nextcloud|zitadel|matrix-synapse|technitium|jellyfin|vaultwarden|pterodactyl-panel|notify_push"} == 2
+                ace_service_version_behind_in_series{service=~"hydrodactyl-panel|coolify|mediawiki|grafana-image-renderer|pushgateway|wg-portal|nextcloud-whiteboard"} == 1
+                or ace_service_version_behind_in_series{service=~"hydrodactyl-panel|coolify|mediawiki|grafana-image-renderer|pushgateway|wg-portal|nextcloud-whiteboard"} == 2
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
@@ -762,7 +760,7 @@ groups:
         for: 1h
         annotations:
           description: >-
-            {{ $labels.service }} is on {{ $labels.current }}; latest upstream is {{ $labels.latest }} (patch or minor update available).
+            {{ $labels.service }} is on {{ $labels.current }}; {{ $labels.latest_in_series }} is out in the same series. This service is not auto-updated: bump its pin by hand (see the update registry).
           summary: Update available — {{ $labels.service }}
         labels:
           severity: warning

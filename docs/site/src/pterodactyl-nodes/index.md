@@ -1,6 +1,6 @@
-# Pterodactyl Nodes
+# Hydrodactyl Nodes
 
-Game server workloads run on dedicated NixOS hosts running **Pterodactyl Wings** (Docker). The panel lives on **ace** at https://panel.prestonhager.com.
+Game server workloads run on dedicated NixOS hosts running **Wings** (Docker). The Hydrodactyl panel lives on **ace** at https://panel.prestonhager.com.
 
 | Node | IP | Flake | Hardware | Status |
 |------|-----|-------|----------|--------|

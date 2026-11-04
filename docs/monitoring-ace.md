@@ -162,7 +162,7 @@ Provisioned rules appear under **Alerting → Alert rules** in folder **Ace Aler
 | **Registry** | `/etc/ace-service-update/registry.json` — enable/disable services and bump rules |
 | **Persistence** | All enabled services use `nix-bump` (or `occ-app` for Nextcloud apps). Image tags live in nix expressions; the next rebuild reproduces the same versions. **Do not** use floating `:latest` `podman-pull` updates — those diverge from nix and are wiped on rebuild. |
 
-Enabled auto-update services (all `nix-bump` unless noted): Grafana, Technitium, Nextcloud, Zitadel, Vaultwarden, Matrix Synapse, Jellyfin, Prometheus, Pterodactyl panel, and notify_push (`occ-app`). Sidecar databases and Redis instances are version-tracked in Grafana dashboards but are **not** alerted and are updated with their parent stack.
+Enabled auto-update services (all `nix-bump` unless noted): Grafana, Technitium, Nextcloud, Zitadel, Vaultwarden, Matrix Synapse, Jellyfin, Prometheus, and notify_push (`occ-app`). The Hydrodactyl panel is monitor-only: its release tarball is pinned by hash, which `nix-bump` cannot refresh, so it is bumped by hand and the *Ace manual update available* alert mails when a release is out. Sidecar databases and Redis instances are version-tracked in Grafana dashboards but are **not** alerted and are updated with their parent stack.
 
 ### Persistence contract
 

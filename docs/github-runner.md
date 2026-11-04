@@ -88,7 +88,7 @@ Live profile (2026-07-12):
 | CPU | 48 logical (2× Xeon E5-2680 v3, 12 cores/socket × 2 threads) |
 | RAM | 31 GiB; ~7 GiB steady used, ~23 GiB available |
 | Swap | 32 GiB file (idle at profile time) |
-| Other load | Nextcloud, Pterodactyl, MediaWiki, Grafana/Loki/Alloy, Matrix, Zitadel, Caddy, Samba, Technitium, … |
+| Other load | Nextcloud, Hydrodactyl, MediaWiki, Grafana/Loki/Alloy, Matrix, Zitadel, Caddy, Samba, Technitium, … |
 | Nix caps | `max-jobs=4`, `cores=12` (do not raise for CI) |
 
 **Chosen N = 8** (4× `soundbytes-app` + 4× `EverPuzzle`), same per-runner caps:
