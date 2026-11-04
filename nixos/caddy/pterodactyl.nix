@@ -61,7 +61,7 @@ let
         }
       }
 
-      handle /auth/zitadel* {
+      handle /auth/keycloak* {
         redir https://panel.prestonhager.com/oauth2/start?rd={query.rd} 302
       }
       ''}

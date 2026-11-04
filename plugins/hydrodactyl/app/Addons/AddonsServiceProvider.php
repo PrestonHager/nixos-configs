@@ -19,13 +19,13 @@ use Pterodactyl\BlueprintFramework\Extensions\dnsrecords\Listeners\RegisterServe
 use Pterodactyl\BlueprintFramework\Extensions\portforward\Listeners\RegisterServerEventListeners as PortForwardListeners;
 
 /**
- * Homelab addons for Hydrodactyl: Zitadel SSO, DNS records, router port
+ * Homelab addons for Hydrodactyl: Keycloak SSO, DNS records, router port
  * forwarding and Minecraft tools.
  *
  * DNS and port forwarding reuse the PHP from the former Blueprint extensions
  * (copied to app/BlueprintFramework/Extensions/* at build time) so their
  * tables and stored settings carry over unchanged. URL prefixes match the
- * Blueprint ones, so the Zitadel redirect URI and API automation keep working.
+ * Blueprint ones, so the SSO redirect URI and API automation keep working.
  */
 class AddonsServiceProvider extends ServiceProvider
 {
@@ -63,7 +63,7 @@ class AddonsServiceProvider extends ServiceProvider
         $routes = __DIR__ . '/routes';
         $admin = ['web', 'auth.session', RequireTwoFactorAuthentication::class, AdminAuthenticate::class];
 
-        // Zitadel login/callback must stay reachable while logged out.
+        // SSO login/callback must stay reachable while logged out.
         Route::middleware('web')->prefix('/extensions/sociallogin')->group("$routes/sso.php");
 
         Route::middleware($admin)->prefix('/extensions/dnsrecords')->group("$routes/dns-admin.php");

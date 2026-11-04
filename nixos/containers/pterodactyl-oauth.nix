@@ -1,10 +1,14 @@
 { config, pkgs, inputs, ... }:
+# Not imported at the moment (the panel uses its own SSO addon, hydrodactyl.nix).
+# Kept on Keycloak so turning it back on needs no IdP changes.
 
 let
   sops-path = builtins.toString inputs.nix-secrets;
   panelRoot = "/pterodactyl/html";
-  zitadelIssuer = "https://zitadel.prestonhager.com";
-  zitadelProjectId = "376196450586990901";
+  kc = import ../auth/keycloak-lib.nix;
+  # homelab.keycloak.clients.pterodactyl (hydrodactyl.nix) lists
+  # ${panelPublicUrl}/oauth2/callback among its redirect URIs.
+  ssoClientId = "pterodactyl";
   panelPublicUrl = "https://panel.prestonhager.com";
   panelDomain = "panel.prestonhager.com";
   oauthRedirectUri = "${panelPublicUrl}/oauth2/callback";
@@ -85,18 +89,18 @@ PY
     set -euo pipefail
     # shellcheck disable=SC1090
     source "${oauthEnvFile}"
-    if [ -z "''${PTERODACTYL_OIDC_CLIENT_ID:-}" ] || [ -z "''${PTERODACTYL_OIDC_CLIENT_SECRET:-}" ] || [ -z "''${OAUTH2_PROXY_COOKIE_SECRET:-}" ]; then
+    if [ -z "''${PTERODACTYL_OIDC_CLIENT_SECRET:-}" ] || [ -z "''${OAUTH2_PROXY_COOKIE_SECRET:-}" ]; then
       echo "pterodactyl-oauth2-proxy: missing OIDC credentials in pterodactyl-oauth-env" >&2
       exit 1
     fi
-    if [ "$PTERODACTYL_OIDC_CLIENT_ID" = "REPLACE_ZITADEL_CLIENT_ID" ]; then
-      echo "pterodactyl-oauth2-proxy: placeholder client id, skipping" >&2
+    if [ "$PTERODACTYL_OIDC_CLIENT_SECRET" = "REPLACE_ME" ]; then
+      echo "pterodactyl-oauth2-proxy: placeholder client secret, skipping" >&2
       exit 1
     fi
     exec ${pkgs.oauth2-proxy}/bin/oauth2-proxy \
       --provider=oidc \
-      --oidc-issuer-url=${zitadelIssuer} \
-      --client-id="$PTERODACTYL_OIDC_CLIENT_ID" \
+      --oidc-issuer-url=${kc.issuer} \
+      --client-id=${ssoClientId} \
       --client-secret="$PTERODACTYL_OIDC_CLIENT_SECRET" \
       --redirect-url=${oauthRedirectUri} \
       --upstream=file:///dev/null \
@@ -108,8 +112,8 @@ PY
       --pass-user-headers=false \
       --user-id-claim=preferred_username \
       --whitelist-domain=${panelDomain} \
-      --provider-display-name=Zitadel \
-      --scope="openid profile email urn:zitadel:iam:org:project:roles urn:zitadel:iam:org:project:id:${zitadelProjectId}:aud" \
+      --provider-display-name=Keycloak \
+      --scope="openid profile email" \
       --oidc-groups-claim=groups \
       --reverse-proxy=true \
       --skip-auth-route=GET=^/oauth2/start$ \
@@ -137,7 +141,7 @@ in
   };
 
   systemd.services.pterodactyl-oauth2-proxy = {
-    description = "oauth2-proxy for Pterodactyl panel Zitadel SSO";
+    description = "oauth2-proxy for the game panel (Keycloak SSO)";
     after = [
       "network-online.target"
       "sops-nix.service"

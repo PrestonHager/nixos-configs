@@ -1,5 +1,5 @@
 /**
- * Homelab addons (DNS records, router port forwarding, Zitadel SSO, Minecraft
+ * Homelab addons (DNS records, router port forwarding, Keycloak SSO, Minecraft
  * tools). Core files only import from here, so the patch that wires this in
  * stays a handful of lines; see plugins/hydrodactyl/patches.
  */

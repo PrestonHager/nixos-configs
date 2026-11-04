@@ -12,20 +12,19 @@ class SsoSettingsController extends Controller
 {
     public function show(): JsonResponse
     {
-        $provider = SocialProvider::query()->where('short_name', 'zitadel')->first();
+        $provider = SocialProvider::query()->where('short_name', OidcClient::PROVIDER)->first();
 
         return response()->json([
             'provider' => [
                 'enabled' => (bool) $provider?->enabled,
-                'name' => $provider?->name ?? 'Zitadel',
+                'name' => $provider?->name ?? 'Keycloak',
                 'client_id' => $provider?->client_id ?? '',
                 'client_secret_set' => !empty($provider?->client_secret),
             ],
             'allow_register' => $this->get('allow_register'),
             'allow_connecting' => $this->get('allow_connecting'),
-            'issuer' => config('homelab.zitadel.base_url'),
-            'project_id' => config('homelab.zitadel.project_id'),
-            'admin_group' => config('homelab.zitadel.admin_group'),
+            'issuer' => OidcClient::issuer(),
+            'admin_group' => config('homelab.sso.admin_group'),
             'callback_url' => route('sociallogin.callback'),
         ]);
     }
@@ -41,7 +40,7 @@ class SsoSettingsController extends Controller
             'allow_connecting' => 'required|boolean',
         ]);
 
-        $provider = SocialProvider::query()->firstOrNew(['short_name' => 'zitadel']);
+        $provider = SocialProvider::query()->firstOrNew(['short_name' => OidcClient::PROVIDER]);
         $provider->enabled = $validated['enabled'];
         $provider->name = $validated['name'];
         $provider->client_id = $validated['client_id'] ?: $provider->client_id;

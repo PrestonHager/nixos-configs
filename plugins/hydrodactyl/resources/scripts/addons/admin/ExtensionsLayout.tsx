@@ -13,7 +13,7 @@ const ExtensionsLayout = () => (
     <PageContentBlock title='Extensions'>
         <MainPageHeader direction='column' title='Extensions'>
             <p className='text-sm text-neutral-400'>
-                Homelab integrations: Cloudflare/Technitium DNS, Astracap router NAT and Zitadel login. Per-server DNS and
+                Homelab integrations: Cloudflare/Technitium DNS, Astracap router NAT and Keycloak login. Per-server DNS and
                 port forwards live on each server's DNS and Port Forward tabs.
             </p>
         </MainPageHeader>

@@ -97,7 +97,9 @@ let
       fi
 
       echo "hydrodactyl: installing panel ${version} from ${root}"
-      rsync -a --delete --chmod=Du+w,Fu+w \
+      # --checksum: every store file has mtime 1, so rsync's size+mtime
+      # check skipped changed files of unchanged size.
+      rsync -a --checksum --delete --chmod=Du+w,Fu+w \
         --exclude=/.env --exclude=/.env.initial --exclude=/storage/ \
         --exclude=/bootstrap/cache/ --exclude=/.hydrodactyl-build \
         "${root}/" "$dest/"

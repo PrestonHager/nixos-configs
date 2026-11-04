@@ -17,14 +17,19 @@ $bp = app(\Pterodactyl\BlueprintFramework\Libraries\ExtensionLibrary\Admin\Bluep
 $bp->dbSet('sociallogin', 'allow_register', '1');
 $bp->dbSet('sociallogin', 'allow_connecting', '1');
 
+// Rename a Zitadel row from before the move to Keycloak, so existing social
+// links keep their provider id.
+\Pterodactyl\Models\SocialProvider::where('short_name', 'zitadel')
+    ->update(['short_name' => 'keycloak', 'name' => 'Keycloak']);
+
 \Pterodactyl\Models\SocialProvider::updateOrCreate(
-    ['short_name' => 'zitadel'],
+    ['short_name' => 'keycloak'],
     [
         'enabled' => true,
-        'name' => 'Zitadel',
+        'name' => 'Keycloak',
         'client_id' => $clientId,
         'client_secret' => Illuminate\Support\Facades\Crypt::encryptString($clientSecret),
     ]
 );
 
-echo "zitadel provider seeded\n";
+echo "keycloak provider seeded\n";

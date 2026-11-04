@@ -14,6 +14,7 @@
 
 let
   cfg = config.homelab.panel;
+  kc = import ../auth/keycloak-lib.nix;
   hydro = import ./hydrodactyl-panel.nix { inherit pkgs inputs; };
   images = import ./hydrodactyl-docker.nix { inherit pkgs hydro; };
   image = "hydrodactyl-runtime:v${hydro.version}";
@@ -28,8 +29,25 @@ let
     description = "Panel software for the ${name} panel.";
   };
 
-  # Zitadel provider row + sociallogin toggles + egg loader features, all
-  # idempotent. Runs inside the panel container.
+  # Keycloak client shared by both panels (and the unused oauth2-proxy in
+  # pterodactyl-oauth.nix). The secret is the one the Zitadel app had,
+  # PTERODACTYL_OIDC_CLIENT_SECRET in sops; keycloak-realm-sync sets it.
+  ssoClientId = "pterodactyl";
+
+  # One-time move of panel SSO links from Zitadel to Keycloak: panel user
+  # email => Keycloak user id (the OIDC sub). A user whose link still holds
+  # a Zitadel id (all digits), or who has no link, gets this one; a link
+  # that already holds a Keycloak id is never touched. Users without an
+  # entry link themselves on first login when their Keycloak email is
+  # verified (sociallogin::allow_connecting). docs/pterodactyl-ace.md
+  ssoLinks = {
+    # Keycloak prestonh (Zitadel 376197075085302069), panel user prestonhager
+    "preston@hagerfamily.com" = "99d63cf6-7775-44d9-b9c9-6be589bea2ae";
+  };
+
+  # Keycloak provider row (renamed from the Zitadel one, so existing links
+  # keep their provider_id) + SSO link migration + sociallogin toggles + egg
+  # loader features, all idempotent. Runs inside the panel container.
   configurePhp = pkgs.writeText "hydrodactyl-configure.php" ''
     <?php
     require "/var/www/pterodactyl/vendor/autoload.php";
@@ -39,12 +57,21 @@ let
     use Illuminate\Support\Facades\DB;
     use Illuminate\Support\Facades\Crypt;
     use Pterodactyl\Addons\Sso\SocialProvider;
+    use Pterodactyl\Addons\Sso\SocialConnection;
+    use Pterodactyl\Models\User;
 
     $id = getenv("PTERODACTYL_OIDC_CLIENT_ID") ?: "";
     $secret = getenv("PTERODACTYL_OIDC_CLIENT_SECRET") ?: "";
-    if ($id !== "" && $secret !== "" && $id !== "REPLACE_ZITADEL_CLIENT_ID") {
-      $p = SocialProvider::query()->firstOrNew(["short_name" => "zitadel"]);
-      $p->fill(["enabled" => true, "name" => $p->name ?: "Zitadel", "client_id" => $id]);
+    if ($id !== "" && $secret !== "" && $secret !== "REPLACE_ME") {
+      $old = SocialProvider::query()->where("short_name", "zitadel")->first();
+      if ($old && !SocialProvider::query()->where("short_name", "keycloak")->exists()) {
+        $old->short_name = "keycloak";
+        $old->name = "Keycloak";
+        $old->save();
+        echo "provider zitadel renamed to keycloak (id {$old->id})\n";
+      }
+      $p = SocialProvider::query()->firstOrNew(["short_name" => "keycloak"]);
+      $p->fill(["enabled" => true, "name" => $p->name ?: "Keycloak", "client_id" => $id]);
       try {
         $same = $p->client_secret && Crypt::decryptString($p->client_secret) === $secret;
       } catch (Illuminate\Contracts\Encryption\DecryptException) {
@@ -57,7 +84,33 @@ let
       foreach (["allow_register", "allow_connecting"] as $k) {
         DB::table("settings")->updateOrInsert(["key" => "sociallogin::$k"], ["value" => serialize("1")]);
       }
-      echo "zitadel provider configured\n";
+      echo "keycloak provider configured\n";
+
+      $links = json_decode(<<<'JSON'
+    ${builtins.toJSON ssoLinks}
+    JSON, true);
+      foreach ($links as $email => $sub) {
+        $user = User::query()->where("email", $email)->first();
+        if (!$user) {
+          continue;
+        }
+        $c = SocialConnection::query()->where("user_id", $user->id)->where("provider_id", $p->id)->first();
+        if ($c && !ctype_digit((string) $c->auth_id)) {
+          continue; // already a Keycloak id
+        }
+        $taken = SocialConnection::query()->where("provider_id", $p->id)->where("auth_id", $sub)
+          ->where("user_id", "<>", $user->id)->exists();
+        if ($taken) {
+          echo "sso link for {$email}: {$sub} already linked to another user, skipped\n";
+          continue;
+        }
+        $from = $c ? $c->auth_id : "none";
+        SocialConnection::query()->updateOrCreate(
+          ["user_id" => $user->id, "provider_id" => $p->id],
+          ["auth_id" => $sub, "auth_name" => $c?->auth_name ?: $user->username],
+        );
+        echo "sso link for {$email} (user {$user->id}): {$from} -> {$sub}\n";
+      }
     }
 
     // Marketplace loaders (Installer page, Minecraft > Plugins & Mods) come
@@ -78,7 +131,7 @@ let
   '';
 
   # .env keys enforced before the container starts (config is cached there).
-  envScript = file: pkgs.writeShellScript "hydrodactyl-env" ''
+  envScript = file: adminGroup: pkgs.writeShellScript "hydrodactyl-env" ''
     set -euo pipefail
     env=${file}
     [ -f "$env" ] || exit 0
@@ -90,8 +143,10 @@ let
       fi
     }
     set_kv APP_LOCALE en-US
-    set_kv ZITADEL_BASE_URL https://zitadel.prestonhager.com
-    set_kv ZITADEL_PROJECT_ID 376196450586990901
+    set_kv SSO_ISSUER ${kc.issuer}
+    set_kv SSO_ADMIN_GROUP ${adminGroup}
+    # Left over from Zitadel and the Blueprint sociallogin extension.
+    ${pkgs.gnused}/bin/sed -i '/^ZITADEL_/d' "$env"
   '';
 
   configureUnit = { container, after }: {
@@ -118,7 +173,7 @@ let
         set -a; . "$oidc"; set +a
       fi
       podman exec -i \
-        -e PTERODACTYL_OIDC_CLIENT_ID="''${PTERODACTYL_OIDC_CLIENT_ID:-}" \
+        -e PTERODACTYL_OIDC_CLIENT_ID=${ssoClientId} \
         -e PTERODACTYL_OIDC_CLIENT_SECRET="''${PTERODACTYL_OIDC_CLIENT_SECRET:-}" \
         ${container} php < ${configurePhp}
     '';
@@ -155,11 +210,36 @@ in
   };
 
   config = lib.mkMerge [
+    (lib.mkIf (cfg.prod.flavor == "hydrodactyl" || cfg.test.flavor == "hydrodactyl") {
+      homelab.keycloak.clients.${ssoClientId} = {
+        name = "Game panel";
+        redirectUris = [
+          "https://panel.prestonhager.com/extensions/sociallogin/callback"
+          "https://test.panel.prestonhager.com/extensions/sociallogin/callback"
+          # oauth2-proxy (pterodactyl-oauth.nix, not imported at the moment)
+          "https://panel.prestonhager.com/oauth2/callback"
+        ];
+        secret = {
+          file = config.sops.secrets."pterodactyl-oauth-env".path;
+          key = "PTERODACTYL_OIDC_CLIENT_SECRET";
+        };
+      };
+      homelab.keycloak.groups = [ "pterodactyl_admin" "pterodactyl_test_admin" ];
+      # tests/sso/pterodactyl.test.sh: admin on the test panel only. The test
+      # adds pterodactyl_admin for one login and removes it again.
+      homelab.keycloak.testUser.groups = [ "pterodactyl_test_admin" ];
+      # The secret changes in sops re-run the realm sync.
+      sops.secrets."pterodactyl-oauth-env".restartUnits = [ "keycloak-realm-sync.service" ];
+    })
+
     (lib.mkIf (cfg.prod.flavor == "hydrodactyl") {
       virtualisation.oci-containers.containers.pterodactyl = {
         image = lib.mkForce image;
         imageFile = lib.mkForce images.runtimeImage;
-        environment = lib.mkForce { };
+        # The sops env file (--env-file in pterodactyl.nix) says APP_LOCALE=en,
+        # and real env vars win over .env. Hydrodactyl only knows en-US, so
+        # creating any user failed validation. -e wins over --env-file.
+        environment = lib.mkForce { APP_LOCALE = "en-US"; };
       };
 
       systemd.services = blueprintUnitsOff [
@@ -172,7 +252,7 @@ in
           before = [ "podman-pterodactyl.service" ];
           requiredBy = [ "podman-pterodactyl.service" ];
           after = [ "pterodactyl-redis-auth.service" ];
-          serviceConfig = { Type = "oneshot"; RemainAfterExit = true; ExecStart = envScript "/pterodactyl/html/.env"; };
+          serviceConfig = { Type = "oneshot"; RemainAfterExit = true; ExecStart = envScript "/pterodactyl/html/.env" "pterodactyl_admin"; };
         };
         hydrodactyl-configure = configureUnit {
           container = "pterodactyl";
@@ -224,7 +304,7 @@ in
           before = [ "podman-pterodactyl-test.service" ];
           requiredBy = [ "podman-pterodactyl-test.service" ];
           after = [ "pterodactyl-test-env.service" ];
-          serviceConfig = { Type = "oneshot"; RemainAfterExit = true; ExecStart = envScript testEnvFile; };
+          serviceConfig = { Type = "oneshot"; RemainAfterExit = true; ExecStart = envScript testEnvFile "pterodactyl_test_admin"; };
         };
         hydrodactyl-test-configure = configureUnit {
           container = "pterodactyl-test";

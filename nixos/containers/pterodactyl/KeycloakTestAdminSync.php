@@ -6,10 +6,12 @@ use Illuminate\Auth\Events\Login;
 use Pterodactyl\Models\User;
 
 /**
- * Sync test panel root_admin from Zitadel groups claim after Social Login SSO.
- * Uses pterodactyl_test_admin — separate from production pterodactyl_admin.
+ * Sync test panel root_admin from the Keycloak groups claim after Social Login SSO.
+ * Uses pterodactyl_test_admin, separate from production pterodactyl_admin.
+ * The patched SocialAuthController stores the flat `groups` claim in the
+ * session as sso_groups (pterodactyl-sso.nix, pterodactyl-test-sso.nix).
  */
-class ZitadelTestAdminSync
+class KeycloakTestAdminSync
 {
     private const ADMIN_GROUP = 'pterodactyl_test_admin';
 
@@ -19,7 +21,7 @@ class ZitadelTestAdminSync
             return;
         }
 
-        $groups = session()->pull('zitadel_sso_groups', []);
+        $groups = session()->pull('sso_groups', []);
         if (!is_array($groups) || $groups === []) {
             return;
         }

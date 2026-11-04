@@ -10,7 +10,6 @@ interface SsoData {
     allow_register: boolean;
     allow_connecting: boolean;
     issuer: string;
-    project_id: string | null;
     admin_group: string;
     callback_url: string;
 }
@@ -53,16 +52,16 @@ const SsoSettings = () => {
             }}
         >
             <Section
-                title='Zitadel'
+                title='Keycloak'
                 description={
                     <>
                         Issuer <code>{data.issuer}</code>
-                        {data.project_id ? <> · project <code>{data.project_id}</code></> : null} · redirect URI <code>{data.callback_url}</code>. Members of{' '}
+                        {' '}· redirect URI <code>{data.callback_url}</code>. Members of{' '}
                         <code>{data.admin_group}</code> become panel admins on login.
                     </>
                 }
             >
-                <Toggle label='Show "Sign in with Zitadel"' checked={form.enabled} onChange={(v) => setForm({ ...form, enabled: v })} />
+                <Toggle label='Show "Sign in with Keycloak"' checked={form.enabled} onChange={(v) => setForm({ ...form, enabled: v })} />
                 <Grid>
                     <Field label='Button name'>
                         <Text value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
@@ -78,7 +77,7 @@ const SsoSettings = () => {
 
             <Section title='Accounts'>
                 <Grid>
-                    <Toggle label='Link by email' hint='An unknown Zitadel identity with a verified email links to the panel user with that email.' checked={form.allow_connecting} onChange={(v) => setForm({ ...form, allow_connecting: v })} />
+                    <Toggle label='Link by email' hint='An unknown Keycloak identity with a verified email links to the panel user with that email.' checked={form.allow_connecting} onChange={(v) => setForm({ ...form, allow_connecting: v })} />
                     <Toggle label='Create accounts' hint='Otherwise-unknown identities get a new panel user.' checked={form.allow_register} onChange={(v) => setForm({ ...form, allow_register: v })} />
                 </Grid>
             </Section>

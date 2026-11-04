@@ -15,7 +15,7 @@ const ERRORS: Record<string, string> = {
     notconnected: 'No panel account is linked to that identity. Sign in with your password and link it under Account → Linked Accounts.',
 };
 
-/** "Sign in with Zitadel" under the login form (plus SSO error messages). */
+/** "Sign in with Keycloak" under the login form (plus SSO error messages). */
 const SsoButtons = () => {
     const [providers, setProviders] = useState<Provider[]>([]);
     const error = new URLSearchParams(window.location.search).get('sso_error');

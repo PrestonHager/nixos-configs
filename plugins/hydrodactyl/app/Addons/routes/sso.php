@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Pterodactyl\Addons\Sso\SsoController;
 
 // Paths match the former Blueprint "sociallogin" extension so the redirect URI
-// registered in Zitadel (/extensions/sociallogin/callback) stays valid.
+// registered with the IdP (/extensions/sociallogin/callback) stays the same.
 Route::get('/providers', [SsoController::class, 'providers'])->name('sociallogin.providers');
 Route::get('/redirect/{provider}', [SsoController::class, 'redirect'])
     ->middleware('throttle:authentication')

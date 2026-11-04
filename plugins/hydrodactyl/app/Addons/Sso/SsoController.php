@@ -15,15 +15,15 @@ use Pterodactyl\Http\Controllers\Controller;
 use Pterodactyl\Services\Users\UserCreationService;
 
 /**
- * Zitadel single sign-on, ported from the Blueprint "sociallogin" extension
- * plus the homelab patches (Zitadel driver, root_admin sync from groups).
+ * Keycloak single sign-on, ported from the Blueprint "sociallogin" extension
+ * plus the homelab patches (OIDC client, root_admin sync from groups).
  *
  * Behaviour kept from the extension:
  *  - logged-in users hitting the flow link the identity to their account;
  *  - unknown identities link to an existing user by email when
  *    sociallogin::allow_connecting is on (now only for verified emails),
  *    or create a user when sociallogin::allow_register is on;
- *  - SSO logins skip the panel's TOTP checkpoint (MFA is Zitadel's job).
+ *  - SSO logins skip the panel's TOTP checkpoint (MFA is Keycloak's job).
  */
 class SsoController extends Controller
 {
@@ -34,7 +34,7 @@ class SsoController extends Controller
     public function providers(): JsonResponse
     {
         $providers = SocialProvider::query()->where('enabled', true)->get()
-            ->filter(fn (SocialProvider $p) => $p->isUsable() && $p->short_name === 'zitadel')
+            ->filter(fn (SocialProvider $p) => $p->isUsable() && $p->short_name === OidcClient::PROVIDER)
             ->map(fn (SocialProvider $p) => [
                 'name' => $p->name,
                 'short_name' => $p->short_name,
@@ -63,7 +63,7 @@ class SsoController extends Controller
     public function redirect(Request $request, string $provider): RedirectResponse
     {
         $row = $this->usableProvider($provider);
-        $auth = (new ZitadelClient($row))->authorizationRequest(route('sociallogin.callback'));
+        $auth = (new OidcClient($row))->authorizationRequest(route('sociallogin.callback'));
 
         $request->session()->put('homelab_sso', [
             'provider' => $row->short_name,
@@ -93,7 +93,7 @@ class SsoController extends Controller
         $provider = $this->usableProvider((string) $pending['provider']);
 
         try {
-            $claims = (new ZitadelClient($provider))->user(
+            $claims = (new OidcClient($provider))->user(
                 (string) $request->query('code'),
                 (string) $pending['verifier'],
                 route('sociallogin.callback'),
@@ -193,21 +193,21 @@ class SsoController extends Controller
     }
 
     /**
-     * Mirror Zitadel group membership onto root_admin. No groups claim at all
+     * Mirror Keycloak group membership onto root_admin. No groups claim at all
      * leaves the flag alone instead of demoting.
      *
      * @param array<string, mixed> $claims
      */
     private function syncAdmin(User $user, array $claims): void
     {
-        $groups = ZitadelClient::groups($claims);
+        $groups = OidcClient::groups($claims);
         if ($groups === null) {
-            logger()->warning('Zitadel userinfo had no groups/roles claim; root_admin left unchanged.', ['user' => $user->id]);
+            logger()->warning('OIDC userinfo had no groups claim; root_admin left unchanged.', ['user' => $user->id]);
 
             return;
         }
 
-        $isAdmin = in_array((string) config('homelab.zitadel.admin_group'), $groups, true);
+        $isAdmin = in_array((string) config('homelab.sso.admin_group'), $groups, true);
         if ((bool) $user->root_admin !== $isAdmin) {
             $user->root_admin = $isAdmin;
             $user->save();
@@ -225,7 +225,7 @@ class SsoController extends Controller
     private function usableProvider(string $shortName): SocialProvider
     {
         $provider = SocialProvider::query()->where('short_name', $shortName)->first();
-        abort_unless($provider && $provider->isUsable() && $provider->short_name === 'zitadel', 404);
+        abort_unless($provider && $provider->isUsable() && $provider->short_name === OidcClient::PROVIDER, 404);
 
         return $provider;
     }

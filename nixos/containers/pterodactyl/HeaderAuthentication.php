@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Trust reverse-proxy SSO headers (oauth2-proxy + Zitadel OIDC).
+ * Trust reverse-proxy SSO headers (oauth2-proxy + Keycloak OIDC).
  * Based on pterodactyl/panel#5271 with admin group sync via X-Auth-Groups.
  */
 class HeaderAuthentication
