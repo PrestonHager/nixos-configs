@@ -20,7 +20,7 @@ let
   # OIDC login through Keycloak (client `grafana`, docs/monitoring-ace.md).
   # false keeps the old Zitadel login; flip only once keycloak-realm-sync has
   # created the client.
-  useKeycloak = false;
+  useKeycloak = true;
   kcIssuer = "https://keycloak.prestonhager.com/realms/homelab";
   kcOidc = "${kcIssuer}/protocol/openid-connect";
   # Host /etc/hosts maps *.prestonhager.com → 127.0.0.1; inside the container that is

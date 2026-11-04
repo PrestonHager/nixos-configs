@@ -11,7 +11,7 @@ let
   # OIDC login through Keycloak (client `technitium`, docs/dns-ace.md). false
   # keeps the old Zitadel login; flip only once keycloak-realm-sync has created
   # the client.
-  useKeycloak = false;
+  useKeycloak = true;
 
   zitadelIssuer = "https://zitadel.prestonhager.com";
   zitadelProjectId = "376196450586990901";

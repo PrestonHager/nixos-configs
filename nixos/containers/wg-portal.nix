@@ -8,7 +8,7 @@ let
   # OIDC login through Keycloak (client `wg-portal`, provider id `keycloak`).
   # false keeps the old Zitadel provider; flip only once keycloak-realm-sync
   # has created the client.
-  useKeycloak = false;
+  useKeycloak = true;
   kcIssuer = "https://keycloak.prestonhager.com/realms/homelab";
   idpDomain = if useKeycloak then "keycloak.prestonhager.com" else "zitadel.prestonhager.com";
 
