@@ -513,8 +513,18 @@ EOF
         if ! $podman container inspect pterodactyl-test --format '{{.State.Running}}' 2>/dev/null | grep -q true; then
           exit 0
         fi
-        $podman exec pterodactyl-test php /var/www/pterodactyl/artisan config:clear
-        $podman exec pterodactyl-test php /var/www/pterodactyl/artisan cache:clear
+        # The panel entrypoint rebuilds bootstrap/cache (routes-v7.php) right after
+        # the container starts; artisan run in that window dies with "Failed to
+        # open stream". Retry for up to two minutes instead of failing the switch.
+        artisan() {
+          for _ in $(seq 24); do
+            $podman exec pterodactyl-test php /var/www/pterodactyl/artisan "$@" && return 0
+            sleep 5
+          done
+          return 1
+        }
+        artisan config:clear
+        artisan cache:clear
       '';
     };
     path = [ pkgs.podman pkgs.coreutils pkgs.gnugrep ];
