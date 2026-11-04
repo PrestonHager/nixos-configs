@@ -2,7 +2,7 @@
 
 Implementation: `nixos/containers/technitium.nix`, `nixos/containers/technitium-zones.nix`, `nixos/containers/technitium-sso.nix`, Caddy `nixos/caddy/technitium.nix`.
 
-LanCache (`nixos/containers/lancache.nix`) is **disabled** — it was slowing DNS resolution. Technitium is the primary LAN DNS server.
+Technitium is the primary LAN DNS server. (LanCache was removed; it slowed DNS resolution.)
 
 Physical path: [Network topology](network-topology.md) (Astracap DHCP hands clients DNS **192.168.5.5**).
 
@@ -82,7 +82,7 @@ ss -tlnp | grep -E '8053|853|443'
 
 - Technitium config/logs: `/stor/technitium`, `/stor/technitium/logs`
 - Zone sync hashes: `/stor/technitium/.internal-prestonhager-com-zone.sha256`, `/stor/technitium/.prestonhager-com-zone.sha256`
-- LanCache data (unused): `/stor/lancache` — retained on disk; container disabled
+- Old LanCache data: `/stor/lancache` — no longer used, safe to delete
 
 ## Zones (Nix → Technitium API)
 
@@ -118,7 +118,7 @@ The apex and `www` are orange-clouded in Cloudflare (GitHub Pages origin). The z
 | grafana | CNAME | grafana.internal.prestonhager.com |
 | cloud | CNAME | cloud.internal.prestonhager.com |
 | dns | CNAME | dns.internal.prestonhager.com |
-| ai, panel, test.panel, prometheus, jellyfin, vault, wg, metrics.wg, zitadel, keycloak, git, matrix, spacetime, test.sui, faucet.test.sui, indexer.test.sui, factorio, game, lancache, mc, vpn, serverdocs, update | CNAME | ace.internal.prestonhager.com |
+| panel, test.panel, prometheus, jellyfin, vault, wg, metrics.wg, zitadel, keycloak, matrix, factorio, game, mc, vpn, serverdocs, update, coolify | CNAME | ace.internal.prestonhager.com |
 | crux.lc1.nm.us | CNAME | crux.internal.prestonhager.com |
 | nova.lc1.nm.us | CNAME | nova.internal.prestonhager.com |
 | elara.lc1.nm.us, zenith.lc1.nm.us, mars.lc1.nm.us | CNAME | matching `*.internal.prestonhager.com` |
@@ -134,7 +134,7 @@ Public Cloudflare CNAMEs that target `ip1.lc1.nm.us.prestonhager.com` (98.249.78
 | Public name | LAN target |
 |-------------|------------|
 | cloud, dns, grafana | matching `*.internal.prestonhager.com` A → 192.168.5.5 |
-| ace, ai, factorio, faucet.test.sui, game, indexer.test.sui, jellyfin, lancache, matrix, mc, metrics.wg, panel, prometheus, spacetime, test.panel, test.sui, update, vault, vpn, wg, zitadel, serverdocs | ace.internal.prestonhager.com → 192.168.5.5 |
+| ace, coolify, factorio, game, jellyfin, matrix, mc, metrics.wg, panel, prometheus, test.panel, update, vault, vpn, wg, zitadel, serverdocs | ace.internal.prestonhager.com → 192.168.5.5 |
 | crux.lc1.nm.us | crux.internal.prestonhager.com → 192.168.5.6 |
 | nova.lc1.nm.us | nova.internal.prestonhager.com → 192.168.5.7 |
 | mars.lc1.nm.us | mars.internal.prestonhager.com → 192.168.5.15 |
@@ -409,6 +409,6 @@ curl -sS -H 'Content-Type: application/dns-message' \
 1. **Preferred:** Edit `internalHosts` and/or `prestonhagerHosts` in `technitium-zones.nix`, bump the zone serial, run `nixos-rebuild switch --flake /etc/nixos#ace`. Delete the matching `/stor/technitium/.*-zone.sha256` file to force re-import without a serial bump.
 2. **Ad hoc:** Technitium web UI at https://dns.prestonhager.com (changes not in Nix will be overwritten on next zone sync unless excluded).
 
-## Deprecated: LanCache
+## Removed: LanCache
 
-LanCache game CDN caching is disabled in `nixos/containers/default.nix`. See `docs/lancache-ace.md` for the previous architecture if re-enabling.
+LanCache game CDN caching was removed (Technitium is the LAN resolver); the old module and `docs/lancache-ace.md` are in git history.

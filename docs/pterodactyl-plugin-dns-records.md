@@ -1,6 +1,6 @@
 # Hydrodactyl — DNS Records (Implementation)
 
-> **Hydrodactyl.** Both panels have run Hydrodactyl since 2026-10-26. This feature's PHP (the flake input `pterodactyl-dns-records`) is loaded by the native addon in `plugins/hydrodactyl/app/Addons/Dns`, with a React server tab (Servers → DNS) and a settings page (Admin → Extensions → DNS Records). The Blueprint packaging described below is no longer used on either panel.
+> **Hydrodactyl.** Both panels have run Hydrodactyl since 2026-10-26. This feature's PHP (the flake input `pterodactyl-dns-records`) is loaded by the native addon in `plugins/hydrodactyl/app/Addons/Dns`, with a React server tab (Servers → DNS) and a settings page (Admin → Extensions → DNS Records). The Blueprint packaging described below is no longer used on either panel, and its Nix modules have been removed (see git history).
 
 
 **Status:** Implemented (v1.4.0)  

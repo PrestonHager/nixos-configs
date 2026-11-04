@@ -6,8 +6,6 @@
     ../monitoring
     # Containers submodule
     ../containers
-    # nginx module, further customization available in nginx folder
-    #../nginx
     ../caddy
     # Virt-manager
     # see https://nixos.wiki/wiki/Virt-manager for more

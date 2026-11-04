@@ -5,7 +5,6 @@
     # Import specific Podman or Docker containers here
     # Be sure not to mix podman and docker configurations, and set your backend
     # properly in the virtualisation.oci-containers.backend varaible correctly.
-    #./forgejo.nix
     ./pod-infra.nix
     ./coolify.nix
     ./coolify-sso.nix
@@ -13,9 +12,7 @@
     ./grafana.nix
     ./jellyfin.nix
     ./mediawiki.nix
-    # ./nextcloud-aio.nix (disabled; use nextcloud.nix)
     ./nextcloud.nix
-    #./phorge.nix
     ./prometheus.nix
     ./pushgateway.nix
     ./pterodactyl.nix
@@ -23,15 +20,9 @@
     # Panel flavor switch (homelab.panel.{prod,test}.flavor); Pterodactyl by default.
     ./hydrodactyl.nix
     ./hydrodactyl-test-node.nix
-    #./spacetimedb.nix
-    #./sui.nix
     ./vaultwarden.nix
     ./wg-portal.nix
     ./technitium.nix
-    # TEMPORARILY DISABLED — OpenClaw SSO (avoids openclaw-oauth sops when off)
-    # ./openclaw-oauth.nix
-    # ./openclaw-config.nix
-    # ./lancache.nix — disabled; Technitium is primary LAN DNS on 192.168.5.5:53
     ./zitadel.nix
     ./keycloak.nix
   ];

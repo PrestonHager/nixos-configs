@@ -28,18 +28,11 @@
     "dns.prestonhager.com"
     "zitadel.prestonhager.com"
     "keycloak.prestonhager.com"
-    "git.prestonhager.com"
 
     # Matrix / wiki / docs / other Caddy vhosts on ace
     "serverdocs.prestonhager.com"
     "homelab.prestonhager.com"
     "matrix.prestonhager.com"
-    "spacetime.prestonhager.com"
-    # K80 AI stack — docs/ace-k80-gpu.md (TEMPORARILY DISABLED with OpenClaw)
-    # "ai.prestonhager.com"
-    "test.sui.prestonhager.com"
-    "faucet.test.sui.prestonhager.com"
-    "indexer.test.sui.prestonhager.com"
     # Coolify dashboard (nixos/caddy/coolify.nix)
     "coolify.prestonhager.com"
 

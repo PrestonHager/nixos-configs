@@ -141,7 +141,7 @@ flowchart LR
 
 ## DNS flow
 
-Technitium on **ace** is primary LAN DNS (LanCache deprecated).
+Technitium on **ace** is primary LAN DNS.
 
 ```mermaid
 sequenceDiagram

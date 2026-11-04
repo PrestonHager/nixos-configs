@@ -55,12 +55,6 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    # Tesla K80 stack (470 driver, CUDA 11.4, Ollama/OpenClaw) — enable in hosts/ace after GPU install
-    ace-k80-stack = {
-      url = "github:PrestonHager/ace-k80-stack";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs = { self, nixpkgs, tree-sitter-parsers, ... }@inputs:

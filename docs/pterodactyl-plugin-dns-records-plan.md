@@ -1,6 +1,6 @@
 # DNS Records (SRV) — design plan
 
-> **Legacy (Pterodactyl + Blueprint era).** Both panels have run [Hydrodactyl](./pterodactyl.md) since 2026-10-26, and Hydrodactyl cannot run Blueprint extensions. The DNS records feature now ships as a Hydrodactyl addon ([implementation](./pterodactyl-plugin-dns-records.md)); this is the original design for the Blueprint extension. Kept for reference.
+> **Legacy (Pterodactyl + Blueprint era).** Both panels have run [Hydrodactyl](./pterodactyl.md) since 2026-10-26, and Hydrodactyl cannot run Blueprint extensions. The DNS records feature now ships as a Hydrodactyl addon ([implementation](./pterodactyl-plugin-dns-records.md)); this is the original design for the Blueprint extension. The Pterodactyl-flavor Nix modules it mentions (Blueprint install, stock reset, Social Login SSO) have been removed; see git history. Kept for reference.
 
 
 **Status:** Planning (partial implementation exists)  
