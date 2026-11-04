@@ -9,7 +9,7 @@ let
   publicZone = "prestonhager.com";
 
   internalSerial = "2026102701";
-  publicSerial = "2026102701";
+  publicSerial = "2026110401";
 
   # Authoritative LAN names under internal.prestonhager.com (edit here, then nixos-rebuild switch on ace).
   internalHosts = {
@@ -49,7 +49,6 @@ let
     let
       viaAce = cnameInternal "ace";
       aceHosted = [
-        "ai"
         "panel"
         "test.panel"
         "prometheus"
@@ -59,15 +58,9 @@ let
         "metrics.wg"
         "zitadel"
         "keycloak"
-        "git"
         "matrix"
-        "spacetime"
-        "test.sui"
-        "faucet.test.sui"
-        "indexer.test.sui"
         "factorio"
         "game"
-        "lancache"
         "mc"
         "vpn"
         "serverdocs"

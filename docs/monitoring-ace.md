@@ -228,7 +228,7 @@ nix shell nixpkgs#sqlite -c sqlite3 /grafana/data/grafana.db \
 `ace-nixpkgs-update.timer` runs `nixos/monitoring/scripts/ace-nixpkgs-update.sh` every night at 04:30 (±20 min, after the 03:30 backup):
 
 1. Skips if `/etc/nixos` has uncommitted changes, then fast-forwards to `origin/<branch>`.
-2. `nix flake update nixpkgs` (other inputs, including the K80's `nixpkgs-cuda114`, are not touched). Nothing to do if the revision is unchanged.
+2. `nix flake update nixpkgs` (other inputs are not touched). Nothing to do if the revision is unchanged.
 3. Builds ace's system with the same limits as service bumps (`-j 4`, 12 cores). A failed build never touches the running system.
    - If the only failure is the fixed-output hash of Caddy's plugin source (it changes whenever nixpkgs moves Caddy), the new hash is accepted only after a second independent fetch agrees and the vendored `caddy-dns/cloudflare` is the version pinned in `nixos/caddy/acme-dns.nix`.
 4. `nixos-rebuild switch`. If units fail on the new generation, it switches back to the previous one.

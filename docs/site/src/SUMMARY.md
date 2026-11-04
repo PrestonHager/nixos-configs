@@ -10,7 +10,6 @@
 - [Backups](ace/backups.md)
 - [Coolify](ace/coolify.md)
 - [DNS (Technitium)](shared/dns.md)
-- [LanCache (deprecated)](ace/lancache.md)
 - [Jellyfin](ace/jellyfin.md)
 - [Matrix](ace/matrix.md)
 - [Monitoring](ace/monitoring.md)
