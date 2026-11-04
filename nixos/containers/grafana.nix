@@ -71,9 +71,15 @@ let
     grep -v '^GF_SMTP_' "${grafanaRuntimeEnv}" > "${grafanaRuntimeEnv}.tmp" || true
     mv "${grafanaRuntimeEnv}.tmp" "${grafanaRuntimeEnv}"
     ${lib.optionalString useKeycloak ''
-      # The sops env still carries the old Zitadel OAuth settings (and an empty
-      # client secret: the client is public); keycloakOauthEnv replaces them.
+      # The sops env still carries the old Zitadel OAuth settings (and its empty
+      # client secret: that app was public); keycloakOauthEnv replaces them and
+      # the Keycloak client secret comes from grafana-keycloak-env.
       grep -v '^GF_AUTH_GENERIC_OAUTH_' "${grafanaRuntimeEnv}" > "${grafanaRuntimeEnv}.tmp" || true
+      grep '^GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET=.' "${config.sops.secrets."grafana-keycloak-env".path}" \
+        >> "${grafanaRuntimeEnv}.tmp" || {
+        echo "grafana-container-env: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET missing from grafana-keycloak-env" >&2
+        exit 1
+      }
       mv "${grafanaRuntimeEnv}.tmp" "${grafanaRuntimeEnv}"
     ''}
     {
@@ -113,20 +119,28 @@ EOF
     chmod 644 "$outFile"
   '';
 in {
-  # Keycloak client. Public with PKCE, as the Zitadel app was:
-  # GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET in sops is empty, so there is no
-  # secret to reuse.
+  # Keycloak client: confidential (Grafana's server does the code exchange),
+  # plus PKCE. The Zitadel app was public and had no secret to reuse, so the
+  # secret is a new one in grafana-keycloak-env.
   homelab.keycloak.clients.grafana = {
     name = "Grafana";
-    publicClient = true;
     redirectUris = [ "https://grafana.prestonhager.com/login/generic_oauth" ];
     postLogoutRedirectUris = [ "https://grafana.prestonhager.com/login" ];
-    webOrigins = [ "https://grafana.prestonhager.com" ];
+    secret = {
+      file = config.sops.secrets."grafana-keycloak-env".path;
+      key = "GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET";
+    };
     settings.attributes."pkce.code.challenge.method" = "S256";
   };
   homelab.keycloak.testUser.groups = [ "grafana_admin" ];
 
   sops.secrets = {
+    # GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET of the Keycloak `grafana` client.
+    "grafana-keycloak-env" = {
+      sopsFile = "${sops-path}/secrets/containers/grafana-oauth.yaml";
+      key = "grafana-keycloak-env";
+      restartUnits = [ "podman-grafana.service" "keycloak-realm-sync.service" ];
+    };
     "grafana-oauth-env" = {
       sopsFile = "${sops-path}/secrets/containers/grafana-oauth.yaml";
       key = "grafana-oauth-env";

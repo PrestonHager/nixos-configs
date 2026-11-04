@@ -35,7 +35,7 @@ Renderer port 8081 is pod-internal only (host `8081` is Vaultwarden).
 
 ### Grafana login and admin via Keycloak
 
-Grafana logs in through Keycloak (realm `homelab`, client `grafana`, Generic OAuth). The client is declared in `grafana.nix` (`homelab.keycloak.clients.grafana`) and created by `keycloak-realm-sync`. It is a public client with PKCE (S256), like the Zitadel app was, so it has no client secret. `useKeycloak` at the top of `grafana.nix` turns the Keycloak settings on.
+Grafana logs in through Keycloak (realm `homelab`, client `grafana`, Generic OAuth). The client is declared in `grafana.nix` (`homelab.keycloak.clients.grafana`) and created by `keycloak-realm-sync`. It is a confidential client (Grafana's server does the code exchange) with PKCE S256. The Zitadel app was public with an empty secret, so the Keycloak secret is a new one: `GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET` in `grafana-keycloak-env` (`secrets/containers/grafana-oauth.yaml`). `useKeycloak` at the top of `grafana.nix` turns the Keycloak settings on.
 
 | Setting | Value |
 |---------|-------|
@@ -46,7 +46,7 @@ Grafana logs in through Keycloak (realm `homelab`, client `grafana`, Generic OAu
 | Account match | `GF_AUTH_OAUTH_ALLOW_INSECURE_EMAIL_LOOKUP=true` |
 | Sign-out | ends the Keycloak session, then returns to `/login` |
 
-All of it is in Nix (`keycloakOauthEnv` in `grafana.nix`). `grafana-container-env` drops every `GF_AUTH_GENERIC_OAUTH_*` line from the sops env (`secrets/containers/grafana-oauth.yaml`), so the old Zitadel settings still stored there have no effect. That file now matters only for the renderer token and the alert recipients.
+All of it except the client secret is in Nix (`keycloakOauthEnv` in `grafana.nix`). `grafana-container-env` drops every `GF_AUTH_GENERIC_OAUTH_*` line from the sops env (`secrets/containers/grafana-oauth.yaml`), so the old Zitadel settings still stored there have no effect. It then appends the secret from `grafana-keycloak-env`; `grafana-oauth-env` otherwise only supplies the renderer token and the alert recipients.
 
 **Admin.** Membership of the Keycloak group `grafana_admin` makes a user Grafana server admin and org Admin; everyone else is org Viewer. Membership is managed in the Keycloak admin console (`docs/keycloak-users.md`). Roles are re-evaluated at every login.
 
