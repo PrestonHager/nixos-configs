@@ -35,13 +35,23 @@ pkgs.dockerTools.buildLayeredImage {
 
   config = {
     Cmd = [ "/bin/sh" "-c" ''
-      if ! php -m 2>/dev/null | grep -q '^redis$'; then
-        if command -v apk >/dev/null 2>&1; then
-          apk add --no-cache autoconf gcc g++ make musl-dev openssl-dev
-          pecl install redis
-          docker-php-ext-enable redis
+      # LocalSettings.php uses Redis for caches/jobs, so MediaWiki 500s on every
+      # request without the extension. Retry the install (it needs network at
+      # boot) and exit non-zero if it never succeeds, so systemd restarts the
+      # container instead of php-fpm serving a broken site.
+      tries=0
+      while ! php -m 2>/dev/null | grep -q '^redis$'; do
+        tries=$((tries + 1))
+        if [ "$tries" -gt 10 ]; then
+          echo "FATAL: php redis extension could not be installed" >&2
+          exit 1
         fi
-      fi
+        echo "Installing php redis extension (attempt $tries)..."
+        apk add --no-cache autoconf gcc g++ make musl-dev openssl-dev \
+          && printf '\n' | pecl install redis \
+          && docker-php-ext-enable redis \
+          || sleep 15
+      done
       redis-server --daemonize yes
       mwjobrunner &
       exec php-fpm -F
