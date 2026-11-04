@@ -649,13 +649,14 @@ current_nextcloud_whiteboard() {
 
 current_coolify() {
   local v=""
-  # Pinned by digest, so the tag says nothing. COOLIFY_VERSION is what the app
-  # reports; config/constants.php carries the same default.
+  # Pinned by digest, so the tag says nothing. COOLIFY_VERSION (set in the
+  # image) is what the app reports. Since 4.6 constants.php no longer carries a
+  # literal default; fall back to the image's OCI version label.
   if container_running coolify; then
     v="$(podman exec coolify printenv COOLIFY_VERSION 2>/dev/null || true)"
     if [[ -z "$v" ]]; then
-      v="$(podman exec coolify cat /var/www/html/config/constants.php 2>/dev/null \
-        | sed -nE "s/.*COOLIFY_VERSION'\) \?: '([^']+)'.*/\1/p" | head -n 1 || true)"
+      v="$(podman inspect coolify --format '{{index .Config.Labels "org.opencontainers.image.version"}}' 2>/dev/null || true)"
+      [[ "$v" == "<no value>" ]] && v=""
     fi
   fi
   normalize_version "$v"

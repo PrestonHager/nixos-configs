@@ -55,7 +55,7 @@ The GitHub runner ranges are the `actions` list from `https://api.github.com/met
 - `coolify-github-actions-ips.service` (on boot, on every switch, and every 6 hours from its timer) downloads the list. It rejects a list with fewer than 100 entries or anything that is not a CIDR, runs `caddy validate` on the generated matcher, then writes `/var/lib/coolify-github-actions/matcher.caddy` (`@github_actions { remote_ip … }`) and reloads Caddy if the list changed. On any failure it keeps the current file, and the unit fails.
 - The vhost `import`s that file. On a fresh host, tmpfiles first creates it holding only `192.0.2.0/32` (TEST-NET-1), so Caddy starts and the API stays closed until the first successful fetch.
 
-These are shared GitHub/Azure addresses: any GitHub Actions job, in any repository, connects from them. The allowlist only keeps the rest of the internet away; the API token still does the authorizing, so keep tokens scoped (`deploy`, `read`, `write`, never `root`) and revoke unused ones in **Keys & Tokens**. Self-hosted runners on the LAN already match the LAN rule.
+These are shared GitHub/Azure addresses: any GitHub Actions job, in any repository, connects from them. The allowlist only keeps the rest of the internet away; the API token still does the authorizing, so keep tokens scoped (`deploy`, `read`, `write`; add `delete` only if a workflow deletes through the API; never `root`) and revoke unused ones in **Keys & Tokens**. Since Coolify 4.6, `write` no longer includes deletes; the 4.6 migration gave existing `write` tokens `delete` so nothing broke, so remove it from tokens that never delete. Registry check and logout need `deploy`. Self-hosted runners on the LAN already match the LAN rule.
 
 ```bash
 systemctl start coolify-github-actions-ips    # refresh now
@@ -130,7 +130,7 @@ Login is through Zitadel (**Sign in with Zitadel** on the login page). Coolify's
 | Zitadel role | Coolify |
 |---|---|
 | `coolify_admin` | Admin of the Root Team (servers, projects, deployments) |
-| `coolify_member` | Member of the Root Team |
+| `coolify_member` | Member of the Root Team. Since Coolify 4.6 a member without access grants is read-only (view the team, no deploys); give grants in **Team → Members → Access**, or use `coolify_admin` |
 | *(none)* | Cannot sign in; removed from the Root Team on the next sync |
 
 To add someone:
@@ -236,7 +236,7 @@ It then appears in the **Coolify** Grafana dashboard (*Deployed apps*), and the 
 
 ## Operations
 
-**Upgrade Coolify:** check `https://cdn.coollabs.io/coolify/versions.json`, pull the new image on ace (`podman pull ghcr.io/coollabsio/coolify:<version>`), put its digest in `coolifyImage` in `coolify.nix`, rebuild. Do not use Coolify's built-in self-update; it expects Docker and upstream's compose layout.
+**Upgrade Coolify:** check `https://cdn.coollabs.io/coolify/versions.json`, get the manifest-list digest (`nix run nixpkgs#skopeo -- inspect --raw docker://ghcr.io/coollabsio/coolify:<version> | sha256sum`), put it in `coolifyImage` in `coolify.nix`, rebuild. Read the release notes first; upgrades are rehearsed on a restored `pg_dump` in an isolated Podman network. Since 4.6 the image layers are zstd (pulling needs Docker 23+, mars runs 29.x), and the helper image Coolify pulls on mars is `<REGISTRY_URL>/coollabsio/coolify-helper` (`ghcr.io` here, from `REGISTRY_URL` in `coolify-env`; ghcr and Docker Hub carry the same digest). Reverb only answers `/app/` on the dashboard domain, which is all Caddy routes. Do not use Coolify's built-in self-update; it expects Docker and upstream's compose layout.
 
 **Logs:** `podman logs coolify`, `journalctl -u coolify-zitadel-roles`, `journalctl -u coolify-email-settings`, `journalctl -u coolify-edge-ask -u coolify-edge-nat`; proxy on mars: `docker logs coolify-proxy`.
 

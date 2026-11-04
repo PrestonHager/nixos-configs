@@ -13,7 +13,7 @@ Plan for the major-version upgrades that the [2026-10-24 review](./config-review
 | 5 | Valkey (Pterodactyl, MediaWiki, test panel) | 8.1.10 | **9.1** | Low: 8.1 still gets fixes | With the next panel maintenance |
 | — | MariaDB (all six) | 11.4 / 12.3 LTS | **Stay on LTS**; optionally consolidate 11.4 → 12.3 | None | Optional |
 | — | Postgres (Coolify) | 15.19 | Follow Coolify upstream | Before 15 ends (2027-11) | When Coolify moves |
-| — | Redis (Coolify) | 7.4.11 | Follow Coolify upstream | None | When Coolify moves |
+| — | Redis (Coolify) | 7.4.12 | Follow Coolify upstream | None | When Coolify moves |
 
 Ground rules for every step:
 
@@ -183,7 +183,7 @@ MediaWiki supports upgrading straight from 1.39 or newer, so 1.45 → 1.47 is on
 - Revert the pin commit (16.15, `sha256:f4610795…`) and rebuild.
 - If Synapse 1.164.2 ran before the dump, the `-pg16` data is already at schema 95, so keep that Synapse. Otherwise the old directory is still at 94, and either Synapse version works.
 
-**Coolify's Postgres 15** stays on what Coolify ships (`postgres:15-alpine` in its v4.5.0 compose). 15 is supported to 2027-11; revisit when Coolify moves, or by mid-2027.
+**Coolify's Postgres 15** stays on what Coolify ships (`postgres:15-alpine` in its v4.6.0 compose). 15 is supported to 2027-11; revisit when Coolify moves, or by mid-2027.
 
 ---
 
@@ -237,7 +237,7 @@ MediaWiki supports upgrading straight from 1.39 or newer, so 1.45 → 1.47 is on
 
 ## Redis (Coolify): follow upstream
 
-Coolify v4.5.0 ships `redis:7-alpine`. The archived RDB loads on Redis 8.10.2 (215 keys), so moving later is easy, but keep Coolify's pin until Coolify moves.
+Coolify v4.6.0 ships `redis:7-alpine`. The archived RDB loads on Redis 8.10.2 (215 keys), so moving later is easy, but keep Coolify's pin until Coolify moves.
 
 ---
 
