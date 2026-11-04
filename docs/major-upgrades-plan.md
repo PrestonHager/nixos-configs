@@ -161,15 +161,19 @@ MediaWiki supports upgrading straight from 1.39 or newer, so 1.45 → 1.47 is on
 - Valkey 9's behaviour changes are small: auth is checked before command existence, and MULTI error messages include the command's full name.
 - The data is cache, sessions and Pterodactyl's queue.
 - The 2026-10-25 RDB copies load on 9.1.2 with identical key counts (panel 1158, test panel 1119, MediaWiki 2245).
-- 9.x writes an RDB that 8.x cannot read. A rollback means starting empty: sessions are lost and users sign in again.
+- **Rehearsed on 2026-11-04 with 9.1.3-alpine** (`sha256:bf09d58e…fae0b`), on copies of that day's live `dump.rdb` and the production command lines (`requirepass` file, `--bind 127.0.0.1 --save 59 1 --loglevel warning`; the test panel has no password):
+  - No config warnings at startup. Every key loads, and a checksum over every key, type and value matches 8.1.10 on all three (panel 3576, test panel 3574, MediaWiki 879 keys at that moment).
+  - phpredis 6.3.0 from `hydrodactyl-runtime:v6.4.2` ran the same script against 8.1.10 and 9.1.3: AUTH, Laravel session and cache calls, a lock release in Lua, MULTI/EXEC, pipelines, WATCH/CAS, the Laravel queue Lua scripts (push, pop through EVALSHA, migrate, size), BLPOP/BRPOP, and MediaWiki-style serialized objects. The output is identical, except that an unknown command sent before AUTH now returns `NOAUTH` instead of `unknown command`. No app sends commands before AUTH.
+  - The panel image's `redis-cli` 8.10.2 health checks (PING with `REDISCLI_AUTH`, FLUSHALL on the test panel) work.
+- 9.x writes RDB format 80. **8.1.10 refuses to start on it** ("Can't handle RDB format version 80"), so a rollback must move the file aside. Sessions are lost and users sign in again.
 
 **Steps:**
 
 1. Panel: `php artisan down`, then let the queue drain (`php artisan queue:work --stop-when-empty`, or wait for the worker).
-2. Pin `valkey/valkey:9.1.x-alpine` by digest in `pterodactyl.nix`, `pterodactyl-test.nix` and `mediawiki.nix`. Rebuild. Restart each app container after its Valkey so it rejoins the pod network.
+2. Pin `valkey/valkey:9.1.3-alpine` (`sha256:bf09d58e96d6b4524a15396b65b242bbe18beebbcc15a04d8ee75ddac62fae0b`) in `pterodactyl.nix`, `pterodactyl-test.nix` and `mediawiki.nix`. Rebuild. Restart each app container after its Valkey so it rejoins the pod network. Then `php artisan up`.
 3. Check the panel (login, server list, a console), the test panel, and a wiki page edit.
 
-**Rollback:** pin 8.1.10. Move the 9.x `dump.rdb` aside (or restore the archived 8.1 one from `kv/`). Rebuild.
+**Rollback:** pin 8.1.x again. Stop the Valkey, move the 9.x `dump.rdb` aside (or restore the archived 8.1 one from `kv/`), then rebuild. Otherwise 8.x will not start.
 
 ---
 

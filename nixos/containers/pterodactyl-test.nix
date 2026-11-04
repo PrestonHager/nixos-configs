@@ -613,7 +613,7 @@ EOF
       ];
       cmd = [ "redis-server" "--save" "59" "1" "--loglevel" "warning" ];
       extraOptions = [ "--pod=pterodactyl-test" ];
-      image = "docker.io/valkey/valkey@sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507"; # valkey 8.1.10-alpine (BSD fork of Redis; cache/sessions only)
+      image = "docker.io/valkey/valkey@sha256:bf09d58e96d6b4524a15396b65b242bbe18beebbcc15a04d8ee75ddac62fae0b"; # valkey 9.1.3-alpine; 9.x RDB is unreadable by 8.x (rollback = start empty) (BSD fork of Redis; cache/sessions only)
     };
   };
 }
