@@ -145,7 +145,9 @@ Router SSH user: **`pterofwd`** (dedicated automation account; pubkey in `ip ssh
 ip nat inside source static tcp 192.168.5.6 25565 interface GigabitEthernet0/0 25565
 ```
 
-Removal: prefix with `no `. Running-config only (no `write memory` in v1).
+Removal: prefix with `no `.
+
+Since extension v1.0.4, after every successful add or remove (not in dry-run) the extension opens a second SSH session and runs `write memory`, so rules survive a router reload. Removing all of a server's mappings (server deleted) saves once at the end. The save is logged in the audit log as action `save`; it counts as failed unless the router output contains `[OK]`. A failed save leaves the rule live in running-config, and the API returns an error saying the change will be lost on a reload — run `write memory` on the router by hand, or retry the change.
 
 ---
 
@@ -167,6 +169,7 @@ Removal: prefix with `no `. Running-config only (no `write memory` in v1).
 
 - Mapping row with status `dry_run`
 - Audit entry with action `dry_run` and IOS commands containing `ip nat inside source static`
+- No `save` audit entry (dry-run never runs `write memory`)
 - No change on router (`show running-config | include ip nat inside source static` unchanged)
 
 ### Interpretation
@@ -190,8 +193,9 @@ Removal: prefix with `no `. Running-config only (no `write memory` in v1).
 ### Execution
 
 1. Create mapping TCP 25570 → 25570 from server Network tab
-2. On ace: `ssh astracap "show running-config | include 25570"`
-3. External: `nc -vz 98.249.78.62 25570` (if ISP path allows)
+2. On ace: `ssh astracap "show running-config | include 25570"` and `ssh astracap "show startup-config | include 25570"` (both show the line)
+3. Audit log has an `apply` entry followed by a successful `save` entry
+4. External: `nc -vz 98.249.78.62 25570` (if ISP path allows)
 
 ### Troubleshooting
 
@@ -207,7 +211,6 @@ sudo podman exec pterodactyl php artisan tinker --execute="DB::table('portforwar
 
 ## Known limitations (v1)
 
-- No `write memory` — NAT rules lost on router reboot
 - UDP + TCP same port requires two explicit mappings
 - No WAN ACL permit-line management
 - SSH apply not verified in CI; test on ace before disabling dry-run in production

@@ -18,12 +18,13 @@ Two jobs, both driven by what is configured in Coolify's database
          and lines for a managed node that Coolify no longer wants are removed.
          Lines for other inside addresses (ace :80/:443, Pterodactyl game
          ports) are never touched. The router is only contacted when the
-         wanted set changed or the last check is older than --recheck, so a
-         router reboot (rules are running-config only) heals within that time.
+         wanted set changed or the last check is older than --recheck.
+         After every change it runs `write memory`, so the rules survive a
+         router reload; a failed save is retried on the next run.
          While Coolify wants no ports it never logs in at all.
 
-         The router account needs `show running-config` and `configure
-         terminal` (privilege 15, or a custom level granting both).
+         The router account needs `show running-config`, `configure
+         terminal` and `write memory` (privilege 15).
 
   dns    Gives every Coolify hostname inside the zones a CNAME, so a new
          app domain resolves without editing DNS by hand: in Cloudflare
@@ -421,6 +422,13 @@ def router_rules():
     return {(m[0], int(m[4])): (m[1], int(m[2]), m[3]) for m in NAT_RE.findall(out)}
 
 
+def save_router_config():
+    """Copy the running-config to NVRAM so the NAT rules survive a reload."""
+    out = router(["write memory"])
+    if "[OK]" not in out:
+        raise RuntimeError(f"router write memory did not report [OK]:\n{out}")
+
+
 def rule_line(proto, ip, port):
     return f"ip nat inside source static {proto} {ip} {port} interface {WAN_INTERFACE} {port}"
 
@@ -449,8 +457,9 @@ def nat(args):
     wanted_key = sorted([list(r) for r in wanted])
     state = load_state()
     fresh = time.time() - state.get("checked_at", 0) < args.recheck
+    unsaved = state.get("unsaved", False)
     # Nothing wanted now or last time: no rule of ours can be on the router.
-    if state.get("wanted", []) == wanted_key and (fresh or not wanted):
+    if state.get("wanted", []) == wanted_key and (fresh or not wanted) and not unsaved:
         print(f"no change ({len(wanted)} rules)")
         return 0
 
@@ -470,14 +479,30 @@ def nat(args):
         print(f"conflict, not forwarding: {c}", file=sys.stderr)
     if args.dry_run:
         print("\n".join(["dry run:"] + remove + add))
+        if add or remove:
+            print("then: write memory")
         return 0
     if add or remove:
         # Removals first so a moved port is free before it is re-added.
         router(["configure terminal"] + remove + add + ["end"])
         for line in remove + add:
             warn(f"router NAT changed: {line}")
+    saved = ""
+    if add or remove or unsaved:
+        # Own session, so it only runs once the change above went through.
+        try:
+            save_router_config()
+        except RuntimeError as e:
+            # Keep "unsaved" so the next run retries even though the rules match.
+            save_state({"wanted": wanted_key, "checked_at": time.time(), "conflicts": conflicts,
+                        "unsaved": True})
+            warn(f"router NAT changes are live but not saved: {e}")
+            return 1
+        warn("router config saved (write memory)")
+        saved = ", saved"
     save_state({"wanted": wanted_key, "checked_at": time.time(), "conflicts": conflicts})
-    print(f"in sync: {len(wanted)} wanted, {len(add)} added, {len(remove)} removed, {len(conflicts)} conflicts")
+    print(f"in sync: {len(wanted)} wanted, {len(add)} added, {len(remove)} removed, "
+          f"{len(conflicts)} conflicts{saved}")
     return 0
 
 

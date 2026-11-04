@@ -31,8 +31,8 @@
 # All read Coolify's database with `podman exec coolify-db psql`; nothing on
 # the Coolify side has to be configured. The NAT and DNS units only call the
 # router / DNS APIs when the wanted set changed or every 15 minutes, which also
-# restores NAT after a router reboot (running-config only, like the Pterodactyl
-# extension's) and LAN records after technitium-sync-zones re-imports the zone.
+# restores NAT if it is lost on the router (each change is saved with
+# `write memory`) and LAN records after technitium-sync-zones re-imports the zone.
 { config, lib, pkgs, ... }:
 
 let

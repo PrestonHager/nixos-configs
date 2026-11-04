@@ -253,7 +253,7 @@ flowchart LR
   I --> J["Update portforward_data"]
 ```
 
-**`write memory` policy:** Phase 1 — **do not** auto-save to NVRAM; running-config only (survives until reboot). Phase 2 — optional save with explicit admin confirmation. Document rollback: `no ip nat inside source static …`.
+**`write memory` policy:** Phase 1 shipped running-config only, and rules were lost on a router reload. Since v1.0.4 the extension runs `write memory` after every successful change (see [implementation](./pterodactyl-plugin-port-forward.md#ios-command-format)). Document rollback: `no ip nat inside source static …`.
 
 ### 7.3 Internal admin API routes (planned)
 

@@ -64,8 +64,8 @@ Credentials are stored encrypted in extension settings (Cloudflare token) or via
 Automates Cisco IOS NAT on the Astracap router (192.168.5.1):
 
 1. Builds `ip nat inside source static tcp …` commands for a server's node IP and port.
-2. Applies them over SSH as user **`pterofwd`** (dedicated automation account).
-3. Logs all commands and router output to the audit log.
+2. Applies them over SSH as user **`pterofwd`** (dedicated automation account), then saves the router config with `write memory` so the rules survive a reload.
+3. Logs all commands and router output to the audit log (`save` entries for the `write memory` step).
 
 **Safety defaults:**
 
