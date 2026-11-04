@@ -1,6 +1,6 @@
 # Test panel Blueprint (test.panel.prestonhager.com)
 
-> **Legacy (Pterodactyl + Blueprint era).** The test panel has run [Hydrodactyl](./pterodactyl.md) since 2026-10-26 (`homelab.panel.test.flavor = "hydrodactyl"`); this page describes the Blueprint setup it replaced. Kept for reference.
+> **Legacy (Pterodactyl + Blueprint era).** The test panel has run [Hydrodactyl](./pterodactyl.md) since 2026-10-26 (`homelab.panel.test.flavor = "hydrodactyl"`); this page describes the Blueprint setup it replaced. The Pterodactyl-flavor Nix modules it mentions (Blueprint install, stock reset, Social Login SSO) have been removed; see git history. Kept for reference.
 
 Architecture and deployment notes for the **test** Pterodactyl panel using upstream Blueprint with DNS and Social Login extension support. Production (`panel.prestonhager.com`) uses the same upstream Blueprint pattern plus Port Forward.
 

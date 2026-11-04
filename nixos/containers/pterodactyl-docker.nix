@@ -25,7 +25,7 @@ let
     GIT_CONFIG_SYSTEM = "/etc/gitconfig";
   };
 
-    # Test panel uses stock Pterodactyl + upstream Blueprint (see pterodactyl-test-blueprint.nix).
+    # Pterodactyl-era base image; both panels override it with the Hydrodactyl image (hydrodactyl.nix).
   panelUpdateEnvTest = panelUpdateEnvStock;
 
   waitForServices = ''

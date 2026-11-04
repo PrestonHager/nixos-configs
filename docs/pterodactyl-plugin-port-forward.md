@@ -1,6 +1,6 @@
 # Hydrodactyl — Port Forward / NAT (Implementation)
 
-> **Hydrodactyl.** Both panels have run Hydrodactyl since 2026-10-26. This feature's PHP (the flake input `pterodactyl-port-forward`) is loaded by the native addon in `plugins/hydrodactyl/app/Addons/PortForward`, with a React server tab (Servers → Port Forward) and a settings page (Admin → Extensions → Port Forward). The Blueprint packaging described below is no longer used on either panel.
+> **Hydrodactyl.** Both panels have run Hydrodactyl since 2026-10-26. This feature's PHP (the flake input `pterodactyl-port-forward`) is loaded by the native addon in `plugins/hydrodactyl/app/Addons/PortForward`, with a React server tab (Servers → Port Forward) and a settings page (Admin → Extensions → Port Forward). The Blueprint packaging described below is no longer used on either panel, and its Nix modules have been removed (see git history).
 
 
 **Status:** Implemented (v1.0.0, live NAT when router key deployed)  

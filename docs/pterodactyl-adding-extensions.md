@@ -1,6 +1,6 @@
 # Pterodactyl Blueprint: Adding an Extension (Legacy ABI Recipe)
 
-> **Legacy (Pterodactyl + Blueprint era).** Both panels have run [Hydrodactyl](./pterodactyl.md) since 2026-10-26, and Hydrodactyl cannot run Blueprint extensions. New panel features are native addons in `plugins/hydrodactyl` instead. Kept for reference.
+> **Legacy (Pterodactyl + Blueprint era).** Both panels have run [Hydrodactyl](./pterodactyl.md) since 2026-10-26, and Hydrodactyl cannot run Blueprint extensions. New panel features are native addons in `plugins/hydrodactyl` instead. The Pterodactyl-flavor Nix modules it mentions (Blueprint install, stock reset, Social Login SSO) have been removed; see git history. Kept for reference.
 
 
 **Status:** Worked example = `minecraft-tools` (implemented 2026-08, legacy ABI port)

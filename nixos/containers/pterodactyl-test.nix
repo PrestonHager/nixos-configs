@@ -157,10 +157,7 @@ EOF
 in
 {
   imports = [
-    ./pterodactyl-test-stock-reset.nix
-    ./pterodactyl-test-blueprint.nix
     ./pterodactyl-test-blueprint-extensions-configure.nix
-    ./pterodactyl-test-sso.nix
   ];
 
   users.users.pterodactyl.extraGroups = [ "users" ];

@@ -52,10 +52,7 @@ let
 in
 {
   imports = [
-    ./pterodactyl-stock-reset.nix
-    ./pterodactyl-blueprint.nix
     ./pterodactyl-blueprint-extensions-configure.nix
-    ./pterodactyl-sso.nix
     ./pterodactyl-extensions.nix
   ];
   sops.secrets = {
@@ -64,6 +61,11 @@ in
       mode = "0640";
       owner = "pterodactyl";
       group = "pterodactyl";
+    };
+    # Zitadel OIDC client for both panels; read by hydrodactyl[-test]-configure.
+    "pterodactyl-oauth-env" = {
+      sopsFile = "${sops-path}/secrets/containers/pterodactyl-oauth.yaml";
+      key = "pterodactyl-oauth-env";
     };
     "pterodactyl-router-ssh-key" = {
       sopsFile = "${sops-path}/secrets/containers/pterodactyl.yaml";
@@ -86,6 +88,7 @@ in
 
   # Create the data directory
   systemd.tmpfiles.rules = [
+    "d /var/lib/pterodactyl 0750 pterodactyl pterodactyl -"
     "d /pterodactyl/html 0770 pterodactyl pterodactyl -"
     "d /pterodactyl/data 0770 pterodactyl pterodactyl -"
     "d /pterodactyl/redis 0770 pterodactyl pterodactyl -"

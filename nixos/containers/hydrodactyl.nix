@@ -162,11 +162,7 @@ in
         environment = lib.mkForce { };
       };
 
-      systemd.services = blueprintUnitsOff [
-        "pterodactyl-stock-reset"
-        "pterodactyl-blueprint-install"
-        "pterodactyl-sso-configure"
-      ] // {
+      systemd.services = {
         hydrodactyl-env = {
           description = "Enforce Hydrodactyl .env keys on the production panel";
           before = [ "podman-pterodactyl.service" ];
@@ -203,9 +199,6 @@ in
       };
 
       systemd.services = blueprintUnitsOff [
-        "pterodactyl-test-stock-reset"
-        "pterodactyl-test-blueprint-install"
-        "pterodactyl-test-sso-configure"
         "pterodactyl-test-panel-perms"
         "pterodactyl-test-setup"
       ] // {
