@@ -292,15 +292,18 @@ let
       fi
       printf '%s' "$v"
     }
-    ${lib.concatStrings (lib.mapAttrsToList (var: ref: ''
-      ${var}=$(read_key ${lib.escapeShellArg ref.file} ${lib.escapeShellArg ref.key})
-      export ${var}
-    '') secretRefs)}
-
+    # The gate first, so a missing app secret cannot hide that state.
+    KEYCLOAK_CLIENTSECRET=$(read_key ${lib.escapeShellArg cfg.sync.credential.file} ${lib.escapeShellArg cfg.sync.credential.key})
+    export KEYCLOAK_CLIENTSECRET
     if [ "$KEYCLOAK_CLIENTSECRET" = REPLACE_ME ]; then
       echo "keycloak-realm-sync: homelab-config secret not set yet (docs/keycloak-ace.md), skipping" >&2
       exit 0
     fi
+
+    ${lib.concatStrings (lib.mapAttrsToList (var: ref: ''
+      ${var}=$(read_key ${lib.escapeShellArg ref.file} ${lib.escapeShellArg ref.key})
+      export ${var}
+    '') (removeAttrs secretRefs [ "KEYCLOAK_CLIENTSECRET" ]))}
 
     IMPORT_FILES_LOCATIONS=${importFile}
     ${lib.optionalString google.enable ''
