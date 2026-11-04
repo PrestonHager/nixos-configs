@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 64" role="img" aria-label="Hager Homelab">
+  <title>Hager Homelab (for light backgrounds)</title>
+  <g fill="none" stroke="#0A766C" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M32 11 L11 29 L15 53 L49 53 L53 29 Z"/>
+    <path d="M27 53 L27 40 L37 40 L37 53" opacity=".7"/>
+  </g>
+  <g fill="#121A2F">
+    <circle cx="11" cy="29" r="3.2"/><circle cx="53" cy="29" r="3.2"/>
+    <circle cx="15" cy="53" r="3.2"/><circle cx="49" cy="53" r="3.2"/>
+  </g>
+  <path fill="#E0A23A" d="M32 2.5 L34.3 8.7 L40.5 11 L34.3 13.3 L32 19.5 L29.7 13.3 L23.5 11 L29.7 8.7 Z"/>
+  <text x="70" y="42" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="27" font-weight="700" letter-spacing="-0.5" fill="#121A2F">Hager<tspan fill="#4E5A73" font-weight="500" dx="8">Homelab</tspan></text>
+</svg>

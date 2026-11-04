@@ -256,7 +256,7 @@ section { padding: clamp(56px, 9vw, 104px) 0; }
 
 /* ---------- Docs layout (guide, brand) ---------- */
 .doc-hero { padding: clamp(48px, 8vw, 88px) 0 32px; border-bottom: 1px solid var(--border); }
-.doc { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 56px; padding: 48px 0 96px; }
+.doc { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 56px; padding-top: 48px; padding-bottom: 96px; }
 .toc { position: sticky; top: 88px; align-self: start; font-size: .92rem; }
 .toc p { font: 600 .75rem var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted); }
 .toc ol, .toc ul { list-style: none; padding: 0; margin: 0; border-left: 1px solid var(--border); }
@@ -358,3 +358,8 @@ details[open] summary { border-bottom: 1px solid var(--border); margin-bottom: 1
 .h2 { font-size: clamp(1.5rem, 3vw, 2.1rem); font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
 .type-sample .eyebrow { margin: 0; }
 .hero-ctas-center { justify-content: center; }
+.footer-bottom a { color: var(--text-muted); } .footer-bottom a:hover { color: var(--text); }
+.meta-line { color: var(--text-muted); font: 500 .85rem var(--font-mono); margin: 18px 0 0; }
+.caps { font-size: .92rem; color: var(--text-muted); }
+th[scope], .doc-body tbody th { width: 34%; }
+.logo-tile .cap .dl { display: inline-flex; gap: 10px; }
