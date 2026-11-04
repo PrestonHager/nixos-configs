@@ -4,3 +4,7 @@ COMMIT_EDITMSG
 # NixOS files
 result
 
+# Claude Code worktrees and drafts (untracked files here made the tree look
+# dirty, which tripped git-drift alerts and skipped the nightly nixpkgs update)
+.claude/
+

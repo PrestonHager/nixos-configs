@@ -255,13 +255,10 @@ for n in "${names[@]}"; do
 done
 (( DRY )) || write_metrics
 
-if (( MAIL && ! DRY )) && [[ -n "${ACE_UPDATE_MAIL:-}" ]]; then
-  if [[ ${#failed[@]} -gt 0 ]]; then
-    subject="Ace secret rotation FAILED: ${failed[*]}"
-  else
-    subject="Ace secret rotation ok: ${names[*]}"
-  fi
-  "$ACE_UPDATE_MAIL" --subject "$subject" --body-file "$REPORT" || log "could not send the report mail"
+# Mail only when something needs attention; successes are in the journal and metrics.
+if (( MAIL && ! DRY )) && [[ -n "${ACE_UPDATE_MAIL:-}" && ${#failed[@]} -gt 0 ]]; then
+  "$ACE_UPDATE_MAIL" --subject "Ace secret rotation FAILED: ${failed[*]}" --body-file "$REPORT" \
+    || log "could not send the report mail"
 fi
 
 [[ ${#failed[@]} -eq 0 ]]

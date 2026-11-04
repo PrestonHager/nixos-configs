@@ -705,6 +705,11 @@ groups:
           alert_type: version_major
       - uid: ace_version_minor
         title: Ace service minor or patch update available
+        # Paused: every service this rule covers is in the auto-update registry,
+        # which applies in-series updates itself and mails when one fails, so
+        # this only duplicated that mail. The Ace Service Versions dashboard
+        # still shows in-series lag.
+        isPaused: true
         condition: C
         data:
           - refId: A
