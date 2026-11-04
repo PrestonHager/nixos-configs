@@ -10,12 +10,18 @@ let
   # and Docker/buildx client state under /root, and logs left in /root. The
   # container data trees are listed too in case a watched path ever covers
   # them. AIDE matches these as regular expressions.
+  # resolv.conf is rewritten by resolvconf (DHCP / Tailscale MagicDNS) after the
+  # boot-time init, so only its owner and mode are watched. Claude Code keeps
+  # session state and logs under /root/.claude and /root/.claude.json.
   configFile = pkgs.writeText "aide.conf" ''
     database_in=file:${dbPath}
     database_out=file:${dbNewPath}
+    =/etc/resolv\.conf$ p+u+g
     /etc p+i+u+g+sha256
     /root p+i+u+g+sha256
     /var/lib/systemd p+i+u+g+sha256
+    !/root/\.claude
+    !/root/\.claude\.json
     !/etc/nixos/\.git
     !/etc/nixos/result
     !/etc/letsencrypt
