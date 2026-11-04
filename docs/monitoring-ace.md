@@ -292,6 +292,8 @@ Grafana reads Prometheus at `http://host.containers.internal:9090` (internal; no
 
 Ports that containers publish on `10.88.0.1` (Prometheus 9090, Grafana 8082, wg-portal metrics 8787, Technitium API 5380, Pushgateway 9091) are DNATed by netavark and do not pass through `nixos-fw`. Other Podman networks (Coolify's `podman1`, runner networks) get nothing beyond the global allow list.
 
+Since Podman 6 / netavark 2 (nixpkgs 2026-11-01), netavark only has an nftables driver: its rules live in `table inet netavark` (`nft list table inet netavark`), not in iptables `NETAVARK_*` chains, and they sit beside the iptables(-nft) rules of `nixos-fw`. A drop in either table drops the packet. The NixOS podman module opens 53 tcp/udp on `podman+` in `nixos-fw` for aardvark-dns (`virtualisation.podman.dns`). Bridge networks without an `isolate` option are now strictly isolated: containers cannot reach containers on another Podman network by IP. Ports published on the host or on `10.88.0.1` are still reachable from every network.
+
 Listener bindings:
 
 | Service | Listens on | Reached by |

@@ -170,7 +170,7 @@ in {
       RemainAfterExit = true;
       ExecStart = pkgs.writeShellScript "pod-grafana-create" ''
         set -euo pipefail
-        hostGw="$(${pkgs.iproute2}/bin/ip -4 -o addr show podman0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)"
+        hostGw="$(${pkgs.iproute2}/bin/ip -4 -o addr show podman0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1 || true)"
         if [ -z "''${hostGw}" ]; then
           hostGw="10.88.0.1"
         fi
