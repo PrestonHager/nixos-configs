@@ -29,6 +29,9 @@ in
   virtualisation.oci-containers.containers.technitium = {
     autoStart = true;
     image = "docker.io/technitium/dns-server:${technitiumVersion}";
+    # podman copies ace's /etc/hosts, which maps keycloak.prestonhager.com to
+    # 127.0.0.1 (the container itself). Point the OIDC back-channel at Caddy.
+    extraOptions = [ "--add-host=keycloak.prestonhager.com:192.168.5.5" ];
     ports = [
       "${technitiumDnsIp}:53:53/udp"
       "${technitiumDnsIp}:53:53/tcp"
