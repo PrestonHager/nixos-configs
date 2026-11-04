@@ -33,6 +33,7 @@
     # ./openclaw-config.nix
     # ./lancache.nix — disabled; Technitium is primary LAN DNS on 192.168.5.5:53
     ./zitadel.nix
+    ./keycloak.nix
   ];
 
   # Enable Podman (or Docker) for use with oci-containers

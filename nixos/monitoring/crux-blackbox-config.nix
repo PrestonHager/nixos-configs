@@ -4,6 +4,8 @@
     "https://grafana.prestonhager.com/"
     "https://cloud.prestonhager.com/"
     "https://zitadel.prestonhager.com/"
+    # Server logins (nixos/auth/sso-login.nix) need the realm discovery document.
+    "https://keycloak.prestonhager.com/realms/homelab/.well-known/openid-configuration"
     "https://dns.prestonhager.com/"
     "https://matrix.prestonhager.com/_matrix/client/versions"
   ];

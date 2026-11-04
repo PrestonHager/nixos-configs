@@ -17,7 +17,9 @@ in
     ../../nixos
     ../../nixos/security
     # Ace headless imports podman/containers/monitoring — incompatible with Wings (Docker).
-    ../../users/prestonh
+    # Keycloak server logins; the local prestonh account is now the
+    # break-glass phadmin (docs/sso-login.md).
+    ../../nixos/auth/sso-login.nix
   ];
 
   services.openssh = {
@@ -32,7 +34,12 @@ in
   # root@ace deploys the nodes (nixos-rebuild --target-host, nix copy) with its
   # own key from nixos/ace-git-identity.nix, so no workstation agent forwarding.
   users.users.root.openssh.authorizedKeys.keys = [ bootstrapPubkey aceDeployPubkey ];
-  users.users.prestonh.openssh.authorizedKeys.keys = [ bootstrapPubkey ];
+  # prestonh is the Keycloak account now; phadmin (uid 1000, the old
+  # prestonh home and password) is the local break-glass admin.
+  homelab.sso = {
+    enable = true;
+    breakGlass.keys = [ bootstrapPubkey ];
+  };
   # Only the keys declared here count; stray ~/.ssh/authorized_keys files are
   # ignored (nixos/security/ssh.nix). bootstrapPubkey is the admin
   # workstation's key, so this cannot lock the workstation out.

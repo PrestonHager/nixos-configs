@@ -27,6 +27,7 @@
     "metrics.wg.prestonhager.com"
     "dns.prestonhager.com"
     "zitadel.prestonhager.com"
+    "keycloak.prestonhager.com"
     "git.prestonhager.com"
 
     # Matrix / wiki / docs / other Caddy vhosts on ace

@@ -118,7 +118,7 @@ The apex and `www` are orange-clouded in Cloudflare (GitHub Pages origin). The z
 | grafana | CNAME | grafana.internal.prestonhager.com |
 | cloud | CNAME | cloud.internal.prestonhager.com |
 | dns | CNAME | dns.internal.prestonhager.com |
-| ai, panel, test.panel, prometheus, jellyfin, vault, wg, metrics.wg, zitadel, git, matrix, spacetime, test.sui, faucet.test.sui, indexer.test.sui, factorio, game, lancache, mc, vpn, serverdocs, update | CNAME | ace.internal.prestonhager.com |
+| ai, panel, test.panel, prometheus, jellyfin, vault, wg, metrics.wg, zitadel, keycloak, git, matrix, spacetime, test.sui, faucet.test.sui, indexer.test.sui, factorio, game, lancache, mc, vpn, serverdocs, update | CNAME | ace.internal.prestonhager.com |
 | crux.lc1.nm.us | CNAME | crux.internal.prestonhager.com |
 | nova.lc1.nm.us | CNAME | nova.internal.prestonhager.com |
 | elara.lc1.nm.us, zenith.lc1.nm.us, mars.lc1.nm.us | CNAME | matching `*.internal.prestonhager.com` |

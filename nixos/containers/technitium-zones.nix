@@ -58,6 +58,7 @@ let
         "wg"
         "metrics.wg"
         "zitadel"
+        "keycloak"
         "git"
         "matrix"
         "spacetime"

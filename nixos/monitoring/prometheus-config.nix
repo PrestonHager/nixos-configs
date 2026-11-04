@@ -19,6 +19,8 @@ let
     "https://loftiawiki.org/"
     "https://matrix.prestonhager.com/_matrix/client/versions"
     "https://zitadel.prestonhager.com/"
+    # Server logins (nixos/auth/sso-login.nix) need the realm discovery document.
+    "https://keycloak.prestonhager.com/realms/homelab/.well-known/openid-configuration"
     "https://cloud.prestonhager.com/"
     "https://dns.prestonhager.com/"
     # Coolify control plane (nixos/containers/coolify.nix).
