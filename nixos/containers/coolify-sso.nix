@@ -1,23 +1,29 @@
-# Zitadel login for the Coolify dashboard, plus instance settings that the
+# Keycloak login for the Coolify dashboard, plus instance settings that the
 # Coolify UI must not change.
 #
-# Zitadel side (created 2026-10-18; see docs/coolify-ace.md):
-#   project "Coolify" (id below) with "check authorization on authentication",
-#   so only users granted coolify_admin or coolify_member can sign in;
-#   OIDC web app "Coolify" -> https://coolify.prestonhager.com/auth/zitadel/callback.
-# Client id/secret: nix-secrets secrets/containers/coolify.yaml, coolify-zitadel-env.
+# Keycloak side (realm homelab, docs/keycloak-ace.md): the `coolify` client
+# below, synced by keycloak-realm-sync, with Coolify's generic OIDC callback
+# https://coolify.prestonhager.com/auth/oidc/callback. Its secret is
+# KEYCLOAK_CLIENT_SECRET in nix-secrets secrets/containers/coolify.yaml,
+# coolify-keycloak-env (the value Coolify's Zitadel app used, renamed).
+# Who may use Coolify is the Keycloak groups coolify_admin / coolify_member.
 #
-# coolify-zitadel-oauth      writes the credentials into Coolify's oauth_settings.
+# coolify-keycloak-oauth     writes the client into Coolify's oauth_settings
+#                            (provider "oidc", self-registration off) and
+#                            retires the Zitadel provider and its identity links.
 # coolify-instance-settings  keeps auto-update, self-registration and DNS
 #                            validation off and the unusable built-in
 #                            localhost server (id 0) force-disabled.
 # coolify-email-settings     points Coolify's SMTP at the iCloud+ account
-#                            Nextcloud/Grafana/Zitadel use (password from
+#                            Nextcloud/Grafana/Keycloak use (password from
 #                            nextcloud-environment SMTP_PASSWORD).
-# coolify-zitadel-roles      (timer) maps grants onto Coolify's root team:
-#   coolify_admin -> admin, coolify_member -> member, no grant -> removed.
-#   The root owner account (user 0) is never changed. An empty grant list is
-#   refused unless COOLIFY_ALLOW_EMPTY_ROLE_MAP=1 is set on the unit.
+# coolify-keycloak-roles     (timer) maps group membership onto Coolify's root
+#   team: coolify_admin -> admin, coolify_member -> member, neither -> removed.
+#   Group members without a Coolify account get one (root team only), which
+#   is the only way accounts are created: an OIDC login links to it by
+#   verified email, and a login with no account is refused. The root owner
+#   account (user 0) is never changed. An empty role map is refused unless
+#   COOLIFY_ALLOW_EMPTY_ROLE_MAP=1 is set on the unit.
 #
 # The first three are Type=exec, not oneshot: systemd counts them as started as
 # soon as the script runs, so `nixos-rebuild switch` and boot do not wait for
@@ -29,17 +35,17 @@
 
 let
   sops-path = builtins.toString inputs.nix-secrets;
-  projectId = "395665464577001575";
   podman = "${pkgs.podman}/bin/podman";
   curl = "${pkgs.curl}/bin/curl";
   health = "http://127.0.0.1:8000/api/health";
+  kc = import ../auth/keycloak-lib.nix;
 
   runPhp = ./coolify/run.php;
   oauthSettingPhp = ./coolify/oauth-setting.php;
   instanceSettingsPhp = ./coolify/instance-settings.php;
   emailSettingsPhp = ./coolify/email-settings.php;
   applyRolesPhp = ./coolify/apply-roles.php;
-  roleSyncJs = ./coolify/zitadel-role-sync.mjs;
+  roleSyncJs = ./coolify/keycloak-role-sync.mjs;
 
   # Run a store PHP file inside the coolify container with Laravel booted.
   # `artisan tinker <file>` exits 0 on an exception (and then reads a REPL
@@ -86,16 +92,29 @@ let
   };
 in
 {
-  sops.secrets."coolify-zitadel-env" = {
+  # KEYCLOAK_CLIENT_SECRET (Keycloak client `coolify`)
+  sops.secrets."coolify-keycloak-env" = {
     sopsFile = "${sops-path}/secrets/containers/coolify.yaml";
     mode = "0400";
-    restartUnits = [ "coolify-zitadel-oauth.service" ];
+    restartUnits = [ "coolify-keycloak-oauth.service" "keycloak-realm-sync.service" ];
   };
   # Re-apply SMTP when the shared password changes.
   sops.secrets."nextcloud-environment".restartUnits = [ "coolify-email-settings.service" ];
 
-  systemd.services.coolify-zitadel-oauth = setupUnit "Configure Coolify's Zitadel OAuth provider"
-    (tinker oauthSettingPhp "--env-file ${config.sops.secrets."coolify-zitadel-env".path}");
+  homelab.keycloak.clients.coolify = {
+    name = "Coolify";
+    redirectUris = [ "https://coolify.prestonhager.com/auth/oidc/callback" ];
+    webOrigins = [ "https://coolify.prestonhager.com" ];
+    secret = {
+      file = config.sops.secrets."coolify-keycloak-env".path;
+      key = "KEYCLOAK_CLIENT_SECRET";
+    };
+    # Coolify sends S256 PKCE; require it.
+    settings.attributes."pkce.code.challenge.method" = "S256";
+  };
+
+  systemd.services.coolify-keycloak-oauth = setupUnit "Configure Coolify's Keycloak (OIDC) login"
+    (tinker oauthSettingPhp "--env-file ${config.sops.secrets."coolify-keycloak-env".path}");
 
   systemd.services.coolify-instance-settings = setupUnit "Pin Coolify instance settings (auto-update, registration, localhost server)"
     (tinker instanceSettingsPhp "");
@@ -119,14 +138,18 @@ in
       };
     };
 
-  systemd.services.coolify-zitadel-roles = {
-    description = "Sync Zitadel Coolify roles onto Coolify's root team";
-    after = [ "coolify-zitadel-oauth.service" "podman-zitadel.service" ];
+  systemd.services.coolify-keycloak-roles = {
+    description = "Sync Keycloak coolify_* groups onto Coolify's root team";
+    after = [ "coolify-keycloak-oauth.service" "keycloak-realm-sync.service" "podman-keycloak.service" ];
     requires = [ "podman-coolify.service" ];
-    environment.COOLIFY_ZITADEL_PROJECT_ID = projectId;
+    environment = {
+      KEYCLOAK_URL = "https://${kc.domain}";
+      KEYCLOAK_REALM = kc.realm;
+      KEYCLOAK_CONFIG_ENV = config.sops.secrets."keycloak-config-env".path;
+    };
     serviceConfig = {
       Type = "oneshot";
-      # Two 15s-bounded Zitadel calls plus one tinker run; anything longer is a hang.
+      # A few 15s-bounded Keycloak calls plus one tinker run; anything longer is a hang.
       TimeoutStartSec = "2min";
     };
     script = ''
@@ -134,12 +157,12 @@ in
       # Fail fast instead of waiting: the timer retries in 5 minutes.
       ${curl} -fsS --max-time 5 ${health} >/dev/null
       map=$(${pkgs.nodejs_22}/bin/node ${roleSyncJs})
-      ${tinker applyRolesPhp "-e COOLIFY_ROLE_MAP=\"$map\" -e COOLIFY_ALLOW_EMPTY_ROLE_MAP"}
+      ${tinker applyRolesPhp "-e COOLIFY_ROLE_MAP=\"$map\" -e COOLIFY_CREATE_USERS=1 -e COOLIFY_ALLOW_EMPTY_ROLE_MAP"}
     '';
   };
 
-  systemd.timers.coolify-zitadel-roles = {
-    description = "Sync Zitadel Coolify roles every 5 minutes";
+  systemd.timers.coolify-keycloak-roles = {
+    description = "Sync Keycloak coolify_* groups onto Coolify every 5 minutes";
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnBootSec = "5min";

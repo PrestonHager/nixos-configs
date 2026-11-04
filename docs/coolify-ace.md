@@ -31,7 +31,9 @@ flowchart LR
   RO[coolify-edge-routes timer] -. reads .-> P
   RO -->|routes.caddy + reload| C
   RT -->|published ports| A
-  Z[Zitadel] -. OIDC .- D
+  K[Keycloak realm homelab] -. OIDC .- D
+  KR[coolify-keycloak-roles timer] -. coolify_* groups .-> K
+  KR -->|root team roles| P
 ```
 
 - **TLS** terminates on ace's Caddy with Cloudflare DNS-01 certificates (the `*.apps` wildcard needs DNS-01). Coolify's proxy on mars only serves HTTP on :80, and mars's `coolify-ingress` chain (`nixos/coolify-node.nix`) drops new connections from private sources other than ace→:80, while app containers cannot reach the LAN ([mars](../poweredge/mars.md)). Traefik trusts `X-Forwarded-*` from ace (`--entrypoints.http.forwardedHeaders.trustedIPs=192.168.5.5/32` in the proxy configuration), so apps see `https`.
@@ -46,7 +48,7 @@ flowchart LR
 |---|---|---|
 | `/webhooks/*` | anyone | GitHub (App and manual webhooks) must reach it to trigger deploys; Coolify checks the webhook secret |
 | `/api/*` | LAN, tailnet, WireGuard, and GitHub-hosted Actions runners | token-authenticated API. Animal Search's deploy workflow runs on GitHub-hosted runners and calls it (see [GitHub Actions access to the API](#github-actions-access-to-the-api)). `githubActionsApi = false` in `nixos/caddy/coolify.nix` makes it LAN-only again |
-| `/app/*` (realtime), `/terminal/ws` (web terminal), everything else (dashboard, login, Zitadel callback) | LAN, tailnet, WireGuard | admin surface |
+| `/app/*` (realtime), `/terminal/ws` (web terminal), everything else (dashboard, login, Keycloak callback `/auth/oidc/callback`) | LAN, tailnet, WireGuard | admin surface |
 
 "LAN, tailnet, WireGuard" is the shared `lanOnly` guard in `nixos/caddy/lib.nix` (`192.168.5.0/24`, `100.64.0.0/10` and the tailnet IPv6 range, `192.168.20.0/24`, loopback); everyone else gets 403. Off-site, connect to the tailnet or the VPN first, and make sure the name resolves to ace's LAN address (Technitium) rather than the public IP. Apps (`*.apps.prestonhager.com` and the on-demand catch-all) stay public.
 
@@ -65,7 +67,7 @@ journalctl -u coolify-github-actions-ips -n 5 # "<n> ranges, unchanged|updated"
 grep -c remote_ip /var/lib/coolify-github-actions/matcher.caddy
 ```
 
-Registration is pinned off by `coolify-instance-settings` (a UI toggle is reverted on the next run; Coolify itself also turns it off after creating the first user). Coolify 4.4.6 only lets the generic `oidc` provider create accounts while registration is off; the `zitadel` provider used here does not, so a Zitadel user who has never signed in to Coolify cannot create an account by signing in. See [Signing in and adding users](#signing-in-and-adding-users).
+Registration is pinned off by `coolify-instance-settings` (a UI toggle is reverted on the next run; Coolify itself also turns it off after creating the first user). The Keycloak (`oidc`) provider has its own *allow registration* switch, which `coolify-keycloak-oauth` keeps off too: accounts are created by the role sync, not by signing in. See [Signing in and adding users](#signing-in-and-adding-users).
 
 ## Routing traffic to apps
 
@@ -129,22 +131,31 @@ Which events mail out is chosen in Coolify → **Notifications** → **Email**; 
 
 ## Signing in and adding users
 
-Login is through Zitadel (**Sign in with Zitadel** on the login page). Coolify's Zitadel app lives in its own Zitadel project, **Coolify**, which has *Check authorization on authentication* turned on: only users with a Coolify role can sign in at all.
+Login is through Keycloak (**Keycloak** button on the login page): Coolify's generic OIDC provider against the `homelab` realm (`https://keycloak.prestonhager.com/realms/homelab`, client `coolify`, PKCE S256). Everything is in `nixos/containers/coolify-sso.nix`:
 
-| Zitadel role | Coolify |
+- `homelab.keycloak.clients.coolify` declares the client (callback `https://coolify.prestonhager.com/auth/oidc/callback`). Its secret is `KEYCLOAK_CLIENT_SECRET` in `coolify-keycloak-env` (`secrets/containers/coolify.yaml`); `keycloak-realm-sync` sets Keycloak to that value.
+- `coolify-keycloak-oauth` (`coolify/oauth-setting.php`, every boot and switch) writes the client into Coolify's OAuth settings with *allow registration* off, and keeps the old Zitadel provider disabled.
+- `coolify-keycloak-roles.timer` (every 5 minutes; `coolify/keycloak-role-sync.mjs` + `coolify/apply-roles.php`) reads the Keycloak groups through the admin API as the `homelab-config` service account and applies them to the Root Team:
+
+| Keycloak group | Coolify |
 |---|---|
 | `coolify_admin` | Admin of the Root Team (servers, projects, deployments) |
 | `coolify_member` | Member of the Root Team. Since Coolify 4.6 a member without access grants is read-only (view the team, no deploys); give grants in **Team → Members → Access**, or use `coolify_admin` |
-| *(none)* | Cannot sign in; removed from the Root Team on the next sync |
+| *(neither)* | Removed from the Root Team on the next sync; no account is created |
+
+Users are matched by email. A group member with no Coolify account gets one (Root Team only, random password), and their first Keycloak login links to it. Keycloak lets every realm user authenticate, so this account is the gate: a login with no account is refused ("registration disabled"). Disabled Keycloak users and users with no email are skipped. Coolify only links a login whose `email_verified` is true, so the sync warns about members with an unverified email.
 
 To add someone:
 
-1. Create the user in Zitadel (Console → Users → New), or use an existing one. Their email must be verified.
-2. Console → Projects → **Coolify** → Authorizations → **New** → pick the user and `coolify_admin` or `coolify_member`.
-3. They sign in at https://coolify.prestonhager.com (from the LAN, tailnet or VPN) with **Sign in with Zitadel**. Registration is pinned off, so for a brand-new user turn on **Settings → Configuration → Registration** just before their first login; `coolify-instance-settings` turns it off again on the next boot or switch (or run `systemctl restart coolify-instance-settings` right after).
-4. Within 5 minutes `coolify-zitadel-roles.timer` adds them to the Root Team with the matching role (run `systemctl start coolify-zitadel-roles` on ace to do it now).
+1. Create the user in Keycloak, or use an existing one ([docs/keycloak-users.md](keycloak-users.md)). Their email must be set and verified.
+2. Admin console → Users → the user → **Groups** → **Join group** → `coolify_admin` or `coolify_member`.
+3. Within 5 minutes the sync creates their account with the matching role (`systemctl start coolify-keycloak-roles` on ace does it now). They sign in at https://coolify.prestonhager.com (from the LAN, tailnet or VPN) with **Keycloak**.
 
-To remove someone, delete their Coolify authorization in Zitadel. They can no longer sign in, and the next sync removes them from the Root Team. The original owner account (preston@hagerfamily.com, user 0) is never changed by the sync.
+To remove someone, take them out of the group. The next sync removes them from the Root Team. Their Coolify account and OIDC link stay, so they can still sign in, but they only see a personal team. Delete the account in **Settings → Users** to lock them out completely. The original owner account (preston@hagerfamily.com, user 0) is never changed by the sync.
+
+**Zitadel migration (2026-11-04):** before the switch Coolify had one account, preston@hagerfamily.com (user 0, Root Team owner), linked to Zitadel. `coolify-keycloak-oauth` dropped the Zitadel identity links, because Coolify allows only one OAuth identity per account. The account, its teams and its role are unchanged; it links to Keycloak (prestonh, same verified email) on its first Keycloak login.
+
+**Regression test:** `bash tests/sso/run.sh coolify` on ace. It puts `sso-regression` in the groups one by one, runs the sync, and logs in. It checks that login is refused with no group and lands on the dashboard as member, then checks admin, removal, and that the owner is untouched. It deletes the test account afterwards.
 
 **Break-glass login:** the owner can also sign in with email and password. The password is `ROOT_USER_PASSWORD` in `coolify-env`:
 
@@ -153,7 +164,7 @@ cd ~/nixos-secrets   # on a machine with the root age key
 sops -d --extract '["coolify-env"]' secrets/containers/coolify.yaml | grep ROOT_USER_PASSWORD
 ```
 
-Public registration is off (Settings → Configuration) and pinned off by `coolify-instance-settings`. New accounts only come from Zitadel, during a short window with registration on (step 3 above); the dashboard is not reachable from the internet in any case.
+Public registration is off (Settings → Configuration) and pinned off by `coolify-instance-settings`. New accounts only come from the Keycloak group sync (step 3 above); the dashboard is not reachable from the internet in any case.
 
 ## Hosting the CS371 group 5 project
 
@@ -242,7 +253,7 @@ It then appears in the **Coolify** Grafana dashboard (*Deployed apps*), and the 
 
 **Upgrade Coolify:** check `https://cdn.coollabs.io/coolify/versions.json`, get the manifest-list digest (`nix run nixpkgs#skopeo -- inspect --raw docker://ghcr.io/coollabsio/coolify:<version> | sha256sum`), put it in `coolifyImage` in `coolify.nix`, rebuild. Read the release notes first; upgrades are rehearsed on a restored `pg_dump` in an isolated Podman network. Since 4.6 the image layers are zstd (pulling needs Docker 23+, mars runs 29.x), and the helper image Coolify pulls on mars is `<REGISTRY_URL>/coollabsio/coolify-helper` (`ghcr.io` here, from `REGISTRY_URL` in `coolify-env`; ghcr and Docker Hub carry the same digest). Reverb only answers `/app/` on the dashboard domain, which is all Caddy routes. Do not use Coolify's built-in self-update; it expects Docker and upstream's compose layout.
 
-**Logs:** `podman logs coolify`, `journalctl -u coolify-zitadel-roles`, `journalctl -u coolify-email-settings`, `journalctl -u coolify-edge-ask -u coolify-edge-nat -u coolify-edge-routes -u coolify-edge-dns`; proxy on mars: `docker logs coolify-proxy`.
+**Logs:** `podman logs coolify`, `journalctl -u coolify-keycloak-roles -u coolify-keycloak-oauth`, `journalctl -u coolify-email-settings`, `journalctl -u coolify-edge-ask -u coolify-edge-nat -u coolify-edge-routes -u coolify-edge-dns`; proxy on mars: `docker logs coolify-proxy`.
 
 **Back up:** `/stor/coolify/postgres` (Coolify's database) and `APP_KEY` in `coolify-env`. APP_KEY encrypts stored server keys, SMTP settings and environment variables; without it a database restore cannot decrypt them.
 
