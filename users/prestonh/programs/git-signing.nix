@@ -82,13 +82,22 @@ in
         dest=sys.argv[1]
         with open(dest,"w",encoding="utf-8") as f:
             f.write(priv if priv.endswith("\n") else priv+"\n")
-        pub=sk.get("publicKey") or ""
-        if pub:
-            with open(dest+".pub","w",encoding="utf-8") as f:
-                f.write(pub if pub.endswith("\n") else pub+"\n")
         ' "$DEST"
         chmod 600 "$DEST"
-        [[ -f "$DEST.pub" ]] && chmod 644 "$DEST.pub"
+
+        # The .pub is a read-only home-manager symlink; verify against it
+        # instead of writing it.
+        derived="$(ssh-keygen -y -f "$DEST" | awk "{print \$2}")"
+        if [[ -e "$DEST.pub" ]]; then
+          expected="$(awk "{print \$2}" "$DEST.pub")"
+          if [[ "$derived" != "$expected" ]]; then
+            echo "error: synced private key does not match $DEST.pub" >&2
+            exit 1
+          fi
+        else
+          ssh-keygen -y -f "$DEST" > "$DEST.pub"
+          chmod 644 "$DEST.pub"
+        fi
 
         fp="$(ssh-keygen -lf "$DEST.pub" 2>/dev/null | awk "{print \$2}" || true)"
         echo "Synced Git signing key to $DEST"
