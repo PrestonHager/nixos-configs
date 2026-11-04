@@ -102,14 +102,14 @@ Zitadel project roles use a nested object claim (`urn:zitadel:iam:org:project:ro
 
 **Important:** Only one Complement Token action may set the `groups` claim. Per-service actions (`jellyfinGroups`, `pterodactylGroups`, etc.) overwrite each other — the last one wins and drops `admin` for Nextcloud. Use the unified `homelabGroups` action instead.
 
-The helper scripts for this (`zitadel-homelab-groups-action.js`, `zitadel-nextcloud-userinfo-test.js`, `ace-nextcloud-oidc-diagnose.sh`) were removed in commit `572c200`; no Nix unit manages the `homelabGroups` action. Recover them on ace as needed:
+`scripts/zitadel-homelab-groups-action.js` holds the live `homelabGroups` script (it also maps `wg-admin` for wg-portal); no Nix unit deploys it, so run it after editing. The other helpers (`zitadel-nextcloud-userinfo-test.js`, `ace-nextcloud-oidc-diagnose.sh`) were removed in commit `572c200`; recover them on ace as needed:
 
 ```bash
 cd /etc/nixos
-for s in zitadel-homelab-groups-action.js zitadel-nextcloud-userinfo-test.js ace-nextcloud-oidc-diagnose.sh; do
+nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-homelab-groups-action.js  # create/update homelabGroups
+for s in zitadel-nextcloud-userinfo-test.js ace-nextcloud-oidc-diagnose.sh; do
   git show 572c200^:scripts/$s > /tmp/$s
 done
-nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-homelab-groups-action.js   # create/update homelabGroups
 nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-nextcloud-userinfo-test.js # expect groups: ["admin", ...]
 bash /tmp/ace-nextcloud-oidc-diagnose.sh                                    # full OIDC diagnostic
 ```
