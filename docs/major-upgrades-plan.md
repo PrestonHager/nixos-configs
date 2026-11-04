@@ -122,17 +122,64 @@ MediaWiki supports upgrading straight from 1.39 or newer, so 1.45 → 1.47 is on
 
 **Why 17, not 18.** Synapse's CI tests Postgres 14 and 17. Zitadel documents 14–18. 17 is the newest version both test, and it is supported to 2029-11. Nextcloud is not involved (it uses MariaDB).
 
-**Method: dump and restore.** The data is small (72 MB and 91 MB). Restoring the 2026-10-25 dumps into `postgres:17-alpine` was rehearsed with no errors (Synapse 176 tables, Zitadel 151).
+**Method: dump and restore.** On-disk data is small (Zitadel 106 MB, Matrix 72 MB; dumps 8 MB and 0.3 MB).
 
-**Steps (per database; Zitadel first, since Matrix logins go through it):**
+**Rehearsed 2026-11-04** on `postgres:17.11-alpine` (`sha256:266d3c25…`), in containers on an `--internal` podman network (no egress):
 
-1. Fresh backup. Stop the app container (`podman-zitadel`, `podman-zitadel-login` / `podman-matrix-synapse`).
-2. `pg_dumpall` from the running 16 container to `/stor/backup/pre-pg17/<db>.sql`.
-3. Stop the DB container. Move its data directory (`/zitadel/postgres`, `/matrix/postgres`) to `…-pg16` and create an empty one with the same owner and mode.
-4. Pin `postgres:17.x-alpine` by digest. Rebuild, so the DB initialises empty with the same `POSTGRES_*` env. Load the dump with `psql`.
-5. Start the app. Check Zitadel `/debug/healthz` and a login; check Synapse `/_matrix/client/versions` and send a message.
+- `pg_dumpall` took under 1 s per database; `psql` restore 2.8 s (Zitadel) and 1.7 s (Matrix). The only errors were `role "postgres"/"synapse" already exists` and `database "zitadel"/"synapse" already exists`, both from the entrypoint creating `POSTGRES_USER`/`POSTGRES_DB`. Harmless: the pre-created database has the same owner and locale.
+- Row counts of every table matched production exactly (Zitadel 145 tables, Matrix 176). `\l` matched: Zitadel `en_US.utf8`, Matrix `C`/`C` (from `POSTGRES_INITDB_ARGS`).
+- Zitadel v4.20.1 with `start-from-init` reused the existing instance: the same instance id, 3 users, "user already exists, skipping creation", and only the usual repeatable-migration events added. `/debug/healthz` and `/debug/ready` returned 200, and OIDC discovery for `zitadel.prestonhager.com` worked.
+- Synapse v1.164.2 applied the v95 schema delta without error. `/_matrix/client/versions` returned 200, users, rooms and events matched production, and no background updates were left.
 
-**Rollback:** stop, move the `-pg16` directory back, pin 16.15, rebuild.
+**Do not rebuild onto an empty data directory** (this was the old plan's step 4). All four app containers are `autoStart` and the rebuild starts them. On an empty database, Zitadel's `start-from-init` would create a new first instance and Synapse a new schema, and the dump would then conflict with them. Restore into the new directory with a one-off container first, then rebuild.
+
+**Steps (both databases in one window, about 10 minutes of downtime; do not start near 04:30):**
+
+1. **Backup.** Run `systemctl start restic-backups-local` and wait for it. `mkdir -p /stor/backup/pre-pg17`.
+2. **Stop the apps**, Matrix first, since its logins go through Zitadel: `systemctl stop podman-matrix-synapse podman-zitadel-login podman-zitadel`.
+3. **Dump** from the still-running 16 containers:
+   ```sh
+   podman exec zitadel-db sh -c 'pg_dumpall -U "$POSTGRES_USER"' > /stor/backup/pre-pg17/zitadel.sql
+   podman exec matrix-db  sh -c 'pg_dumpall -U "$POSTGRES_USER"' > /stor/backup/pre-pg17/matrix.sql
+   ```
+   Check that both end with `PostgreSQL database cluster dump complete`.
+4. **Stop the DBs and move the data aside:**
+   ```sh
+   systemctl stop podman-zitadel-db podman-matrix-db
+   mv /zitadel/postgres /zitadel/postgres-pg16
+   mv /matrix/postgres  /matrix/postgres-pg16
+   install -d -m 0700 -o postgres -g postgres /zitadel/postgres /matrix/postgres   # uid/gid 70, as in the modules
+   ```
+5. **Restore into 17 with one-off containers.** Use `--network none` and the same sops env files. Matrix also needs the initdb args for `C` collation:
+   ```sh
+   PG17=docker.io/library/postgres@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
+   podman run -d --name pg17-restore-zitadel --network none --env-file /run/secrets/zitadel-db-env \
+     -v /zitadel/postgres:/var/lib/postgresql/data $PG17
+   podman run -d --name pg17-restore-matrix --network none --env-file /run/secrets/matrix-db-env \
+     -e POSTGRES_INITDB_ARGS="--encoding=UTF-8 --lc-collate=C --lc-ctype=C" \
+     -v /matrix/postgres:/var/lib/postgresql/data $PG17
+   # wait for the second "database system is ready to accept connections" (after the init restart)
+   podman exec -i pg17-restore-zitadel sh -c 'psql -U "$POSTGRES_USER" -d postgres' < /stor/backup/pre-pg17/zitadel.sql >/dev/null 2> /stor/backup/pre-pg17/zitadel.err
+   podman exec -i pg17-restore-matrix  sh -c 'psql -U "$POSTGRES_USER" -d postgres' < /stor/backup/pre-pg17/matrix.sql  >/dev/null 2> /stor/backup/pre-pg17/matrix.err
+   cat /stor/backup/pre-pg17/*.err   # expect only the role/database "already exists" lines
+   podman exec pg17-restore-matrix psql -U synapse -l   # synapse must be C / C
+   podman stop pg17-restore-zitadel pg17-restore-matrix && podman rm pg17-restore-zitadel pg17-restore-matrix
+   ```
+6. **Rebuild** with the 17.11 pin in `zitadel.nix` and `matrix.nix`. The `*-postgres-datadir` units re-chown the directories to 70, and the DBs start on the restored data. The apps start after them: `dependsOn` orders Zitadel after its DB, and Synapse after its DB and Zitadel. If an app is still inactive afterwards, run `systemctl start podman-zitadel podman-zitadel-login podman-matrix-synapse`.
+7. **Verify:**
+   - `podman exec zitadel-db postgres --version` and the same for `matrix-db` show 17.11.
+   - `journalctl -u podman-zitadel` shows "user already exists, skipping creation" and `setup completed`, with no new instance.
+   - `curl -s http://127.0.0.1:9080/debug/ready` returns `ok`, and a browser login through Zitadel works.
+   - `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:6167/_matrix/client/versions` returns 200. Log in to Matrix through SSO and send a message.
+   - The version-check dashboard shows both on 17.11. It reads `PG_VERSION` from the running image, so the registry needs no change.
+8. After a week without problems, delete `/zitadel/postgres-pg16` and `/matrix/postgres-pg16`. Keep `/stor/backup/pre-pg17/`.
+
+**Rollback** (anything written after the dump is lost):
+
+- Stop the apps and DBs, as in steps 2 and 4.
+- `mv /zitadel/postgres /zitadel/postgres-pg17-failed && mv /zitadel/postgres-pg16 /zitadel/postgres`, and the same for `/matrix`.
+- Revert the pin commit (16.15, `sha256:f4610795…`) and rebuild.
+- If Synapse 1.164.2 ran before the dump, the `-pg16` data is already at schema 95, so keep that Synapse. Otherwise the old directory is still at 94, and either Synapse version works.
 
 **Coolify's Postgres 15** stays on what Coolify ships (`postgres:15-alpine` in its v4.5.0 compose). 15 is supported to 2027-11; revisit when Coolify moves, or by mid-2027.
 
