@@ -1,7 +1,9 @@
-"""Zitadel OIDC mapping + admin sync for Matrix Synapse.
+"""Keycloak OIDC mapping + admin sync for Matrix Synapse.
 
-Maps Zitadel project role ``matrix_admin`` (claim ``urn:zitadel:iam:org:project:roles``)
-to Synapse server admin on each SSO login.
+Keycloak's `groups` client scope puts a flat list of group names in the ID
+token (claim ``groups``). Membership of ``matrix_admin`` makes the user a
+Synapse server admin; leaving the group removes it. Checked on every SSO
+login, not only at registration.
 """
 
 from __future__ import annotations
@@ -14,26 +16,31 @@ from synapse.module_api import ModuleApi
 
 logger = logging.getLogger(__name__)
 
-ROLE_CLAIM = "urn:zitadel:iam:org:project:roles"
+GROUPS_CLAIM = "groups"
 _pending_admin_by_sub: Dict[str, bool] = {}
 
 
-def _has_admin_role(userinfo: UserInfo, admin_role: str) -> bool:
-    roles = userinfo.get(ROLE_CLAIM) or {}
-    if isinstance(roles, dict):
-        return admin_role in roles
-    return False
+def _has_admin_group(userinfo: UserInfo, admin_group: str) -> bool:
+    groups = userinfo.get(GROUPS_CLAIM) or []
+    if isinstance(groups, str):
+        groups = [groups]
+    if not isinstance(groups, (list, tuple)):
+        return False
+    # Accept "/matrix_admin" too, in case the mapper is ever set to full paths.
+    return any(isinstance(g, str) and g.lstrip("/") == admin_group for g in groups)
 
 
-class ZitadelOidcMappingProvider(JinjaOidcMappingProvider):
-    """Jinja OIDC mapper that records Zitadel admin role for post-login sync."""
+class KeycloakOidcMappingProvider(JinjaOidcMappingProvider):
+    """Jinja OIDC mapper that records the Keycloak admin group for post-login sync."""
 
-    _admin_role: str = "matrix_admin"
+    _admin_group: str = "matrix_admin"
 
     @staticmethod
     def parse_config(config: dict) -> Any:
-        parsed = JinjaOidcMappingProvider.parse_config(config)
-        ZitadelOidcMappingProvider._admin_role = config.get("admin_role", "matrix_admin")
+        parsed = JinjaOidcMappingProvider.parse_config(
+            {k: v for k, v in config.items() if k != "admin_group"}
+        )
+        KeycloakOidcMappingProvider._admin_group = config.get("admin_group", "matrix_admin")
         return parsed
 
     async def map_user_attributes(
@@ -45,21 +52,21 @@ class ZitadelOidcMappingProvider(JinjaOidcMappingProvider):
 
     def _record_admin(self, userinfo: UserInfo) -> None:
         sub = self.get_remote_user_id(userinfo)
-        _pending_admin_by_sub[sub] = _has_admin_role(userinfo, self._admin_role)
+        _pending_admin_by_sub[sub] = _has_admin_group(userinfo, self._admin_group)
 
     async def get_extra_attributes(self, userinfo: UserInfo, token: Token) -> Dict[str, Any]:
         # map_user_attributes only runs when a user is first registered; this runs on
-        # every SSO login, so Zitadel role changes reach existing users too.
+        # every SSO login, so group changes in Keycloak reach existing users too.
         self._record_admin(userinfo)
         return await super().get_extra_attributes(userinfo, token)
 
 
-class ZitadelAdminModule:
-    """Synapse module: apply pending admin flag after OIDC login."""
+class KeycloakAdminModule:
+    """Synapse module: apply the pending admin flag after an OIDC login."""
 
     def __init__(self, config: dict, api: ModuleApi) -> None:
         self._api = api
-        self._admin_role = config.get("admin_role", "matrix_admin")
+        self._admin_group = config.get("admin_group", "matrix_admin")
         api.register_account_validity_callbacks(on_user_login=self._on_user_login)
 
     @staticmethod
@@ -72,9 +79,7 @@ class ZitadelAdminModule:
         auth_provider_type: Optional[str],
         auth_provider_id: Optional[str],
     ) -> None:
-        # Synapse reports SSO logins as type "m.login.sso" with the IdP id
-        # ("oidc-zitadel"), not "oidc" with the remote sub, so the old check never
-        # matched and admin was never synced.
+        # SSO logins arrive as type "m.login.sso" with the IdP id ("oidc-keycloak").
         if auth_provider_type != "m.login.sso" or not auth_provider_id:
             return
 
@@ -82,7 +87,7 @@ class ZitadelAdminModule:
             # (auth_provider, external_id) pairs recorded at SSO registration.
             external_ids = await self._api._store.get_external_ids_by_user(user_id)
         except Exception:
-            logger.exception("Zitadel OIDC: could not read external ids for %s", user_id)
+            logger.exception("Keycloak OIDC: could not read external ids for %s", user_id)
             return
         is_admin = None
         for provider, external_id in external_ids:
@@ -97,14 +102,14 @@ class ZitadelAdminModule:
             if current != is_admin:
                 await self._api.set_user_admin(user_id, is_admin)
                 logger.info(
-                    "Zitadel OIDC: set admin=%s for %s (role %s)",
+                    "Keycloak OIDC: set admin=%s for %s (group %s)",
                     is_admin,
                     user_id,
-                    self._admin_role,
+                    self._admin_group,
                 )
         except Exception:
             logger.exception(
-                "Zitadel OIDC: failed to sync admin=%s for %s",
+                "Keycloak OIDC: failed to sync admin=%s for %s",
                 is_admin,
                 user_id,
             )

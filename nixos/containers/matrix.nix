@@ -8,8 +8,11 @@ let
   synapsePostgresDir = "/matrix/postgres";
   synapseOidcDir = ./matrix;
   synapsePort = 6167;
-  zitadelDomain = "zitadel.prestonhager.com";
-  zitadelIssuer = "https://${zitadelDomain}";
+  kc = import ../auth/keycloak-lib.nix;
+  # Keycloak client (homelab.keycloak.clients.matrix below). idp_id "keycloak"
+  # makes Synapse's auth_provider "oidc-keycloak" in user_external_ids; existing
+  # users were relinked to their Keycloak sub there (docs/matrix-ace.md).
+  oidcClientId = "matrix";
   synapseInitScript = pkgs.writeShellScript "matrix-synapse-init" ''
     set -euo pipefail
 
@@ -23,25 +26,15 @@ let
     regSecret="$(grep '^SYNAPSE_REGISTRATION_SHARED_SECRET=' "$secrets" | cut -d= -f2-)"
     macaroonSecret="$(grep '^SYNAPSE_MACAROON_SECRET_KEY=' "$secrets" | cut -d= -f2-)"
     formSecret="$(grep '^SYNAPSE_FORM_SECRET=' "$secrets" | cut -d= -f2-)"
-    oidcClientId="$(grep '^SYNAPSE_OIDC_CLIENT_ID=' "$oauthEnv" | cut -d= -f2-)"
-    oidcClientSecret="$(grep '^SYNAPSE_OIDC_CLIENT_SECRET=' "$oauthEnv" | cut -d= -f2-)"
-    zitadelProjectId="$(grep '^ZITADEL_PROJECT_ID=' "$oauthEnv" | cut -d= -f2-)"
+    oidcClientSecret="$(grep '^KEYCLOAK_CLIENT_SECRET=' "$oauthEnv" | cut -d= -f2-)"
 
     if [ -z "$pgPass" ] || [ -z "$regSecret" ] || [ -z "$macaroonSecret" ] || [ -z "$formSecret" ]; then
       echo "matrix-synapse-init: missing required secrets" >&2
       exit 1
     fi
-    if [ -z "$oidcClientId" ] || [ -z "$zitadelProjectId" ]; then
-      echo "matrix-synapse-init: missing OIDC client_id or project_id in matrix-oauth-env" >&2
+    if [ -z "$oidcClientSecret" ]; then
+      echo "matrix-synapse-init: KEYCLOAK_CLIENT_SECRET missing in matrix-oauth-env" >&2
       exit 1
-    fi
-
-    oidcSecretBlock=""
-    pkceBlock=""
-    if [ -n "$oidcClientSecret" ]; then
-      oidcSecretBlock="    client_secret: \"$oidcClientSecret\""
-    else
-      pkceBlock="    pkce_method: always"
     fi
 
     signingKey="${synapseDataDir}/${matrixDomain}.signing.key"
@@ -98,41 +91,60 @@ enable_registration_without_verification: false
 allow_guest_access: false
 suppress_key_server_warning: true
 
+# Successful-login limits (defaults: burst 5, then 1 per ~5.5 min). Logins
+# are SSO only (no account has a password; a loginToken needs a fresh SSO
+# round-trip), so allow a little more for tests/sso/matrix.test.sh, which
+# logs in 3 times per run from ace. failed_attempts (wrong passwords) keeps
+# its default.
+rc_login:
+  address:
+    per_second: 0.05
+    burst_count: 10
+  account:
+    per_second: 0.05
+    burst_count: 10
+
 trusted_key_servers:
   - server_name: "matrix.org"
 
 modules:
-  - module: zitadel_oidc_mapper.ZitadelAdminModule
+  - module: keycloak_oidc_mapper.KeycloakAdminModule
     config:
-      admin_role: matrix_admin
+      admin_group: matrix_admin
 
 oidc_providers:
-  - idp_id: zitadel
-    idp_name: "Zitadel"
+  - idp_id: keycloak
+    idp_name: "Keycloak"
     discover: true
-    issuer: "${zitadelIssuer}"
-    client_id: "$oidcClientId"
-$oidcSecretBlock
-$pkceBlock
+    issuer: "${kc.issuer}"
+    client_id: "${oidcClientId}"
+    client_secret: "$oidcClientSecret"
+    pkce_method: always
+    # The groups claim comes from the client's default "groups" scope.
     scopes:
       - openid
       - profile
       - email
-      - urn:zitadel:iam:org:project:roles
-      - urn:zitadel:iam:org:project:id:$zitadelProjectId:aud
     user_mapping_provider:
-      module: zitadel_oidc_mapper.ZitadelOidcMappingProvider
+      module: keycloak_oidc_mapper.KeycloakOidcMappingProvider
       config:
+        subject_claim: sub
         localpart_template: "{{ user.preferred_username.split('@')[0] | lower }}"
         display_name_template: "{{ user.name }}"
         email_template: "{{ user.email }}"
-        admin_role: matrix_admin
+        admin_group: matrix_admin
 EOF
 
     chown matrix:matrix "$homeserver"
     chmod 0640 "$homeserver"
   '';
 in {
+  homelab.keycloak.clients.matrix = {
+    name = "Matrix";
+    redirectUris = [ "https://${matrixDomain}/_synapse/client/oidc/callback" ];
+    secret = { file = config.sops.secrets."matrix-oauth-env".path; key = "KEYCLOAK_CLIENT_SECRET"; };
+  };
+
   # restartUnits, not restartTriggers on the paths: the /run/secrets path never
   # changes when the secret value does, so path triggers never fired.
   sops.secrets = let
@@ -216,11 +228,26 @@ in {
       RemainAfterExit = true;
       ExecStart = pkgs.writeShellScript "pod-matrix-create" ''
         set -euo pipefail
-        if ! ${pkgs.podman}/bin/podman pod exists matrix-pod; then
-          ${pkgs.podman}/bin/podman pod create \
+        podman=${pkgs.podman}/bin/podman
+        # Podman copies ace's /etc/hosts, which pins every Caddy vhost to
+        # 127.0.0.1 (local-service-hosts.nix); inside the pod that is the pod
+        # itself. Pin Keycloak to ace's LAN address so Synapse's discovery,
+        # token and JWKS calls reach Caddy (back-channel carve-out in
+        # nixos/caddy/keycloak.nix). --add-host only applies at pod
+        # creation, so recreate a pod that lacks it.
+        if $podman pod exists matrix-pod; then
+          hosts="$($podman pod inspect matrix-pod --format '{{.InfraConfig.HostAdd}}' 2>/dev/null || true)"
+          if ! echo "$hosts" | grep -q '${kc.domain}:${kc.aceAddress}'; then
+            echo "pod-matrix: recreating pod for the Keycloak host pin"
+            $podman pod stop -t 30 matrix-pod || true
+            $podman pod rm -f matrix-pod
+          fi
+        fi
+        if ! $podman pod exists matrix-pod; then
+          $podman pod create \
             --name matrix-pod \
             -p 127.0.0.1:${toString synapsePort}:8008 \
-            --add-host=${zitadelDomain}:host-gateway \
+            --add-host=${kc.domain}:${kc.aceAddress} \
             --memory 4G --cpus 0
         fi
       '';
@@ -262,15 +289,9 @@ in {
   };
 
   systemd.services.podman-matrix-synapse = {
-    # Synapse fetches Zitadel OIDC discovery at startup; must not start before Zitadel API is up.
-    after = [
-      "podman-zitadel.service"
-      "podman-zitadel-login.service"
-    ];
-    wants = [
-      "podman-zitadel.service"
-      "podman-zitadel-login.service"
-    ];
+    # Synapse fetches Keycloak's OIDC discovery at startup.
+    after = [ "podman-keycloak.service" ];
+    wants = [ "podman-keycloak.service" ];
     before = [ "caddy.service" ];
     restartTriggers = [ synapseInitScript ];
   };

@@ -117,9 +117,9 @@ These passwords are used in two places: inside the database, and in the app's en
 | App | sops key |
 |---|---|
 | Grafana | `grafana-oauth-env` `GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET` |
-| Matrix | `matrix-oauth-env` `SYNAPSE_OIDC_CLIENT_SECRET` |
+| Matrix | `matrix-oauth-env` `KEYCLOAK_CLIENT_SECRET` (keycloak-realm-sync pushes it to the Keycloak client) |
 | Nextcloud | `nextcloud-oidc-env` `NEXTCLOUD_OIDC_CLIENT_SECRET` |
-| Jellyfin | `jellyfin-oauth-env` `JELLYFIN_OIDC_CLIENT_SECRET` |
+| Jellyfin | `jellyfin-oauth-env` `KEYCLOAK_CLIENT_SECRET` (keycloak-realm-sync pushes it to the Keycloak client) |
 | Hydrodactyl (both panels) | `pterodactyl-oauth-env` `PTERODACTYL_OIDC_CLIENT_SECRET` |
 | Technitium | `technitium-oidc-env` `TECHNITIUM_OIDC_CLIENT_SECRET` |
 | Coolify | `coolify-zitadel-env` `ZITADEL_CLIENT_SECRET` |

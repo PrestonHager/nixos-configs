@@ -1,4 +1,4 @@
-{ config, pkgs, inputs, ... }:
+{ config, lib, pkgs, inputs, ... }:
 
 let
   sops-path = builtins.toString inputs.nix-secrets;
@@ -7,10 +7,18 @@ let
   # docker.io/jellyfin/jellyfin@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771.
   jellyfinVersion = "12.4";
   jellyfinPublicUrl = "https://jellyfin.prestonhager.com";
-  zitadelDomain = "zitadel.prestonhager.com";
-  zitadelDiscoveryUri = "https://${zitadelDomain}/.well-known/openid-configuration";
-  zitadelProjectId = "376196450586990901";
-  ssoProviderName = "zitadel";
+  kc = import ../auth/keycloak-lib.nix;
+  discoveryUri = "${kc.issuer}/.well-known/openid-configuration";
+  # Keycloak client id (homelab.keycloak.clients.jellyfin below) and the SSO
+  # plugin's provider name, which is also the last part of the start/callback
+  # URLs (/sso/OID/start/keycloak, /sso/OID/redirect/keycloak).
+  oidcClientId = "jellyfin";
+  ssoProviderName = "keycloak";
+  # Existing Jellyfin accounts that Keycloak users of the same username log in
+  # to. Seeded as username-keyed links; on first login the plugin rekeys each
+  # to the Keycloak sub. Any other existing local account (admin@prestonhager.com)
+  # is never adopted by name (DisableUsernameAccountAdoption).
+  linkedUsers = [ "prestonh" "dylanh" ];
   # Upstream 9p4/jellyfin-plugin-sso is archived at 4.0.0.4 (ABI 10.11). The
   # MaxRink fork's 6.x targets ABI 12.0 and reads the same SSO-Auth.xml schema
   # (same plugin GUID, assembly SSO-Auth.dll).
@@ -43,14 +51,9 @@ let
       exit 1
     fi
 
-    clientId="$(grep '^JELLYFIN_OIDC_CLIENT_ID=' "$oauthEnv" | cut -d= -f2- || true)"
-    clientSecret="$(grep '^JELLYFIN_OIDC_CLIENT_SECRET=' "$oauthEnv" | cut -d= -f2- || true)"
-    if [ -z "$clientId" ] || [ -z "$clientSecret" ]; then
-      echo "jellyfin-sso-setup: JELLYFIN_OIDC_CLIENT_ID/SECRET missing, skipping" >&2
-      exit 0
-    fi
-    if [ "$clientId" = "REPLACE_ZITADEL_CLIENT_ID" ] || [ "$clientSecret" = "REPLACE_ZITADEL_CLIENT_SECRET" ]; then
-      echo "jellyfin-sso-setup: placeholder OIDC credentials, skipping" >&2
+    clientSecret="$(grep '^KEYCLOAK_CLIENT_SECRET=' "$oauthEnv" | cut -d= -f2- || true)"
+    if [ -z "$clientSecret" ] || [ "$clientSecret" = "REPLACE_ME" ]; then
+      echo "jellyfin-sso-setup: KEYCLOAK_CLIENT_SECRET missing or placeholder, skipping" >&2
       exit 0
     fi
 
@@ -70,19 +73,30 @@ let
       chown -R jellyfin:jellyfin "${ssoPluginDir}"
     fi
 
-    prestonhGuid="$(${pkgs.sqlite}/bin/sqlite3 /jf/config/data/jellyfin.db "SELECT Id FROM Users WHERE Username='prestonh' LIMIT 1;" 2>/dev/null || true)"
+    # Canonical links: keep the ones the plugin recorded for this provider
+    # (Keycloak sub -> user id), so rewriting the file below never unlinks
+    # anyone, then seed username links for linkedUsers that have none yet.
+    linkItem() { # linkItem <key> <guid>
+      printf '\n          <item>\n            <key>\n              <string>%s</string>\n            </key>\n            <value>\n              <guid>%s</guid>\n            </value>\n          </item>' "$1" "$2"
+    }
     canonicalLinks=""
-    if [ -n "''${prestonhGuid}" ]; then
-      canonicalLinks="
-          <item>
-            <key>
-              <string>prestonh</string>
-            </key>
-            <value>
-              <guid>''${prestonhGuid}</guid>
-            </value>
-          </item>"
+    linkedGuids=" "
+    if [ -f "${ssoConfigPath}" ]; then
+      while read -r key guid; do
+        # Subs are UUIDs and keys/guids go back into XML: accept only safe text.
+        [[ "$key" =~ ^[A-Za-z0-9._@-]+$ && "$guid" =~ ^[0-9A-Fa-f-]{36}$ ]] || continue
+        canonicalLinks+="$(linkItem "$key" "$guid")"
+        linkedGuids+="''${guid^^} "
+      done < <(${pkgs.xmlstarlet}/bin/xmlstarlet sel -t \
+        -m "/PluginConfiguration/OidConfigs/item[key/string='${ssoProviderName}']/value/PluginConfiguration/CanonicalLinks/item" \
+        -v key/string -o ' ' -v value/guid -n "${ssoConfigPath}" 2>/dev/null || true)
     fi
+    for name in ${lib.escapeShellArgs linkedUsers}; do
+      guid="$(${pkgs.sqlite}/bin/sqlite3 -readonly /jf/config/data/jellyfin.db "SELECT Id FROM Users WHERE Username='$name' LIMIT 1;" 2>/dev/null || true)"
+      [[ "$guid" =~ ^[0-9A-Fa-f-]{36}$ ]] || continue
+      case "$linkedGuids" in *" ''${guid^^} "*) continue ;; esac
+      canonicalLinks+="$(linkItem "$name" "$guid")"
+    done
 
     cat > "${ssoConfigPath}" <<EOF
 <?xml version="1.0" encoding="utf-8"?>
@@ -95,13 +109,15 @@ let
       </key>
       <value>
         <PluginConfiguration>
-          <OidEndpoint>${zitadelDiscoveryUri}</OidEndpoint>
-          <OidClientId>''${clientId}</OidClientId>
+          <OidEndpoint>${discoveryUri}</OidEndpoint>
+          <OidClientId>${oidcClientId}</OidClientId>
           <OidSecret>''${clientSecret}</OidSecret>
           <Enabled>true</Enabled>
           <EnableAuthorization>true</EnableAuthorization>
           <EnableAllFolders>true</EnableAllFolders>
           <EnabledFolders />
+          <PreserveAdminPermissions>false</PreserveAdminPermissions>
+          <DisableUsernameAccountAdoption>true</DisableUsernameAccountAdoption>
           <AdminRoles>
             <string>jellyfin_admin</string>
           </AdminRoles>
@@ -121,8 +137,6 @@ let
             <string>openid</string>
             <string>email</string>
             <string>profile</string>
-            <string>urn:zitadel:iam:org:project:roles</string>
-            <string>urn:zitadel:iam:org:project:id:${zitadelProjectId}:aud</string>
           </OidScopes>
           <DefaultProvider>Jellyfin.Server.Implementations.Users.DefaultAuthenticationProvider</DefaultProvider>
           <SchemeOverride>https</SchemeOverride>
@@ -147,7 +161,7 @@ EOF
     cat > "$brandingPath" <<BRANDING
 <?xml version="1.0" encoding="utf-8"?>
 <BrandingOptions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-  <LoginDisclaimer>&lt;form action="${jellyfinPublicUrl}/sso/OID/start/${ssoProviderName}"&gt;&lt;button class="raised block emby-button button-submit"&gt;Sign in with Zitadel&lt;/button&gt;&lt;/form&gt;</LoginDisclaimer>
+  <LoginDisclaimer>&lt;form action="${jellyfinPublicUrl}/sso/OID/start/${ssoProviderName}"&gt;&lt;button class="raised block emby-button button-submit"&gt;Sign in with Keycloak&lt;/button&gt;&lt;/form&gt;</LoginDisclaimer>
   <CustomCss>a.raised.emby-button {
   padding: 0.9em 1em;
   color: inherit !important;
@@ -161,16 +175,35 @@ BRANDING
     chown jellyfin:jellyfin "$brandingPath"
     chmod 640 "$brandingPath"
 
-    marker="/jf/config/.sso-setup-done"
-    if [ ! -f "$marker" ]; then
-      echo "jellyfin-sso-setup: restart jellyfin to load SSO plugin (run: systemctl restart podman-jellyfin.service)"
-      touch "$marker"
+    # Jellyfin holds plugin and branding config in memory (and the plugin
+    # saves its in-memory copy back over the file), so a changed setting
+    # only takes effect after a restart. Fingerprint what this script
+    # controls (everything but the links the plugin records) and restart
+    # Jellyfin when it changed. The restart re-runs this unit (Requires=),
+    # which then finds the same fingerprint and stops there.
+    stamp=/jf/config/.sso-setup-hash
+    hash="$( { ${pkgs.xmlstarlet}/bin/xmlstarlet ed -d '//CanonicalLinks' "${ssoConfigPath}"; cat "$brandingPath"; } | sha256sum | cut -d' ' -f1)"
+    if [ "$(cat "$stamp" 2>/dev/null || true)" != "$hash" ]; then
+      echo "$hash" > "$stamp"
+      echo "jellyfin-sso-setup: SSO settings changed, restarting Jellyfin to load them"
+      systemctl restart --no-block podman-jellyfin.service
     fi
 
     echo "jellyfin-sso-setup: configured provider ${ssoProviderName} (${jellyfinPublicUrl}/sso/OID/start/${ssoProviderName})"
   '';
 in
 {
+  # Login is limited to these groups by the plugin (Roles / AdminRoles).
+  homelab.keycloak.clients.jellyfin = {
+    name = "Jellyfin";
+    redirectUris = [
+      "${jellyfinPublicUrl}/sso/OID/redirect/${ssoProviderName}"
+      "${jellyfinPublicUrl}/sso/OID/r/${ssoProviderName}"
+    ];
+    secret = { file = config.sops.secrets."jellyfin-oauth-env".path; key = "KEYCLOAK_CLIENT_SECRET"; };
+  };
+  homelab.keycloak.testUser.groups = [ "jellyfin_user" ];
+
   sops.secrets."jellyfin-oauth-env" = {
     sopsFile = "${sops-path}/secrets/containers/jellyfin.yaml";
     key = "jellyfin-oauth-env";
@@ -194,7 +227,7 @@ in
   ];
 
   systemd.services.jellyfin-sso-setup = {
-    description = "Install Jellyfin SSO plugin and configure Zitadel OIDC";
+    description = "Install Jellyfin SSO plugin and configure Keycloak OIDC";
     wantedBy = [ "multi-user.target" ];
     after = [
       "podman-jellyfin.service"
@@ -232,7 +265,7 @@ in
 
     extraOptions = [
       "--userns=keep-id"
-      "--add-host=${zitadelDomain}:host-gateway"
+      "--add-host=${kc.domain}:host-gateway"
       "--add-host=host.containers.internal:host-gateway"
     ];
 
