@@ -61,6 +61,57 @@ The import creates:
    In the `master` realm, create your own admin user, give it the `admin` role, set a password and TOTP. Then log in as that user and delete `tmp-admin`.
 6. **First login as prestonh.** Open https://keycloak.prestonhager.com/realms/homelab/account and sign in with `PRESTONH_INITIAL_PASSWORD`; Keycloak makes you set a new password and TOTP and fill in your profile (email).
 
+## Realm settings from Nix (keycloak-realm-sync)
+
+`nixos/containers/keycloak-realm.nix` keeps part of the realm in step with Nix on every switch, through keycloak-config-cli:
+
+- groups (`homelab.keycloak.groups`);
+- the `groups` client scope (flat `groups` claim);
+- each service's client (`homelab.keycloak.clients.<name>`, declared in the service's own module, with its secret taken from that service's sops file);
+- realm email;
+- the `sso-regression` test user.
+
+It never deletes anything, and it never touches user accounts or group membership. Those stay in the admin console (`docs/keycloak-users.md`).
+
+```bash
+systemctl status keycloak-realm-sync
+journalctl -u keycloak-realm-sync -b
+systemctl restart keycloak-realm-sync   # re-apply now
+```
+
+### One-time: the homelab-config client
+
+The sync logs in as `homelab-config`, a service account that is `realm-admin` of **homelab only**: it can't see or change `master`. An admin creates it once:
+
+1. Admin console → realm **homelab** → Clients → **Create client**. Client ID `homelab-config`, Next.
+2. Turn **Client authentication** on and **Service accounts roles** on. Turn off Standard flow and Direct access grants. Next, Save.
+3. **Service accounts roles** tab → Assign role → filter by clients → `realm-management` **realm-admin** → Assign.
+4. **Credentials** tab → copy the client secret.
+5. Put it in sops, on ace in `/home/prestonh/nixos-secrets`:
+
+   ```bash
+   read -rs s && printf '"KEYCLOAK_CONFIG_CLIENT_SECRET=%s\\n"' "$s" \
+     | SOPS_AGE_KEY_FILE=/var/lib/sops/age/keys.txt sops set --value-stdin \
+         secrets/containers/keycloak.yaml '["keycloak-config-env"]'; unset s
+   ```
+
+6. Commit and push nixos-secrets, `nix flake update nix-secrets` in `/etc/nixos`, then `bash scripts/ace-rebuild.sh`.
+
+Until then the secret is `REPLACE_ME` and the sync skips with a log line.
+
+### Email
+
+Realm email uses the same iCloud SMTP relay and sender Zitadel used: `smtp.mail.me.com:587` with STARTTLS, login `prestonhager@icloud.com`, from `admin@prestonhager.com`, display name "Homelab". The password is `SMTP_PASSWORD` from the Nextcloud sops env file, as for Zitadel. It covers verify-email, password reset (once enabled in the realm), and admin-triggered emails such as Users → the user → **Credentials → Credential reset**. Test it with Realm settings → Email → **Test connection**, which mails the admin's own address.
+
+## Regression tests
+
+`tests/sso/run.sh` logs in to each Keycloak-backed service as the `sso-regression` user and checks the outcome. The user has a password and no TOTP (`SSO_REGRESSION_PASSWORD` in sops), and stays **disabled** except while `run.sh` runs. Each service has a `tests/sso/<service>.test.sh`; the groups the test user needs come from `homelab.keycloak.testUser.groups` in the service's module.
+
+```bash
+bash tests/sso/run.sh            # everything
+bash tests/sso/run.sh grafana    # one service
+```
+
 ## Managing access
 
 Adding users and granting server, sudo and folder access is a step-by-step flow in `docs/keycloak-users.md`.
@@ -75,9 +126,9 @@ How the provider is set up:
 |---|---|
 | Identity provider | `google`, trust email on, no token storage |
 | First broker login flow | `google-link-existing`: *Detect existing broker user* → *Automatically set existing user*, both required. No user creation, no profile review |
-| Post broker login flow | `google-require-otp`: *OTP Form*, required. Run the script with `REQUIRE_OTP=0` to drop it |
+| Post broker login flow | `google-require-otp`: *OTP Form*, required (`homelab.keycloak.google.requireOtp = false` drops it) |
 
-The realm import does not contain any of this. `scripts/keycloak-google-login.sh` configures it through the admin API and is safe to re-run: after a restore or a fresh realm, or to rotate the Google secret. It was tested against a throwaway Keycloak 26.8.0 with a second realm standing in for Google: a matching email was linked, an unknown email was refused with no user created, and TOTP was enforced afterwards.
+`keycloak-realm-sync` applies all of this from `homelab.keycloak.google` in `nixos/containers/keycloak.nix`. The Google client ID and secret come from sops (`keycloak-google-env`). **While either is `REPLACE_ME`, the sync leaves Google out, so there is no button.** The flows were tested against a throwaway Keycloak 26.8.0 with a second realm standing in for Google: a matching email was linked, an unknown email was refused with no user created, and TOTP was enforced afterwards. The sync was also checked to create the button and to be safe to re-run.
 
 ### Setup
 
@@ -90,18 +141,22 @@ The realm import does not contain any of this. `scripts/keycloak-google-login.sh
       ```
 
    3. Copy the client ID and secret.
-2. **Keycloak**, on ace as root:
+2. **sops**, on ace in `/home/prestonh/nixos-secrets`:
 
    ```bash
-   nix shell nixpkgs#jq -c bash /etc/nixos/scripts/keycloak-google-login.sh
+   read -r id && read -rs secret && printf '"GOOGLE_CLIENT_ID=%s\\nGOOGLE_CLIENT_SECRET=%s\\n"' "$id" "$secret" \
+     | SOPS_AGE_KEY_FILE=/var/lib/sops/age/keys.txt sops set --value-stdin \
+         secrets/containers/keycloak.yaml '["keycloak-google-env"]'; unset id secret
    ```
 
-   It prompts for your master-realm admin (username, password, TOTP) and the Google client ID and secret. Leave the Google fields blank on a re-run to keep the current values.
+   Paste the client ID, press Enter, paste the secret (not echoed), press Enter. Then commit and push nixos-secrets, run `nix flake update nix-secrets` in `/etc/nixos`, and run `bash scripts/ace-rebuild.sh`. The secret change restarts `keycloak-realm-sync`, which adds the button.
 3. **Users:** each user's Keycloak **Email** must be their Google address (`docs/keycloak-users.md`, step 2).
+
+This needs `homelab-config` to exist first (above), since the sync can't run without it.
 
 Keycloak stays LAN/tailnet/VPN only. Google never connects to it: the browser carries the redirect, and Keycloak calls Google outbound.
 
-The Google client secret lives only in Keycloak's database, which the nightly dumps back up, so it is not in sops. To rotate it, create a new secret in Google and re-run the script.
+To rotate the Google secret, create a new one in Google and repeat step 2.
 
 ## Troubleshooting
 

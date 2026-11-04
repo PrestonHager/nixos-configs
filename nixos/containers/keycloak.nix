@@ -133,7 +133,87 @@ let
   realmFile = pkgs.writeText "${kc.realm}-realm.json" (builtins.toJSON realm);
 in
 {
+  imports = [ ./keycloak-realm.nix ];
+
+  # Realm settings kept in step with Nix by keycloak-realm-sync. Services add
+  # their own clients and groups in their own files.
+  homelab.keycloak = {
+    sync = {
+      enable = true;
+      # KEYCLOAK_CONFIG_CLIENT_SECRET: REPLACE_ME until the homelab-config
+      # client exists (docs/keycloak-ace.md); the sync skips until then.
+      credential = {
+        file = config.sops.secrets."keycloak-config-env".path;
+        key = "KEYCLOAK_CONFIG_CLIENT_SECRET";
+      };
+    };
+
+    # Same iCloud SMTP relay and sender Zitadel used.
+    smtp = {
+      enable = true;
+      host = "smtp.mail.me.com";
+      port = 587;
+      user = "prestonhager@icloud.com";
+      password = {
+        file = config.sops.secrets."nextcloud-environment".path;
+        key = "SMTP_PASSWORD";
+      };
+      from = "admin@prestonhager.com";
+      fromName = "Homelab";
+    };
+
+    # Zitadel's project roles, same names, as groups (Home Lab and Coolify
+    # projects). Each service maps them in its own module.
+    groups = [
+      "admin"
+      "grafana_admin"
+      "jellyfin_admin"
+      "jellyfin_user"
+      "matrix_admin"
+      "nextcloud_admin"
+      "pterodactyl_admin"
+      "pterodactyl_test_admin"
+      "technitium_admin"
+      "wg-admin"
+      "coolify_admin"
+      "coolify_member"
+    ];
+
+    # GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET: REPLACE_ME until the Google
+    # OAuth client exists (docs/keycloak-ace.md); no Google button until then.
+    google = {
+      enable = true;
+      clientId = { file = config.sops.secrets."keycloak-google-env".path; key = "GOOGLE_CLIENT_ID"; };
+      clientSecret = { file = config.sops.secrets."keycloak-google-env".path; key = "GOOGLE_CLIENT_SECRET"; };
+    };
+
+    testUser = {
+      enable = true;
+      password = {
+        file = config.sops.secrets."keycloak-test-env".path;
+        key = "SSO_REGRESSION_PASSWORD";
+      };
+    };
+  };
+
   sops.secrets = {
+    # KEYCLOAK_CONFIG_CLIENT_SECRET (homelab-config service account)
+    "keycloak-config-env" = {
+      sopsFile = "${sops-path}/secrets/containers/keycloak.yaml";
+      key = "keycloak-config-env";
+      restartUnits = [ "keycloak-realm-sync.service" ];
+    };
+    # GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET ("Sign in with Google")
+    "keycloak-google-env" = {
+      sopsFile = "${sops-path}/secrets/containers/keycloak.yaml";
+      key = "keycloak-google-env";
+      restartUnits = [ "keycloak-realm-sync.service" ];
+    };
+    # SSO_REGRESSION_PASSWORD (tests/sso)
+    "keycloak-test-env" = {
+      sopsFile = "${sops-path}/secrets/containers/keycloak.yaml";
+      key = "keycloak-test-env";
+    };
     # KC_DB_PASSWORD, KC_BOOTSTRAP_ADMIN_PASSWORD, PRESTONH_INITIAL_PASSWORD
     "keycloak-env" = {
       sopsFile = "${sops-path}/secrets/containers/keycloak.yaml";
