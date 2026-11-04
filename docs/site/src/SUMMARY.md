@@ -64,6 +64,7 @@
 - [Git commit signing (SSH)](shared/git-commit-signing.md)
 - [Rotating secrets](shared/secret-rotation.md)
 - [Server logins (Keycloak)](shared/sso-login.md)
+- [Adding users and access](shared/keycloak-users.md)
 - [Monitoring (Grafana + Prometheus)](shared/monitoring.md)
 - [External Probes](shared/monitoring-external-probes.md)
 - [Build & serve locally](shared/local-development.md)

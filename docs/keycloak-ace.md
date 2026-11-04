@@ -63,12 +63,45 @@ The import creates:
 
 ## Managing access
 
-All of this happens in the admin console under the `homelab` realm: **Users** and **Groups**.
+Adding users and granting server, sudo and folder access is a step-by-step flow in `docs/keycloak-users.md`.
 
-- **New person:** Users → Add user. The username becomes their Linux login name: lowercase, no spaces, and not the name of a local account (`root`, `phadmin`, `nginx`, ...). Give them a temporary password on the Credentials tab.
-- **Which servers:** add them to `srv-all` (every enrolled host) or to `srv-<host>` groups.
-- **Sudo:** add them to `sudo-full` (all commands), `sudo-rebuild` (only where `homelab.sso.rebuildFlake` is set), or a group named in `homelab.sso.sudoRules`.
-- **New group:** Groups → Create group. Never reuse a local group name such as `wheel`, `docker` or `users`: the local group wins and the grant is silently lost.
+## Sign in with Google
+
+The login page has a **Google** button. A Google login **only links to an existing user with the same email**. A Google account whose email no user has is refused ("does not exist. Please contact your administrator") and no account is created. After Google, Keycloak still asks for the user's TOTP.
+
+How the provider is set up:
+
+| Piece | Setting |
+|---|---|
+| Identity provider | `google`, trust email on, no token storage |
+| First broker login flow | `google-link-existing`: *Detect existing broker user* → *Automatically set existing user*, both required. No user creation, no profile review |
+| Post broker login flow | `google-require-otp`: *OTP Form*, required. Run the script with `REQUIRE_OTP=0` to drop it |
+
+The realm import does not contain any of this. `scripts/keycloak-google-login.sh` configures it through the admin API and is safe to re-run: after a restore or a fresh realm, or to rotate the Google secret. It was tested against a throwaway Keycloak 26.8.0 with a second realm standing in for Google: a matching email was linked, an unknown email was refused with no user created, and TOTP was enforced afterwards.
+
+### Setup
+
+1. **Google OAuth client** (https://console.cloud.google.com, any project):
+   1. *APIs & Services → OAuth consent screen*: type **External**, app name "Homelab", scopes `openid`, `email`, `profile`. Either **publish** the app (these basic scopes need no Google verification) or add each user as a test user.
+   2. *Credentials → Create credentials → OAuth client ID*: type **Web application**. Authorized redirect URI:
+
+      ```text
+      https://keycloak.prestonhager.com/realms/homelab/broker/google/endpoint
+      ```
+
+   3. Copy the client ID and secret.
+2. **Keycloak**, on ace as root:
+
+   ```bash
+   nix shell nixpkgs#jq -c bash /etc/nixos/scripts/keycloak-google-login.sh
+   ```
+
+   It prompts for your master-realm admin (username, password, TOTP) and the Google client ID and secret. Leave the Google fields blank on a re-run to keep the current values.
+3. **Users:** each user's Keycloak **Email** must be their Google address (`docs/keycloak-users.md`, step 2).
+
+Keycloak stays LAN/tailnet/VPN only. Google never connects to it: the browser carries the redirect, and Keycloak calls Google outbound.
+
+The Google client secret lives only in Keycloak's database, which the nightly dumps back up, so it is not in sops. To rotate it, create a new secret in Google and re-run the script.
 
 ## Troubleshooting
 
