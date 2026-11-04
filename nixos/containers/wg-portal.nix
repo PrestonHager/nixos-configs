@@ -10,9 +10,15 @@ let
   # `groups` claim from the homelabGroups action instead, and match the project
   # role key `wg-admin` (the old regex said `wg-admins`). Fold this into the sops
   # file when nix-secrets is next edited, then drop the patch.
+  #
+  # The web session and CSRF secrets are generated on ace (not taken from sops)
+  # so ace-secret-rotate can roll them; see docs/secret-rotation.md.
+  webSecretsDir = "/var/lib/wg-portal-secrets";
   oidcPatch = lib.concatStringsSep " | " [
     ''(.auth.oidc[] | select(.id == "zitadel") | .field_map.user_groups) = "groups"''
     ''(.auth.oidc[] | select(.id == "zitadel") | .admin_mapping.admin_group_regex) = "^wg-admin$"''
+    ''.web.session_secret = load_str("${webSecretsDir}/session")''
+    ''.web.csrf_secret = load_str("${webSecretsDir}/csrf")''
   ];
 in
 {
@@ -24,8 +30,14 @@ in
   };
 
   systemd.services.podman-wg-portal.preStart = lib.mkBefore ''
-    install -d -m 0700 /run/wg-portal
+    install -d -m 0700 /run/wg-portal ${webSecretsDir}
     umask 077
+    for f in session csrf; do
+      if [ ! -s ${webSecretsDir}/$f ]; then
+        od -An -tx1 -N32 /dev/urandom | tr -d ' \n' > ${webSecretsDir}/$f.tmp
+        mv -f ${webSecretsDir}/$f.tmp ${webSecretsDir}/$f
+      fi
+    done
     ${pkgs.yq-go}/bin/yq ${lib.escapeShellArg oidcPatch} \
       ${config.sops.secrets."wg-portal-config".path} > ${renderedConfig}.tmp
     mv -f ${renderedConfig}.tmp ${renderedConfig}
