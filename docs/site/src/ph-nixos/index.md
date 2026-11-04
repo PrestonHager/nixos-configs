@@ -13,7 +13,7 @@ Personal laptop/desktop NixOS configuration (MSI Summit E16 Flip).
 
 `hosts/ph-nixos/default.nix` pulls in the shared `nixos/` base, GNOME desktop stack, YubiKey support, and `users/prestonh` home-manager config (Neovim, Bitwarden CLI, SSH aliases for Astracap/Astraquasar, etc.).
 
-Unlike ace and the Pterodactyl nodes, **ph-nixos does not run homelab services** — it is a client machine that uses LAN DNS (192.168.5.5), Vaultwarden SSH keys, and SSH to ace/crux/nova.
+Unlike ace and the Wings nodes, **ph-nixos does not run homelab services** — it is a client machine that uses LAN DNS (192.168.5.5), Vaultwarden SSH keys, and SSH to ace/crux/nova.
 
 ## Rebuild
 

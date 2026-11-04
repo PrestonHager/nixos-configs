@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://homelab.prestonhager.com/sitemap.xml

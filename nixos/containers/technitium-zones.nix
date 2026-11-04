@@ -8,8 +8,8 @@ let
   internalZone = "internal.prestonhager.com";
   publicZone = "prestonhager.com";
 
-  internalSerial = "2026081401";
-  publicSerial = "2026101801";
+  internalSerial = "2026102701";
+  publicSerial = "2026102701";
 
   # Authoritative LAN names under internal.prestonhager.com (edit here, then nixos-rebuild switch on ace).
   internalHosts = {
@@ -18,6 +18,7 @@ let
     nova = "192.168.5.7";
     elara = "192.168.5.8";
     zenith = "192.168.5.9";
+    mars = "192.168.5.15";
     grafana = "192.168.5.5";
     cloud = "192.168.5.5";
     dns = "192.168.5.5";
@@ -31,8 +32,9 @@ let
     "8" = "elara.internal.prestonhager.com.";
     "9" = "zenith.internal.prestonhager.com.";
     "10" = "ace-iDRAC.internal.prestonhager.com.";
-    "15" = "mars-iDRAC.internal.prestonhager.com.";
-    "16" = "sally-iDRAC.internal.prestonhager.com.";
+    "11" = "mars-iDRAC.internal.prestonhager.com.";
+    "12" = "sally-iDRAC.internal.prestonhager.com.";
+    "15" = "mars.internal.prestonhager.com.";
   };
 
   cname = target: {
@@ -56,6 +58,7 @@ let
         "wg"
         "metrics.wg"
         "zitadel"
+        "keycloak"
         "git"
         "matrix"
         "spacetime"
@@ -68,6 +71,7 @@ let
         "mc"
         "vpn"
         "serverdocs"
+        "homelab"
         "update"
         "coolify"
       ];
@@ -85,6 +89,9 @@ let
       "nova.lc1.nm.us" = cnameInternal "nova";
       "elara.lc1.nm.us" = cnameInternal "elara";
       "zenith.lc1.nm.us" = cnameInternal "zenith";
+      "mars.lc1.nm.us" = cnameInternal "mars";
+      # WAN name that Cloudflare CNAMEs point at; on the LAN only ace's :80/:443 matter.
+      "ip1.lc1.nm.us" = viaAce;
       # Coolify apps: TLS terminates on ace Caddy, which forwards to mars:80.
       # Other Coolify app hostnames get records from coolify-edge-dns at runtime.
       "*.apps" = viaAce;
@@ -112,6 +119,17 @@ let
 
   # Apex / validation records copied from Cloudflare (no ip1.lc1 overrides).
   publicZoneExtraLines = [
+    # Apex and www are proxied by Cloudflare (GitHub Pages origin). Mirror the proxied
+    # anycast IPs so LAN clients match the public answer; refresh from
+    # `dig @1.1.1.1 prestonhager.com A AAAA` if Cloudflare reassigns them.
+    "@	IN	A	104.21.57.67"
+    "@	IN	A	172.67.189.98"
+    "@	IN	AAAA	2606:4700:3032::ac43:bd62"
+    "@	IN	AAAA	2606:4700:3037::6815:3943"
+    "www	IN	A	104.21.57.67"
+    "www	IN	A	172.67.189.98"
+    "www	IN	AAAA	2606:4700:3032::ac43:bd62"
+    "www	IN	AAAA	2606:4700:3037::6815:3943"
     "@	IN	MX	10 mx01.mail.icloud.com."
     "@	IN	MX	20 mx02.mail.icloud.com."
     "@	IN	TXT	\"v=spf1 include:icloud.com ~all\""

@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Member Guide · Hager Homelab</title>
+  <meta name="description" content="Onboarding for invited members of Hager Homelab: activate your account, set up the WireGuard VPN and sign in for the first time.">
+  <meta name="theme-color" content="#0B1020">
+  <link rel="canonical" href="https://homelab.prestonhager.com/guide.html">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Hager Homelab">
+  <meta property="og:title" content="Member Guide · Hager Homelab">
+  <meta property="og:description" content="Activate your account, connect the VPN and sign in, in about ten minutes.">
+  <meta property="og:image" content="https://homelab.prestonhager.com/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/site.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <nav class="wrap nav" aria-label="Main">
+    <a class="brand" href="/" aria-label="Hager Homelab home">
+      <img src="/assets/logo-mark.svg" width="34" height="34" alt="">
+      <span>Hager <span class="muted">Homelab</span></span>
+    </a>
+    <button class="icon-btn menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="nav-links" aria-label="Menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="/#outline">Overview</a></li>
+      <li><a href="/#stack">Stack</a></li>
+      <li><a href="/#open-source">Open source</a></li>
+      <li><a href="/brand.html">Brand</a></li>
+      <li><a class="btn btn-primary" href="/guide.html" aria-current="page">Member guide</a></li>
+    </ul>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<main id="main">
+  <div class="doc-hero">
+    <div class="wrap">
+      <p class="eyebrow">Member guide</p>
+      <h1>Welcome aboard</h1>
+      <p class="lead">You've been invited to the lab. These steps take you from an invite email to a working VPN and your first sign-in. Plan on about ten minutes, plus a phone for your authenticator app.</p>
+    </div>
+  </div>
+
+  <div class="wrap doc">
+    <aside class="toc" aria-label="On this page">
+      <p>On this page</p>
+      <ul>
+        <li><a href="#before">Before you start</a></li>
+        <li><a href="#steps">Setup steps</a></li>
+        <li><a href="#more-devices">More devices</a></li>
+        <li><a href="#server-access">Server access</a></li>
+        <li><a href="#troubleshooting">Troubleshooting</a></li>
+        <li><a href="#security">Staying safe</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+    </aside>
+
+    <article class="doc-body">
+      <h2 id="before">Before you start</h2>
+      <p>Membership is invite-only: there's no sign-up form. If you haven't been invited, ask the person who runs the lab. Once you have been, gather:</p>
+      <ul class="checklist">
+        <li>The <strong>invite email</strong> from the lab's account system. It holds a one-time activation link and your username.</li>
+        <li>An <strong>authenticator app</strong> on your phone: any TOTP app works (Aegis, 2FAS, Google Authenticator, 1Password, Bitwarden…).</li>
+        <li>The <strong>device</strong> you want to connect first: laptop, desktop or phone.</li>
+      </ul>
+
+      <div class="callout">
+        <strong>The two places you'll use</strong>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>What it's for</th><th>Where it works</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Account portal</strong><br><a href="https://zitadel.prestonhager.com/ui/console" rel="noopener">zitadel.prestonhager.com</a></td><td>Your password, second factor and profile. Every member app signs you in here.</td><td>Anywhere</td></tr>
+              <tr><td><strong>VPN portal</strong><br><a href="https://wg.prestonhager.com" rel="noopener">wg.prestonhager.com</a></td><td>Create, download and remove VPN configs for your devices.</td><td>Home network or VPN only</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <h2 id="steps">Setup steps</h2>
+      <ol class="steps">
+        <li>
+          <h3>Activate your account</h3>
+          <p>Open the activation link in your invite email. It expires, so do this soon. You'll be asked to:</p>
+          <ol>
+            <li>Choose a <strong>strong, unique password</strong>. A password manager is the easy way.</li>
+            <li>Set up your <strong>second factor</strong>: scan the QR code with your authenticator app and type in the 6-digit code it shows.</li>
+            <li>Check your <strong>name and email</strong>. Email is used for password resets and notices.</li>
+          </ol>
+          <div class="callout warn">
+            <strong>Link expired or never arrived?</strong>
+            <p>Check spam first, then ask the admin to resend the invite. Nobody will ever ask you for your password or codes, including the admin.</p>
+          </div>
+        </li>
+
+        <li>
+          <h3>Install WireGuard</h3>
+          <p>WireGuard is the VPN app. Install the official client for your device:</p>
+          <div class="tabs" data-tabs>
+            <div class="tablist" role="tablist" aria-label="Operating system">
+              <button role="tab" id="tab-windows" aria-controls="os-windows" aria-selected="true" data-os="windows">Windows</button>
+              <button role="tab" id="tab-macos" aria-controls="os-macos" aria-selected="false" tabindex="-1" data-os="macos">macOS</button>
+              <button role="tab" id="tab-linux" aria-controls="os-linux" aria-selected="false" tabindex="-1" data-os="linux">Linux</button>
+              <button role="tab" id="tab-ios" aria-controls="os-ios" aria-selected="false" tabindex="-1" data-os="ios">iPhone / iPad</button>
+              <button role="tab" id="tab-android" aria-controls="os-android" aria-selected="false" tabindex="-1" data-os="android">Android</button>
+            </div>
+            <div class="tabpanel" role="tabpanel" id="os-windows" aria-labelledby="tab-windows">
+              <h4>Windows 10 / 11</h4>
+              <p>Download the installer from <a href="https://www.wireguard.com/install/" rel="noopener">wireguard.com/install</a> and run it. WireGuard lives in the system tray.</p>
+            </div>
+            <div class="tabpanel" role="tabpanel" id="os-macos" aria-labelledby="tab-macos">
+              <h4>macOS</h4>
+              <p>Install <strong>WireGuard</strong> from the Mac App Store (publisher: WireGuard Development Team). Allow it to add VPN configurations when macOS asks.</p>
+            </div>
+            <div class="tabpanel" role="tabpanel" id="os-linux" aria-labelledby="tab-linux">
+              <h4>Linux</h4>
+              <p>Install <code>wireguard-tools</code> from your distribution, or use NetworkManager's built-in WireGuard support:</p>
+              <pre><code># Debian / Ubuntu
+sudo apt install wireguard-tools
+# Fedora
+sudo dnf install wireguard-tools
+# NixOS (temporary shell)
+nix shell nixpkgs#wireguard-tools</code></pre>
+            </div>
+            <div class="tabpanel" role="tabpanel" id="os-ios" aria-labelledby="tab-ios">
+              <h4>iPhone / iPad</h4>
+              <p>Install <strong>WireGuard</strong> from the App Store. You'll add a tunnel by scanning a QR code.</p>
+            </div>
+            <div class="tabpanel" role="tabpanel" id="os-android" aria-labelledby="tab-android">
+              <h4>Android</h4>
+              <p>Install <strong>WireGuard</strong> from Google Play or F-Droid. You'll add a tunnel by scanning a QR code.</p>
+            </div>
+          </div>
+        </li>
+
+        <li>
+          <h3>Get your first VPN config</h3>
+          <p>A VPN config is a small file (or QR code) that belongs to <em>one</em> device. How you get the first one depends on where you are:</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>You are…</th><th>Do this</th></tr></thead>
+              <tbody>
+                <tr><td><strong>On the home network</strong></td><td>Open the <a href="https://wg.prestonhager.com" rel="noopener">VPN portal</a>, choose <strong>Sign in</strong> and log in with your account. Create a new peer named after the device (for example <code>alex-laptop</code>), then download the config file or show its QR code.</td></tr>
+                <tr><td><strong>Anywhere else</strong></td><td>The VPN portal only answers from inside, so ask the admin for your first config. It'll come as a <code>.conf</code> file or QR code over a private channel. After that you can manage everything yourself.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Don't see a button to create a peer? Your account may not have self-service turned on yet. Ask the admin.</p>
+        </li>
+
+        <li>
+          <h3>Import the config and connect</h3>
+          <ul>
+            <li><strong>Desktop apps:</strong> <em>Import tunnel(s) from file</em>, pick the <code>.conf</code>, then <strong>Activate</strong>.</li>
+            <li><strong>Phones:</strong> tap <strong>+</strong> → <em>Scan from QR code</em>, name it <code>Homelab</code>, then flip the switch on.</li>
+            <li><strong>Linux CLI:</strong> <code>sudo cp homelab.conf /etc/wireguard/</code>, then <code>sudo wg-quick up homelab</code>.</li>
+          </ul>
+          <p><strong>Check it works:</strong> with the tunnel on, open the <a href="https://wg.prestonhager.com" rel="noopener">VPN portal</a> from a non-home network (phone on mobile data is a good test). If it loads instead of saying <em>Forbidden</em>, you're in. 🎉</p>
+          <div class="callout">
+            <strong>Only lab traffic goes through the tunnel</strong>
+            <p>Your normal browsing still uses your own connection, so you can leave the VPN on. Turn it on whenever you want to reach member-only services.</p>
+          </div>
+        </li>
+
+        <li>
+          <h3>Sign in to your services</h3>
+          <p>Every member app has a <strong>Sign in with SSO</strong> (or similar) button. It sends you to the account portal; use your username, password and authenticator code. Which apps you see depends on the groups the admin put you in. Not sure what you have? Ask.</p>
+          <p>Member documentation lives at <a href="https://serverdocs.prestonhager.com" rel="noopener">serverdocs</a> and only loads over the VPN.</p>
+        </li>
+      </ol>
+
+      <h2 id="more-devices">Adding more devices</h2>
+      <p>Each device gets its <strong>own</strong> config. Never copy one config onto two devices: they'd fight over the same address and both drop off.</p>
+      <ol>
+        <li>Connect a device that's already set up, or be on the home network.</li>
+        <li>Open the <a href="https://wg.prestonhager.com" rel="noopener">VPN portal</a> and sign in.</li>
+        <li>Create a peer for the new device, then download it or scan its QR code on that device.</li>
+        <li>Delete peers for devices you no longer use, and <strong>immediately</strong> for a lost or stolen one.</li>
+      </ol>
+
+      <h2 id="server-access">Server access (advanced)</h2>
+      <p>Only for members who've been given shell access. Server logins use short-lived SSH certificates from the lab's identity provider instead of passwords or long-lived keys, through <a href="https://github.com/openpubkey/opkssh" rel="noopener">opkssh</a>. Your admin will give you the server names and add you to the right groups; full client setup is in the member docs (VPN required). The daily routine looks like:</p>
+      <pre><code>opkssh login        # opens a browser: sign in + authenticator code
+ssh you@server      # key is valid for about 12 hours
+sudo -i             # prints a link and code: approve in the browser</code></pre>
+
+      <h2 id="troubleshooting">Troubleshooting</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>What you see</th><th>Try this</th></tr></thead>
+          <tbody>
+            <tr><td><em>Forbidden</em> on a member page</td><td>The VPN isn't on, or it's on but not handshaking. In the WireGuard app, check that <em>latest handshake</em> is recent. Toggle the tunnel off and on.</td></tr>
+            <tr><td>Tunnel on, but no handshake</td><td>Some guest and work Wi-Fi blocks VPNs. Try mobile data. Make sure the device's clock is correct.</td></tr>
+            <tr><td>Two devices keep dropping</td><td>They're sharing one config. Make a separate peer for each.</td></tr>
+            <tr><td>Authenticator code rejected</td><td>Codes are time-based: set your phone's clock to automatic and use the newest code.</td></tr>
+            <tr><td>Locked out after many tries</td><td>Brute-force protection locks the account for a while. Wait, then try again, or ask the admin.</td></tr>
+            <tr><td>Lost your phone / authenticator</td><td>Ask the admin to reset your second factor. Expect a quick identity check first.</td></tr>
+            <tr><td>An app says you have no access</td><td>You're signed in but not in that app's group. Ask the admin.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="security">Staying safe</h2>
+      <div class="dodont">
+        <div>
+          <h4>Do</h4>
+          <ul>
+            <li>Use a password manager and a unique password.</li>
+            <li>Keep the authenticator on a device with a screen lock.</li>
+            <li>Remove VPN peers for devices you've retired.</li>
+            <li>Report anything odd: unexpected prompts, sign-in emails you didn't trigger.</li>
+          </ul>
+        </div>
+        <div class="dont">
+          <h4>Don't</h4>
+          <ul>
+            <li>Share a VPN config, QR code or screenshot of either.</li>
+            <li>Approve a sign-in or <code>sudo</code> prompt you didn't start.</li>
+            <li>Post screenshots of internal pages publicly.</li>
+            <li>Give your password or codes to anyone, admin included.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h2 id="faq">FAQ</h2>
+      <details>
+        <summary>Does the VPN see my everyday browsing?</summary>
+        <p>No. The tunnel only carries traffic headed for the lab. Everything else goes out your normal connection.</p>
+      </details>
+      <details>
+        <summary>Can I use the lab without the VPN?</summary>
+        <p>A few apps are public and only need your account. Admin tools, the VPN portal and member docs need the VPN, and that's on purpose.</p>
+      </details>
+      <details>
+        <summary>Can I sign in with Google?</summary>
+        <p>If the admin has turned it on, you can link a Google account whose email matches your lab account. You'll still be asked for your authenticator code.</p>
+      </details>
+      <details>
+        <summary>How do I leave?</summary>
+        <p>Tell the admin. Your account and VPN peers are removed together, and access ends quickly everywhere.</p>
+      </details>
+    </article>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="/"><img src="/assets/logo-mark.svg" width="34" height="34" alt=""><span>Hager <span class="muted">Homelab</span></span></a>
+        <p>A personal, self-hosted lab. Built with NixOS and a lot of curiosity.</p>
+      </div>
+      <div>
+        <h4>Lab</h4>
+        <ul><li><a href="/#outline">Overview</a></li><li><a href="/#stack">Stack</a></li><li><a href="/#open-source">Open source</a></li></ul>
+      </div>
+      <div>
+        <h4>Members</h4>
+        <ul><li><a href="/guide.html">Member guide</a></li><li><a href="/guide.html#troubleshooting">Troubleshooting</a></li><li><a href="/guide.html#security">Staying safe</a></li></ul>
+      </div>
+      <div>
+        <h4>More</h4>
+        <ul><li><a href="/brand.html">Brand &amp; style guide</a></li><li><a href="/privacy.html">Privacy</a></li><li><a href="/terms.html">Terms of service</a></li><li><a href="https://github.com/PrestonHager" rel="noopener">GitHub</a></li><li><a href="https://prestonhager.com" rel="noopener">Blog</a></li></ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span data-year>2026</span> Preston Hager. Configuration licensed GPL-3.0. <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a></span>
+      <span>No trackers, no cookies, no third-party requests.</span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

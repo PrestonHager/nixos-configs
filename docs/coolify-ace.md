@@ -7,7 +7,7 @@
 | Dashboard | https://coolify.prestonhager.com (LAN, tailnet and WireGuard only; see [Access](#access)) |
 | Apps | `https://<name>.apps.prestonhager.com`, or any other `prestonhager.com` name (see [Routing](#routing-traffic-to-apps)) |
 | Version | Coolify 4.4.6 (pinned by digest) |
-| Deploy server | mars (192.168.5.15), Coolify proxy (Traefik) on :80 |
+| Deploy servers | mars (192.168.5.15), Coolify proxy (Traefik) on :80; more nodes via `nodes` in `coolify-edge.nix` (see [Adding a node](#adding-a-deploy-server)) |
 | Config | `nixos/containers/coolify.nix`, `nixos/containers/coolify-sso.nix`, `nixos/containers/coolify-edge.nix`, `nixos/caddy/coolify.nix`, `nixos/coolify-node.nix` (mars) |
 | Secrets | `nixos-secrets/secrets/containers/coolify.yaml`; SMTP password from `nextcloud-environment`; router key `pterodactyl-router-ssh-key`; Cloudflare token `cloudflare-acme-env`; Technitium admin password |
 
@@ -20,7 +20,7 @@ flowchart LR
   D --- P[(coolify-db)]
   D --- R[(coolify-redis)]
   D -->|SSH root, own key| X[mars Docker]
-  C -->|*.apps + unclaimed hostnames, HTTP| T[Traefik coolify-proxy on mars:80]
+  C -->|*.apps + unclaimed hostnames, HTTP, per routes.caddy| T[Traefik coolify-proxy on the app's node :80]
   T --> A[app containers]
   C -. on-demand TLS ask .-> E[coolify-edge-ask :9180]
   E -. reads .-> P
@@ -28,6 +28,8 @@ flowchart LR
   N -->|SSH pterofwd| RT[Astracap static NAT]
   DN[coolify-edge-dns timer] -. reads .-> P
   DN -->|CNAMEs| CF[Cloudflare + Technitium]
+  RO[coolify-edge-routes timer] -. reads .-> P
+  RO -->|routes.caddy + reload| C
   RT -->|published ports| A
   Z[Zitadel] -. OIDC .- D
 ```
@@ -55,7 +57,7 @@ The GitHub runner ranges are the `actions` list from `https://api.github.com/met
 - `coolify-github-actions-ips.service` (on boot, on every switch, and every 6 hours from its timer) downloads the list. It rejects a list with fewer than 100 entries or anything that is not a CIDR, runs `caddy validate` on the generated matcher, then writes `/var/lib/coolify-github-actions/matcher.caddy` (`@github_actions { remote_ip … }`) and reloads Caddy if the list changed. On any failure it keeps the current file, and the unit fails.
 - The vhost `import`s that file. On a fresh host, tmpfiles first creates it holding only `192.0.2.0/32` (TEST-NET-1), so Caddy starts and the API stays closed until the first successful fetch.
 
-These are shared GitHub/Azure addresses: any GitHub Actions job, in any repository, connects from them. The allowlist only keeps the rest of the internet away; the API token still does the authorizing, so keep tokens scoped (`deploy`, `read`, `write`, never `root`) and revoke unused ones in **Keys & Tokens**. Self-hosted runners on the LAN already match the LAN rule.
+These are shared GitHub/Azure addresses: any GitHub Actions job, in any repository, connects from them. The allowlist only keeps the rest of the internet away; the API token still does the authorizing, so keep tokens scoped (`deploy`, `read`, `write`; add `delete` only if a workflow deletes through the API; never `root`) and revoke unused ones in **Keys & Tokens**. Since Coolify 4.6, `write` no longer includes deletes; the 4.6 migration gave existing `write` tokens `delete` so nothing broke, so remove it from tokens that never delete. Registry check and logout need `deploy`. Self-hosted runners on the LAN already match the LAN rule.
 
 ```bash
 systemctl start coolify-github-actions-ips    # refresh now
@@ -73,8 +75,8 @@ Everything an app in Coolify needs from outside (DNS, TLS, proxying, port forwar
 
 | Caddy site | Goes to | Certificate |
 |---|---|---|
-| `*.apps.prestonhager.com` | mars:80 | wildcard (DNS-01) |
-| `https://` (catch-all) | mars:80 | issued on demand, per hostname |
+| `*.apps.prestonhager.com` | the app's node :80 (default mars) | wildcard (DNS-01) |
+| `https://` (catch-all) | the app's node :80 (default mars) | issued on demand, per hostname |
 | `http://` (catch-all) | 308 redirect to HTTPS | — |
 
 Caddy always prefers the most specific site, so the catch-alls only see hostnames that none of ace's own services claim. Before Caddy issues an on-demand certificate it asks `coolify-edge-ask` (`127.0.0.1:9180/ask?domain=…`), which says yes only when an application, preview or service of the Root Team (`COOLIFY_EDGE_TEAM_IDS`) uses that hostname, it is inside `COOLIFY_EDGE_ZONES` (`prestonhager.com`), **and** it is not reserved:
@@ -83,6 +85,8 @@ Caddy always prefers the most specific site, so the catch-alls only see hostname
 - `COOLIFY_EDGE_DENY_LABELS`: any name with a sensitive label below the zone, such as `login`, `sso`, `auth`, `admin`, `vault`, `mail`, `www`, `zitadel`, `panel`, `cloud`, `grafana`, `coolify`, `dns`, `wg` or `prometheus` (full list in `coolify-edge.nix`), so `admin.group5.prestonhager.com` is refused too.
 
 Refused names also get no DNS records. The ask endpoint remembers unknown names for 30 seconds and re-reads Coolify's database at most every 5 seconds on a miss, so a flood of random SNI names cannot run a database query per request. Any other name fails the TLS handshake, so stray SNI never reaches Let's Encrypt. Certificates use the same Cloudflare DNS-01 token as everything else, so only names in Cloudflare zones that token can edit work.
+
+**Which node.** Both app sites `import /var/lib/coolify-edge-routes/routes.caddy` and proxy to `{coolify_upstream}`. `coolify-edge-routes` (timer, every minute) writes that file from Coolify's database: a Caddy `map` from each hostname to `<server ip>:80` of the server the app, preview or service is deployed on (application → destination → server). Hostnames on the default node (`defaultNode`, mars) are not listed and use the map's `default` line. The new file is checked with `caddy validate` and installed only when it changed; then Caddy reloads, and every route change is logged at warning level. A hostname is left on the default node, with a warning, when it is used on two servers, when its server is not in `nodes` (Caddy only ever proxies to servers listed there), or when it is a wildcard. A new app on another node can get the default node's 404 for up to a minute until the map catches up (`systemctl start coolify-edge-routes` to sync now; `edge-sync.py routes --dry-run` prints the map). Coolify's "additional servers" for one app are not used: an app goes to its main server.
 
 Coolify's own **DNS validation** (which wants an A record for mars on every app domain, and otherwise shows the domain as mismatched) is pinned off by `coolify-instance-settings`: app names resolve to ace on purpose. After changing an app's domain, **redeploy** it: Traefik routes on container labels, which are only written when the container is created, so until then the new name gets a 503 from Traefik.
 
@@ -100,11 +104,11 @@ When the domain is removed from Coolify, both records are deleted. Only records 
 
 Limits: a range wider than `COOLIFY_EDGE_MAX_RANGE` (20) ports is skipped, and if more than `COOLIFY_EDGE_MAX_PORTS` (50) ports would be forwarded in total the job refuses to change the router at all and the unit fails. Every NAT line it adds or removes is logged at warning priority (`journalctl -p warning -u coolify-edge-nat`).
 
-It writes `ip nat inside source static <tcp|udp> 192.168.5.15 <port> interface GigabitEthernet0/0 <port>` on Astracap and removes `192.168.5.15` lines Coolify no longer wants. Lines for other inside addresses (ace's :80/:443, Pterodactyl game ports) are never touched; a port already forwarded elsewhere is reported as a conflict and skipped. Ports in `COOLIFY_EDGE_BLOCKED_PORTS` are never forwarded: SSH, DNS, HTTP(S), DoT and the router's own ports, plus common mail, SMB, NFS, RDP, SNMP and LDAP ports and ace's admin ports (full list in `coolify-edge.nix`). The WAN port equals the host port. Rules live in running-config only (like the Pterodactyl extension's); the timer re-checks the router every 15 minutes while any rule is wanted, so they come back after a router reboot. While no app publishes a port it never logs in to the router.
+It writes `ip nat inside source static <tcp|udp> 192.168.5.15 <port> interface GigabitEthernet0/0 <port>` on Astracap and removes `192.168.5.15` lines Coolify no longer wants. Lines for other inside addresses (ace's :80/:443, Hydrodactyl game ports) are never touched; a port already forwarded elsewhere is reported as a conflict and skipped. Ports in `COOLIFY_EDGE_BLOCKED_PORTS` are never forwarded: SSH, DNS, HTTP(S), DoT and the router's own ports, plus common mail, SMB, NFS, RDP, SNMP and LDAP ports and ace's admin ports (full list in `coolify-edge.nix`). The WAN port equals the host port. Rules live in running-config only (like the Hydrodactyl port-forward addon's); the timer re-checks the router every 15 minutes while any rule is wanted, so they come back after a router reboot. While no app publishes a port it never logs in to the router.
 
 Docker Compose services (Coolify *Services* and the Docker Compose build pack) are not covered: their `ports:` are not stored in a column Coolify exposes. Publish such ports through an application's Ports Mappings instead.
 
-The NAT job logs in as `pterofwd` with the Pterodactyl port-forward key. That account must be allowed to run `show running-config` and `configure terminal` (see [Astracap](../shared/network-astracap.md#automation-account-pterofwd)).
+The NAT job logs in as `pterofwd` with the Hydrodactyl port-forward key. That account must be allowed to run `show running-config` and `configure terminal` (see [Astracap](../shared/network-astracap.md#automation-account-pterofwd)).
 
 ```bash
 journalctl -u coolify-edge-nat -n 20      # what it added/removed, conflicts
@@ -130,7 +134,7 @@ Login is through Zitadel (**Sign in with Zitadel** on the login page). Coolify's
 | Zitadel role | Coolify |
 |---|---|
 | `coolify_admin` | Admin of the Root Team (servers, projects, deployments) |
-| `coolify_member` | Member of the Root Team |
+| `coolify_member` | Member of the Root Team. Since Coolify 4.6 a member without access grants is read-only (view the team, no deploys); give grants in **Team → Members → Access**, or use `coolify_admin` |
 | *(none)* | Cannot sign in; removed from the Root Team on the next sync |
 
 To add someone:
@@ -236,12 +240,22 @@ It then appears in the **Coolify** Grafana dashboard (*Deployed apps*), and the 
 
 ## Operations
 
-**Upgrade Coolify:** check `https://cdn.coollabs.io/coolify/versions.json`, pull the new image on ace (`podman pull ghcr.io/coollabsio/coolify:<version>`), put its digest in `coolifyImage` in `coolify.nix`, rebuild. Do not use Coolify's built-in self-update; it expects Docker and upstream's compose layout.
+**Upgrade Coolify:** check `https://cdn.coollabs.io/coolify/versions.json`, get the manifest-list digest (`nix run nixpkgs#skopeo -- inspect --raw docker://ghcr.io/coollabsio/coolify:<version> | sha256sum`), put it in `coolifyImage` in `coolify.nix`, rebuild. Read the release notes first; upgrades are rehearsed on a restored `pg_dump` in an isolated Podman network. Since 4.6 the image layers are zstd (pulling needs Docker 23+, mars runs 29.x), and the helper image Coolify pulls on mars is `<REGISTRY_URL>/coollabsio/coolify-helper` (`ghcr.io` here, from `REGISTRY_URL` in `coolify-env`; ghcr and Docker Hub carry the same digest). Reverb only answers `/app/` on the dashboard domain, which is all Caddy routes. Do not use Coolify's built-in self-update; it expects Docker and upstream's compose layout.
 
-**Logs:** `podman logs coolify`, `journalctl -u coolify-zitadel-roles`, `journalctl -u coolify-email-settings`, `journalctl -u coolify-edge-ask -u coolify-edge-nat`; proxy on mars: `docker logs coolify-proxy`.
+**Logs:** `podman logs coolify`, `journalctl -u coolify-zitadel-roles`, `journalctl -u coolify-email-settings`, `journalctl -u coolify-edge-ask -u coolify-edge-nat -u coolify-edge-routes -u coolify-edge-dns`; proxy on mars: `docker logs coolify-proxy`.
 
 **Back up:** `/stor/coolify/postgres` (Coolify's database) and `APP_KEY` in `coolify-env`. APP_KEY encrypts stored server keys, SMTP settings and environment variables; without it a database restore cannot decrypt them.
 
 **Servers:** Coolify lists `localhost` (id 0, force-disabled by `coolify-instance-settings`; Coolify needs it to exist) and `mars` (id 2). crux (id 1) was deleted on 2026-10-20 together with its proxy containers and `/data/coolify` on crux.
 
-**Why mars was registered by hand:** Coolify's server validation only accepts its list of distributions and rejects `ID=nixos`. Connection, Docker, Compose and `git`/`curl`/`jq` were validated; the server was then marked usable directly. Docker on mars is managed by NixOS (`virtualisation.docker`, with `liveRestore`), so Coolify's own Docker installer is never needed. To add another node, enable the same `nixos/coolify-node.nix` on it, register it the same way, and add its IP to `COOLIFY_EDGE_NODES` in `coolify-edge.nix`. ace's Caddy sends all app traffic to mars, so apps on a second node also need their own upstream in `nixos/caddy/coolify.nix`.
+**Why mars was registered by hand:** Coolify's server validation only accepts its list of distributions and rejects `ID=nixos`. Connection, Docker, Compose and `git`/`curl`/`jq` were validated; the server was then marked usable directly. Docker on mars is managed by NixOS (`virtualisation.docker`, with `liveRestore`), so Coolify's own Docker installer is never needed. 
+
+### Adding a deploy server
+
+For example sally:
+
+1. Enable `homelab.coolifyNode` (`nixos/coolify-node.nix`) and `virtualisation.docker` on it, as hosts/mars does. Its `coolify-ingress` chain already lets ace reach :80.
+2. Register it in Coolify (Servers → Add, root over SSH with Coolify's key) and mark it usable the same way as mars. Set its **Wildcard Domain** to `http://apps.prestonhager.com` if new apps there should default to `*.apps` names, and make sure its proxy trusts `X-Forwarded-*` from ace like mars's.
+3. Add its LAN IP (the IP Coolify has for it) to `nodes` in `nixos/containers/coolify-edge.nix` and rebuild ace.
+
+After that nothing per app is needed: pick the server when creating the app, set an `http://<name>.apps.prestonhager.com` (or other) domain, and deploy. `coolify-edge-routes` sends the name to that node, `coolify-edge-nat` forwards its published ports to it, and DNS stays pointed at ace.

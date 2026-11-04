@@ -1,6 +1,6 @@
 # Homelab network topology
 
-End-to-end view of the **192.168.5.0/24** LAN: ISP edge through Astracap, Astraquasar, ace services (including Technitium DNS), PowerEdge OOB, and Pterodactyl nodes.
+End-to-end view of the **192.168.5.0/24** LAN: ISP edge through Astracap, Astraquasar, ace services (including Technitium DNS), PowerEdge OOB, and Wings nodes.
 
 **Verified live** (Aug 2026): Astracap + Astraquasar SSH; crux on `Gi2/0/25`; **mars iDRAC** on `Gi2/0/48` (`192.168.5.11`). **Oct 2026:** elara (`192.168.5.8`) answers SSH and runs Wings; nova is physically disconnected; zenith is planned (SSH does not answer). Other new hosts reserved but not yet cabled.
 
@@ -13,7 +13,7 @@ End-to-end view of the **192.168.5.0/24** LAN: ISP edge through Astracap, Astraq
 | Astraquasar (switch) | `192.168.5.3` | SVI VLAN 1 | LAN SSH `astraquasar` (`admin`) | No WAN publish | L2 only |
 | **Unknown** (wireless) | `192.168.5.4` | via Astraspring `Gi2/0/2` | Pingable on LAN | PAT outbound only | MAC `94:83:c4:42:34:03`; **occupies reserved static range** — identify or reclaim before assigning `.4` |
 | **ace** | `192.168.5.5` | `Po1` (`Gi2/0/13`–`16`) | Full LAN; SSH `ace` (root) | **WAN TCP 80/443** static NAT → ace; public name `ip1.lc1.nm.us.prestonhager.com` (`98.249.78.62`) | DNS, Caddy, monitoring, apps |
-| **crux** | `192.168.5.6` | **`Gi2/0/25`** (MAC `b8:85:84:a8:6d:b4`) | LAN SSH `crux` (root); no WAN NAT | Outbound PAT only | Pterodactyl Wings; ports: [crux-ports.md](../pterodactyl-nodes/crux-ports.md) |
+| **crux** | `192.168.5.6` | **`Gi2/0/25`** (MAC `b8:85:84:a8:6d:b4`) | LAN SSH `crux` (root); no WAN NAT | Outbound PAT only | Wings node; ports: [crux-ports.md](../pterodactyl-nodes/crux-ports.md) |
 | **nova** | `192.168.5.7` | *unassigned* | **Physically disconnected** (Oct 2026) | No WAN NAT | Wings node; flake target `#nova` kept as a template; reserve IP until reattached |
 | **elara** | `192.168.5.8` | *not yet labelled* | LAN SSH (root, from ace); **online** (Oct 2026) | No WAN NAT | Dell OptiPlex Wings node, flake `#elara`; [elara.md](../pterodactyl-nodes/elara.md) |
 | **zenith** | `192.168.5.9` | *unassigned* | **Not connected** (SSH does not answer) | No WAN NAT | Dell OptiPlex, planned Wings node; flake `#zenith` exists, no hardware config yet; [zenith.md](../pterodactyl-nodes/zenith.md) |
@@ -151,7 +151,7 @@ sequenceDiagram
   participant CF as Cloudflare 1.1.1.1
 
   C->>D: DHCP discover
-  D->>C: Offer 192.168.5.x, router 192.168.5.1, DNS 192.168.5.5 + 1.1.1.1
+  D->>C: Offer 192.168.5.x, router 192.168.5.1, DNS 192.168.5.5
   C->>T: Query internal / public names
   T->>CF: Recurse when not authoritative
   CF->>T: Response
@@ -190,7 +190,7 @@ Details: [DNS on ace](./dns.md).
 | TCP 443 | `192.168.5.5:443` | HTTPS to ace |
 | TCP/UDP ports Coolify apps publish | `192.168.5.15:<same port>` | Written/removed by `coolify-edge-nat` on ace ([Coolify](../ace/coolify.md#routing-traffic-to-apps)) |
 
-Static NAT to Wings nodes comes only from the Pterodactyl port-forward extension, and to mars only from `coolify-edge-nat` (Oct 2026). Crux listening ports and probe coverage: [crux-ports.md](../pterodactyl-nodes/crux-ports.md). Grafana: [Network Topology & Ports](https://grafana.prestonhager.com/d/network-topology).
+Static NAT to Wings nodes comes only from the Hydrodactyl port-forward addon, and to mars only from `coolify-edge-nat` (Oct 2026). Crux listening ports and probe coverage: [crux-ports.md](../pterodactyl-nodes/crux-ports.md). Grafana: [Network Topology & Ports](https://grafana.prestonhager.com/d/network-topology).
 
 ## SSH and documentation index
 

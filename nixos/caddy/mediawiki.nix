@@ -1,7 +1,60 @@
-{ config, lib, ... }:
+{ config, lib, pkgs, ... }:
 
 let
   caddyLib = import ./lib.nix;
+  # Served by Caddy (MediaWiki would otherwise redirect /robots.txt to the
+  # wiki page "Robots.txt"). Every crawler, search and AI alike, gets one
+  # group: crawl articles, files and the CSS/JS needed to render them; skip
+  # the endless edit/history/diff/special-page URL variants. Googlebot obeys
+  # only the most specific group naming it, so the named agents share these
+  # rules instead of getting groups of their own.
+  # To keep AI search but opt out of model training, give GPTBot,
+  # Google-Extended, Applebot-Extended and CCBot their own "Disallow: /" group.
+  robotsTxt = pkgs.writeTextDir "robots.txt" ''
+    # Loftia Community Wiki: search engines and AI crawlers are welcome.
+    User-agent: *
+    User-agent: Googlebot
+    User-agent: Googlebot-Image
+    User-agent: Bingbot
+    User-agent: DuckDuckBot
+    User-agent: Applebot
+    User-agent: Google-Extended
+    User-agent: Applebot-Extended
+    User-agent: GPTBot
+    User-agent: OAI-SearchBot
+    User-agent: ChatGPT-User
+    User-agent: ClaudeBot
+    User-agent: Claude-SearchBot
+    User-agent: Claude-User
+    User-agent: PerplexityBot
+    User-agent: Perplexity-User
+    User-agent: CCBot
+    Allow: /
+    Allow: /load.php
+    Allow: /img_auth.php/
+    Allow: /skins/
+    Allow: /resources/
+    Allow: /extensions/
+    Disallow: /index.php
+    Disallow: /api.php
+    Disallow: /rest.php
+    Disallow: /Special:
+    Disallow: /Special%3A
+    Disallow: /MediaWiki:
+    Disallow: /*?action=
+    Disallow: /*&action=
+    Disallow: /*?oldid=
+    Disallow: /*&oldid=
+    Disallow: /*?diff=
+    Disallow: /*&diff=
+    Disallow: /*?curid=
+    Disallow: /*?printable=
+    Disallow: /*&printable=
+    Disallow: /*?veaction=
+    Disallow: /*&veaction=
+
+    Sitemap: https://loftiawiki.org/sitemap.xml
+  '';
   # Never serve the web installer, backups, logs, or anything that is only
   # meant for the CLI. A LocalSettings.php.bak once leaked every secret
   # this way, and debug.log leaked session data. Case-sensitive on purpose:
@@ -30,6 +83,13 @@ in
         not path /.well-known/*
       }
       respond @dotFiles 404
+      handle /robots.txt {
+        root * ${robotsTxt}
+        header Content-Type "text/plain; charset=utf-8"
+        file_server
+      }
+      # Written daily by mediawiki-sitemap.service (nixos/containers/mediawiki.nix).
+      rewrite /sitemap.xml /sitemap/sitemap-index-loftiawiki.xml
       # Uploads live in /mw/images, which is mounted only inside the container,
       # so file_server can't see them. MediaWiki serves them through
       # img_auth.php ($wgUploadPath), which also enforces the private-wiki read

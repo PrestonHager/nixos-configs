@@ -54,7 +54,7 @@ systemctl stop podman-vaultwarden
 cp vaultwarden.sqlite3 /vw-data/db.sqlite3 && rm -f /vw-data/db.sqlite3-wal /vw-data/db.sqlite3-shm
 ```
 
-Restart the app afterwards. For containers in a pod (Pterodactyl, MediaWiki), restart the app container after its database so it rejoins the pod network.
+Restart the app afterwards. For containers in a pod (Hydrodactyl, MediaWiki), restart the app container after its database so it rejoins the pod network.
 
 ## Restore tests
 

@@ -133,7 +133,7 @@ in
       ExecStart = pkgs.writeShellScript "pod-pterodactyl" ''
         set -euo pipefail
         podman=${pkgs.podman}/bin/podman
-        hostGw="$(${pkgs.iproute2}/bin/ip -4 -o addr show podman0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)"
+        hostGw="$(${pkgs.iproute2}/bin/ip -4 -o addr show podman0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1 || true)"
         if [ -z "''${hostGw}" ]; then
           hostGw="10.88.0.1"
         fi
@@ -289,7 +289,7 @@ in
 
       extraOptions = [ "--pod=pterodactyl" ];
 
-      image = "docker.io/valkey/valkey@sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507"; # valkey 8.1.10-alpine (BSD fork of Redis; cache/sessions only)
+      image = "docker.io/valkey/valkey@sha256:bf09d58e96d6b4524a15396b65b242bbe18beebbcc15a04d8ee75ddac62fae0b"; # valkey 9.1.3-alpine; 9.x RDB is unreadable by 8.x (rollback = start empty) (BSD fork of Redis; cache/sessions only)
     };
   };
 }

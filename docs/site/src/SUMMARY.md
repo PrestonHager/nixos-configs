@@ -26,6 +26,7 @@
 - [Pterodactyl Port Forward](ace/pterodactyl-plugin-port-forward.md)
 - [Pterodactyl Port Forward Plan](ace/pterodactyl-plugin-port-forward-plan.md)
 - [Zitadel](ace/zitadel.md)
+- [Keycloak](ace/keycloak.md)
 
 # PowerEdge hosts
 
@@ -61,6 +62,9 @@
 - [Astraquasar switch](shared/network-astraquasar.md)
 - [Network & SSH / Bitwarden](shared/network-ssh.md)
 - [Git commit signing (SSH)](shared/git-commit-signing.md)
+- [Rotating secrets](shared/secret-rotation.md)
+- [Server logins (Keycloak)](shared/sso-login.md)
+- [Adding users and access](shared/keycloak-users.md)
 - [Monitoring (Grafana + Prometheus)](shared/monitoring.md)
 - [External Probes](shared/monitoring-external-probes.md)
 - [Build & serve locally](shared/local-development.md)

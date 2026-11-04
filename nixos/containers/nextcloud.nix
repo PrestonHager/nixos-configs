@@ -765,7 +765,7 @@ in
       ExecStart = pkgs.writeShellScript "pod-nextcloud" ''
         set -euo pipefail
         podman=${pkgs.podman}/bin/podman
-        hostGw="$(${pkgs.iproute2}/bin/ip -4 -o addr show podman0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)"
+        hostGw="$(${pkgs.iproute2}/bin/ip -4 -o addr show podman0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1 || true)"
         if [ -z "''${hostGw}" ]; then
           hostGw="10.88.0.1"
         fi
@@ -946,7 +946,7 @@ in
       # it is not on the command line).
       cmd = [ "redis-server" "/etc/redis-auth.conf" "--save" "60" "1" "--loglevel" "warning" "--bind" "127.0.0.1" ];
       extraOptions = [ "--pod=nextcloud" ];
-      image = "docker.io/library/redis:8.10.2";
+      image = "docker.io/library/redis:8.10.3";
     };
   };
 }

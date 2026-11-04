@@ -13,7 +13,7 @@ Main homelab server on a Dell PowerEdge R730xd at **192.168.5.5**.
 
 ## Stack
 
-Ace runs **Caddy** on `:80`/`:443` for `*.prestonhager.com`, **Technitium DNS** on `:53`, and Podman containers (Grafana, Prometheus, Nextcloud, Zitadel, Pterodactyl, Jellyfin, Vaultwarden, Matrix/Synapse, MediaWiki, WG Portal, and more). LanCache is disabled.
+Ace runs **Caddy** on `:80`/`:443` for `*.prestonhager.com`, **Technitium DNS** on `:53`, and Podman containers (Grafana, Prometheus, Nextcloud, Zitadel, Hydrodactyl, Jellyfin, Vaultwarden, Matrix/Synapse, MediaWiki, WG Portal, and more). LanCache is disabled.
 
 Config entry points:
 

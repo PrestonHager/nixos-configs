@@ -24,7 +24,7 @@ let
     "pterodactyl-db"
     "pterodactyl-test-db"
   ];
-  postgresContainers = [ "coolify-db" "matrix-db" "zitadel-db" ];
+  postgresContainers = [ "coolify-db" "matrix-db" "zitadel-db" "keycloak-db" ];
 
   dumpScript = pkgs.writeShellScript "homelab-db-dumps" ''
     set -uo pipefail

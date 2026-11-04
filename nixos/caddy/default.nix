@@ -28,7 +28,9 @@
     ./vaultwarden.nix
     ./wg-portal.nix
     ./zitadel.nix
+    ./keycloak.nix
     ./serverdocs.nix
+    ./homepage.nix
     # K80 / AI stack — docs/ace-k80-gpu.md
     # TEMPORARILY DISABLED — ai.prestonhager.com / OpenClaw (re-enable with services.aceK80.enableOpenClaw)
     # ./ai.nix

@@ -190,7 +190,7 @@ groups:
     interval: 1m
     rules:
       - uid: sec_suricata_scan
-        title: Suricata scan or exploit alert
+        title: Suricata compromise indicator
         condition: C
         data:
           - refId: A
@@ -200,15 +200,17 @@ groups:
             datasourceUid: loki
             model:
               editorMode: code
-              # SYN-scan hits from the static infra range (.1-.20: router, switch, ace,
-              # nodes) are blackbox probes and log shipping, not scans. Everything else,
-              # including SYN scans from LAN clients, still alerts.
-              # Only severity 1-2 (high/medium) pages; ET Open's severity-3 INFO and
-              # POLICY hits stay in Loki for triage.
+              # Mail only on signs that one of our hosts is compromised: attack
+              # responses, malware/C2/mining traffic, or a LAN host talking to a
+              # known-bad IP. Inbound scans, exploit attempts, blocklisted
+              # scanners (already blackholed via AbuseIPDB), LAN SMB transfers and
+              # our own IP-lookup DNS queries were ~1,000 mails a week with nothing
+              # to act on; they stay in Loki and on the Suricata dashboard.
               # One series per signature, so the email names what fired.
               expr: >-
-                sum by (alert_signature) (count_over_time({job="suricata"} | json | event_type="alert" and alert_severity <= 2
-                and (alert_signature != "ET SCAN SYN Scan detected" or src_ip !~ "192\\.168\\.5\\.([1-9]|1[0-9]|20)") [5m]))
+                sum by (alert_signature) (count_over_time({job="suricata"} | json | event_type="alert"
+                | alert_signature=~"ET (ATTACK_RESPONSE|MALWARE|TROJAN|COINMINING|MOBILE_MALWARE|PHISHING|EXPLOIT_KIT|ADWARE_PUP).*"
+                  or (src_ip=~"192\\.168\\.5\\..*" and alert_signature=~"ET (CINS|DROP|COMPROMISED|TOR|3CORESec).*") [5m]))
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200

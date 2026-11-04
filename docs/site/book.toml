@@ -2,7 +2,7 @@
 title = "Server Docs"
 authors = ["Preston Hager"]
 language = "en"
-description = "Homelab documentation for ace, Pterodactyl nodes, and shared services"
+description = "Homelab documentation for ace, the Hydrodactyl Wings nodes, and shared services"
 src = "src"
 
 [preprocessor.mermaid]

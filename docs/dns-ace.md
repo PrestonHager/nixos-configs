@@ -97,13 +97,18 @@ Technitium is configured with `DNS_SERVER_DOMAIN=internal.prestonhager.com` so t
 | ace | A | 192.168.5.5 |
 | crux | A | 192.168.5.6 |
 | nova | A | 192.168.5.7 |
+| elara | A | 192.168.5.8 |
+| zenith | A | 192.168.5.9 |
+| mars | A | 192.168.5.15 |
 | grafana | A | 192.168.5.5 |
 | cloud | A | 192.168.5.5 |
 | dns | A | 192.168.5.5 |
 
 ### Zone: `prestonhager.com` (LAN only)
 
-This zone overrides public Cloudflare answers for LAN clients using ace as DNS. The apex is not defined here (no `@` A/AAAA); only listed subdomains are authoritative on Technitium.
+This zone overrides public Cloudflare answers for LAN clients using ace as DNS. Technitium is authoritative for the whole zone on the LAN, so any name missing here returns NXDOMAIN at home even if Cloudflare has it. Keep the two in step.
+
+The apex and `www` are orange-clouded in Cloudflare (GitHub Pages origin). The zone mirrors Cloudflare's proxied anycast A/AAAA (`104.21.57.67`, `172.67.189.98`, `2606:4700:3032::ac43:bd62`, `2606:4700:3037::6815:3943`) so LAN and public answers match. Refresh them from `dig @1.1.1.1 prestonhager.com A AAAA` if Cloudflare reassigns them.
 
 | Name | Type | Target |
 |------|------|--------|
@@ -113,9 +118,12 @@ This zone overrides public Cloudflare answers for LAN clients using ace as DNS. 
 | grafana | CNAME | grafana.internal.prestonhager.com |
 | cloud | CNAME | cloud.internal.prestonhager.com |
 | dns | CNAME | dns.internal.prestonhager.com |
-| ai, panel, test.panel, prometheus, jellyfin, vault, wg, metrics.wg, zitadel, git, matrix, spacetime, test.sui, faucet.test.sui, indexer.test.sui, factorio, game, lancache, mc, vpn, serverdocs, update | CNAME | ace.internal.prestonhager.com |
+| ai, panel, test.panel, prometheus, jellyfin, vault, wg, metrics.wg, zitadel, keycloak, git, matrix, spacetime, test.sui, faucet.test.sui, indexer.test.sui, factorio, game, lancache, mc, vpn, serverdocs, update | CNAME | ace.internal.prestonhager.com |
 | crux.lc1.nm.us | CNAME | crux.internal.prestonhager.com |
 | nova.lc1.nm.us | CNAME | nova.internal.prestonhager.com |
+| elara.lc1.nm.us, zenith.lc1.nm.us, mars.lc1.nm.us | CNAME | matching `*.internal.prestonhager.com` |
+| ip1.lc1.nm.us | CNAME | ace.internal.prestonhager.com |
+| @, www | A / AAAA | Cloudflare proxied IPs (see above) |
 
 External Cloudflare CNAMEs (blog, github.io sites, dontgetgot, ACM validation, etc.) and apex **MX/TXT/SRV** records are copied into the Technitium zone unchanged so LAN clients still resolve them without NXDOMAIN from the partial primary zone.
 
@@ -129,6 +137,8 @@ Public Cloudflare CNAMEs that target `ip1.lc1.nm.us.prestonhager.com` (98.249.78
 | ace, ai, factorio, faucet.test.sui, game, indexer.test.sui, jellyfin, lancache, matrix, mc, metrics.wg, panel, prometheus, spacetime, test.panel, test.sui, update, vault, vpn, wg, zitadel, serverdocs | ace.internal.prestonhager.com → 192.168.5.5 |
 | crux.lc1.nm.us | crux.internal.prestonhager.com → 192.168.5.6 |
 | nova.lc1.nm.us | nova.internal.prestonhager.com → 192.168.5.7 |
+| mars.lc1.nm.us | mars.internal.prestonhager.com → 192.168.5.15 |
+| ip1.lc1.nm.us itself | ace.internal.prestonhager.com → 192.168.5.5 |
 
 ### `lc1.nm.us.prestonhager.com` names (preferred for Wings / nodes)
 
@@ -298,7 +308,7 @@ Technitium already forwards unknown names to 1.1.1.1; `_acme-challenge` subdomai
 
 ## DHCP (house / game LAN)
 
-Astracap already advertises **192.168.5.5** (Technitium) as primary DNS and **1.1.1.1** as secondary — see [Astracap router](./network-astracap.md). Desktops and servers that honor DHCP resolve ace services to LAN IPs. **iOS often does not** (see below).
+Astracap advertises **192.168.5.5** (Technitium) as the only DHCP DNS server (the `1.1.1.1` secondary was removed 2026-10-27) — see [Astracap router](./network-astracap.md). Desktops and servers that honor DHCP resolve ace services to LAN IPs. **iOS often does not** (see below).
 
 ## iPhone / iOS (split-horizon and NAT hairpin)
 
@@ -323,7 +333,7 @@ Desktops/servers work because they use **Technitium** (`192.168.5.5` from DHCP o
 |--------------|----------------|
 | **Limit IP Address Tracking** / iCloud Private Relay | Uses Apple/Cloudflare DNS instead of DHCP → public IP → timeout |
 | **Manual DNS** (1.1.1.1, 8.8.8.8, AdGuard, NextDNS) | Public answers → timeout |
-| **Secondary DNS fallback** to `1.1.1.1` when Technitium is slow | Intermittent public answers → flaky or broken |
+| **Secondary DNS fallback** to `1.1.1.1` (DHCP handed it out until 2026-10-27) | Intermittent public answers → flaky or broken |
 | **Encrypted DNS (DoH)** to a third party | Public answers → timeout |
 
 On **cellular (LTE/5G)**, public DNS is correct and HTTPS should work (grey-cloud CNAME → `ip1.lc1` → `98.249.78.62`). If WiFi fails but LTE works, split-horizon + hairpin is confirmed.

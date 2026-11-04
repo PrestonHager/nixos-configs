@@ -36,8 +36,8 @@ This document is a practical homelab plan for **detecting unauthorized changes a
 | Asset | IP | Role | Notes |
 |-------|-----|------|-------|
 | **ace** | 192.168.5.5 | Primary server | Technitium DNS, Caddy, Grafana/Prometheus, most Podman stacks |
-| **crux** | 192.168.5.6 | Pterodactyl Wings | `crux.lc1.nm.us.prestonhager.com` |
-| **nova** | 192.168.5.7 | Pterodactyl Wings | `nova.lc1.nm.us.prestonhager.com` |
+| **crux** | 192.168.5.6 | Wings | `crux.lc1.nm.us.prestonhager.com` |
+| **nova** | 192.168.5.7 | Wings | `nova.lc1.nm.us.prestonhager.com` |
 | **Astracap** | 192.168.5.1 | Cisco IOS 15.7 router | Gateway, inter-VLAN routing |
 | **Astraquasar** | 192.168.5.3 | Cisco WS-C3650 switch | L2/L3, candidate SPAN source |
 
@@ -264,7 +264,7 @@ Reference: existing email alert rules in `docs/monitoring-ace.md` (service down,
 | DNS | Technitium blocklist / deny zone | LAN-wide client protection | Bypass via DoH if not blocked |
 | Router | Astracap extended ACL | WAN/LAN boundary | Syntax error risk; document rollback |
 | Switch | `shutdown` interface | Hard isolation | Physical access needed to restore |
-| Panel | Pterodactyl suspend server | Game workload isolation | Not OS-level |
+| Panel | Hydrodactyl suspend server | Game workload isolation | Not OS-level |
 
 ### 6.3 Rollback and recovery
 
@@ -389,7 +389,7 @@ Reference: existing email alert rules in `docs/monitoring-ace.md` (service down,
 | `docs/network-ssh-ace.md` | Cisco SSH, credentials in Vaultwarden |
 | `docs/ace-health-report.md` | Service health baseline |
 | `docs/dns-ace.md` | Technitium DNS (blocklist response) |
-| Pterodactyl node pages | crux/nova workload context |
+| Hydrodactyl node pages | crux/nova workload context |
 
 ---
 

@@ -73,11 +73,15 @@
         includesSrc = ./docs;
         bootstrapPubkey = ./docs/bootstrap/ssh-ed25519.pub;
       };
+      homepageSite = import ./apps/homepage/default.nix {
+        pkgs = nixpkgs.legacyPackages.${system};
+      };
     in {
     packages.${system} = let
       pkgs = nixpkgs.legacyPackages.${system};
     in {
       docs = docsSite;
+      homepage = homepageSite;
       default = docsSite;
       nextcloud-migrate = import ./scripts/nextcloud-migrate { inherit pkgs; lib = nixpkgs.lib; };
     };
@@ -112,7 +116,7 @@
         ];
       };
       ace = nixpkgs.lib.nixosSystem {
-        specialArgs = { inherit inputs docsSite; };
+        specialArgs = { inherit inputs docsSite homepageSite; };
         modules = defaultModules ++ [
           ./hosts/ace
         ];

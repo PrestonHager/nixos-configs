@@ -19,7 +19,9 @@ in
     ../../nixos/security
     ../../nixos/monitoring/promtail.nix
     ../../nixos/coolify-node.nix
-    ../../users/prestonh
+    # Keycloak server logins; the local prestonh account is now the
+    # break-glass phadmin (docs/sso-login.md).
+    ../../nixos/auth/sso-login.nix
   ];
 
   # Legacy BIOS only (no UEFI on the R410): GRUB, not the systemd-boot that
@@ -75,7 +77,12 @@ in
   # root@ace deploys with its own key (nixos/ace-git-identity.nix); the bootstrap
   # key is the workstation key. Coolify's key comes from coolify-node.nix.
   users.users.root.openssh.authorizedKeys.keys = [ bootstrapPubkey aceDeployPubkey ];
-  users.users.prestonh.openssh.authorizedKeys.keys = [ bootstrapPubkey ];
+  # prestonh is the Keycloak account now; phadmin (uid 1000, the old
+  # prestonh home and password) is the local break-glass admin.
+  homelab.sso = {
+    enable = true;
+    breakGlass.keys = [ bootstrapPubkey ];
+  };
   # Only declared keys count (nixos/security/ssh.nix); bootstrapPubkey is the
   # admin workstation's key, so this cannot lock the workstation out.
   homelab.security.ssh.declarativeKeysOnly = true;

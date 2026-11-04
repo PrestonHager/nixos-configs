@@ -6,7 +6,7 @@ Inventory from live host (`ss` / firewall) and Astracap NAT (Jul 2026), updated 
 
 | Service | Role | Listen | Firewall | Notes |
 |---------|------|--------|----------|-------|
-| Wings 1.13.4 | Pterodactyl daemon API / TLS | `0.0.0.0:443` | LAN open | Domain `crux.lc1.nm.us.prestonhager.com`; version from the `pterodactyl-wings` flake input |
+| Wings 1.13.4 | Wings daemon API / TLS | `0.0.0.0:443` | LAN open | Domain `crux.lc1.nm.us.prestonhager.com`; version from the `pterodactyl-wings` flake input |
 | Wings SFTP | File transfer (panel file manager) | `*:2022` | LAN open | Not Samba; Samba secret exists but service not enabled |
 | SSH | Management | `0.0.0.0:22` | LAN open | |
 | Docker game servers | Per-allocation TCP/UDP | Dynamic (e.g. docker-proxy) | **Not** in Nix `allowedTCPPorts` unless allocation + NAT | Ephemeral; do not hardcode in Prometheus |
@@ -35,7 +35,7 @@ crux was the deploy server for [Coolify on ace](../ace/coolify.md) until 2026-10
 | → nova `192.168.5.7` | — | **None** |
 | Other | PAT overload on Gi0/0 | Outbound only |
 
-Optional game NAT is managed by the Pterodactyl **portforward** extension when enabled; not present in current NAT translations for crux.
+Optional game NAT is managed by the Hydrodactyl **portforward** addon when enabled; not present in current NAT translations for crux.
 
 ## Prometheus probes (from ace)
 
@@ -63,5 +63,5 @@ Optional game NAT is managed by the Pterodactyl **portforward** extension when e
 
 - [Network topology](../shared/network-topology.md)
 - [Astracap router](../shared/network-astracap.md)
-- [Pterodactyl port forward](../ace/pterodactyl-plugin-port-forward.md)
+- [Hydrodactyl port forward](../ace/pterodactyl-plugin-port-forward.md)
 - [Coolify on ace](../ace/coolify.md)

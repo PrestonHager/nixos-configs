@@ -649,13 +649,14 @@ current_nextcloud_whiteboard() {
 
 current_coolify() {
   local v=""
-  # Pinned by digest, so the tag says nothing. COOLIFY_VERSION is what the app
-  # reports; config/constants.php carries the same default.
+  # Pinned by digest, so the tag says nothing. COOLIFY_VERSION (set in the
+  # image) is what the app reports. Since 4.6 constants.php no longer carries a
+  # literal default; fall back to the image's OCI version label.
   if container_running coolify; then
     v="$(podman exec coolify printenv COOLIFY_VERSION 2>/dev/null || true)"
     if [[ -z "$v" ]]; then
-      v="$(podman exec coolify cat /var/www/html/config/constants.php 2>/dev/null \
-        | sed -nE "s/.*COOLIFY_VERSION'\) \?: '([^']+)'.*/\1/p" | head -n 1 || true)"
+      v="$(podman inspect coolify --format '{{index .Config.Labels "org.opencontainers.image.version"}}' 2>/dev/null || true)"
+      [[ "$v" == "<no value>" ]] && v=""
     fi
   fi
   normalize_version "$v"
@@ -702,7 +703,7 @@ mkdir -p "$OUT_DIR" "$CACHE_DIR"
   track_gh jellyfin "$(current_jellyfin)" jellyfin/jellyfin
   track_gh vaultwarden "$(current_vaultwarden)" dani-garcia/vaultwarden
   track_gh caddy "$(current_caddy)" caddyserver/caddy
-  track_gh pterodactyl-panel "$(current_pterodactyl)" pterodactyl/panel
+  track_gh hydrodactyl-panel "$(current_pterodactyl)" BlueprintFramework/hydrodactyl
   track_gh nextcloud-clamav "$(current_nextcloud_clamav)" Cisco-Talos/clamav
   track_gh notify_push "$(current_notify_push)" nextcloud/notify_push
 
@@ -710,17 +711,17 @@ mkdir -p "$OUT_DIR" "$CACHE_DIR"
   # start with tokumx-*, postgres/postgres tags look like REL_16_14: the Docker
   # Hub image is what runs. Postgres versions are X.Y.
   track_hub nextcloud-mariadb "$(current_nextcloud_mariadb)" library/mariadb xyz 2
-  track_hub pterodactyl-mariadb "$(current_pterodactyl_mariadb)" library/mariadb xyz 2
-  track_hub pterodactyl-test-mariadb "$(image_version pterodactyl-test-db MARIADB_VERSION)" library/mariadb xyz 2
+  track_hub hydrodactyl-mariadb "$(current_pterodactyl_mariadb)" library/mariadb xyz 2
+  track_hub hydrodactyl-test-mariadb "$(image_version pterodactyl-test-db MARIADB_VERSION)" library/mariadb xyz 2
   track_hub mediawiki-mariadb "$(image_version mediawiki-db MARIADB_VERSION)" library/mariadb xyz 2
   track_hub matrix-postgres "$(image_version matrix-db PG_VERSION)" library/postgres xy
   track_hub zitadel-postgres "$(image_version zitadel-db PG_VERSION)" library/postgres xy
   track_hub coolify-postgres "$(image_version coolify-db PG_VERSION)" library/postgres xy
   track_gh nextcloud-redis "$(current_nextcloud_redis)" redis/redis
   track_gh coolify-redis "$(image_version coolify-redis REDIS_VERSION)" redis/redis
-  # pterodactyl-redis runs Valkey (BSD Redis fork) since 2026-10-19.
-  track_gh pterodactyl-redis "$(current_pterodactyl_redis)" valkey-io/valkey
-  track_gh pterodactyl-test-redis "$(image_version pterodactyl-test-redis VALKEY_VERSION)" valkey-io/valkey
+  # The panel caches (containers pterodactyl[-test]-redis) run Valkey since 2026-10-19.
+  track_gh hydrodactyl-redis "$(current_pterodactyl_redis)" valkey-io/valkey
+  track_gh hydrodactyl-test-redis "$(image_version pterodactyl-test-redis VALKEY_VERSION)" valkey-io/valkey
   track_gh mediawiki-redis "$(image_version mediawiki-redis VALKEY_VERSION)" valkey-io/valkey
 
   # Monitor-only.

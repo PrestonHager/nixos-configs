@@ -1,14 +1,47 @@
-{ config, pkgs, inputs, ... }:
+{ config, lib, pkgs, inputs, ... }:
 
 let
   sops-path = builtins.toString inputs.nix-secrets;
+  # Rendered from the sops config before every start (see preStart below).
+  renderedConfig = "/run/wg-portal/config.yaml";
+  # Zitadel's urn:zitadel:iam:org:project:roles claim is an object keyed by role,
+  # which wg-portal cannot read as a group list (it logs "sanitization modified
+  # field value ... field=user_group" and finds no groups). Read the flat
+  # `groups` claim from the homelabGroups action instead, and match the project
+  # role key `wg-admin` (the old regex said `wg-admins`). Fold this into the sops
+  # file when nix-secrets is next edited, then drop the patch.
+  #
+  # The web session and CSRF secrets are generated on ace (not taken from sops)
+  # so ace-secret-rotate can roll them; see docs/secret-rotation.md.
+  webSecretsDir = "/var/lib/wg-portal-secrets";
+  oidcPatch = lib.concatStringsSep " | " [
+    ''(.auth.oidc[] | select(.id == "zitadel") | .field_map.user_groups) = "groups"''
+    ''(.auth.oidc[] | select(.id == "zitadel") | .admin_mapping.admin_group_regex) = "^wg-admin$"''
+    ''.web.session_secret = load_str("${webSecretsDir}/session")''
+    ''.web.csrf_secret = load_str("${webSecretsDir}/csrf")''
+  ];
 in
 {
   sops.secrets = {
     "wg-portal-config" = {
       sopsFile = "${sops-path}/secrets/containers/wg-portal-config.yaml";
+      restartUnits = [ "podman-wg-portal.service" ];
     };
   };
+
+  systemd.services.podman-wg-portal.preStart = lib.mkBefore ''
+    install -d -m 0700 /run/wg-portal ${webSecretsDir}
+    umask 077
+    for f in session csrf; do
+      if [ ! -s ${webSecretsDir}/$f ]; then
+        od -An -tx1 -N32 /dev/urandom | tr -d ' \n' > ${webSecretsDir}/$f.tmp
+        mv -f ${webSecretsDir}/$f.tmp ${webSecretsDir}/$f
+      fi
+    done
+    ${pkgs.yq-go}/bin/yq ${lib.escapeShellArg oidcPatch} \
+      ${config.sops.secrets."wg-portal-config".path} > ${renderedConfig}.tmp
+    mv -f ${renderedConfig}.tmp ${renderedConfig}
+  '';
 
   imports = [
     ./wg-portal-scripts.nix
@@ -95,7 +128,7 @@ in
       "/etc/group:/etc/group:ro"
       "/srv/wireguard/etc/:/etc/wireguard/"
       "/srv/wireguard/data/:/app/data"
-      "${config.sops.secrets."wg-portal-config".path}:/app/config/config.yaml:ro"
+      "${renderedConfig}:/app/config/config.yaml:ro"
     ];
 
     environment = {

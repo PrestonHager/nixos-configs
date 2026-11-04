@@ -9,7 +9,9 @@ policies:
       - severity
     group_wait: 30s
     group_interval: 5m
-    repeat_interval: 4h
+    # Mail when something breaks, then a reminder while it stays broken: twice a
+    # day for critical, daily otherwise (was hourly / 12h / 4h).
+    repeat_interval: 24h
     routes:
       - receiver: ace-email
         object_matchers:
@@ -17,10 +19,10 @@ policies:
             - =
             - critical
         group_wait: 10s
-        repeat_interval: 1h
+        repeat_interval: 12h
       - receiver: ace-email
         object_matchers:
           - - severity
             - =
             - warning
-        repeat_interval: 12h
+        repeat_interval: 24h

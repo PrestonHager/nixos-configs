@@ -1,151 +1,55 @@
-# Pterodactyl on ace
+# Hydrodactyl on ace
 
-Implementation: `nixos/containers/pterodactyl.nix`, `nixos/containers/pterodactyl-blueprint.nix`, `nixos/containers/pterodactyl-sso.nix`, Caddy `nixos/caddy/pterodactyl.nix`, secrets `nixos-secrets/secrets/containers/pterodactyl-oauth.yaml`.
+The game-server panel at https://panel.prestonhager.com (and the test panel at https://test.panel.prestonhager.com) runs **[Hydrodactyl](https://github.com/BlueprintFramework/hydrodactyl)**, a fork of the Pterodactyl panel. Production moved from Pterodactyl + Blueprint on 2026-10-26; see `docs/hydrodactyl-migration-plan.md` in the repo for what changed and why. The game servers themselves run on the [Wings nodes](../pterodactyl-nodes/index.md) (stock Wings 1.13.4, which Hydrodactyl drives unchanged).
+
+Many identifiers still say `pterodactyl` because they predate the move and renaming them would mean migrating data: container and unit names (`pterodactyl`, `pterodactyl-db`, `pterodactyl-redis`, `podman-pterodactyl.service`), the data paths (`/pterodactyl/html`, `/pterodactyl-test/html`), the PHP namespace (`Pterodactyl\`), sops keys (`pterodactyl-env`, `pterodactyl-oauth-env`) and the Zitadel role keys (`pterodactyl_admin`).
 
 ## Service
 
 | Field | Value |
-|-------|-------|
-| URL | https://panel.prestonhager.com |
-| Version | Pterodactyl Panel **1.11.11** (official `pterodactyl/panel` stock) |
-| Extensions | **Blueprint** (`beta-2026-05`+) + **Social Login** community extension |
-| Auth | Zitadel OIDC via **Blueprint Social Login** + `socialiteproviders/zitadel` |
-| Break-glass local login | `/auth/login` (username/password) |
+|---|---|
+| URL | https://panel.prestonhager.com (test: https://test.panel.prestonhager.com) |
+| Version | Hydrodactyl **6.4.2** (Laravel 13, PHP 8.4, React 19), built by Nix from the release tarball |
+| Addons | Native Hydrodactyl addons in `plugins/hydrodactyl`: Zitadel SSO, DNS records, router port forwarding, Minecraft tools |
+| Auth | Zitadel OIDC (SSO addon); break-glass local login at `/auth/login` |
+| Containers | `pterodactyl` (panel, image `localhost/hydrodactyl-runtime:v6.4.2`), `pterodactyl-db` (MariaDB 12.3), `pterodactyl-redis` (Valkey 9.1), in one pod |
+| Test panel | Same image; `pterodactyl-test`, `pterodactyl-test-db` (MariaDB 11.4), `pterodactyl-test-redis`; its own `APP_KEY`, so it can never decrypt production node tokens |
 
-Production uses the **official** Pterodactyl panel (`release/v1.11.11`). The prior **PrestonHager/panel** `feat/plugin-manager` fork is removed from production and kept only on the test panel (`test.panel.prestonhager.com`).
+## Implementation
 
-Stock Pterodactyl (v1.11 and v1.12) has **no native OAuth/OIDC**. SSO is provided in-panel by the free [Blueprint Social Login](https://github.com/blueprint-community/extension-sociallogin) extension with the [SocialiteProviders Zitadel](https://socialiteproviders.com/Zitadel/) driver.
+| File | What it does |
+|---|---|
+| `nixos/containers/hydrodactyl-panel.nix` | Builds the panel: release tarball (pinned version + hash), the addons, Composer `vendor/` and the Vite frontend. Nothing is fetched at runtime |
+| `nixos/containers/hydrodactyl-docker.nix` | The runtime image. On start it syncs code into `/var/www/pterodactyl` (keeping `.env`, `storage/`, `bootstrap/cache`), runs migrations and caches, then php-fpm, the queue worker and the scheduler |
+| `nixos/containers/hydrodactyl.nix` | The flavor switch (`homelab.panel.{prod,test}.flavor = "hydrodactyl"` in `hosts/ace`), `hydrodactyl[-test]-env` (enforces `.env` keys) and `hydrodactyl[-test]-configure` (Zitadel provider from sops, egg loader features) |
+| `nixos/containers/pterodactyl.nix`, `pterodactyl-test.nix` | The pod, MariaDB, Valkey (password from `pterodactyl-redis-auth`), Caddy site and secrets, shared by both flavors |
+| `nixos/containers/hydrodactyl-test-node.nix` | A throwaway Wings node for the test panel |
 
-The previous **oauth2-proxy + forward_auth + HeaderAuthentication middleware** approach is **removed** from production Caddy and panel code.
+## SSO (Zitadel)
 
-## Removed custom fork features (production)
+- The SSO addon does the OIDC code flow (PKCE, state, nonce) against the **Pterodactyl** app in Zitadel's **Home Lab** project (`376196450586990901`). The Zitadel app keeps its old name.
+- Login page: **Sign in with Zitadel**, which starts at `/extensions/sociallogin/redirect/zitadel`. The callback is `/extensions/sociallogin/callback` (kept from the Blueprint era, so the Zitadel app's redirect URIs did not change).
+- Client ID and secret come from sops `pterodactyl-oauth-env`; `hydrodactyl-configure` writes them into the panel's provider settings.
+- **Admin rights:** on each login the addon sets `root_admin` from the `groups` claim. Users whose groups include `pterodactyl_admin` (Zitadel project role of the same name, mapped by the `homelabGroups` action, `scripts/zitadel-homelab-groups-action.js`) are admins; others are not. A token with no groups claim leaves `root_admin` unchanged.
+- Linking a Zitadel identity to an existing account by email requires `email_verified`. Users manage links under Account → Linked Accounts.
 
-The PrestonHager `feat/plugin-manager` fork added roughly 1,800 lines across 56 files. Removed from production:
+## Upgrading
 
-| Area | What was removed |
-|------|------------------|
-| Git remote | `PrestonHager/panel` → `pterodactyl/panel` official |
-| Plugin manager | `app/Services/Plugins/*`, plugin API v3 routes, admin plugin designer UI |
-| Panel update scripts | Custom `scripts/panel-update.sh`, `scripts/panel-update-container.sh` |
-| React plugin host | `PluginClientTabHost`, dashboard/server router plugin tabs |
-| Docs | `docs/plugins/*`, `docs/panel-updates.md` fork docs |
-| SSO patches (old) | `HeaderAuthentication` middleware, `auth.php` header guard, oauth2-proxy forward_auth, break-glass Zitadel blade banner |
+Hydrodactyl is **not** auto-updated: the update tooling can only rewrite version strings, and the release tarball is pinned by hash. The *Ace manual update available* alert mails when a newer release in the same series is out.
 
-## Zitadel OIDC application
+1. Take a backup (`systemctl start restic-backups-local`); Hydrodactyl's migrations are one-way.
+2. In `nixos/containers/hydrodactyl-panel.nix`, set `version` and the `upstream` hash (`nix store prefetch-file https://github.com/BlueprintFramework/hydrodactyl/releases/download/v<version>/panel.tar.gz`).
+3. Rebuild, then check the test panel first (log in, a server console, the DNS and port-forward tabs).
+4. Check production: `podman exec pterodactyl php /var/www/pterodactyl/artisan --version`, the login page, an SSO login.
 
-Create or update the **Pterodactyl** OIDC app in the **Home Lab** project (`376196450586990901`):
-
-| Setting | Value |
-|---------|--------|
-| App type | Web |
-| Redirect URIs | `https://panel.prestonhager.com/extensions/sociallogin/callback` (primary), `https://panel.prestonhager.com/oauth2/callback` (legacy oauth2-proxy), `https://test.panel.prestonhager.com/extensions/sociallogin/callback` (test panel) |
-| Grant types | Authorization Code, Refresh Token |
-| Auth method | Basic (client secret) |
-| Role assertions | Enabled (ID token + access token) |
-
-Automated setup on ace (admin session API). Updates redirect URIs via the dedicated `oidc_config` endpoint (the generic app PUT no longer persists OIDC redirect changes on Zitadel v4):
-
-This script (`zitadel-pterodactyl-console-setup.js`) and the deploy helper `ace-pterodactyl-oauth-deploy.sh` were removed in commit `572c200`. Recover the setup script if needed:
+## Verification
 
 ```bash
-cd /etc/nixos
-git show 572c200^:scripts/zitadel-pterodactyl-console-setup.js > /tmp/zitadel-pterodactyl-console-setup.js
-nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-pterodactyl-console-setup.js
-```
-
-Store credentials in sops (`pterodactyl-oauth-env`), then `nix flake update nix-secrets` and rebuild ace. `pterodactyl-sso-configure.service` (`nixos/containers/pterodactyl-sso.nix`) seeds the Zitadel provider in the panel from that secret.
-
-## Panel admin via Zitadel role
-
-| Zitadel project role | Panel effect |
-|----------------------|--------------|
-| `pterodactyl_admin` | Panel root admin (`root_admin=1`) on SSO login |
-| (no role) | Normal user |
-
-Zitadel project roles use a nested object claim. A **Complement Token** action adds a flat `groups` claim read by the Social Login callback patch.
-
-### MANUAL: Complement Token action in Zitadel console
-
-1. Open https://zitadel.prestonhager.com/ui/console/org/actions
-2. **New action** → flow **Complement Token** → name `pterodactylGroups`
-3. Triggers: **Pre Userinfo creation**, **Pre access token creation**
-4. Script (the removed setup script also printed it):
-
-```javascript
-function pterodactylGroups(ctx, api) {
-  if (!ctx.v1.user || !ctx.v1.user.grants || !ctx.v1.user.grants.grants) {
-    return;
-  }
-  const groups = [];
-  for (const grant of ctx.v1.user.grants.grants) {
-    const roleKeys = grant.roleKeys || [];
-    if (roleKeys.includes('pterodactyl_admin')) {
-      groups.push('pterodactyl_admin');
-      break;
-    }
-  }
-  api.v1.claims.setClaim('groups', groups);
-}
-```
-
-5. **Flows** → **Complement Token** → add `pterodactylGroups` to the flow
-6. Save and activate
-
-### Assign `pterodactyl_admin` in the Zitadel console
-
-1. **Home Lab** project → **Roles** → create `pterodactyl_admin` if missing
-2. **Authorizations** → user → grant `pterodactyl_admin`
-3. **Applications** → **Pterodactyl** → enable **Assert Roles on Authentication**
-
-## Login (SSO)
-
-Primary SSO URL:
-
-**https://panel.prestonhager.com/extensions/sociallogin/redirect/zitadel**
-
-Users visiting `/auth/login` see Social Login provider buttons (including Zitadel) when the extension is configured. Break-glass local login remains at `/auth/login` for username/password.
-
-## Alternatives considered
-
-| Approach | Verdict |
-|----------|---------|
-| Upgrade to v1.12 for native OAuth | No — v1.12 has security/fixes only, no OAuth |
-| PrestonHager plugin-manager fork | Removed from prod — replaced by Blueprint extension ecosystem |
-| oauth2-proxy + header-auth (previous) | Removed — replaced by in-panel Blueprint Social Login |
-| Blueprint + Social Login + Zitadel (current) | **Adopted** — free community extension, native login UI, Zitadel via SocialiteProviders |
-
-## Deploy sequence (production)
-
-On ace after pulling config changes:
-
-```bash
-cd /etc/nixos
-nixos-rebuild switch --flake .#ace
-```
-
-Systemd oneshots run in order:
-
-1. `pterodactyl-stock-reset.service` — revert `/pterodactyl/html` to official `release/v1.11.11`
-2. `pterodactyl-blueprint-install.service` — install Blueprint + Social Login extension
-3. `pterodactyl-sso-configure.service` — configure Zitadel OIDC provider and admin role sync
-
-## Verification on ace
-
-```bash
-systemctl is-active pterodactyl-stock-reset pterodactyl-blueprint-install pterodactyl-sso-configure
-test -f /pterodactyl/html/.blueprint && echo blueprint-ok
-test -f /pterodactyl/html/blueprint.sh && echo blueprint-sh-ok
-grep ZITADEL_CLIENT_ID /pterodactyl/html/.env
+systemctl is-active podman-pterodactyl hydrodactyl-env hydrodactyl-configure
 curl -sS -o /dev/null -w '%{http_code}\n' https://panel.prestonhager.com/auth/login
-# Server-side OAuth token exchange must reach Zitadel via host-gateway (not 127.0.0.1):
+podman exec pterodactyl php /var/www/pterodactyl/artisan --version
+# The panel reaches Zitadel through host-gateway, not 127.0.0.1:
 podman exec pterodactyl curl -sf --max-time 10 https://zitadel.prestonhager.com/.well-known/openid-configuration | head -c 80
 ```
 
-After SSO login as `admin@prestonhager.com`:
-
-```bash
-podman exec pterodactyl-db mariadb -upterodactyl -p"$DB_PASS" panel \
-  -e "SELECT email, root_admin FROM users WHERE email='admin@prestonhager.com';"
-```
-
-See also [Zitadel](./zitadel.md), [Nextcloud](./nextcloud.md), [Wings nodes](../pterodactyl-nodes/index.md), and [Network topology](../shared/network-topology.md).
+See also [Hydrodactyl addons: user guide](./pterodactyl-extensions-user-guide.md), [DNS records](./pterodactyl-plugin-dns-records.md), [Port forward](./pterodactyl-plugin-port-forward.md), [Zitadel](./zitadel.md), [Wings nodes](../pterodactyl-nodes/index.md) and [Network topology](../shared/network-topology.md).

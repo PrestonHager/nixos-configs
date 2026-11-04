@@ -7,9 +7,10 @@ Implementation: `nixos/containers/jellyfin.nix`, Caddy `nixos/caddy/jellyfin.nix
 | Field | Value |
 |-------|-------|
 | URL | https://jellyfin.prestonhager.com |
-| Version | Jellyfin **10.11.11** (official container image, pinned as `jellyfinVersion`) |
-| Auth | Zitadel OIDC via **SSO Authentication** plugin (`9p4/jellyfin-plugin-sso` **4.0.0.4**, hash-pinned, installed to `plugins/SSO Authentication_4.0.0.4`) |
-| Upgrade hold | Stay on **10.11.x**: there is no SSO plugin build for Jellyfin 12 yet (checked 2026-10-24: latest 4.0.0.4 targets ABI 10.11), and upgrading would break Zitadel login. The 12.0 database migration also cannot be rolled back without a restore. Enforced by `"holdMajor": "10"` in `ace-service-update-registry.json`, which silences the major-version alert and approval mail. Remove the hold once a plugin release targets the 12 ABI |
+| Version | Jellyfin **12.4** (official container image, pinned as `jellyfinVersion`; tested digest `sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771`) |
+| Auth | Zitadel OIDC via the **SSO-Auth** plugin, [`MaxRink/jellyfin-plugin-sso`](https://github.com/MaxRink/jellyfin-plugin-sso) fork **6.1.0.0** (ABI 12.0, hash-pinned, installed to `plugins/SSO-Auth_6.1.0.0`). The original `9p4/jellyfin-plugin-sso` is archived at 4.0.0.4 (ABI 10.11). The fork keeps the plugin GUID and the `SSO-Auth.xml` schema |
+| Other plugins | Installed from the Jellyfin catalog, not by nix: AniDB 13, AniList 15, Open Subtitles 25, Playback Reporting 19, Reports 20 (ABI 12 builds). A major upgrade leaves the old builds `NotSupported`; reinstall them from the dashboard catalog |
+| Upgrades | No major hold since 12.4 (tested 2026-11-04 on a copy of production). The 10.11 → 12 database migration is one-way: back up `/jf/config` before any major bump |
 | SSO login URL | https://jellyfin.prestonhager.com/sso/OID/start/zitadel |
 | Break-glass local admin | `preston-admin` (existing local account) |
 
@@ -147,7 +148,7 @@ Port 8096 is published on `127.0.0.1` (Caddy, version check) and `192.168.5.5` (
 ## Verification on ace
 
 ```bash
-# SSO plugin loaded (expect 404 before plugin, 302/200 after)
+# SSO plugin loaded (expect 404 before plugin, 302 to Zitadel after)
 curl -sS -o /dev/null -w 'sso_start_http=%{http_code}\n' \
   'http://127.0.0.1:8096/sso/OID/start/zitadel'
 
@@ -167,7 +168,7 @@ nix shell nixpkgs#sqlite -c sqlite3 /jf/config/data/jellyfin.db \
 | `redirect_uri` mismatch | Add both `/sso/OID/redirect/zitadel` and `/sso/OID/r/zitadel` in Zitadel app |
 | "Check permissions" on login | Missing `groups` claim (complement action uses `grant.roleKeys` instead of `grant.roles`, or action not on Complement Token flow), user has both `jellyfin_admin` and `jellyfin_user`, or OIDC `groups` scope requested (blocks `setClaim`) — fix the `jellyfinGroups` action ([console steps](#manual-complement-token-action-console-fallback)) |
 | OIDC discovery timeout | Missing `host-gateway` for `zitadel.prestonhager.com` on the container |
-| Plugin not loaded | Run `systemctl restart jellyfin-sso-setup.service`; check `/jf/config/plugins/SSO Authentication_4.0.0.4/` (Jellyfin loads `plugins/<Name>_<version>/`) |
+| Plugin not loaded | Run `systemctl restart jellyfin-sso-setup.service`; check `/jf/config/plugins/SSO-Auth_6.1.0.0/` (Jellyfin loads `plugins/<Name>_<version>/`) and its `meta.json` `status` (`NotSupported` means the build targets another ABI) |
 | SSO button missing on login page | `branding.xml` LoginDisclaimer HTML must be XML entity-escaped (raw `<form>` tags break parsing); check `podman logs jellyfin` for `Error loading configuration file: branding.xml` |
 
 Useful logs:

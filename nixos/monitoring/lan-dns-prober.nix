@@ -9,6 +9,7 @@ let
     "cloud.prestonhager.com"
     "matrix.prestonhager.com"
     "zitadel.prestonhager.com"
+    "keycloak.prestonhager.com"
     "ace.internal.prestonhager.com"
   ];
   probeScript = pkgs.writeShellScript "lan-dns-probe" ''

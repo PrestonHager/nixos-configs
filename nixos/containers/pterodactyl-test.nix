@@ -451,7 +451,7 @@ EOF
       ExecStart = pkgs.writeShellScript "pod-pterodactyl-test" ''
         set -euo pipefail
         podman=${pkgs.podman}/bin/podman
-        hostGw="$(${pkgs.iproute2}/bin/ip -4 -o addr show podman0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)"
+        hostGw="$(${pkgs.iproute2}/bin/ip -4 -o addr show podman0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1 || true)"
         if [ -z "''${hostGw}" ]; then
           hostGw="10.88.0.1"
         fi
@@ -513,8 +513,18 @@ EOF
         if ! $podman container inspect pterodactyl-test --format '{{.State.Running}}' 2>/dev/null | grep -q true; then
           exit 0
         fi
-        $podman exec pterodactyl-test php /var/www/pterodactyl/artisan config:clear
-        $podman exec pterodactyl-test php /var/www/pterodactyl/artisan cache:clear
+        # The panel entrypoint rebuilds bootstrap/cache (routes-v7.php) right after
+        # the container starts; artisan run in that window dies with "Failed to
+        # open stream". Retry for up to two minutes instead of failing the switch.
+        artisan() {
+          for _ in $(seq 24); do
+            $podman exec pterodactyl-test php /var/www/pterodactyl/artisan "$@" && return 0
+            sleep 5
+          done
+          return 1
+        }
+        artisan config:clear
+        artisan cache:clear
       '';
     };
     path = [ pkgs.podman pkgs.coreutils pkgs.gnugrep ];
@@ -613,7 +623,7 @@ EOF
       ];
       cmd = [ "redis-server" "--save" "59" "1" "--loglevel" "warning" ];
       extraOptions = [ "--pod=pterodactyl-test" ];
-      image = "docker.io/valkey/valkey@sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507"; # valkey 8.1.10-alpine (BSD fork of Redis; cache/sessions only)
+      image = "docker.io/valkey/valkey@sha256:bf09d58e96d6b4524a15396b65b242bbe18beebbcc15a04d8ee75ddac62fae0b"; # valkey 9.1.3-alpine; 9.x RDB is unreadable by 8.x (rollback = start empty) (BSD fork of Redis; cache/sessions only)
     };
   };
 }

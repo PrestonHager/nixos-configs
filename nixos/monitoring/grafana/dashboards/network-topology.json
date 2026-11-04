@@ -877,7 +877,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "| WAN (Astracap Gi0/0) | Inside | Purpose | Probed? |\n|----------------------|--------|---------|---------|\n| TCP **80** | `192.168.5.5:80` | HTTP → ace / Caddy | via local HTTP probes |\n| TCP **443** | `192.168.5.5:443` | HTTPS → ace | yes (ace services + grafana) |\n| *(none)* | crux `.6` | No static NAT to crux | — |\n| *(none)* | nova `.7` | No static NAT to nova | — |\n| dynamic PAT | all LAN | Outbound internet | n/a |\n\nGame / Wings allocation ports on crux are **LAN-only** unless the Pterodactyl port-forward extension adds NAT. Re-check: `ssh astracap` → `show ip nat translations`."
+        "content": "| WAN (Astracap Gi0/0) | Inside | Purpose | Probed? |\n|----------------------|--------|---------|---------|\n| TCP **80** | `192.168.5.5:80` | HTTP → ace / Caddy | via local HTTP probes |\n| TCP **443** | `192.168.5.5:443` | HTTPS → ace | yes (ace services + grafana) |\n| *(none)* | crux `.6` | No static NAT to crux | — |\n| *(none)* | nova `.7` | No static NAT to nova | — |\n| dynamic PAT | all LAN | Outbound internet | n/a |\n\nGame / Wings allocation ports on crux are **LAN-only** unless the Hydrodactyl port-forward addon adds NAT. Re-check: `ssh astracap` → `show ip nat translations`."
       }
     },
     {

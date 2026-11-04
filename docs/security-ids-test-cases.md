@@ -635,7 +635,7 @@ Tabletop walkthrough: identify port, `shutdown`, verify isolation, rollback `no 
 
 **Setup**
 
-- Pterodactyl panel access; `wings.service` on crux/nova.
+- Hydrodactyl panel access; `wings.service` on crux/nova.
 
 **Execution**
 

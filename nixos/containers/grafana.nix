@@ -12,7 +12,7 @@ let
   ];
   grafanaVersion = "13.3.0";
   # Remote image renderer (replaces deprecated in-Grafana plugin). Shares pod network with Grafana.
-  imageRendererImage = "docker.io/grafana/grafana-image-renderer@sha256:24df1663f600abc6daa8ef006a0749c1d8f532e43a4542baf55ba15c5a3eaeac"; # v5.12.9
+  imageRendererImage = "docker.io/grafana/grafana-image-renderer@sha256:a7970b826f6e477461e02bf5463d92634e9ad27d525e4e50296978a2e592d2d7"; # v5.12.10
   grafanaPort = 8082;
   grafanaRuntimeEnv = "/run/grafana/container.env";
   rendererRuntimeEnv = "/run/grafana/renderer.env";
@@ -136,6 +136,8 @@ in {
     (etcPath "grafana/provisioning/dashboards/crux.yaml")
     (etcPath "grafana/provisioning/dashboards/lan.yaml")
     (etcPath "grafana/provisioning/dashboards/security.yaml")
+    (etcPath "grafana/provisioning/dashboards/servers.yaml")
+    (etcPath "grafana/dashboards/servers")
     (etcPath "grafana/dashboards/security/suricata-alerts.json")
     (etcPath "grafana/dashboards/ace/ace-uptime.json")
     (etcPath "grafana/dashboards/ace/ace-overview.json")
@@ -170,7 +172,7 @@ in {
       RemainAfterExit = true;
       ExecStart = pkgs.writeShellScript "pod-grafana-create" ''
         set -euo pipefail
-        hostGw="$(${pkgs.iproute2}/bin/ip -4 -o addr show podman0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)"
+        hostGw="$(${pkgs.iproute2}/bin/ip -4 -o addr show podman0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1 || true)"
         if [ -z "''${hostGw}" ]; then
           hostGw="10.88.0.1"
         fi
@@ -238,6 +240,8 @@ in {
       "${etcPath "grafana/provisioning/dashboards/crux.yaml"}:/etc/grafana/provisioning/dashboards/crux.yaml:ro"
       "${etcPath "grafana/provisioning/dashboards/lan.yaml"}:/etc/grafana/provisioning/dashboards/lan.yaml:ro"
       "${etcPath "grafana/provisioning/dashboards/security.yaml"}:/etc/grafana/provisioning/dashboards/security.yaml:ro"
+      "${etcPath "grafana/provisioning/dashboards/servers.yaml"}:/etc/grafana/provisioning/dashboards/servers.yaml:ro"
+      "${etcPath "grafana/dashboards/servers"}:/etc/grafana/dashboards/servers:ro"
       "${grafanaAlertingDir}/contact-points.yaml:/etc/grafana/provisioning/alerting/contact-points.yaml:ro"
       "${etcPath "grafana/provisioning/alerting/alert-rules.yaml"}:/etc/grafana/provisioning/alerting/alert-rules.yaml:ro"
       "${etcPath "grafana/provisioning/alerting/notification-policies.yaml"}:/etc/grafana/provisioning/alerting/notification-policies.yaml:ro"
