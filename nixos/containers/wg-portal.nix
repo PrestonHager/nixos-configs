@@ -4,28 +4,105 @@ let
   sops-path = builtins.toString inputs.nix-secrets;
   # Rendered from the sops config before every start (see preStart below).
   renderedConfig = "/run/wg-portal/config.yaml";
-  # Zitadel's urn:zitadel:iam:org:project:roles claim is an object keyed by role,
-  # which wg-portal cannot read as a group list (it logs "sanitization modified
-  # field value ... field=user_group" and finds no groups). Read the flat
-  # `groups` claim from the homelabGroups action instead, and match the project
-  # role key `wg-admin` (the old regex said `wg-admins`). Fold this into the sops
-  # file when nix-secrets is next edited, then drop the patch.
+
+  # OIDC login through Keycloak (client `wg-portal`, provider id `keycloak`).
+  # false keeps the old Zitadel provider; flip only once keycloak-realm-sync
+  # has created the client.
+  useKeycloak = false;
+  kcIssuer = "https://keycloak.prestonhager.com/realms/homelab";
+  idpDomain = if useKeycloak then "keycloak.prestonhager.com" else "zitadel.prestonhager.com";
+
+  # The sops config still describes the Zitadel provider. Its client secret is
+  # reused for Keycloak (the realm sync sets the `wg-portal` client to it).
+  zitadelEntry = ''(.auth.oidc[] | select(.id == "zitadel"))'';
+  # Accounts are keyed by preferred_username (the Keycloak username), so the
+  # existing prestonh/dylanh accounts are reused; wg-portal just adds an
+  # oauth/keycloak authentication to them on the first login.
+  keycloakProvider = builtins.toJSON {
+    id = "keycloak";
+    provider_name = "keycloak";
+    display_name = "Login with Keycloak";
+    base_url = kcIssuer;
+    client_id = "wg-portal";
+    extra_scopes = [ "email" "profile" "groups" ];
+    use_pkce = true;
+    pkce_method = "S256";
+    registration_enabled = true;
+    logout_idp_session = true;
+    field_map = {
+      user_identifier = "preferred_username";
+      email = "email";
+      firstname = "given_name";
+      lastname = "family_name";
+      user_groups = "groups";
+    };
+    admin_mapping.admin_group_regex = "^wg-admin$";
+  };
+  # Zitadel: its urn:zitadel:iam:org:project:roles claim is an object keyed by
+  # role, which wg-portal cannot read as a group list, so read the flat
+  # `groups` claim from the homelabGroups action and match `wg-admin`.
+  zitadelPatch = [
+    ''(.auth.oidc[] | select(.id == "zitadel") | .field_map.user_groups) = "groups"''
+    ''(.auth.oidc[] | select(.id == "zitadel") | .admin_mapping.admin_group_regex) = "^wg-admin$"''
+  ];
+  keycloakPatch = [
+    ''.auth.oidc = [ ${keycloakProvider} * {"client_secret": (${zitadelEntry} | .client_secret)} ]''
+  ];
+  # Read by keycloak-realm-sync (homelab.keycloak.clients.wg-portal.secret).
+  keycloakEnv = "/run/wg-portal-keycloak/client.env";
   #
   # The web session and CSRF secrets are generated on ace (not taken from sops)
   # so ace-secret-rotate can roll them; see docs/secret-rotation.md.
   webSecretsDir = "/var/lib/wg-portal-secrets";
-  oidcPatch = lib.concatStringsSep " | " [
-    ''(.auth.oidc[] | select(.id == "zitadel") | .field_map.user_groups) = "groups"''
-    ''(.auth.oidc[] | select(.id == "zitadel") | .admin_mapping.admin_group_regex) = "^wg-admin$"''
+  oidcPatch = lib.concatStringsSep " | " ((if useKeycloak then keycloakPatch else zitadelPatch) ++ [
     ''.web.session_secret = load_str("${webSecretsDir}/session")''
     ''.web.csrf_secret = load_str("${webSecretsDir}/csrf")''
-  ];
+  ]);
 in
 {
+  homelab.keycloak.clients.wg-portal = {
+    name = "WireGuard Portal";
+    redirectUris = [ "https://wg.prestonhager.com/api/v0/auth/login/keycloak/callback" ];
+    postLogoutRedirectUris = [ "https://wg.prestonhager.com/*" ];
+    secret = { file = keycloakEnv; key = "WG_PORTAL_OIDC_CLIENT_SECRET"; };
+  };
+  homelab.keycloak.testUser.groups = [ "wg-admin" ];
+
+  # The client secret lives inside the wg-portal YAML; the realm sync wants a
+  # KEY=VALUE file. Extract it before every sync.
+  systemd.services.wg-portal-keycloak-env = {
+    description = "Extract the wg-portal OIDC client secret for keycloak-realm-sync";
+    after = [ "sops-nix.service" ];
+    before = [ "keycloak-realm-sync.service" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      UMask = "0077";
+      RuntimeDirectory = "wg-portal-keycloak";
+      RuntimeDirectoryMode = "0700";
+      RuntimeDirectoryPreserve = true;
+    };
+    script = ''
+      secret=$(${pkgs.yq-go}/bin/yq ${lib.escapeShellArg ''${zitadelEntry} | .client_secret''} \
+        ${config.sops.secrets."wg-portal-config".path})
+      if [ -z "$secret" ] || [ "$secret" = null ]; then
+        echo "wg-portal-keycloak-env: no client_secret for the zitadel provider in wg-portal-config" >&2
+        exit 1
+      fi
+      printf 'WG_PORTAL_OIDC_CLIENT_SECRET=%s\n' "$secret" > ${keycloakEnv}.tmp
+      mv -f ${keycloakEnv}.tmp ${keycloakEnv}
+    '';
+  };
+  systemd.services.keycloak-realm-sync = {
+    wants = [ "wg-portal-keycloak-env.service" ];
+    after = [ "wg-portal-keycloak-env.service" ];
+  };
+
   sops.secrets = {
     "wg-portal-config" = {
       sopsFile = "${sops-path}/secrets/containers/wg-portal-config.yaml";
-      restartUnits = [ "podman-wg-portal.service" ];
+      restartUnits = [ "podman-wg-portal.service" "wg-portal-keycloak-env.service" ];
     };
   };
 
@@ -111,8 +188,8 @@ in
       # above), so the container cannot load arbitrary kernel modules.
       #"--cap-add=NET_RAW"
       # Host /etc/hosts maps the vhost to 127.0.0.1, which is the container's own
-      # loopback; point it at Caddy on the host so the Zitadel OIDC login works.
-      "--add-host=zitadel.prestonhager.com:host-gateway"
+      # loopback; point it at Caddy on the host so the OIDC login works.
+      "--add-host=${idpDomain}:host-gateway"
       # The image declares VOLUME /app/config; only config.yaml is bind-mounted,
       # so every run created an anonymous volume. Back image volumes with tmpfs.
       "--image-volume=tmpfs"

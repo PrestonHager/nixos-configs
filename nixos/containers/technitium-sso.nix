@@ -8,13 +8,26 @@ let
   ssoHashFile = "${dataRoot}/.sso-settings.sha256";
   oidcEnvFile = config.sops.secrets."technitium-oidc-env".path;
 
+  # OIDC login through Keycloak (client `technitium`, docs/dns-ace.md). false
+  # keeps the old Zitadel login; flip only once keycloak-realm-sync has created
+  # the client.
+  useKeycloak = false;
+
   zitadelIssuer = "https://zitadel.prestonhager.com";
   zitadelProjectId = "376196450586990901";
+  issuer = if useKeycloak then "https://keycloak.prestonhager.com/realms/homelab" else zitadelIssuer;
+  # Keycloak client ids are plain names; the sops env still holds Zitadel's
+  # numeric id (and the client secret, reused as is).
+  clientId = if useKeycloak then "technitium" else "$TECHNITIUM_OIDC_CLIENT_ID";
+  # Keycloak: group name in the flat `groups` claim. Zitadel: project role.
   adminRoleKey = "technitium_admin";
   adminLocalGroup = "Administrators";
 
+  # Technitium splits ssoScopes (and ssoGroupMap) on "|". The old comma list
+  # was stored as one bogus scope next to openid and profile.
   ssoScopes =
-    "openid,profile,email,groups,urn:zitadel:iam:org:project:roles,urn:zitadel:iam:org:project:id:${zitadelProjectId}:aud";
+    if useKeycloak then "openid|profile|email|groups"
+    else "openid,profile,email,groups,urn:zitadel:iam:org:project:roles,urn:zitadel:iam:org:project:id:${zitadelProjectId}:aud";
 
   syncSsoScript = pkgs.writeShellScript "technitium-sync-sso" ''
     set -euo pipefail
@@ -24,7 +37,7 @@ let
     OIDC_ENV="${oidcEnvFile}"
 
     if [ ! -s "$OIDC_ENV" ]; then
-      echo "Technitium OIDC env missing at $OIDC_ENV; run scripts/zitadel-technitium-setup.js and update technitium.yaml in sops." >&2
+      echo "Technitium OIDC env missing at $OIDC_ENV (technitium-oidc-env in secrets/containers/technitium.yaml)." >&2
       exit 1
     fi
 
@@ -64,10 +77,10 @@ let
     ${pkgs.curl}/bin/curl -sf -X POST -H "@$tmp/auth" \
       "$API/api/admin/sso/set" \
       --data-urlencode "ssoEnabled=true" \
-      --data-urlencode "ssoAuthority=${zitadelIssuer}" \
-      --data-urlencode "ssoClientId=$TECHNITIUM_OIDC_CLIENT_ID" \
+      --data-urlencode "ssoAuthority=${issuer}" \
+      --data-urlencode "ssoClientId=${clientId}" \
       --data-urlencode "ssoClientSecret@$tmp/client-secret" \
-      --data-urlencode "ssoMetadataAddress=${zitadelIssuer}/.well-known/openid-configuration" \
+      --data-urlencode "ssoMetadataAddress=${issuer}/.well-known/openid-configuration" \
       --data-urlencode "ssoScopes=${ssoScopes}" \
       --data-urlencode "ssoAllowSignup=true" \
       --data-urlencode "ssoAllowSignupOnlyForMappedUsers=true" \
@@ -77,6 +90,13 @@ let
   '';
 in
 {
+  homelab.keycloak.clients.technitium = {
+    name = "Technitium DNS";
+    redirectUris = [ "https://dns.prestonhager.com/sso/callback" ];
+    secret = { file = oidcEnvFile; key = "TECHNITIUM_OIDC_CLIENT_SECRET"; };
+  };
+  homelab.keycloak.testUser.groups = [ "technitium_admin" ];
+
   sops.secrets = {
     "technitium-oidc-env" = {
       sopsFile = "${sops-path}/secrets/containers/technitium.yaml";
@@ -85,7 +105,7 @@ in
   };
 
   systemd.services.technitium-sync-sso = {
-    description = "Configure Technitium DNS SSO (Zitadel OIDC)";
+    description = "Configure Technitium DNS SSO (OIDC)";
     after = [
       "podman-technitium.service"
       "technitium-ensure-admin-password.service"

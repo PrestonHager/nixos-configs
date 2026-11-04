@@ -380,6 +380,23 @@ Enabling **NAT hairpin / NAT loopback** on Astracap would let LAN clients use pu
 - Nextcloud: [nextcloud-action-plan.md](../ace/nextcloud-action-plan.md)  
 - Empty Cloudflare proxy body (orange cloud): [Ace Caddy apps](#ace-caddy-apps-grafana-vault-cloud-panel-) above — distinct from hairpin; public curl should show non-zero body and `Via: Caddy`, not `Server: cloudflare` with `Content-Length: 0`.
 
+## Web console login (SSO via Keycloak)
+
+The DNS web console (`https://dns.prestonhager.com`, LAN/tailnet/VPN only) signs in through Keycloak: realm `homelab`, client `technitium`. `technitium-sync-sso` (`nixos/containers/technitium-sso.nix`) applies the settings through the admin API whenever they change. The client is declared in that module (`homelab.keycloak.clients.technitium`), and its secret is `TECHNITIUM_OIDC_CLIENT_SECRET` in `technitium-oidc-env` (`secrets/containers/technitium.yaml`), the same value the Zitadel app used. The `TECHNITIUM_OIDC_CLIENT_ID` in that file (Zitadel's numeric id) is no longer read. `useKeycloak` at the top of the module switches between Keycloak and the old Zitadel provider.
+
+| Setting | Value |
+|---------|-------|
+| Authority | `https://keycloak.prestonhager.com/realms/homelab` |
+| Scopes | `openid\|profile\|email\|groups` (Technitium splits on `\|`) |
+| Group map | Keycloak group `technitium_admin` → local group `Administrators` |
+| Sign-up | allowed, but only for members of a mapped group |
+
+Group membership is resynced from the `groups` claim at every login, so removing someone from `technitium_admin` in Keycloak demotes them at their next login. The local `admin` account (password in `/stor/technitium/secrets/admin-password`) is break-glass and is used by the sync units.
+
+**Accounts are linked by `sub` only.** Technitium stores the IdP's `sub` in each SSO account and has no API to change it. A new `sub` therefore means a new account, named after the email. The Zitadel SSO account `prestonh` was relinked to the Keycloak `sub` at the cutover: stop the container, back up `auth.config`, replace the length-prefixed old `sub` (it occurs exactly once) with the Keycloak user id, then start the container. `prestonh` holds no API tokens and no zone or section permissions, only group membership.
+
+**Regression test:** `bash tests/sso/run.sh technitium`. It checks that sign-up is refused without `technitium_admin`, that a login with it lands in Administrators and can use the admin API, and that losing the group demotes the account. It also checks that `prestonh` is still the only account for Preston. The test account is deleted afterwards.
+
 ## Technitium first run
 
 1. Deploy config and `nixos-rebuild switch --flake /etc/nixos#ace`.

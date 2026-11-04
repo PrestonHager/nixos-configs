@@ -17,9 +17,40 @@ let
   grafanaRuntimeEnv = "/run/grafana/container.env";
   rendererRuntimeEnv = "/run/grafana/renderer.env";
   grafanaAlertingDir = "/run/grafana/provisioning/alerting";
+  # OIDC login through Keycloak (client `grafana`, docs/monitoring-ace.md).
+  # false keeps the old Zitadel login; flip only once keycloak-realm-sync has
+  # created the client.
+  useKeycloak = false;
+  kcIssuer = "https://keycloak.prestonhager.com/realms/homelab";
+  kcOidc = "${kcIssuer}/protocol/openid-connect";
   # Host /etc/hosts maps *.prestonhager.com → 127.0.0.1; inside the container that is
   # loopback, not Caddy on the host. Override so server-side OAuth token/userinfo calls work.
-  zitadelDomain = "zitadel.prestonhager.com";
+  idpDomain = if useKeycloak then "keycloak.prestonhager.com" else "zitadel.prestonhager.com";
+  # All of the OAuth settings live here; the client is public with PKCE.
+  keycloakOauthEnv = {
+    GF_AUTH_GENERIC_OAUTH_ENABLED = "true";
+    GF_AUTH_GENERIC_OAUTH_NAME = "Keycloak";
+    GF_AUTH_GENERIC_OAUTH_CLIENT_ID = "grafana";
+    GF_AUTH_GENERIC_OAUTH_SCOPES = "openid profile email groups";
+    GF_AUTH_GENERIC_OAUTH_AUTH_URL = "${kcOidc}/auth";
+    GF_AUTH_GENERIC_OAUTH_TOKEN_URL = "${kcOidc}/token";
+    GF_AUTH_GENERIC_OAUTH_API_URL = "${kcOidc}/userinfo";
+    GF_AUTH_GENERIC_OAUTH_USE_PKCE = "true";
+    GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP = "true";
+    # Existing accounts have login = email (that is how Zitadel logins were
+    # created). Keep it, and find them by email: the Keycloak `sub` differs
+    # from the Zitadel one stored in user_auth. Keycloak emails are set by
+    # admins (no self sign-up), so the email lookup is safe here.
+    GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH = "email";
+    GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH = "email";
+    GF_AUTH_GENERIC_OAUTH_NAME_ATTRIBUTE_PATH = "name";
+    GF_AUTH_OAUTH_ALLOW_INSECURE_EMAIL_LOOKUP = "true";
+    GF_AUTH_GENERIC_OAUTH_GROUPS_ATTRIBUTE_PATH = "groups";
+    GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN = "true";
+    GF_AUTH_GENERIC_OAUTH_SKIP_ORG_ROLE_SYNC = "false";
+    GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH = "contains(groups || `[]`, 'grafana_admin') && 'GrafanaAdmin' || 'Viewer'";
+    GF_AUTH_SIGNOUT_REDIRECT_URL = "${kcOidc}/logout?client_id=grafana&post_logout_redirect_uri=https%3A%2F%2Fgrafana.prestonhager.com%2Flogin";
+  };
   grafanaContainerEnvScript = pkgs.writeShellScript "grafana-container-env" ''
     set -euo pipefail
     # Secrets land in these files; never let them exist world-readable, even briefly.
@@ -39,6 +70,12 @@ let
     fi
     grep -v '^GF_SMTP_' "${grafanaRuntimeEnv}" > "${grafanaRuntimeEnv}.tmp" || true
     mv "${grafanaRuntimeEnv}.tmp" "${grafanaRuntimeEnv}"
+    ${lib.optionalString useKeycloak ''
+      # The sops env still carries the old Zitadel OAuth settings (and an empty
+      # client secret: the client is public); keycloakOauthEnv replaces them.
+      grep -v '^GF_AUTH_GENERIC_OAUTH_' "${grafanaRuntimeEnv}" > "${grafanaRuntimeEnv}.tmp" || true
+      mv "${grafanaRuntimeEnv}.tmp" "${grafanaRuntimeEnv}"
+    ''}
     {
       printf '%s\n' 'GF_SMTP_ENABLED=true'
       printf '%s\n' 'GF_SMTP_HOST=smtp.mail.me.com:587'
@@ -76,6 +113,19 @@ EOF
     chmod 644 "$outFile"
   '';
 in {
+  # Keycloak client. Public with PKCE, as the Zitadel app was:
+  # GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET in sops is empty, so there is no
+  # secret to reuse.
+  homelab.keycloak.clients.grafana = {
+    name = "Grafana";
+    publicClient = true;
+    redirectUris = [ "https://grafana.prestonhager.com/login/generic_oauth" ];
+    postLogoutRedirectUris = [ "https://grafana.prestonhager.com/login" ];
+    webOrigins = [ "https://grafana.prestonhager.com" ];
+    settings.attributes."pkce.code.challenge.method" = "S256";
+  };
+  homelab.keycloak.testUser.groups = [ "grafana_admin" ];
+
   sops.secrets = {
     "grafana-oauth-env" = {
       sopsFile = "${sops-path}/secrets/containers/grafana-oauth.yaml";
@@ -178,7 +228,7 @@ in {
         fi
         if ${pkgs.podman}/bin/podman pod exists grafana-pod; then
           if ! ${pkgs.podman}/bin/podman pod inspect grafana-pod --format '{{range .InfraConfig.HostAdd}}{{.}} {{end}}' \
-            | grep -q "${zitadelDomain}:''${hostGw}"; then
+            | grep -q "${idpDomain}:''${hostGw}"; then
             ${pkgs.podman}/bin/podman pod stop -t 10 grafana-pod || true
             ${pkgs.podman}/bin/podman pod rm -f grafana-pod || true
           fi
@@ -186,7 +236,7 @@ in {
         if ! ${pkgs.podman}/bin/podman pod exists grafana-pod; then
           ${pkgs.podman}/bin/podman pod create \
             --name grafana-pod \
-            --add-host=${zitadelDomain}:''${hostGw} \
+            --add-host=${idpDomain}:''${hostGw} \
             --add-host=host.containers.internal:host-gateway \
             --dns=192.168.5.5 \
             -p 127.0.0.1:${toString grafanaPort}:3000 \
@@ -218,7 +268,8 @@ in {
       GF_SERVER_ROOT_URL = "https://grafana.prestonhager.com/";
       GF_SERVER_ENFORCE_DOMAIN = "true";
       GF_SERVER_ENABLE_GZIP = "true";
-      # Zitadel OIDC and SMTP password are configured via runtime env file.
+      # SMTP password (and, until useKeycloak, the Zitadel OAuth settings) come
+      # from the runtime env file; Keycloak OAuth from keycloakOauthEnv below.
       GF_AUTH_LDAP_ENABLED = "false";
       GF_AUTH_DISABLE_LOGIN_FORM = "false";
       # Default org role for new OAuth users when role_attribute_path does not match.
@@ -229,7 +280,7 @@ in {
       GF_RENDERING_CALLBACK_URL = "http://127.0.0.1:3000/";
       GF_RENDERING_TIMEOUT = "30";
       GF_UNIFIED_ALERTING_ENABLED = "true";
-    };
+    } // lib.optionalAttrs useKeycloak keycloakOauthEnv;
 
     volumes = [
       "/etc/passwd:/etc/passwd:ro"

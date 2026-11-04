@@ -7,7 +7,7 @@ Implementation: `nixos/containers/grafana.nix`, `nixos/containers/prometheus.nix
 | Field | Value |
 |-------|-------|
 | URL | https://grafana.prestonhager.com |
-| Auth | Zitadel OIDC (Generic OAuth); local login form remains enabled for break-glass |
+| Auth | Keycloak OIDC (Generic OAuth, client `grafana`); local login form remains enabled for break-glass |
 | Secrets | `grafana-oauth-env` in sops (`grafana-oauth.yaml`) |
 | Image export | Remote `grafana-image-renderer` sidecar in `grafana-pod` (not the deprecated plugin) |
 
@@ -33,44 +33,28 @@ podman exec grafana-image-renderer wget -qO- http://127.0.0.1:8081/metrics | hea
 
 Renderer port 8081 is pod-internal only (host `8081` is Vaultwarden).
 
-### Grafana Admin via Zitadel OAuth
+### Grafana login and admin via Keycloak
 
-OAuth users are **not** Grafana server admins unless `role_attribute_path` maps their OIDC claims to `GrafanaAdmin` and `GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN=true`.
+Grafana logs in through Keycloak (realm `homelab`, client `grafana`, Generic OAuth). The client is declared in `grafana.nix` (`homelab.keycloak.clients.grafana`) and created by `keycloak-realm-sync`. It is a public client with PKCE (S256), like the Zitadel app was, so it has no client secret. `useKeycloak` at the top of `grafana.nix` turns the Keycloak settings on.
 
-Current mapping (in sops):
+| Setting | Value |
+|---------|-------|
+| Issuer | `https://keycloak.prestonhager.com/realms/homelab` (auth, token, userinfo under `/protocol/openid-connect/`) |
+| Scopes | `openid profile email groups` |
+| Admin | `contains(groups \|\| \`[]\`, 'grafana_admin') && 'GrafanaAdmin' \|\| 'Viewer'` |
+| Login / email | both from the `email` claim |
+| Account match | `GF_AUTH_OAUTH_ALLOW_INSECURE_EMAIL_LOOKUP=true` |
+| Sign-out | ends the Keycloak session, then returns to `/login` |
 
-- Zitadel project role `grafana_admin` (in userinfo claim `urn:zitadel:iam:org:project:roles`) → `GrafanaAdmin`
-- Everyone else → org `Viewer`
+All of it is in Nix (`keycloakOauthEnv` in `grafana.nix`). `grafana-container-env` drops every `GF_AUTH_GENERIC_OAUTH_*` line from the sops env (`secrets/containers/grafana-oauth.yaml`), so the old Zitadel settings still stored there have no effect. That file now matters only for the renderer token and the alert recipients.
 
-Required sops env vars (`secrets/containers/grafana-oauth.yaml`):
+**Admin.** Membership of the Keycloak group `grafana_admin` makes a user Grafana server admin and org Admin; everyone else is org Viewer. Membership is managed in the Keycloak admin console (`docs/keycloak-users.md`). Roles are re-evaluated at every login.
 
-```bash
-GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN=true
-GF_AUTH_GENERIC_OAUTH_SKIP_ORG_ROLE_SYNC=false
-GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH=email
-GF_AUTH_GENERIC_OAUTH_SCOPES=openid profile email urn:zitadel:iam:org:project:roles urn:zitadel:iam:org:project:id:376196450586990901:aud
-GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=contains(keys("urn:zitadel:iam:org:project:roles"), 'grafana_admin') && 'GrafanaAdmin' || 'Viewer'
-```
+**Existing accounts.** Accounts created through Zitadel have login = email (`preston@hagerfamily.com`, `dylan@hagerfamily.com`, `admin@prestonhager.com`). Their `user_auth` rows hold the Zitadel `sub`, which Keycloak does not share. The email lookup finds the existing account by email, and Grafana then relinks it to the Keycloak `sub`. A Keycloak user's email must therefore match their Grafana email. Keycloak has no self sign-up (admins set emails, and Google only links existing users), which is what makes the email lookup safe here. The old LDAP account `prestonh` (id 2) is left untouched.
 
-Zitadel emits project roles as an object keyed by role name, for example:
+**Regression test:** `bash tests/sso/run.sh grafana`. It pre-creates a Grafana account with no IdP link and checks that the login lands on it (matched by email), that `grafana_admin` gives GrafanaAdmin and that losing it demotes to Viewer. It then deletes the test account.
 
-```json
-"urn:zitadel:iam:org:project:roles": {
-  "grafana_admin": { "376196450586990901": "prestonhager.com" }
-}
-```
-
-Grafana evaluates JMESPath against userinfo; `contains(keys("urn:zitadel:iam:org:project:roles"), 'grafana_admin')` checks for the role key.
-
-Zitadel setup (Home Lab project):
-
-1. Create project role `grafana_admin` (Roles tab).
-2. Assign the role to users under **Authorizations**.
-3. In the Grafana OIDC application, enable **Assert Roles on Authentication** (access token + ID token role assertion).
-4. After changing sops, run `nix flake update nix-secrets && nixos-rebuild switch --flake .#ace` on ace so the Grafana container restarts with the new env file.
-5. Sign out of Grafana and sign in with Zitadel again so roles are re-evaluated.
-
-See also `docs/zitadel-ace.md` for console steps.
+Break-glass: the local login form stays enabled (`admin`, password in `/grafana/data/admin-api-pass`).
 
 External and LAN probe perspectives: `docs/monitoring-external-probes.md`.
 
@@ -213,7 +197,7 @@ nix shell nixpkgs#sqlite -c sqlite3 /grafana/data/grafana.db \
   "UPDATE org_user SET role='Admin' WHERE user_id=(SELECT id FROM user WHERE email='admin@prestonhager.com');"
 ```
 
-The user should log out and back in via Zitadel; future logins pick up roles from `role_attribute_path` automatically.
+The user should log out and back in via Keycloak; future logins pick up roles from `role_attribute_path` automatically.
 
 Verify admin:
 
