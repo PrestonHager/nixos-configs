@@ -61,6 +61,7 @@
 - [Astraquasar switch](shared/network-astraquasar.md)
 - [Network & SSH / Bitwarden](shared/network-ssh.md)
 - [Git commit signing (SSH)](shared/git-commit-signing.md)
+- [Rotating secrets](shared/secret-rotation.md)
 - [Monitoring (Grafana + Prometheus)](shared/monitoring.md)
 - [External Probes](shared/monitoring-external-probes.md)
 - [Build & serve locally](shared/local-development.md)
