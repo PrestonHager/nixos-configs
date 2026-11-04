@@ -115,6 +115,9 @@ let
         firstName = "Preston";
         lastName = "Hager";
         groups = [ "/${kc.allServersGroup}" "/${kc.sudoFullGroup}" ];
+        # Imported users do not get the realm's default roles on their own;
+        # without manage-account/view-profile the account console fails.
+        realmRoles = [ "default-roles-${kc.realm}" ];
         credentials = [{
           type = "password";
           value = "\${PRESTONH_INITIAL_PASSWORD}";

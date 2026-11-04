@@ -76,6 +76,7 @@ All of this happens in the admin console under the `homelab` realm: **Users** an
 |---|---|
 | Realm missing after start | `podman logs keycloak`: the import aborts on invalid JSON or an unresolved placeholder |
 | `invalid_client` from SSSD | The secret in the realm differs from `sssd-keycloak-env`. Reset it in Clients → sssd → Credentials, or update sops to match |
+| Account console says "Something went wrong" | The user has no `default-roles-homelab`. Imported users don't get it automatically. Fix it in Users → the user → Role mapping → Assign role → `default-roles-homelab` |
 | Redirect loop or http:// URLs | `KC_HOSTNAME` must be `https://keycloak.prestonhager.com` and Caddy must send `X-Forwarded-Proto` (it does by default) |
 
 ```bash
