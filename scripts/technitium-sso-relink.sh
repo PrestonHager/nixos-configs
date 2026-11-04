@@ -43,7 +43,8 @@ cp -a "$CFG" "$bak"; sha256sum "$bak" > "$bak.sha256"
 
 dns_up() {
   for _ in $(seq 1 60); do
-    [ "$("$DIG" @192.168.5.5 grafana.prestonhager.com +short +time=1 +tries=1 2>/dev/null)" = 192.168.5.5 ] && return 0
+    # +short prints the CNAME (grafana.internal...) before the A record.
+    "$DIG" @192.168.5.5 grafana.prestonhager.com +short +time=1 +tries=1 2>/dev/null | grep -qx 192.168.5.5 && return 0
     sleep 1
   done
   return 1

@@ -22,14 +22,16 @@ td_groups() { td_admin "/api/admin/users/get?user=$1&includeGroups=true" | jq -c
 td_login() { # td_login <jar>
   local action args=()
   sso_login "$TD_URL/sso/login" "$1" || return 1
-  action=$(grep -o '<form[^>]*action="[^"]*"' "$SSO_BODY" | head -1 | sed 's/.*action="//; s/"$//; s/&amp;/\&/g')
-  [ -n "$action" ] || return 1
+  # Keycloak writes this page in upper case (<FORM ACTION=...>, <INPUT TYPE="HIDDEN">).
+  action=$(grep -io '<form[^>]*action="[^"]*"' "$SSO_BODY" | head -1 | sed 's/.*action="//I; s/"$//; s/&amp;/\&/g')
+  [ "$action" = "$TD_URL/sso/callback" ] || return 1
   while IFS= read -r inp; do
     local n v
-    n=$(sed -n 's/.*name="\([^"]*\)".*/\1/p' <<<"$inp")
-    v=$(sed -n 's/.*value="\([^"]*\)".*/\1/p' <<<"$inp" | sed 's/&amp;/\&/g; s/&#x2B;/+/g; s/&#x2F;/\//g; s/&#x3D;/=/g')
+    n=$(sed -n 's/.*name="\([^"]*\)".*/\1/Ip' <<<"$inp")
+    v=$(sed -n 's/.*value="\([^"]*\)".*/\1/Ip' <<<"$inp" | sed 's/&amp;/\&/g; s/&#x2B;/+/g; s/&#x2F;/\//g; s/&#x3D;/=/g')
     [ -n "$n" ] && args+=(--data-urlencode "$n=$v")
-  done < <(grep -o '<input[^>]*type="hidden"[^>]*>' "$SSO_BODY")
+  done < <(grep -io '<input[^>]*type="hidden"[^>]*>' "$SSO_BODY")
+  [ ${#args[@]} -gt 0 ] || return 1
   SSO_FINAL_URL=$(curl -sS -c "$1" -b "$1" -L -o "$SSO_BODY" -w '%{url_effective}' "${args[@]}" "$action")
 }
 td_session_token() { awk '$6 == "token" { print $7 }' "$1" | tail -1; } # td_session_token <jar>
@@ -57,7 +59,8 @@ td_admin "/api/admin/users/delete?user=$TD_USER" >/dev/null
 
 # Not in a mapped group, no account yet: sign-up refused.
 td_set_group DELETE
-td_login "$SSO_TMP/td0" || true
+td0_rc=0; td_login "$SSO_TMP/td0" || td0_rc=$?
+check "refused login still reached Technitium's callback" test "$td0_rc" = 0
 check "sign-up refused without technitium_admin" test -z "$(td_session_token "$SSO_TMP/td0")"
 check "no account created for the refused sign-up" \
   bash -c 'td_admin "/api/admin/users/get?user=$TD_USER" | jq -e ".status != \"ok\""'
