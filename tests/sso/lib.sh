@@ -45,9 +45,23 @@ sso_user_id() {
 }
 
 sso_user_enabled() { # sso_user_enabled true|false
-  local id; id=$(sso_user_id)
+  local id tok; id=$(sso_user_id)
   [ -n "$id" ] || { echo "sso-regression user missing (homelab.keycloak.testUser)" >&2; return 1; }
   kc_admin PUT "/users/$id" "{\"enabled\": $1}" >/dev/null
+  if [ "$1" = true ]; then
+    # Set the password from sops on every run: keycloak-config-cli does not
+    # reliably (re)apply credentials of an existing user. Through a file, so
+    # it never shows in argv.
+    _read_secret /run/secrets/keycloak-test-env SSO_REGRESSION_PASSWORD | tr -d '\n' > "$SSO_TMP/pw"
+    jq -n --rawfile p "$SSO_TMP/pw" '{type: "password", value: $p, temporary: false}' > "$SSO_TMP/pw.json"
+    rm -f "$SSO_TMP/pw"
+    tok=$(sso_admin_token)
+    local code
+    code=$(curl -sS -o /dev/null -w '%{http_code}' -X PUT -H "Authorization: Bearer $tok" -H 'Content-Type: application/json' \
+      --data-binary @"$SSO_TMP/pw.json" "$KC_URL/admin/realms/$KC_REALM/users/$id/reset-password")
+    rm -f "$SSO_TMP/pw.json"
+    [ "$code" = 204 ] || { echo "resetting the sso-regression password failed (HTTP $code)" >&2; return 1; }
+  fi
 }
 
 # sso_login <start-url> [jar]
@@ -68,7 +82,7 @@ sso_login() {
     printf '%s' "$page" > "$SSO_BODY"
     return 1
   fi
-  _read_secret /run/secrets/keycloak-test-env SSO_REGRESSION_PASSWORD > "$SSO_TMP/pw"
+  _read_secret /run/secrets/keycloak-test-env SSO_REGRESSION_PASSWORD | tr -d '\n' > "$SSO_TMP/pw"
   SSO_FINAL_URL=$(curl -sS -c "$SSO_JAR" -b "$SSO_JAR" -L --max-redirs 20 -o "$SSO_BODY" -w '%{url_effective}' \
     --data-urlencode "username=$SSO_USER" --data-urlencode "password@$SSO_TMP/pw" "$action")
   rm -f "$SSO_TMP/pw"
