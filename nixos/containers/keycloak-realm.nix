@@ -128,7 +128,8 @@ let
     realm = kc.realm;
     enabled = true;
 
-    groups = map (name: { inherit name; }) (lib.unique cfg.groups);
+    groups = map (name: { inherit name; } // (cfg.groupSettings.${name} or { }))
+      (lib.unique (cfg.groups ++ lib.attrNames cfg.groupSettings));
 
     clientScopes = [
       {
@@ -349,6 +350,20 @@ in
         console (docs/keycloak-users.md), never here. Never use a local
         group name (wheel, docker, users, ...): SSSD turns groups into POSIX
         groups on the servers and the local one wins.
+      '';
+    };
+
+    groupSettings = lib.mkOption {
+      type = lib.types.attrsOf (lib.types.attrsOf lib.types.anything);
+      default = { };
+      example = lib.literalExpression ''
+        { nextcloud_admin.clientRoles.nextcloud = [ "admin" ]; }
+      '';
+      description = ''
+        Extra GroupRepresentation fields per group (client roles,
+        attributes), merged into that group. The group is created if it is
+        not in `groups`. Client roles named here must exist, e.g. through
+        `clients.<name>.settings` or `realmSettings.roles.client.<name>`.
       '';
     };
 
