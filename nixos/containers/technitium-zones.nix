@@ -71,6 +71,7 @@ let
         "mc"
         "vpn"
         "serverdocs"
+        "homelab"
         "update"
         "coolify"
       ];

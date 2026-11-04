@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <radialGradient id="g" cx="78%" cy="30%" r="70%">
+      <stop offset="0" stop-color="#1C2742"/><stop offset="1" stop-color="#0B1020"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#g)"/>
+  <g fill="#E7ECF5" opacity=".55">
+    <circle cx="140" cy="90" r="2"/><circle cx="420" cy="60" r="1.5"/><circle cx="1040" cy="520" r="2"/>
+    <circle cx="700" cy="560" r="1.5"/><circle cx="1110" cy="110" r="1.5"/><circle cx="260" cy="560" r="2"/>
+  </g>
+  <g transform="translate(960 56) scale(3)">
+    <g fill="none" stroke="#2EC4B6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M32 11 L11 29 L15 53 L49 53 L53 29 Z"/>
+      <path d="M27 53 L27 40 L37 40 L37 53" opacity=".7"/>
+    </g>
+    <g fill="#E7ECF5"><circle cx="11" cy="29" r="2.6"/><circle cx="53" cy="29" r="2.6"/><circle cx="15" cy="53" r="2.6"/><circle cx="49" cy="53" r="2.6"/></g>
+    <path fill="#F5B84A" d="M32 2.5 L34.3 8.7 L40.5 11 L34.3 13.3 L32 19.5 L29.7 13.3 L23.5 11 L29.7 8.7 Z"/>
+  </g>
+  <text x="90" y="250" font-family="Inter, DejaVu Sans, sans-serif" font-size="30" font-weight="600" fill="#F5B84A" letter-spacing="4">HAGER HOMELAB</text>
+  <text x="90" y="330" font-family="Inter, DejaVu Sans, sans-serif" font-size="64" font-weight="700" fill="#E7ECF5">A small constellation</text>
+  <text x="90" y="405" font-family="Inter, DejaVu Sans, sans-serif" font-size="64" font-weight="700" fill="#E7ECF5">of servers, built in the open.</text>
+  <text x="90" y="480" font-family="Inter, DejaVu Sans, sans-serif" font-size="28" fill="#9AA6BF">Declarative NixOS · single sign-on · private by default</text>
+</svg>

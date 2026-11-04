@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hager Homelab</title>
+  <meta name="description" content="A small, self-hosted homelab managed declaratively with NixOS: single sign-on, private-by-default services and open-source configuration.">
+  <meta name="theme-color" content="#0B1020">
+  <link rel="canonical" href="https://homelab.prestonhager.com/">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Hager Homelab">
+  <meta property="og:title" content="Hager Homelab">
+  <meta property="og:description" content="A small constellation of servers, built in the open.">
+  <meta property="og:url" content="https://homelab.prestonhager.com/">
+  <meta property="og:image" content="https://homelab.prestonhager.com/assets/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/site.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <nav class="wrap nav" aria-label="Main">
+    <a class="brand" href="/" aria-label="Hager Homelab home">
+      <img src="/assets/logo-mark.svg" width="34" height="34" alt="">
+      <span>Hager <span class="muted">Homelab</span></span>
+    </a>
+    <button class="icon-btn menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="nav-links" aria-label="Menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="#outline">Overview</a></li>
+      <li><a href="#stack">Stack</a></li>
+      <li><a href="#open-source">Open source</a></li>
+      <li><a href="/brand.html">Brand</a></li>
+      <li><a class="btn btn-primary" href="/guide.html">Member guide</a></li>
+    </ul>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<main id="main">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div>
+          <p class="eyebrow">Self-hosted · Declarative · Open</p>
+          <h1>A small constellation of servers, <span class="accent">built in the open.</span></h1>
+          <p class="lead">Hager Homelab is a personal lab of rack servers and small nodes that hosts apps, media, game servers and experiments for a household and a few friends. Every machine is described in code, every login goes through one identity, and nothing private faces the internet.</p>
+          <div class="hero-ctas">
+            <a class="btn btn-primary" href="/guide.html">
+              Get started as a member
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a class="btn btn-ghost" href="https://github.com/PrestonHager/nixos-configs" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+              Browse the configs
+            </a>
+          </div>
+        </div>
+
+        <svg class="hero-art" viewBox="0 0 400 380" role="img" aria-labelledby="hero-art-title">
+          <title id="hero-art-title">A constellation shaped like a house: each star is a layer of the lab</title>
+          <g fill="none" stroke-width="1.6" stroke-linecap="round" class="line" opacity=".75">
+            <path d="M200 50 L70 160 L95 320 L305 320 L330 160 Z"/>
+            <path d="M70 160 L330 160" opacity=".35"/>
+            <path d="M200 50 L200 240" opacity=".35"/>
+            <path d="M95 320 L200 240 L305 320" opacity=".35"/>
+          </g>
+          <g class="star">
+            <circle cx="70" cy="160" r="6"/><circle cx="330" cy="160" r="6"/>
+            <circle cx="95" cy="320" r="6"/><circle cx="305" cy="320" r="6"/>
+            <circle cx="200" cy="240" r="5"/>
+          </g>
+          <path class="bright" d="M200 22 L207 43 L228 50 L207 57 L200 78 L193 57 L172 50 L193 43 Z"/>
+          <g class="star" opacity=".45">
+            <circle cx="40" cy="40" r="1.6"/><circle cx="360" cy="70" r="1.4"/><circle cx="380" cy="250" r="1.6"/>
+            <circle cx="20" cy="270" r="1.3"/><circle cx="260" cy="110" r="1.2"/><circle cx="130" cy="96" r="1.2"/>
+          </g>
+          <text class="label" x="200" y="12" text-anchor="middle">IDENTITY</text>
+          <text class="label" x="62" y="140" text-anchor="end">EDGE</text>
+          <text class="label" x="338" y="140">VPN</text>
+          <text class="label" x="95" y="348" text-anchor="middle">COMPUTE</text>
+          <text class="label" x="305" y="348" text-anchor="middle">STORAGE</text>
+          <text class="label" x="214" y="262">OBSERVE</text>
+        </svg>
+      </div>
+
+      <div class="stats" role="list">
+        <div class="stat" role="listitem"><b>100%</b><span>of hosts built from one Nix flake</span></div>
+        <div class="stat" role="listitem"><b>1 login</b><span>with MFA for every member service</span></div>
+        <div class="stat" role="listitem"><b>0</b><span>admin panels reachable from the internet</span></div>
+        <div class="stat" role="listitem"><b>24/7</b><span>metrics, alerts and outside probes</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Outline -->
+  <section id="outline" class="section-alt">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">How it's put together</p>
+        <h2>Six layers, one config repository</h2>
+        <p class="lead">The lab is small, but it is built like production: layered, reproducible and watched. Here is the general shape. The specifics stay inside.</p>
+      </div>
+
+      <div class="grid grid-3">
+        <article class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/></svg></div>
+          <h3>Edge &amp; network</h3>
+          <p>One front door. A hardened router and firewall, a reverse proxy with automatic TLS, and network intrusion detection that blocks known-bad addresses.</p>
+          <div class="tags"><span class="tag">firewall</span><span class="tag">auto-TLS</span><span class="tag">IDS</span><span class="tag">split DNS</span></div>
+        </article>
+        <article class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>
+          <h3>Identity</h3>
+          <p>A single sign-on provider for apps <em>and</em> server shells. Accounts are invite-only, multi-factor is required, and access is granted by group.</p>
+          <div class="tags"><span class="tag">OIDC</span><span class="tag">TOTP</span><span class="tag">SSH certs</span></div>
+        </article>
+        <article class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+          <h3>Private access</h3>
+          <p>Member and admin services answer only to the home network and the VPN. Members get a WireGuard tunnel and can add their own devices.</p>
+          <div class="tags"><span class="tag">WireGuard</span><span class="tag">self-service</span><span class="tag">VPN-only</span></div>
+        </article>
+        <article class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><path d="M7 7h.01M7 17h.01"/></svg></div>
+          <h3>Compute</h3>
+          <p>A mix of refurbished rack servers and small-form-factor nodes. Services run as containers; an app platform handles deploys and a panel runs game servers.</p>
+          <div class="tags"><span class="tag">NixOS</span><span class="tag">containers</span><span class="tag">PaaS</span><span class="tag">game servers</span></div>
+        </article>
+        <article class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></div>
+          <h3>Storage &amp; backups</h3>
+          <p>Shared storage on the LAN, nightly database dumps, and secrets encrypted at rest in Git and rotated on a schedule.</p>
+          <div class="tags"><span class="tag">nightly dumps</span><span class="tag">encrypted secrets</span><span class="tag">rotation</span></div>
+        </article>
+        <article class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></div>
+          <h3>Observability</h3>
+          <p>Metrics and dashboards for every host, alerts that only fire when something needs fixing, and probes from outside the network to catch what the inside can't see.</p>
+          <div class="tags"><span class="tag">metrics</span><span class="tag">dashboards</span><span class="tag">alerting</span></div>
+        </article>
+      </div>
+
+      <h3 class="visually-hidden">Architecture</h3>
+      <div class="diagram" id="architecture">
+        <svg class="diagram-wide" viewBox="0 0 960 360" role="img" aria-labelledby="arch-t arch-d">
+          <title id="arch-t">General architecture</title>
+          <desc id="arch-d">Public visitors reach a few public apps through the edge proxy. Members connect over the VPN, sign in once at the identity provider, and reach private services. All services run on the compute nodes, which share storage and are monitored.</desc>
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0 0 10 5 0 10Z"/></marker>
+            <marker id="ahs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-secure" d="M0 0 10 5 0 10Z"/></marker>
+          </defs>
+          <text class="z" x="20" y="28">INTERNET</text>
+          <rect class="box" x="20" y="48" width="170" height="70" rx="12"/>
+          <text class="t" x="40" y="78">Visitors</text><text class="s" x="40" y="99">anyone, any network</text>
+          <rect class="box-secondary" x="20" y="232" width="170" height="70" rx="12"/>
+          <text class="t" x="40" y="262">Members</text><text class="s" x="40" y="283">invited, on the VPN</text>
+
+          <rect class="zone" x="240" y="12" width="700" height="336" rx="18"/>
+          <text class="z" x="262" y="40">THE LAB</text>
+
+          <rect class="box-accent" x="262" y="56" width="180" height="70" rx="12"/>
+          <text class="t" x="282" y="86">Edge</text><text class="s" x="282" y="107">proxy · TLS · IDS</text>
+          <rect class="box-secondary" x="262" y="232" width="180" height="70" rx="12"/>
+          <text class="t" x="282" y="262">VPN gateway</text><text class="s" x="282" y="283">WireGuard tunnels</text>
+
+          <rect class="box" x="492" y="56" width="190" height="70" rx="12"/>
+          <text class="t" x="512" y="86">Public apps</text><text class="s" x="512" y="107">sites, wiki, game servers</text>
+          <rect class="box-accent" x="492" y="146" width="190" height="70" rx="12"/>
+          <text class="t" x="512" y="176">Identity (SSO)</text><text class="s" x="512" y="197">one login + MFA</text>
+          <rect class="box" x="492" y="232" width="190" height="70" rx="12"/>
+          <text class="t" x="512" y="262">Private services</text><text class="s" x="512" y="283">files, media, chat, admin</text>
+
+          <rect class="box" x="732" y="56" width="188" height="110" rx="12"/>
+          <text class="t" x="752" y="88">Compute nodes</text><text class="s" x="752" y="110">rack + small form factor</text><text class="s" x="752" y="130">containers, declarative</text>
+          <rect class="box" x="732" y="192" width="188" height="110" rx="12"/>
+          <text class="t" x="752" y="224">Storage &amp; watch</text><text class="s" x="752" y="246">shared storage, backups</text><text class="s" x="752" y="266">metrics, alerts, probes</text>
+
+          <path class="wire" d="M190 83 H254" marker-end="url(#ah)"/>
+          <path class="wire" d="M442 91 H484" marker-end="url(#ah)"/>
+          <path class="wire-secure" d="M190 267 H254" marker-end="url(#ahs)"/>
+          <path class="wire-secure" d="M442 267 H484" marker-end="url(#ahs)"/>
+          <path class="wire-secure" d="M587 232 V224" marker-end="url(#ahs)"/>
+          <path class="wire" d="M682 91 H724" marker-end="url(#ah)"/>
+          <path class="wire" d="M682 267 H724" marker-end="url(#ah)"/>
+          <path class="wire" d="M826 166 V184" marker-end="url(#ah)"/>
+        </svg>
+
+        <svg class="diagram-narrow" viewBox="0 0 340 560" role="img" aria-labelledby="arch-tn">
+          <title id="arch-tn">General architecture (compact)</title>
+          <defs>
+            <marker id="ahn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0 0 10 5 0 10Z"/></marker>
+            <marker id="ahsn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-secure" d="M0 0 10 5 0 10Z"/></marker>
+          </defs>
+          <rect class="box" x="10" y="10" width="150" height="58" rx="12"/><text class="t" x="24" y="36">Visitors</text><text class="s" x="24" y="55">anyone</text>
+          <rect class="box-secondary" x="180" y="10" width="150" height="58" rx="12"/><text class="t" x="194" y="36">Members</text><text class="s" x="194" y="55">on the VPN</text>
+          <rect class="box-accent" x="10" y="110" width="150" height="58" rx="12"/><text class="t" x="24" y="136">Edge</text><text class="s" x="24" y="155">proxy · TLS · IDS</text>
+          <rect class="box-secondary" x="180" y="110" width="150" height="58" rx="12"/><text class="t" x="194" y="136">VPN gateway</text><text class="s" x="194" y="155">WireGuard</text>
+          <rect class="box" x="10" y="210" width="150" height="58" rx="12"/><text class="t" x="24" y="236">Public apps</text><text class="s" x="24" y="255">sites, wiki, games</text>
+          <rect class="box-accent" x="180" y="210" width="150" height="58" rx="12"/><text class="t" x="194" y="236">Identity (SSO)</text><text class="s" x="194" y="255">one login + MFA</text>
+          <rect class="box" x="180" y="310" width="150" height="58" rx="12"/><text class="t" x="194" y="336">Private services</text><text class="s" x="194" y="355">files, media, chat</text>
+          <rect class="box" x="10" y="420" width="320" height="58" rx="12"/><text class="t" x="24" y="446">Compute nodes</text><text class="s" x="24" y="465">rack + small form factor, declarative</text>
+          <rect class="box" x="10" y="492" width="320" height="58" rx="12"/><text class="t" x="24" y="518">Storage &amp; watch</text><text class="s" x="24" y="537">backups, metrics, alerts, probes</text>
+          <path class="wire" d="M85 68 V102" marker-end="url(#ahn)"/>
+          <path class="wire" d="M85 168 V202" marker-end="url(#ahn)"/>
+          <path class="wire-secure" d="M255 68 V102" marker-end="url(#ahsn)"/>
+          <path class="wire-secure" d="M255 168 V202" marker-end="url(#ahsn)"/>
+          <path class="wire-secure" d="M255 268 V302" marker-end="url(#ahsn)"/>
+          <path class="wire" d="M85 268 V412" marker-end="url(#ahn)"/>
+          <path class="wire" d="M255 368 V412" marker-end="url(#ahn)"/>
+        </svg>
+        <div class="legend"><span><i></i> public traffic</span><span><i class="secure"></i> member traffic (VPN + SSO)</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Principles -->
+  <section id="principles">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Principles</p>
+        <h2>How the lab is run</h2>
+      </div>
+      <div class="grid grid-3">
+        <div class="card"><h3>Declarative everything</h3><p>Hosts, services, firewall rules, dashboards and alerts are Nix code. If it isn't in the repo, it doesn't exist.</p></div>
+        <div class="card"><h3>Private by default</h3><p>A service is LAN- and VPN-only until there's a reason for it to be public. Public names don't mean public access.</p></div>
+        <div class="card"><h3>One identity</h3><p>One account and one second factor open everything a member is allowed to use, and removing access happens in one place.</p></div>
+        <div class="card"><h3>Upgrade with a safety net</h3><p>Nightly dependency updates, rehearsals on test instances for big jumps, and rollbacks that are one reboot away.</p></div>
+        <div class="card"><h3>Watched, quietly</h3><p>Lots of signals, few pages. Alerts are reserved for things a human actually needs to fix.</p></div>
+        <div class="card"><h3>Built in the open</h3><p>The configuration is public. Secrets are encrypted in a separate repository and never land in the public one.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stack -->
+  <section id="stack" class="section-alt">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">The stack</p>
+        <h2>Standing on open-source shoulders</h2>
+        <p class="lead">The lab is glue around excellent upstream projects. Go give them a star.</p>
+      </div>
+      <div class="grid grid-4">
+        <div class="stack-group">
+          <h3>Foundation</h3>
+          <ul class="stack-links">
+            <li><a href="https://github.com/NixOS/nixpkgs" rel="noopener">NixOS / nixpkgs <small>NixOS/nixpkgs</small></a></li>
+            <li><a href="https://github.com/nix-community/home-manager" rel="noopener">Home Manager <small>nix-community</small></a></li>
+            <li><a href="https://github.com/Mic92/sops-nix" rel="noopener">sops-nix <small>Mic92/sops-nix</small></a></li>
+            <li><a href="https://github.com/nix-community/disko" rel="noopener">disko <small>nix-community</small></a></li>
+            <li><a href="https://github.com/containers/podman" rel="noopener">Podman <small>containers/podman</small></a></li>
+          </ul>
+        </div>
+        <div class="stack-group">
+          <h3>Edge &amp; access</h3>
+          <ul class="stack-links">
+            <li><a href="https://github.com/caddyserver/caddy" rel="noopener">Caddy <small>caddyserver/caddy</small></a></li>
+            <li><a href="https://github.com/WireGuard/wireguard-go" rel="noopener">WireGuard <small>WireGuard</small></a></li>
+            <li><a href="https://github.com/h44z/wg-portal" rel="noopener">WireGuard Portal <small>h44z/wg-portal</small></a></li>
+            <li><a href="https://github.com/TechnitiumSoftware/DnsServer" rel="noopener">Technitium DNS <small>TechnitiumSoftware</small></a></li>
+            <li><a href="https://github.com/OISF/suricata" rel="noopener">Suricata <small>OISF/suricata</small></a></li>
+          </ul>
+        </div>
+        <div class="stack-group">
+          <h3>Identity &amp; ops</h3>
+          <ul class="stack-links">
+            <li><a href="https://github.com/keycloak/keycloak" rel="noopener">Keycloak <small>keycloak/keycloak</small></a></li>
+            <li><a href="https://github.com/zitadel/zitadel" rel="noopener">Zitadel <small>zitadel/zitadel</small></a></li>
+            <li><a href="https://github.com/openpubkey/opkssh" rel="noopener">opkssh <small>openpubkey/opkssh</small></a></li>
+            <li><a href="https://github.com/prometheus/prometheus" rel="noopener">Prometheus <small>prometheus</small></a></li>
+            <li><a href="https://github.com/grafana/grafana" rel="noopener">Grafana <small>grafana/grafana</small></a></li>
+          </ul>
+        </div>
+        <div class="stack-group">
+          <h3>Apps &amp; platforms</h3>
+          <ul class="stack-links">
+            <li><a href="https://github.com/coollabsio/coolify" rel="noopener">Coolify <small>coollabsio/coolify</small></a></li>
+            <li><a href="https://github.com/BlueprintFramework/hydrodactyl" rel="noopener">Hydrodactyl <small>BlueprintFramework</small></a></li>
+            <li><a href="https://github.com/nextcloud/server" rel="noopener">Nextcloud <small>nextcloud/server</small></a></li>
+            <li><a href="https://github.com/jellyfin/jellyfin" rel="noopener">Jellyfin <small>jellyfin/jellyfin</small></a></li>
+            <li><a href="https://github.com/element-hq/synapse" rel="noopener">Matrix Synapse <small>element-hq/synapse</small></a></li>
+            <li><a href="https://github.com/wikimedia/mediawiki" rel="noopener">MediaWiki <small>wikimedia/mediawiki</small></a></li>
+            <li><a href="https://github.com/dani-garcia/vaultwarden" rel="noopener">Vaultwarden <small>dani-garcia</small></a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Open source -->
+  <section id="open-source">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Open source</p>
+        <h2>Read the source, borrow the ideas</h2>
+        <p class="lead">Everything that makes the lab tick is public on GitHub. Fork it, learn from it, or tell us what we did wrong.</p>
+      </div>
+      <div class="grid grid-3">
+        <a class="card repo" href="https://github.com/PrestonHager/nixos-configs" rel="noopener">
+          <span class="name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4Z"/><path d="M8 12h8M8 16h5"/></svg>nixos-configs</span>
+          <p>The flake behind every host: services, reverse proxy, identity, monitoring, dashboards and runbooks.</p>
+          <span class="meta">Nix · the main event</span>
+        </a>
+        <a class="card repo" href="https://github.com/PrestonHager/pterodactyl-wings-nix-overlay" rel="noopener">
+          <span class="name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4Z"/><path d="M8 12h8M8 16h5"/></svg>pterodactyl-wings-nix-overlay</span>
+          <p>A Nix overlay that packages the game-server daemon for NixOS nodes.</p>
+          <span class="meta">Nix · game servers</span>
+        </a>
+        <a class="card repo" href="https://github.com/PrestonHager/ace-k80-stack" rel="noopener">
+          <span class="name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4Z"/><path d="M8 12h8M8 16h5"/></svg>ace-k80-stack</span>
+          <p>Bringing a vintage datacenter GPU back to life for local AI: drivers, CUDA and model serving as a flake.</p>
+          <span class="meta">Nix · local AI</span>
+        </a>
+        <a class="card repo" href="https://github.com/PrestonHager/pterodactyl-blueprint-dns-records" rel="noopener">
+          <span class="name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4Z"/><path d="M8 12h8M8 16h5"/></svg>blueprint-dns-records</span>
+          <p>Game-panel extension that gives each server a friendly DNS name automatically.</p>
+          <span class="meta">PHP · panel extension</span>
+        </a>
+        <a class="card repo" href="https://github.com/PrestonHager/pterodactyl-blueprint-port-forward" rel="noopener">
+          <span class="name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4Z"/><path d="M8 12h8M8 16h5"/></svg>blueprint-port-forward</span>
+          <p>Game-panel extension that opens and closes router port forwards as servers come and go.</p>
+          <span class="meta">PHP · panel extension</span>
+        </a>
+        <a class="card repo" href="https://github.com/PrestonHager/pterodactyl-blueprint-minecraft-tools" rel="noopener">
+          <span class="name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4Z"/><path d="M8 12h8M8 16h5"/></svg>blueprint-minecraft-tools</span>
+          <p>Minecraft helpers for the game panel.</p>
+          <span class="meta">PHP · panel extension</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section>
+    <div class="wrap">
+      <div class="cta-band">
+        <div>
+          <h2>Got an invite?</h2>
+          <p>Set up your VPN and sign in for the first time in about ten minutes. The member guide walks you through every step.</p>
+        </div>
+        <a class="btn btn-primary" href="/guide.html">Open the member guide
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="/"><img src="/assets/logo-mark.svg" width="34" height="34" alt=""><span>Hager <span class="muted">Homelab</span></span></a>
+        <p>A personal, self-hosted lab. Built with NixOS and a lot of curiosity.</p>
+      </div>
+      <div>
+        <h4>Lab</h4>
+        <ul><li><a href="/#outline">Overview</a></li><li><a href="/#stack">Stack</a></li><li><a href="/#open-source">Open source</a></li></ul>
+      </div>
+      <div>
+        <h4>Members</h4>
+        <ul><li><a href="/guide.html">Member guide</a></li><li><a href="/guide.html#troubleshooting">Troubleshooting</a></li><li><a href="/guide.html#security">Staying safe</a></li></ul>
+      </div>
+      <div>
+        <h4>More</h4>
+        <ul><li><a href="/brand.html">Brand &amp; style guide</a></li><li><a href="https://github.com/PrestonHager" rel="noopener">GitHub</a></li><li><a href="https://prestonhager.com" rel="noopener">Blog</a></li></ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span data-year>2026</span> Preston Hager. Configuration licensed GPL-3.0.</span>
+      <span>No trackers, no cookies, no third-party requests.</span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

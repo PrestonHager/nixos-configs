@@ -32,6 +32,7 @@
 
     # Matrix / wiki / docs / other Caddy vhosts on ace
     "serverdocs.prestonhager.com"
+    "homelab.prestonhager.com"
     "matrix.prestonhager.com"
     "spacetime.prestonhager.com"
     # K80 AI stack — docs/ace-k80-gpu.md (TEMPORARILY DISABLED with OpenClaw)
