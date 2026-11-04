@@ -8,7 +8,7 @@ Implementation: `nixos/containers/nextcloud.nix`, Caddy `nixos/caddy/nextcloud.n
 |-------|-------|
 | URL | https://cloud.prestonhager.com |
 | Version | Nextcloud **35.0.2** (official container image, pinned as `nextcloudImage` in `nextcloud.nix`) |
-| Auth | Zitadel OIDC via `user_oidc` app; local login remains available (`?direct=1`) |
+| Auth | Keycloak OIDC (realm `homelab`, client `nextcloud`) via `user_oidc` app; local login remains available (`?direct=1`) |
 | Break-glass local admin | `nextcloud-admin` (password in sops `nextcloud-environment`) |
 | Whiteboard WebSocket | `ghcr.io/nextcloud-releases/whiteboard` **v2.1.2** sidecar (pinned by digest) in the Nextcloud pod; public URL `https://cloud.prestonhager.com/whiteboard` (Caddy proxies to `127.0.0.1:3002`) |
 
@@ -67,76 +67,45 @@ curl -sS https://cloud.prestonhager.com/status.php
 systemctl is-active podman-nextcloud podman-nextcloud-db podman-nextcloud-redis
 ```
 
-## Zitadel OIDC application
+## SSO (Keycloak)
 
-Create or update the **Nextcloud** OIDC app in the **Home Lab** project (`376196450586990901`):
+Nextcloud logs in through Keycloak (`https://keycloak.prestonhager.com`, realm `homelab`). Everything is declared in `nixos/containers/nextcloud.nix`:
 
-| Setting | Value |
-|---------|--------|
-| App type | Web |
-| Redirect URI | `https://cloud.prestonhager.com/apps/user_oidc/code` |
-| Grant types | Authorization Code, Refresh Token |
-| Auth method | Basic (client secret) |
-| Role assertions | Enabled (ID token + access token) |
+| Piece | Where |
+|-------|-------|
+| Keycloak client `nextcloud` (redirect `https://cloud.prestonhager.com/apps/user_oidc/code`, secret `KEYCLOAK_CLIENT_SECRET` from `nextcloud-oidc-env`) | `homelab.keycloak.clients.nextcloud`, applied by `keycloak-realm-sync` |
+| Client role `nextcloud` / `admin`, granted to group `nextcloud_admin` | `homelab.keycloak.realmSettings.roles` + `groupSettings.nextcloud_admin` |
+| `user_oidc` provider `keycloak` | `nextcloud-oidc-config.service` |
 
-The Zitadel setup scripts (`zitadel-nextcloud-console-setup.js`, preferred, admin session API; `zitadel-nextcloud-oauth-setup.js`, login-client JWT fallback) and `ace-nextcloud-oauth-deploy.sh` were removed in commit `572c200`. Create the app in the console, or recover a script:
+### Account identity
 
-```bash
-cd /etc/nixos
-git show 572c200^:scripts/zitadel-nextcloud-console-setup.js > /tmp/zitadel-nextcloud-console-setup.js
-nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-nextcloud-console-setup.js
-```
+`user_oidc` provider `keycloak` maps the uid from `preferred_username` with **unique-uid off** (no provider prefix, no hash). A Keycloak user therefore lands on the Nextcloud account with the same name: Keycloak `prestonh` → Nextcloud `prestonh`, `dylanh` → `dylanh`. The Zitadel provider used the same mapping, so the switch kept every account and its files.
 
-Store `NEXTCLOUD_OIDC_CLIENT_ID` and `NEXTCLOUD_OIDC_CLIENT_SECRET` in sops, then `nix flake update nix-secrets` and rebuild ace. `nextcloud-oidc-config.service` (`nixos/containers/nextcloud.nix`) installs `user_oidc` and configures the Zitadel provider from the secret.
+`oc_user_oidc` links a uid to `(provider_id, sub)`. Rows written before that link existed (prestonh, dylanh) have it NULL; `user_oidc` backfills it on the next login, under whichever provider is used. A user already linked to an old provider is still found by uid, so deleting the old `zitadel` provider (which `nextcloud-oidc-config` does) leaves accounts alone.
 
-## Nextcloud admin via Zitadel role
+Never rename a Keycloak username that has a Nextcloud account, and never set `--unique-uid=1` or `provider-based-id`: either gives the user a new, empty account. Keycloak usernames must not collide with local accounts (`nextcloud-admin`).
 
-Nextcloud `user_oidc` maps OIDC **groups** to Nextcloud groups. Server admin requires membership in the Nextcloud `admin` group.
+### Admin
 
-Zitadel project roles use a nested object claim (`urn:zitadel:iam:org:project:roles`), which `user_oidc` cannot consume directly. A **Complement Token** action adds a flat `groups` claim.
+Nextcloud server admin = membership in the Nextcloud `admin` group. The Keycloak client `nextcloud` has `groupsClaim = false` and a client-role mapper instead, so its `groups` claim holds only the client's roles: `["admin"]` for members of the Keycloak group **`nextcloud_admin`**, otherwise empty. The provider provisions groups with whitelist `/^admin$/`, so each SSO login adds or removes exactly the `admin` group and leaves every other Nextcloud group alone.
 
-| Zitadel project role | Nextcloud effect |
-|----------------------|------------------|
-| `nextcloud_admin` | Added to Nextcloud `admin` group (server admin) on SSO login |
-| (no role) | Normal user |
+To make someone a Nextcloud admin: Keycloak admin console → realm `homelab` → Users → user → Groups → join `nextcloud_admin`, then the user signs out of Nextcloud and back in. Removing them from the group drops admin at their next login.
 
-**Important:** Only one Complement Token action may set the `groups` claim. Per-service actions (`jellyfinGroups`, `pterodactylGroups`, etc.) overwrite each other — the last one wins and drops `admin` for Nextcloud. Use the unified `homelabGroups` action instead.
+The local break-glass account `nextcloud-admin` (Database backend, email `admin@prestonhager.com`) never logs in through SSO, so SSO never changes its `admin` membership.
 
-`scripts/zitadel-homelab-groups-action.js` holds the live `homelabGroups` script (it also maps `wg-admin` for wg-portal); no Nix unit deploys it, so run it after editing. The other helpers (`zitadel-nextcloud-userinfo-test.js`, `ace-nextcloud-oidc-diagnose.sh`) were removed in commit `572c200`; recover them on ace as needed:
+### Tests
 
 ```bash
-cd /etc/nixos
-nix shell nixpkgs#nodejs_22 -c node scripts/zitadel-homelab-groups-action.js  # create/update homelabGroups
-for s in zitadel-nextcloud-userinfo-test.js ace-nextcloud-oidc-diagnose.sh; do
-  git show 572c200^:scripts/$s > /tmp/$s
-done
-nix shell nixpkgs#nodejs_22 -c node /tmp/zitadel-nextcloud-userinfo-test.js # expect groups: ["admin", ...]
-bash /tmp/ace-nextcloud-oidc-diagnose.sh                                    # full OIDC diagnostic
+bash tests/sso/run.sh nextcloud
 ```
 
-The diagnostic mostly wraps these read-only checks:
-
-```bash
-podman exec -u www-data nextcloud php /var/www/html/occ user_oidc:provider zitadel
-podman exec -u www-data nextcloud php /var/www/html/occ group:info admin
-```
-
-### Assign `nextcloud_admin` in the Zitadel console
-
-1. Open https://zitadel.prestonhager.com/ui/console/org/projects
-2. Select project **Home Lab**
-3. **Roles** → create role `nextcloud_admin` if missing (display name *Nextcloud Admin*)
-4. **Authorizations** → select user → **New grant** → role `nextcloud_admin` → save
-5. **Applications** → **Nextcloud** → enable **Assert Roles on Authentication** (ID token + access token)
-6. User signs out of Nextcloud and signs in again via Zitadel
-
-The removed setup script (`zitadel-nextcloud-oauth-setup.js`) created the role, app, and admin grant when the login-client API permitted it; otherwise use the console steps above.
+`tests/sso/nextcloud.test.sh` logs in as `sso-regression` (member of `nextcloud_admin` through `homelab.keycloak.testUser.groups`) and checks: it lands logged in, the uid is `sso-regression` on a second login with no duplicate or hashed account, it gets Nextcloud `admin`, it loses `admin` when removed from `nextcloud_admin`, and prestonh, dylanh and nextcloud-admin keep their uid, backend and groups. It deletes the test user's Nextcloud account at the end.
 
 ## Login (SSO)
 
 1. Open https://cloud.prestonhager.com
-2. Click **Sign in with Zitadel** (or use the Zitadel button on the login page)
-3. Complete Zitadel login; Nextcloud provisions the user on first login
+2. Click **Sign in with Keycloak**
+3. Complete the Keycloak login (LAN, tailnet or VPN only); Nextcloud provisions the user on first login
 
 Local login (break-glass):
 
@@ -160,9 +129,7 @@ nextcloud-db-environment: |
   MARIADB_PASSWORD=...
 
 nextcloud-oidc-env: |
-  NEXTCLOUD_OIDC_CLIENT_ID=<from Zitadel Nextcloud app>
-  NEXTCLOUD_OIDC_CLIENT_SECRET=<from Zitadel Nextcloud app>
-  ZITADEL_PROJECT_ID=376196450586990901
+  KEYCLOAK_CLIENT_SECRET=<client secret; Keycloak is set to it by keycloak-realm-sync>
 
 nextcloud-whiteboard-env: |
   JWT_SECRET_KEY=<random 48-char secret; must match whiteboard app jwt_secret_key>
@@ -185,13 +152,14 @@ systemctl restart nextcloud-oidc-config.service
 On deploy, `nextcloud-oidc-config.service`:
 
 - Installs and enables the `user_oidc` app
-- Configures provider `zitadel` (discovery, scopes, group provisioning for `admin` group)
-- Sets login button label **Sign in with Zitadel**
+- Configures provider `keycloak` (discovery, scopes `openid profile email`, uid from `preferred_username` with unique-uid off, group provisioning for the `admin` group)
+- Deletes the old `zitadel` provider if it is still there (accounts stay)
+- Sets login button label **Sign in with Keycloak**
 - Keeps local login enabled (`allow_multiple_user_backends`)
 
 `nextcloud-occ-maintain.service` also installs/enables the **whiteboard** app and sets `collabBackendUrl` + `jwt_secret_key` from `nextcloud-whiteboard-env`.
 
-The Nextcloud pod resolves `zitadel.prestonhager.com` → `192.168.5.5` (Caddy on ace) for OIDC discovery from inside the container.
+The Nextcloud pod pins `keycloak.prestonhager.com` → `192.168.5.5` (Caddy on ace) with `--add-host` (`pod-nextcloud`). Podman copies ace's `/etc/hosts` into the container, and there `local-service-hosts.nix` points every Caddy vhost at `127.0.0.1`, which inside the pod is the pod itself: without the pin, user_oidc fails with "Could not reach the provider". Keycloak is LAN-only; Caddy lets the podman bridge (`10.88.0.0/16`) reach only the back-channel endpoints (discovery, token, certs, userinfo), see `nixos/caddy/keycloak.nix`.
 
 ## Whiteboard real-time collaboration
 
@@ -233,7 +201,7 @@ Reference for **Settings → Administration → Overview** items on ace (single-
 | Server ID (`serverid`) | Fixed on deploy | Single-node: `occ config:system:set serverid --type=integer --value=0`. Distinct from `instanceid` (auto-generated at install). |
 | Email server | Configured | iCloud SMTP via sops `SMTP_PASSWORD` in `nextcloud-environment`; `mail_test_wizard_completed=yes` set after first successful test. Optional — many homelabs skip outbound mail. |
 | AppAPI deploy daemon | Optional / ignore | `app_api` is bundled with NC34 but Ex-Apps (Talk bot, etc.) are not used. Safe to dismiss unless you install Ex-Apps and need a HaRP/daemon. |
-| Second factor (2FA) | Optional | `twofactor_totp`, `twofactor_nextcloud_notification`, and `twofactor_backupcodes` are installed. Zitadel already provides MFA; enforcing NC 2FA for OIDC users is optional. To enforce for all local users: `occ twofactorauth:enforce --group=admin` (or per-group). |
+| Second factor (2FA) | Optional | `twofactor_totp`, `twofactor_nextcloud_notification`, and `twofactor_backupcodes` are installed. Keycloak handles MFA for SSO users; enforcing NC 2FA for OIDC users is optional. To enforce for all local users: `occ twofactorauth:enforce --group=admin` (or per-group). |
 | Whiteboard WebSocket | Fixed on deploy | See [Whiteboard real-time collaboration](#whiteboard-real-time-collaboration). |
 
 ### Log errors
@@ -256,21 +224,13 @@ Active monitoring probes (`Blackbox-Exporter` hitting `/login` every ~30s) previ
 ## Verification on ace
 
 ```bash
-# Provider configured
-podman exec -u www-data nextcloud php /var/www/html/occ user_oidc:provider zitadel
-
-# Zitadel grant for admin user
-podman exec zitadel-db psql -U zitadel -d zitadel -c \
-  "SELECT roles FROM projections.user_grants5 WHERE user_id=(SELECT id FROM projections.users14 WHERE username='admin@prestonhager.com');"
-
-# OIDC discovery reachable from Nextcloud container
+occ() { podman exec -u www-data nextcloud php /var/www/html/occ "$@"; }
+occ user_oidc:provider keycloak --output=json   # mappingUid preferred_username, uniqueUid false
+occ group:info admin 2>/dev/null || occ group:list --output=json
+# OIDC discovery reachable from the Nextcloud container (expect 200)
 podman exec nextcloud curl -sS -o /dev/null -w '%{http_code}\n' \
-  https://zitadel.prestonhager.com/.well-known/openid-configuration
-
-# After SSO login: admin group membership
-podman exec -u www-data nextcloud php /var/www/html/occ group:listadmin
+  https://keycloak.prestonhager.com/realms/homelab/.well-known/openid-configuration
+bash tests/sso/run.sh nextcloud
 ```
 
-After logging in via Zitadel as `admin@prestonhager.com`, the user should appear in `group:listadmin` and have access to **Settings → Administration**.
-
-See also [zitadel-ace.md](./zitadel.md) for Zitadel console access and [monitoring-ace.md](./monitoring.md) for the Grafana OAuth pattern.
+See also [keycloak-ace.md](./keycloak-ace.md) for the realm and [monitoring-ace.md](./monitoring.md) for the Grafana OAuth pattern.

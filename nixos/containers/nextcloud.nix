@@ -30,12 +30,18 @@ let
   nextcloudPushUrl = "${nextcloudPublicUrl}/push";
   nextcloudWhiteboardUrl = "${nextcloudPublicUrl}/whiteboard";
   whiteboardEnvPath = config.sops.secrets."nextcloud-whiteboard-env".path;
-  zitadelDomain = "zitadel.prestonhager.com";
-  zitadelDiscoveryUri = "https://${zitadelDomain}/.well-known/openid-configuration";
-  zitadelProjectId = "376196450586990901";
-  oidcProviderId = "zitadel";
+  kc = import ../auth/keycloak-lib.nix;
+  # SSO: user_oidc provider `keycloak` (docs/nextcloud-ace.md#sso-keycloak).
+  # The uid is preferred_username with unique-uid off, so a Keycloak user
+  # lands on the Nextcloud account of the same name (prestonh, dylanh).
+  oidcClientId = "nextcloud";
+  oidcProviderId = "keycloak";
+  oidcDiscoveryUri = "${kc.issuer}/.well-known/openid-configuration";
   oidcRedirectUri = "${nextcloudPublicUrl}/apps/user_oidc/code";
-  oidcScopes = "openid profile email urn:zitadel:iam:org:project:roles urn:zitadel:iam:org:project:id:${zitadelProjectId}:aud";
+  oidcScopes = "openid profile email";
+  # Provider used before Keycloak; deleted by nextcloud-oidc-config. Deleting
+  # a provider leaves its accounts: they are found again by uid.
+  oidcOldProviderId = "zitadel";
   nextcloudApacheHsts = pkgs.writeText "nextcloud-hsts.conf" ''
     <IfModule mod_headers.c>
       Header always set Strict-Transport-Security "max-age=15552000; includeSubDomains"
@@ -455,14 +461,9 @@ EOF
       exit 0
     fi
 
-    clientId="$(grep '^NEXTCLOUD_OIDC_CLIENT_ID=' "$oauthEnv" | cut -d= -f2- || true)"
-    clientSecret="$(grep '^NEXTCLOUD_OIDC_CLIENT_SECRET=' "$oauthEnv" | cut -d= -f2- || true)"
-    if [ -z "$clientId" ] || [ -z "$clientSecret" ]; then
-      echo "nextcloud-oidc-config: NEXTCLOUD_OIDC_CLIENT_ID/SECRET missing in nextcloud-oidc-env, skipping" >&2
-      exit 0
-    fi
-    if [ "$clientId" = "REPLACE_ZITADEL_CLIENT_ID" ] || [ "$clientSecret" = "REPLACE_ZITADEL_CLIENT_SECRET" ]; then
-      echo "nextcloud-oidc-config: placeholder OIDC credentials, skipping" >&2
+    clientSecret="$(grep '^KEYCLOAK_CLIENT_SECRET=' "$oauthEnv" | cut -d= -f2- || true)"
+    if [ -z "$clientSecret" ] || [ "$clientSecret" = REPLACE_ME ]; then
+      echo "nextcloud-oidc-config: KEYCLOAK_CLIENT_SECRET missing in nextcloud-oidc-env, skipping" >&2
       exit 0
     fi
 
@@ -473,15 +474,19 @@ EOF
 
     occ config:app:delete user_oidc allow_multiple_user_backends 2>/dev/null || true
     occ config:app:set user_oidc allow_multiple_user_backends --value=1 --type=string
-    occ config:system:set user_oidc login_label --value="Sign in with Zitadel"
+    occ config:system:set user_oidc login_label --value="Sign in with Keycloak"
     occ config:system:set user_oidc enrich_login_id_token_with_userinfo --value=true --type=boolean
     # DnsPinMiddleware uses PHP DNS (not /etc/hosts); allow LAN-resolved ace services.
     occ config:system:set allow_local_remote_servers --value=true --type=boolean
 
+    # Admin: Keycloak puts only the nextcloud client's roles in `groups`
+    # (group nextcloud_admin -> role admin), so the whitelist below manages
+    # exactly the Nextcloud admin group. Local (Database) accounts such as
+    # nextcloud-admin never log in here and keep their groups.
     occ user_oidc:provider "${oidcProviderId}" \
-      --clientid="$clientId" \
+      --clientid="${oidcClientId}" \
       --clientsecret="$clientSecret" \
-      --discoveryuri="${zitadelDiscoveryUri}" \
+      --discoveryuri="${oidcDiscoveryUri}" \
       --scope="${oidcScopes}" \
       --mapping-uid="preferred_username" \
       --mapping-display-name="name" \
@@ -491,11 +496,56 @@ EOF
       --group-whitelist-regex='/^admin$/' \
       --unique-uid=0
 
+    if occ user_oidc:provider "${oidcOldProviderId}" >/dev/null 2>&1; then
+      occ user_oidc:provider:delete "${oidcOldProviderId}" --force
+    fi
+
     echo "nextcloud-oidc-config: configured provider ${oidcProviderId} (redirect ${oidcRedirectUri})"
   '';
 
 in
 {
+  # Keycloak client for user_oidc. The secret is the one Zitadel's Nextcloud
+  # app had (KEYCLOAK_CLIENT_SECRET in nextcloud-oidc-env).
+  homelab.keycloak = {
+    clients.${oidcClientId} = {
+      name = "Nextcloud";
+      redirectUris = [ oidcRedirectUri ];
+      secret = {
+        file = config.sops.secrets."nextcloud-oidc-env".path;
+        key = "KEYCLOAK_CLIENT_SECRET";
+      };
+      # Not the realm-wide group list: `groups` carries this client's roles
+      # only, so Nextcloud sees ["admin"] for nextcloud_admin members.
+      groupsClaim = false;
+      settings.protocolMappers = [{
+        name = "nextcloud-groups";
+        protocol = "openid-connect";
+        protocolMapper = "oidc-usermodel-client-role-mapper";
+        consentRequired = false;
+        config = {
+          "usermodel.clientRoleMapping.clientId" = oidcClientId;
+          "usermodel.clientRoleMapping.rolePrefix" = "";
+          "claim.name" = "groups";
+          "jsonType.label" = "String";
+          "multivalued" = "true";
+          "id.token.claim" = "true";
+          "access.token.claim" = "true";
+          "userinfo.token.claim" = "true";
+          "introspection.token.claim" = "true";
+        };
+      }];
+    };
+    realmSettings.roles.client.${oidcClientId} = [{
+      name = "admin";
+      description = "Nextcloud admin group (granted by group nextcloud_admin)";
+    }];
+    groups = [ "nextcloud_admin" ];
+    groupSettings.nextcloud_admin.clientRoles.${oidcClientId} = [ "admin" ];
+    # tests/sso/nextcloud.test.sh checks the admin mapping with it.
+    testUser.groups = [ "nextcloud_admin" ];
+  };
+
   sops.secrets = {
     "nextcloud-environment" = {
       sopsFile = "${sops-path}/secrets/containers/nextcloud.yaml";
@@ -685,7 +735,7 @@ in
   };
 
   systemd.services.nextcloud-oidc-config = {
-    description = "Install user_oidc and configure Zitadel OIDC provider";
+    description = "Install user_oidc and configure the Keycloak OIDC provider";
     wantedBy = [ "multi-user.target" ];
     after = [
       "nextcloud-occ-maintain.service"
@@ -776,13 +826,17 @@ in
           if ! echo "$ports" | grep -q 7867 \
             || ! echo "$ports" | grep -q ${toString whiteboardPort} \
             || ! echo "$hosts" | grep -q 'cloud.prestonhager.com:192.168.5.5' \
-            || ! echo "$hosts" | grep -q "${zitadelDomain}:''${hostGw}" \
+            || ! echo "$hosts" | grep -q '${kc.domain}:${kc.aceAddress}' \
             || ! echo "$dns" | grep -q '192.168.5.5'; then
             echo "pod-nextcloud: recreating pod for notify_push port and host routing"
             $podman pod stop -t 30 nextcloud || true
             $podman pod rm -f nextcloud
           fi
         fi
+        # Podman copies ace's /etc/hosts, which pins every Caddy vhost to
+        # 127.0.0.1 (local-service-hosts.nix): pin the names the pod calls
+        # server-side to ace's LAN address instead. Keycloak: user_oidc
+        # discovery, token, userinfo (Caddy back-channel carve-out).
         if ! $podman pod exists nextcloud; then
           $podman pod create \
             -p 127.0.0.1:8083:80 \
@@ -791,7 +845,7 @@ in
             --hostname nextcloud \
             --dns=192.168.5.5 \
             --add-host=cloud.prestonhager.com:192.168.5.5 \
-            --add-host=${zitadelDomain}:''${hostGw} \
+            --add-host=${kc.domain}:${kc.aceAddress} \
             --add-host=host.containers.internal:host-gateway \
             nextcloud
         fi
