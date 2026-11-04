@@ -3,22 +3,27 @@
 let
   sops-path = builtins.toString inputs.nix-secrets;
   # Pinned for ace-service-auto-update nix-bump (do not use :latest pulls).
-  jellyfinVersion = "10.11.11";
+  # The tag stays (nix-bump rewrites it); 12.4 was tested as
+  # docker.io/jellyfin/jellyfin@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771.
+  jellyfinVersion = "12.4";
   jellyfinPublicUrl = "https://jellyfin.prestonhager.com";
   zitadelDomain = "zitadel.prestonhager.com";
   zitadelDiscoveryUri = "https://${zitadelDomain}/.well-known/openid-configuration";
   zitadelProjectId = "376196450586990901";
   ssoProviderName = "zitadel";
-  # 4.x targets Jellyfin ABI 10.11; 3.5.2.4 (ABI 10.9) is skipped as NotSupported.
-  ssoPluginVersion = "4.0.0.4";
+  # Upstream 9p4/jellyfin-plugin-sso is archived at 4.0.0.4 (ABI 10.11). The
+  # MaxRink fork's 6.x targets ABI 12.0 and reads the same SSO-Auth.xml schema
+  # (same plugin GUID, assembly SSO-Auth.dll).
+  ssoPluginVersion = "6.1.0.0";
   # Hash-pinned: the plugin DLL runs inside Jellyfin with its privileges. Update the
   # hash with nix-prefetch-url when bumping ssoPluginVersion.
   ssoPluginZip = pkgs.fetchurl {
-    url = "https://github.com/9p4/jellyfin-plugin-sso/releases/download/v${ssoPluginVersion}/sso-authentication_${ssoPluginVersion}.zip";
-    hash = "sha256-wJ8WujEFmkNN3X+BHk+WCNS0xFFMyApb8cozvuYeEQc=";
+    url = "https://github.com/MaxRink/jellyfin-plugin-sso/releases/download/v${ssoPluginVersion}/sso-auth_${ssoPluginVersion}.zip";
+    hash = "sha256-YxHWsW6JqR5EzptaMsCdKO2ikqEbdc1rlC17xiZkzQA=";
   };
-  # Jellyfin loads plugins from plugins/<Name>_<version>/ (dll + meta.json).
-  ssoPluginDir = "/jf/config/plugins/SSO Authentication_${ssoPluginVersion}";
+  # Jellyfin loads plugins from plugins/<Name>_<version>/ (dll + meta.json); the
+  # name matches meta.json ("SSO-Auth"), as the Jellyfin catalog installer does.
+  ssoPluginDir = "/jf/config/plugins/SSO-Auth_${ssoPluginVersion}";
   ssoConfigPath = "/jf/config/plugins/configurations/SSO-Auth.xml";
   jellyfinRuntimeEnv = "/run/jellyfin/container.env";
   jellyfinSsoSetupScript = pkgs.writeShellScript "jellyfin-sso-setup" ''
@@ -49,9 +54,10 @@ let
       exit 0
     fi
 
-    # Drop other SSO plugin versions (including the old nested layout) so
-    # Jellyfin does not keep a disabled copy alongside the current one.
-    for d in /jf/config/plugins/"SSO Authentication"*; do
+    # Drop other SSO plugin versions (the 9p4 "SSO Authentication_*" folders and
+    # older "SSO-Auth_*" ones) so Jellyfin does not keep a disabled copy
+    # alongside the current one.
+    for d in /jf/config/plugins/"SSO Authentication"* /jf/config/plugins/SSO-Auth_*; do
       if [ -e "$d" ] && [ "$d" != "${ssoPluginDir}" ]; then
         rm -rf -- "$d"
       fi

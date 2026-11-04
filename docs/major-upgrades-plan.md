@@ -6,7 +6,7 @@ Plan for the major-version upgrades that the [2026-10-24 review](./config-review
 
 | # | Service | Running | Target | Urgency | Window |
 |---|---|---|---|---|---|
-| 1 | Jellyfin | 10.11.11 | **12.3** with an SSO plugin fork | **High:** 10.11 has had no release since 2026-06-06 and is internet-facing | Next free evening, after a staging test |
+| 1 | Jellyfin | 10.11.11 | **12.4** with the MaxRink SSO plugin fork 6.1.0.0 (staging test passed 2026-11-04) | **High:** 10.11 has had no release since 2026-06-06 and is internet-facing | Next free evening, after a staging test |
 | 2 | MediaWiki | 1.45.6 | **1.47 LTS** (skip 1.46) | **Deadline:** 1.45 ends December 2026 | After the 2026-11-03 Loftia launch, once 1.47.0 is out (due November 2026) |
 | 3 | Postgres (Matrix, Zitadel) | 16.15 | **17** | Low: 16 is supported to 2028-11 | Any quiet hour in the next six months |
 | 4 | Node (animal-search) | — | — | Not on ace any more: the app moved to Coolify on 2026-10-25 and its image is built upstream | — |
@@ -24,7 +24,9 @@ Ground rules for every step:
 
 ---
 
-## 1. Jellyfin 10.11 → 12.3
+## 1. Jellyfin 10.11 → 12.4
+
+**Status 2026-11-04:** staging test passed on a copy of production (`uptest-jellyfin-12`, `jellyfin:12.4` at `sha256:fea863d0cd9e…`, MaxRink SSO-Auth 6.1.0.0). All 39 migrations applied without errors (one migration removed 125 duplicate path entries), users, libraries and plugins came up, and `/sso/OID/start/zitadel` redirected to Zitadel using the unchanged `SSO-Auth.xml`. The nix change is on branch `test/jellyfin-12`. SSO login with a real browser was not tested in staging (no staging vhost), so check it right after cut-over.
 
 **Why it can't be a pin bump.**
 
@@ -53,7 +55,7 @@ Ground rules for every step:
    - Give staging a temporary LAN-only vhost (for example `jellyfin-staging.prestonhager.com` → `127.0.0.1:8097`). Add its `/sso/OID/redirect/zitadel` URL to the Zitadel Jellyfin app's redirect URIs; remove it afterwards.
    - Check: SSO login for an admin and a user, role mapping (`jellyfin_admin`, `jellyfin_user`), playback, and a full library scan (12.0 requires one).
 2. **Nix changes (one commit):**
-   - `jellyfinVersion = "12.3"`.
+   - `jellyfinVersion = "12.4"`.
    - `ssoPluginVersion` and URL pointing at the fork, with a new hash.
    - Update `jellyfin-sso-setup` for the fork's config file name if it differs (`SSO-Auth.xml` today).
    - Remove `holdMajor` from the update registry.
@@ -67,7 +69,7 @@ Ground rules for every step:
    - `/health` returns 200.
    - SSO login works.
    - A TV client on `192.168.5.5:8096` can log in.
-   - The version check shows 12.3, and no held metric remains.
+   - The version check shows 12.4, and no held metric remains.
 
 **Rollback:**
 
