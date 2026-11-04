@@ -16,9 +16,8 @@
     role = "Hydrodactyl Wings node (Dell OptiPlex)";
     lifecycle = "active";
     docs = "pterodactyl-nodes/crux.html";
-    # Off until crux is deployed with the :9100 rule for ace in
-    # crux-prometheus.nix; flip to true after that deploy.
-    nodeExporter = false;
+    # Its own node_exporter (crux-prometheus.nix) accepts :9100 from ace.
+    nodeExporter = true;
     # crux's SSH/Wings/SFTP are already probed by blackbox-tcp-crux.
     probes = [ ];
   };
