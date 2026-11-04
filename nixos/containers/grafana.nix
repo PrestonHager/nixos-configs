@@ -12,7 +12,7 @@ let
   ];
   grafanaVersion = "13.3.0";
   # Remote image renderer (replaces deprecated in-Grafana plugin). Shares pod network with Grafana.
-  imageRendererImage = "docker.io/grafana/grafana-image-renderer@sha256:24df1663f600abc6daa8ef006a0749c1d8f532e43a4542baf55ba15c5a3eaeac"; # v5.12.9
+  imageRendererImage = "docker.io/grafana/grafana-image-renderer@sha256:a7970b826f6e477461e02bf5463d92634e9ad27d525e4e50296978a2e592d2d7"; # v5.12.10
   grafanaPort = 8082;
   grafanaRuntimeEnv = "/run/grafana/container.env";
   rendererRuntimeEnv = "/run/grafana/renderer.env";

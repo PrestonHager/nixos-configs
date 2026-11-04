@@ -946,7 +946,7 @@ in
       # it is not on the command line).
       cmd = [ "redis-server" "/etc/redis-auth.conf" "--save" "60" "1" "--loglevel" "warning" "--bind" "127.0.0.1" ];
       extraOptions = [ "--pod=nextcloud" ];
-      image = "docker.io/library/redis:8.10.2";
+      image = "docker.io/library/redis:8.10.3";
     };
   };
 }
