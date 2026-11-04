@@ -110,7 +110,7 @@ PY
       --cookie-secure=true \
       --set-xauthrequest=true \
       --pass-user-headers=false \
-      --user-id-claim=preferred_username \
+      --oidc-email-claim=email \
       --whitelist-domain=${panelDomain} \
       --provider-display-name=Keycloak \
       --scope="openid profile email" \

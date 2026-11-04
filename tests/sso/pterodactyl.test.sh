@@ -133,7 +133,7 @@ if systemctl is-active -q pterodactyl-oauth2-proxy; then
   check "oauth2-proxy: login lands on the panel ($SSO_FINAL_URL)" \
     bash -c '[ "${0%/}" = "$1" ]' "$SSO_FINAL_URL" "$PANEL_PROD"
 else
-  echo "  SKIP  oauth2-proxy: pterodactyl-oauth2-proxy is not running (pterodactyl-oauth.nix is not imported)"
+  echo "  SKIP  oauth2-proxy: not deployed here; pterodactyl-oauth2-proxy.test.sh runs a transient instance"
 fi
 
 # --- cleanup ------------------------------------------------------------------

@@ -87,7 +87,7 @@ let
           uri /oauth2/auth
           header_up X-Real-IP {remote_host}
           copy_headers {
-            X-Auth-Request-User > X-Auth-Username
+            X-Auth-Request-Preferred-Username > X-Auth-Username
             X-Auth-Request-Email > X-Auth-Email
             X-Auth-Request-Groups > X-Auth-Groups
           }

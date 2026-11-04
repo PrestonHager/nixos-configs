@@ -44,6 +44,7 @@ Many identifiers still say `pterodactyl` because they predate the move and renam
   The other panel users have local logins only. No panel account exists for admin@prestonhager.com.
 - The panel containers reach Keycloak at `https://keycloak.prestonhager.com` (192.168.5.5 through Caddy) for the token and userinfo calls.
 - Regression test: `bash tests/sso/run.sh pterodactyl` (`tests/sso/pterodactyl.test.sh`). It logs in on both panels as `sso-regression`, checks admin with and without the groups, checks the migrated links, and deletes the panel users it created.
+- oauth2-proxy (`pterodactyl-oauth.nix` with `oauth = true` in `nixos/caddy/pterodactyl.nix`) is not deployed. `bash tests/sso/run.sh pterodactyl-oauth2-proxy` builds it from the repo, runs it as a transient unit on 127.0.0.1:4180, and checks the whole login: start, Keycloak, callback, then `/oauth2/auth` returning the email, username and groups that `HeaderAuthentication.php` reads. The email header comes from the `email` claim; before the move it carried the username (`--user-id-claim` is the old name of `--oidc-email-claim`), so header auth would not have matched existing users by email.
 - The Blueprint-era modules (`pterodactyl-sso.nix`, `pterodactyl-test-sso.nix`, listeners `KeycloakAdminSync.php` / `KeycloakTestAdminSync.php`, `seed-sso-provider.php`) are switched to the socialiteproviders Keycloak driver too, but they only run with the `pterodactyl` flavor, which neither panel uses.
 
 ## Upgrading
