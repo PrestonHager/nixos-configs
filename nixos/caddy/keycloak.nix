@@ -21,6 +21,10 @@ let
     "/realms/${kc.realm}/.well-known/openid-configuration"
     "${oidc}/token"
     "${oidc}/token/introspect"
+    # Pushed authorization requests (RFC 9126): advertised in discovery, so
+    # ASP.NET's OIDC handler (Technitium) always uses it. Client-authenticated
+    # like the token endpoint.
+    "${oidc}/ext/par/request"
     "${oidc}/certs"
     "${oidc}/userinfo"
   ];
