@@ -1,11 +1,17 @@
 # coolify-edge: sends traffic that ace does not serve itself to Coolify's apps
-# on the deploy server (mars). Script: ./coolify/edge-sync.py; docs/coolify-ace.md.
+# on the deploy servers (`nodes` below). Script: ./coolify/edge-sync.py;
+# docs/coolify-ace.md.
 #
 #   coolify-edge-ask        Caddy's on-demand TLS "ask" endpoint on
 #                           127.0.0.1:9180. Says yes only to hostnames an app,
 #                           preview or service in Coolify uses, inside
 #                           `zones`. nixos/caddy/coolify.nix has the catch-all
 #                           site that asks it and proxies to the node's :80.
+#   coolify-edge-routes     (timer, every minute) writes `routesFile`, a Caddy
+#                           `map` from each app hostname to the :80 of the
+#                           server Coolify deployed it on; names not listed go
+#                           to `defaultNode`. Validated with `caddy validate`,
+#                           installed only when changed, then Caddy reloads.
 #   coolify-edge-nat        (timer, every minute) mirrors the host ports that
 #                           Coolify apps and public databases publish on the
 #                           managed nodes as static NAT on Astracap, through the
@@ -31,6 +37,20 @@
 
 let
   marsIp = "192.168.5.15";
+  # Coolify deploy servers ace may route to and forward ports to, by the IP
+  # they have in Coolify (Servers -> IP). Apps on a server not listed here
+  # get no NAT and their hostnames fall back to `defaultNode`.
+  # To add a node (e.g. sally): enable nixos/coolify-node.nix on it, register
+  # it in Coolify, and add its LAN IP here.
+  nodes = [ marsIp ];
+  defaultNode = marsIp;
+  # Imported by nixos/caddy/coolify.nix (keep the path in sync there);
+  # readable by Caddy, unlike the root-only state directory. Defines
+  # {coolify_upstream}.
+  routesDir = "/var/lib/coolify-edge-routes";
+  routesFile = "${routesDir}/routes.caddy";
+  # Caddy needs the block on several lines; tmpfiles expands the \n escapes.
+  routesPlaceholder = "map {host} {coolify_upstream} {\\n  default ${defaultNode}:80\\n}\\n";
   askPort = 9180;
   routerKey = config.sops.secrets."pterodactyl-router-ssh-key".path;
   routerSshConfig = pkgs.writeText "coolify-edge-router-ssh-config" ''
@@ -60,7 +80,12 @@ let
     PODMAN = "${pkgs.podman}/bin/podman";
     SSH = "${pkgs.openssh}/bin/ssh";
     # Coolify server IPs whose published ports are forwarded from the WAN.
-    COOLIFY_EDGE_NODES = marsIp;
+    COOLIFY_EDGE_NODES = lib.concatStringsSep " " nodes;
+    COOLIFY_EDGE_DEFAULT_NODE = defaultNode;
+    COOLIFY_EDGE_ROUTES_FILE = routesFile;
+    COOLIFY_EDGE_ROUTES_STATE = "/var/lib/coolify-edge/routes.json";
+    CADDY = lib.getExe config.services.caddy.package;
+    SYSTEMCTL = "${pkgs.systemd}/bin/systemctl";
     # Only the Root Team's apps (team 0) are routed; with self-registration
     # off (coolify/instance-settings.php) it is the only team anyway.
     COOLIFY_EDGE_TEAM_IDS = "0";
@@ -172,6 +197,18 @@ in
   systemd.services.coolify-edge-nat =
     syncUnit "Mirror Coolify published ports as static NAT on Astracap" "nat" [ ];
   systemd.timers.coolify-edge-nat = everyMinute "Sync Coolify published ports to Astracap every minute";
+
+  systemd.services.coolify-edge-routes = lib.recursiveUpdate
+    (syncUnit "Route Coolify app hostnames to the server each app runs on" "routes" [ "caddy.service" ])
+    { serviceConfig.ReadWritePaths = hardening.ReadWritePaths ++ [ routesDir ]; };
+  systemd.timers.coolify-edge-routes = everyMinute "Sync Coolify app routes into Caddy every minute";
+
+  # The file must exist before Caddy loads the vhosts; `f` only writes the
+  # placeholder when it is missing, never over a generated map.
+  systemd.tmpfiles.rules = [
+    "d ${routesDir} 0755 root root -"
+    "f ${routesFile} 0644 root root - ${routesPlaceholder}"
+  ];
 
   systemd.services.coolify-edge-dns = lib.recursiveUpdate
     (syncUnit "CNAMEs in Cloudflare and Technitium for Coolify app hostnames" "dns"

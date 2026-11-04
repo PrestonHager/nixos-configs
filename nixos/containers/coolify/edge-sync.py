@@ -36,6 +36,14 @@ Two jobs, both driven by what is configured in Coolify's database
          its state file (Technitium's zone sync can re-import the zone, so they
          are re-checked like the NAT rules).
 
+  routes Writes the Caddy `map` that sends each Coolify hostname to the
+         Coolify proxy (:80) of the server the app is deployed on, so apps on
+         any managed node share *.apps and the catch-all on ace. Only servers
+         in COOLIFY_EDGE_NODES are ever used as upstreams; any other name
+         falls through to COOLIFY_EDGE_DEFAULT_NODE. The new file is checked
+         with `caddy validate`, swapped in only when it changed, and Caddy is
+         then reloaded.
+
 Guard rails (all from the environment):
 
   COOLIFY_EDGE_TEAM_IDS        only domains/ports of these Coolify teams
@@ -60,6 +68,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import urllib.error
@@ -89,6 +98,12 @@ DENY_LABELS = {lbl.lower() for lbl in os.environ.get("COOLIFY_EDGE_DENY_LABELS",
 FORWARD_PUBLIC_DATABASES = os.environ.get("COOLIFY_EDGE_FORWARD_PUBLIC_DATABASES", "0") == "1"
 MAX_PORTS = int(os.environ.get("COOLIFY_EDGE_MAX_PORTS", "50"))
 MAX_RANGE = int(os.environ.get("COOLIFY_EDGE_MAX_RANGE", "20"))
+DEFAULT_NODE = os.environ.get("COOLIFY_EDGE_DEFAULT_NODE", "")
+ROUTES_FILE = os.environ.get("COOLIFY_EDGE_ROUTES_FILE", "/var/lib/coolify-edge-routes/routes.caddy")
+ROUTES_STATE_FILE = os.environ.get("COOLIFY_EDGE_ROUTES_STATE", "/var/lib/coolify-edge/routes.json")
+ROUTES_VAR = os.environ.get("COOLIFY_EDGE_ROUTES_VAR", "coolify_upstream")
+CADDY = os.environ.get("CADDY", "caddy")
+SYSTEMCTL = os.environ.get("SYSTEMCTL", "systemctl")
 
 
 def warn(msg):
@@ -156,6 +171,35 @@ join servers s on s.id = d.server_id
 where sd.is_public and sd.public_port is not null
   and sd.deleted_at is null and (to_jsonb(sv)->>'deleted_at') is null
   and {team_filter("to_jsonb(sv)->>'environment_id'")};
+"""
+
+
+def route_sql():
+    """Rows (domain blob, server ip): every domain with the server it is deployed on.
+
+    Previews run on their application's server. Only StandaloneDocker
+    destinations name a single server (Swarm ones are not used here).
+    """
+    app_ok = team_filter("to_jsonb(a)->>'environment_id'")
+    svc_ok = team_filter("to_jsonb(s)->>'environment_id'")
+    app_dest = ("join standalone_dockers d on d.id = a.destination_id"
+                " and a.destination_type like '%StandaloneDocker'"
+                " join servers sv on sv.id = d.server_id")
+    return f"""
+select a.fqdn, sv.ip from applications a {app_dest}
+  where a.deleted_at is null and coalesce(a.fqdn, '') <> '' and {app_ok}
+union all select a.docker_compose_domains, sv.ip from applications a {app_dest}
+  where a.deleted_at is null and coalesce(a.docker_compose_domains, '') <> '' and {app_ok}
+union all select p.fqdn, sv.ip from application_previews p join applications a on a.id = p.application_id {app_dest}
+  where p.deleted_at is null and a.deleted_at is null and coalesce(p.fqdn, '') <> '' and {app_ok}
+union all select p.docker_compose_domains, sv.ip from application_previews p
+  join applications a on a.id = p.application_id {app_dest}
+  where p.deleted_at is null and a.deleted_at is null and coalesce(p.docker_compose_domains, '') <> '' and {app_ok}
+union all select sa.fqdn, sv.ip from service_applications sa join services s on s.id = sa.service_id
+  join standalone_dockers d on d.id = s.destination_id and s.destination_type like '%StandaloneDocker'
+  join servers sv on sv.id = d.server_id
+  where sa.deleted_at is null and (to_jsonb(s)->>'deleted_at') is null
+    and coalesce(sa.fqdn, '') <> '' and {svc_ok};
 """
 
 
@@ -437,6 +481,108 @@ def nat(args):
     return 0
 
 
+# --- routes ----------------------------------------------------------------
+
+def wanted_routes():
+    """({host: node ip}, [problems]) for names that go to a non-default node.
+
+    Names on the default node are left to the map's `default` line. A host
+    used on two servers, on a server outside COOLIFY_EDGE_NODES, outside the
+    zones, denied, or with a wildcard is not mapped (so it gets the default).
+    """
+    seen, problems = {}, []
+    for blob, ip in psql(route_sql()):
+        for host in HOST_RE.findall(blob):
+            host = host.lower().strip(".")
+            if "*" in host or not in_zones(host) or denied(host):
+                continue
+            seen.setdefault(host, set()).add(ip)
+    routes = {}
+    for host, ips in sorted(seen.items()):
+        if len(ips) > 1:
+            problems.append(f"{host} is used on several servers ({', '.join(sorted(ips))}); "
+                            f"sending it to the default node")
+            continue
+        (ip,) = ips
+        if ip not in MANAGED_NODES:
+            problems.append(f"{host} is on server {ip}, which is not in COOLIFY_EDGE_NODES")
+            continue
+        if ip != DEFAULT_NODE:
+            routes[host] = ip
+    return routes, problems
+
+
+def render_routes(routes):
+    lines = [
+        "# Generated by coolify-edge-routes (nixos/containers/coolify/edge-sync.py)",
+        "# from Coolify's database. Do not edit; changes are overwritten every minute.",
+        f"map {{host}} {{{ROUTES_VAR}}} {{",
+    ]
+    lines += [f"  {host} {ip}:80" for host, ip in sorted(routes.items())]
+    lines += [f"  default {DEFAULT_NODE}:80", "}", ""]
+    return "\n".join(lines)
+
+
+def caddy_accepts(path):
+    """Run `caddy validate` on a throwaway config that imports path; error text or None."""
+    with tempfile.TemporaryDirectory() as work:
+        conf = os.path.join(work, "Caddyfile")
+        with open(conf, "w") as f:
+            f.write("{\n  admin off\n  auto_https off\n"
+                    f"  storage file_system {work}/storage\n}}\n"
+                    f"http://localhost:1 {{\n  import {path}\n"
+                    f"  respond {{{ROUTES_VAR}}} 200\n}}\n")
+        res = subprocess.run([CADDY, "validate", "--adapter", "caddyfile", "--config", conf],
+                             capture_output=True, text=True, timeout=60,
+                             env={**os.environ, "HOME": work, "XDG_DATA_HOME": work, "XDG_CONFIG_HOME": work})
+    return None if res.returncode == 0 else (res.stdout + res.stderr).strip()
+
+
+def routes(args):
+    if not DEFAULT_NODE or DEFAULT_NODE not in MANAGED_NODES:
+        warn("COOLIFY_EDGE_DEFAULT_NODE must be one of COOLIFY_EDGE_NODES; routes left unchanged")
+        return 1
+    wanted, problems = wanted_routes()
+    text = render_routes(wanted)
+    state = load_state(ROUTES_STATE_FILE)
+    if problems != state.get("problems", []):
+        for p in problems:
+            warn(f"routing: {p}")
+    try:
+        with open(ROUTES_FILE) as f:
+            current = f.read()
+    except OSError:
+        current = ""
+    if args.dry_run:
+        print(text, end="")
+        return 0
+    save_state({"problems": problems, "routes": wanted}, ROUTES_STATE_FILE)
+    if current == text:
+        print(f"no change ({len(wanted)} names off the default node)")
+        return 0
+
+    tmp = ROUTES_FILE + ".new"
+    with open(tmp, "w") as f:
+        f.write(text)
+    os.chmod(tmp, 0o644)
+    err = caddy_accepts(tmp)
+    if err:
+        os.unlink(tmp)
+        warn(f"caddy rejected the generated routes; keeping the current file:\n{err}")
+        return 1
+    os.replace(tmp, ROUTES_FILE)
+    old = {}
+    for m in re.finditer(r"^  (\S+) (\S+):80$", current, re.M):
+        if m[1] != "default":
+            old[m[1]] = m[2]
+    for host in sorted(set(old) | set(wanted)):
+        if old.get(host) != wanted.get(host):
+            warn(f"route changed: {host} -> {wanted.get(host, DEFAULT_NODE + ' (default)')}")
+    subprocess.run([SYSTEMCTL, "reload", "caddy.service"], check=True, timeout=120)
+    print(f"updated: {len(wanted)} names off the default node; caddy reloaded")
+    return 0
+
+
 # --- dns -------------------------------------------------------------------
 
 def http_json(method, url, headers=None, body=None):
@@ -645,6 +791,8 @@ def main():
     d = sub.add_parser("dns")
     d.add_argument("--recheck", type=float, default=900, help="seconds between DNS checks when nothing changed")
     d.add_argument("--dry-run", action="store_true")
+    r = sub.add_parser("routes")
+    r.add_argument("--dry-run", action="store_true", help="print the map instead of installing it")
     sub.add_parser("domains")
     args = ap.parse_args()
     if args.cmd == "serve":
@@ -653,6 +801,8 @@ def main():
         return nat(args)
     elif args.cmd == "dns":
         return dns(args)
+    elif args.cmd == "routes":
+        return routes(args)
     elif args.cmd == "domains":
         for h in sorted(coolify_domains()):
             reason = None if in_zones(h) else "outside allowed zones"
