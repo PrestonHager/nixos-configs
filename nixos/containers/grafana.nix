@@ -10,7 +10,7 @@ let
     "grafana/provisioning/alerting/security-alert-rules.yaml"
     "grafana/provisioning/datasources/loki.yaml"
   ];
-  grafanaVersion = "13.3.0";
+  grafanaVersion = "13.3.1";
   # Remote image renderer (replaces deprecated in-Grafana plugin). Shares pod network with Grafana.
   imageRendererImage = "docker.io/grafana/grafana-image-renderer@sha256:a7970b826f6e477461e02bf5463d92634e9ad27d525e4e50296978a2e592d2d7"; # v5.12.10
   grafanaPort = 8082;
