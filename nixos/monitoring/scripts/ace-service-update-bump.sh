@@ -54,37 +54,63 @@ if ! git rebase --autostash "origin/${branch}"; then
   exit 1
 fi
 
+sed_escape() {
+  local s="${1//\\/\\\\}"
+  s="${s//|/\\|}"
+  printf '%s' "${s//&/\\&}"
+}
+
+# Rules with "digestImage" pin <image>@sha256:<digest> followed by a
+# "<comment><version>" note; resolve the digest of <image>:<prefix><TARGET>.
+# Resolved digests, keyed by rule index, for the already-at-target check.
+declare -A rule_digest=()
+
 tmp="$(mktemp)"
 cp "$path" "$tmp"
 
+rule_idx=0
 while IFS= read -r rule; do
   [[ -z "$rule" ]] && continue
   match="$(jq -r '.match' <<<"$rule")"
-  suffix="$(jq -r '.suffix' <<<"$rule")"
   prefix="$(jq -r '.prefix // ""' <<<"$rule")"
+  digest_image="$(jq -r '.digestImage // ""' <<<"$rule")"
   version="${prefix}${TARGET}"
+  esc_match="$(sed_escape "$match")"
 
-  esc_match="${match//\\/\\\\}"
-  esc_match="${esc_match//|/\\|}"
-  esc_match="${esc_match//&/\\&}"
-  esc_suffix="${suffix//\\/\\\\}"
-  esc_suffix="${esc_suffix//|/\\|}"
-  esc_suffix="${esc_suffix//&/\\&}"
-  esc_version="${version//\\/\\\\}"
-  esc_version="${esc_version//|/\\|}"
-  esc_version="${esc_version//&/\\&}"
-
-  sed -i "s|\(${esc_match}\)[^\"]*|\1${esc_version}|g" "$tmp"
+  if [[ -n "$digest_image" ]]; then
+    comment="$(jq -r '.comment // ""' <<<"$rule")"
+    if ! digest="$(skopeo inspect --format '{{.Digest}}' "docker://${digest_image}:${version}")" \
+      || [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+      echo "could not resolve digest for ${digest_image}:${version}; refusing bump" >&2
+      exit 1
+    fi
+    rule_digest[$rule_idx]="$digest"
+    if [[ -n "$comment" ]]; then
+      sed -i "s|\(${esc_match}\)sha256:[0-9a-f]*\(.*$(sed_escape "$comment")\)[^[:space:]]*|\1${digest}\2${TARGET}|g" "$tmp"
+    else
+      sed -i "s|\(${esc_match}\)sha256:[0-9a-f]*|\1${digest}|g" "$tmp"
+    fi
+  else
+    sed -i "s|\(${esc_match}\)[^\"]*|\1$(sed_escape "$version")|g" "$tmp"
+  fi
+  rule_idx=$((rule_idx + 1))
 done < <(jq -c --arg s "$SERVICE" '.[$s].bumpRules[]?' "$ACE_REGISTRY")
 
 if [[ "$(cat "$path")" == "$(cat "$tmp")" ]]; then
   rm -f "$tmp"
   already_at_target=0
+  rule_idx=0
   while IFS= read -r rule; do
     [[ -z "$rule" ]] && continue
     match="$(jq -r '.match' <<<"$rule")"
     prefix="$(jq -r '.prefix // ""' <<<"$rule")"
-    if grep -qF "${match}${prefix}${TARGET}" "$path"; then
+    if [[ -n "${rule_digest[$rule_idx]:-}" ]]; then
+      needle="${match}${rule_digest[$rule_idx]}"
+    else
+      needle="${match}${prefix}${TARGET}"
+    fi
+    rule_idx=$((rule_idx + 1))
+    if grep -qF "$needle" "$path"; then
       already_at_target=1
       break
     fi

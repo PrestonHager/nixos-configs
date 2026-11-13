@@ -114,6 +114,7 @@ in {
       nix
       config.system.build.nixos-rebuild
       podman
+      skopeo
       util-linux
       openssl
       gawk

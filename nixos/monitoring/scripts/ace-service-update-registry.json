@@ -70,7 +70,7 @@
     "strategy": "nix-bump",
     "nixFile": "nixos/containers/matrix.nix",
     "bumpRules": [
-      { "match": "synapseImage = \"matrixdotorg/synapse:v", "suffix": "\"", "prefix": "v" }
+      { "match": "synapseImage = \"docker.io/matrixdotorg/synapse@", "suffix": "\"", "prefix": "v", "digestImage": "docker.io/matrixdotorg/synapse", "comment": "# synapse v" }
     ],
     "postUpgradeUnits": ["podman-matrix-synapse.service"],
     "majorWarnings": [
