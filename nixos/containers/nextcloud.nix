@@ -20,7 +20,7 @@ let
     cp ${pkgs.pkgsStatic.rclone}/bin/.rclone-wrapped $out/bin/rclone
     chmod +x $out/bin/rclone
   '';
-  nextcloudImage = "docker.io/library/nextcloud:35.0.2";
+  nextcloudImage = "docker.io/library/nextcloud:35.0.3";
   clamavImage = "docker.io/clamav/clamav:1.5.4";
   # whiteboard v2.1.2, pinned by digest. Nextcloud 35 needs the 2.x app, which
   # needs a 2.x collaboration server.
