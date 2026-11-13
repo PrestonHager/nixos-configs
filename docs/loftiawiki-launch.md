@@ -33,7 +33,7 @@ It opens nothing. It:
 ## Decide before opening
 
 - **`Alpha_NDA` (11.8 kB), `Secrets` and `Admin_Discords`** become public. `Admin_Discords` is already in `$wgWhitelistRead`. Check that this is intended, and delete or protect what isn't.
-- **Admin roster.** Sysops: Admin, Pi, WannaCry, Isy, Bunky, Amy. Bureaucrats: Admin, Pi, WannaCry, Isy. Only Admin and Pi have a confirmed email. `LaunchSettings.php` sets `$wgEmailConfirmToEdit`, so **the others can't edit until they confirm**. Ask them to do that before 11-03.
+- **Admin roster.** Sysops: Admin, Pi, WannaCry, Isy, Bunky, Amy. Bureaucrats: Admin, Pi, WannaCry, Isy. Only Admin and Pi have a confirmed email. **2026-11-04:** `$wgEmailConfirmToEdit` is now false in `LaunchSettings.php`, so any logged-in user can edit whether or not their email is confirmed (backup: `/mw/LaunchSettings.php.pre-open-edit-2026-11-04`). Autoconfirmed still needs a confirmed email, so unconfirmed accounts keep the newbie rate limits and the new-page captcha, and can't upload.
 - **Thin content.** There are 15 articles, 14 of them uncategorised. Orphans: Admin_Discords, Alpha_NDA, Plastic_Discards. Red links: `Loftia:Rules` (linked from the Main Page), `Template:Button`, `Loftia:Interface_administrators` and `Module:*/doc`. There are no broken or double redirects, because the wiki has no redirects at all.
 
 ## Backups
