@@ -3,7 +3,7 @@
 let
   sops-path = builtins.toString inputs.nix-secrets;
   matrixDomain = "matrix.prestonhager.com";
-  synapseImage = "docker.io/matrixdotorg/synapse@sha256:f0df87cff259872637b4b5e5174b9977e5e3046dd421505407803b5e45c5f842"; # synapse v1.164.2
+  synapseImage = "docker.io/matrixdotorg/synapse@sha256:673b4223c81a7634fd07d832b939a58f97081cfdaae7cdd2d1664cdcf7611b62"; # synapse v1.165.0
   synapseDataDir = "/matrix/data";
   synapsePostgresDir = "/matrix/postgres";
   synapseOidcDir = ./matrix;
