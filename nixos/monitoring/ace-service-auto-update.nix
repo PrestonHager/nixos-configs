@@ -119,6 +119,8 @@ in {
       openssl
       gawk
     ];
+    # Runs nixos-rebuild switch itself; a switch must not stop it mid-run.
+    restartIfChanged = false;
     serviceConfig = {
       Type = "oneshot";
       ExecStart = "${autoUpdateScript} %i";

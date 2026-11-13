@@ -37,6 +37,10 @@ in
       iproute2
       curl
     ];
+    # This unit runs nixos-rebuild switch itself. A nixpkgs bump always changes
+    # its store paths, so without this switch-to-configuration stops it mid-run
+    # (flake.lock never gets committed) and then starts it again on a dirty tree.
+    restartIfChanged = false;
     serviceConfig = {
       Type = "oneshot";
       ExecStart = updateScript;
