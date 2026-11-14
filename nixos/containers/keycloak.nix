@@ -269,8 +269,8 @@ in
 
   virtualisation.oci-containers.containers.keycloak-db = {
     autoStart = true;
-    # Same postgres 17.11-alpine digest as zitadel-db.
-    image = "docker.io/library/postgres@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b";
+    # Same postgres 17.12-alpine digest as zitadel-db.
+    image = "docker.io/library/postgres@sha256:34261f594522cf41dfcb76aefd42b9d201098b0e6b23c9c68733f169e4218b6f";
     extraOptions = [ "--pod=keycloak-pod" ];
     environmentFiles = [ config.sops.secrets."keycloak-db-env".path ];
     volumes = [ "/keycloak/postgres:/var/lib/postgresql/data" ];

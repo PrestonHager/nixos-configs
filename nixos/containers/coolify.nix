@@ -26,10 +26,10 @@ let
   network = "coolify";
 
   # Pinned by digest (podman rejects tag+digest references). Versions:
-  # coolify 4.6.0 (2026-11-02), postgres 15.19-alpine, redis 7.4.12-alpine.
-  # Upstream v4.6.0 compose still ships postgres:15-alpine and redis:7-alpine.
-  coolifyImage = "ghcr.io/coollabsio/coolify@sha256:8821fbb5d1eb083a7378d9c0f6c85eae56ba0171b69947ebcb415eb8133706d7";
-  postgresImage = "docker.io/library/postgres@sha256:25d430274d8a31184f9435cc5b2f56aff254952065bbbcac0c51acedb5a1d1e7";
+  # coolify 4.7.5 (pinned 2026-11-14), postgres 15.20-alpine, redis 7.4.12-alpine.
+  # Upstream v4.7.5 compose still ships postgres:15-alpine and redis:7-alpine.
+  coolifyImage = "ghcr.io/coollabsio/coolify@sha256:ac2259a438f0221e73eca2838c0c929ff2fd304f8345daabc85c910b6c83d6ee";
+  postgresImage = "docker.io/library/postgres@sha256:5cb339462bde5e6b617acedf6c2a3008f3aadc44a3c0507dd22226ee1279aee8";
   redisImage = "docker.io/library/redis@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f";
 
   # The coolify image runs as www-data, which is uid/gid 9999 inside it.

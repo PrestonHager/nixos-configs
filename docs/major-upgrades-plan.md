@@ -12,7 +12,7 @@ Plan for the major-version upgrades that the [2026-10-24 review](./config-review
 | 4 | Node (animal-search) | — | — | Not on ace any more: the app moved to Coolify on 2026-10-25 and its image is built upstream | — |
 | 5 | Valkey (Hydrodactyl, MediaWiki, test panel) | 8.1.10 | **9.1** | Low: 8.1 still gets fixes | With the next panel maintenance |
 | — | MariaDB (all six) | 11.4 / 12.3 LTS | **Stay on LTS**; optionally consolidate 11.4 → 12.3 | None | Optional |
-| — | Postgres (Coolify) | 15.19 | Follow Coolify upstream | Before 15 ends (2027-11) | When Coolify moves |
+| — | Postgres (Coolify) | 15.20 | Follow Coolify upstream | Before 15 ends (2027-11) | When Coolify moves |
 | — | Redis (Coolify) | 7.4.12 | Follow Coolify upstream | None | When Coolify moves |
 
 Ground rules for every step:
