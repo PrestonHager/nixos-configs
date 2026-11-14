@@ -518,7 +518,25 @@ in
       # Not the realm-wide group list: `groups` carries this client's roles
       # only, so Nextcloud sees ["admin"] for nextcloud_admin members.
       groupsClaim = false;
+      # user_oidc >= 8.13 skips group sync when the `groups` claim is absent,
+      # and the client-role mapper omits it for users with no role, so losing
+      # nextcloud_admin never revoked admin. `member` keeps the claim present;
+      # the /^admin$/ whitelist keeps it out of Nextcloud.
       settings.protocolMappers = [{
+        name = "nextcloud-groups-present";
+        protocol = "openid-connect";
+        protocolMapper = "oidc-hardcoded-claim-mapper";
+        consentRequired = false;
+        config = {
+          "claim.name" = "groups";
+          "claim.value" = "member";
+          "jsonType.label" = "String";
+          "id.token.claim" = "true";
+          "access.token.claim" = "true";
+          "userinfo.token.claim" = "true";
+          "introspection.token.claim" = "true";
+        };
+      } {
         name = "nextcloud-groups";
         protocol = "openid-connect";
         protocolMapper = "oidc-usermodel-client-role-mapper";
