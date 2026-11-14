@@ -27,13 +27,6 @@ TARGET="${TARGET#v}"
 path="${ACE_NIXOS_DIR}/${NIX_FILE}"
 [[ -f "$path" ]] || { echo "missing nix file: $path" >&2; exit 1; }
 
-if [[ "$SERVICE" == "nextcloud" ]]; then
-  if ! podman manifest inspect "docker.io/library/nextcloud:${TARGET}" >/dev/null 2>&1; then
-    echo "docker.io/library/nextcloud:${TARGET} is not published on Docker Hub; refusing bump" >&2
-    exit 1
-  fi
-fi
-
 cd "$ACE_NIXOS_DIR"
 branch="$(git rev-parse --abbrev-ref HEAD)"
 
@@ -53,6 +46,22 @@ if ! git rebase --autostash "origin/${branch}"; then
   git status -sb >&2 || true
   exit 1
 fi
+
+# Container images ace runs, one per line, from the flake as the tree stands.
+ace_images() {
+  nix eval --json "${ACE_NIXOS_DIR}#nixosConfigurations.ace.config.virtualisation.oci-containers.containers" \
+    --apply 'cs: map (c: c.image) (builtins.attrValues cs)' | jq -r '.[]' | sort -u
+}
+
+# A tag can exist before its amd64 build does: on 2026-11-13 nextcloud:35.0.3's
+# index had no amd64 entry for a few minutes, the bump went in, the pull failed
+# and podman-nextcloud hit its start limit. Ask for the linux/amd64 image the way
+# podman resolves it: an index without one fails, a single-arch image must be amd64.
+image_has_amd64() {
+  local arch
+  arch="$(skopeo inspect --override-os linux --override-arch amd64 \
+    --format '{{.Architecture}}' "docker://$1" 2>/dev/null)" && [[ "$arch" == amd64 ]]
+}
 
 sed_escape() {
   local s="${1//\\/\\\\}"
@@ -130,7 +139,29 @@ if [[ "$(cat "$path")" == "$(cat "$tmp")" ]]; then
   # At the target but uncommitted: an earlier run rebuilt from a dirty tree
   # without committing. Commit it below so /etc/nixos does not drift.
 else
+  if ! images_before="$(ace_images)"; then
+    rm -f "$tmp"
+    echo "could not evaluate ace's container images; refusing bump" >&2
+    exit 1
+  fi
+  orig="$(mktemp)"
+  cp "$path" "$orig"
   mv "$tmp" "$path"
+  restore_and_fail() {
+    cp "$orig" "$path"
+    rm -f "$orig"
+    echo "$1; ${NIX_FILE} restored, refusing bump" >&2
+    exit 1
+  }
+  images_after="$(ace_images)" \
+    || restore_and_fail "could not evaluate ace's container images after the edit"
+  new_images="$(comm -13 <(printf '%s\n' "$images_before") <(printf '%s\n' "$images_after"))"
+  while IFS= read -r img; do
+    [[ -z "$img" ]] && continue
+    image_has_amd64 "$img" || restore_and_fail "${img} has no linux/amd64 image (yet)"
+    printf 'Checked %s: linux/amd64 available\n' "$img"
+  done <<<"$new_images"
+  rm -f "$orig"
 fi
 
 git add "$NIX_FILE"
