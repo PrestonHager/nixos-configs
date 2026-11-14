@@ -9,6 +9,9 @@ let
   # Host /etc/hosts maps *.prestonhager.com → 127.0.0.1; inside the pod that is
   # loopback, not Caddy on the host. Override so server-side OAuth token calls work.
   zitadelDomain = "zitadel.prestonhager.com";
+  # SSO back-channel (discovery, token, userinfo): the copied host /etc/hosts
+  # maps it to 127.0.0.1, the pod itself.
+  keycloakDomain = (import ../auth/keycloak-lib.nix).domain;
 
   # Valkey requires a password. Generated once on the host (no nix-secrets entry) and
   # handed to Valkey as a config file. The panel entrypoint re-exports the persisted
@@ -146,14 +149,16 @@ in
 
         pod_hosts_ok() {
           $podman pod inspect pterodactyl --format '{{range .InfraConfig.HostAdd}}{{.}} {{end}}' 2>/dev/null \
-            | grep -q "${zitadelDomain}:''${hostGw}"
+            | grep -q "${zitadelDomain}:''${hostGw}" \
+            && $podman pod inspect pterodactyl --format '{{range .InfraConfig.HostAdd}}{{.}} {{end}}' 2>/dev/null \
+            | grep -q "${keycloakDomain}:''${hostGw}"
         }
 
         if $podman pod exists pterodactyl && { ! pod_network_ok || ! pod_hosts_ok; }; then
           if ! pod_network_ok; then
             echo "pod-pterodactyl: panel cannot reach redis in pod; recreating pod"
           else
-            echo "pod-pterodactyl: missing Zitadel host-gateway mapping; recreating pod"
+            echo "pod-pterodactyl: missing Zitadel/Keycloak host-gateway mapping; recreating pod"
           fi
           $podman pod stop -t 30 pterodactyl || true
           $podman pod rm -f pterodactyl
@@ -164,6 +169,7 @@ in
         $podman pod exists pterodactyl || \
         $podman pod create -p 127.0.0.1:9001:9000 \
           --add-host=${zitadelDomain}:''${hostGw} \
+          --add-host=${keycloakDomain}:''${hostGw} \
           --add-host=host.containers.internal:host-gateway \
           --memory 8G --cpus 0 pterodactyl
       '';

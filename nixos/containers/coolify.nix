@@ -163,6 +163,9 @@ in
         # loopback; send Zitadel to Caddy on the host so the OIDC token exchange
         # (server side of "Sign in with Zitadel") can connect.
         "--add-host=zitadel.prestonhager.com:host-gateway"
+        # Same for Keycloak, the current IdP (discovery, token, userinfo); the
+        # coolify bridge is in Caddy's Keycloak back-channel carve-out.
+        "--add-host=keycloak.prestonhager.com:host-gateway"
         # The image stops on SIGQUIT (s6-overlay + php-fpm/nginx graceful); podman's
         # default 10s was not enough and every stop ended in SIGKILL.
         "--stop-timeout=30"

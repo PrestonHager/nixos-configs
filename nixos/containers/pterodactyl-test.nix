@@ -14,6 +14,9 @@ let
   setupMarker = "/var/lib/pterodactyl-test/setup-complete";
   adminCredentialsFile = "/var/lib/pterodactyl-test/admin-credentials";
   zitadelDomain = "zitadel.prestonhager.com";
+  # SSO back-channel (discovery, token, userinfo): the copied host /etc/hosts
+  # maps it to 127.0.0.1, the pod itself.
+  keycloakDomain = (import ../auth/keycloak-lib.nix).domain;
   testHost = "test.panel.prestonhager.com";
   # Who may set X-Forwarded-* for the panel. Caddy talks FastCGI to php-fpm
   # and passes the client as REMOTE_ADDR, so only local callers qualify; "*"
@@ -466,7 +469,9 @@ EOF
           $podman pod inspect pterodactyl-test --format '{{range .InfraConfig.HostAdd}}{{.}} {{end}}' 2>/dev/null \
             | grep -q "${zitadelDomain}:''${hostGw}" \
             && $podman pod inspect pterodactyl-test --format '{{range .InfraConfig.HostAdd}}{{.}} {{end}}' 2>/dev/null \
-            | grep -q "${testHost}:''${hostGw}"
+            | grep -q "${testHost}:''${hostGw}" \
+            && $podman pod inspect pterodactyl-test --format '{{range .InfraConfig.HostAdd}}{{.}} {{end}}' 2>/dev/null \
+            | grep -q "${keycloakDomain}:''${hostGw}"
         }
 
         if $podman pod exists pterodactyl-test && { ! pod_network_ok || ! pod_hosts_ok; }; then
@@ -486,6 +491,7 @@ EOF
         $podman pod exists pterodactyl-test || \
         $podman pod create -p 127.0.0.1:9002:9000 \
           --add-host=${zitadelDomain}:''${hostGw} \
+          --add-host=${keycloakDomain}:''${hostGw} \
           --add-host=${testHost}:''${hostGw} \
           --add-host=host.containers.internal:host-gateway \
           --memory 4G --cpus 0 pterodactyl-test
