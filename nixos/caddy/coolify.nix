@@ -29,6 +29,8 @@
 #                /var/lib/coolify-github-actions/matcher.caddy.
 #                Those are shared Azure/GitHub addresses, so any GitHub
 #                workflow can connect; the API token is still what authorizes.
+#                Also Anthropic's egress range (`anthropicEgress`), for Claude
+#                cloud sessions that drive deploys through the same API.
 #
 # The catch-all sites below only match hostnames that no other vhost on ace
 # claims (Caddy prefers the most specific host). HTTPS certificates for them
@@ -42,6 +44,9 @@ let
   # Let GitHub-hosted Actions runners (and the LAN) reach Coolify's API.
   # false = the API is LAN-only, like the dashboard.
   githubActionsApi = true;
+  # Anthropic's outbound range (ARIN NetName AP-2440): Claude cloud sessions,
+  # e.g. LaTeXCollaborativeEditor#249, call the API from here. Only /api/*.
+  anthropicEgress = "160.79.104.0/21";
 
   githubActionsDir = "/var/lib/coolify-github-actions";
   # Defines @github_actions; imported by the vhost at (re)load time.
@@ -133,8 +138,12 @@ in
         # API: GitHub-hosted Actions runners and the LAN (@homelab_lan is
         # defined by lanOnly below); everyone else 403.
         import ${githubActionsMatcher}
+        @anthropic_agents remote_ip ${anthropicEgress}
         handle /api/* {
           handle @github_actions {
+            reverse_proxy 127.0.0.1:8000
+          }
+          handle @anthropic_agents {
             reverse_proxy 127.0.0.1:8000
           }
           handle @homelab_lan {
