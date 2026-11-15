@@ -35,55 +35,59 @@ let
 
     # cleanup temporary netns symlink
     rm -f /var/run/netns/$NETNS_NAME
+
+    # The veth is a port of the podman bridge, so L3 only ever sees the bridge
+    # (podman0) as the interface: "-i/-o $VETH" iptables rules never match, and
+    # a "dev $VETH" route makes the host ARP for each VPN client address on the
+    # veth, which the container never answers -- every LAN reply to a VPN
+    # client was dropped. Route the tunnel subnet via the container's IP.
+    BRIDGE=$(basename "$(readlink /sys/class/net/$VETH/master)")
+    CIP=$("${pkgs.podman}/bin/podman" inspect -f '{{.NetworkSettings.IPAddress}}' "$CONTAINER_NAME")
+
+    if [ -z "$BRIDGE" ] || [ -z "$CIP" ]; then
+      echo "Error: could not determine bridge/IP for container $CONTAINER_NAME" >&2
+      exit 1
+    fi
   '';
 
   post-up-script = pkgs.writeShellScript "wg-portal-postup" ''
     ${shared-script}
 
-    echo "Setting up routing for container ''${CONTAINER_NAME} on ''${VETH}"
+    echo "Setting up routing for container ''${CONTAINER_NAME} via ''${CIP} on ''${BRIDGE}"
 
-    # Route WireGuard subnet via container veth
-    ip route replace 192.168.20.0/24 dev ''${VETH}
+    # Route WireGuard subnet via the container
+    ip route replace 192.168.20.0/24 via ''${CIP} dev ''${BRIDGE}
 
     for LAN_IF in ''${LAN_IFS[@]}; do
-      # Forwarding rules (add if missing)
-      if ! iptables-save | grep -F -- "-A FORWARD -i ''${VETH} -o $LAN_IF -j ACCEPT" >/dev/null; then
-        iptables -A FORWARD -i ''${VETH} -o $LAN_IF -j ACCEPT
-      fi
+      # Forwarding rules (add if missing). iptables -C, not a grep of
+      # iptables-save: the save output reorders matches (-d before -i).
+      iptables -C FORWARD -s 192.168.20.0/24 -o $LAN_IF -j ACCEPT 2>/dev/null \
+        || iptables -A FORWARD -s 192.168.20.0/24 -o $LAN_IF -j ACCEPT
 
-      if ! iptables-save | grep -F -- "-A FORWARD -i $LAN_IF -o ''${VETH} -j ACCEPT" >/dev/null; then
-        iptables -A FORWARD -i $LAN_IF -o ''${VETH} -j ACCEPT
-      fi
+      iptables -C FORWARD -i $LAN_IF -d 192.168.20.0/24 -j ACCEPT 2>/dev/null \
+        || iptables -A FORWARD -i $LAN_IF -d 192.168.20.0/24 -j ACCEPT
 
       # NAT rules (add if missing)
-      if ! iptables-save -t nat | grep -F -- "-A POSTROUTING -s 192.168.20.0/24 -o $LAN_IF -j MASQUERADE" >/dev/null; then
-        iptables -t nat -A POSTROUTING -s 192.168.20.0/24 -o $LAN_IF -j MASQUERADE
-      fi
+      iptables -t nat -C POSTROUTING -s 192.168.20.0/24 -o $LAN_IF -j MASQUERADE 2>/dev/null \
+        || iptables -t nat -A POSTROUTING -s 192.168.20.0/24 -o $LAN_IF -j MASQUERADE
     done
   '';
 
   cleanup-script = pkgs.writeShellScript "wg-portal-cleanup" ''
     ${shared-script}
 
-    echo "Cleaning up routing for container ''${CONTAINER_NAME} on ''${VETH}"
+    echo "Cleaning up routing for container ''${CONTAINER_NAME} via ''${CIP} on ''${BRIDGE}"
 
     # Remove route
-    ip route del 192.168.20.0/24 dev ''${VETH} 2>/dev/null || true
+    ip route del 192.168.20.0/24 2>/dev/null || true
 
     for LAN_IF in ''${LAN_IFS[@]}; do
       # Remove forwarding rules (only if exist)
-      while iptables-save | grep -F -- "-A FORWARD -i ''${VETH} -o $LAN_IF -j ACCEPT" >/dev/null; do
-        iptables -D FORWARD -i ''${VETH} -o $LAN_IF -j ACCEPT
-      done
-
-      while iptables-save | grep -F -- "-A FORWARD -i $LAN_IF -o ''${VETH} -j ACCEPT" >/dev/null; do
-        iptables -D FORWARD -i $LAN_IF -o ''${VETH} -j ACCEPT
-      done
+      while iptables -D FORWARD -s 192.168.20.0/24 -o $LAN_IF -j ACCEPT 2>/dev/null; do :; done
+      while iptables -D FORWARD -i $LAN_IF -d 192.168.20.0/24 -j ACCEPT 2>/dev/null; do :; done
 
       # Remove NAT rules (only if exist)
-      while iptables-save -t nat | grep -F -- "-A POSTROUTING -s 192.168.20.0/24 -o $LAN_IF -j MASQUERADE" >/dev/null; do
-        iptables -t nat -D POSTROUTING -s 192.168.20.0/24 -o $LAN_IF -j MASQUERADE
-      done
+      while iptables -t nat -D POSTROUTING -s 192.168.20.0/24 -o $LAN_IF -j MASQUERADE 2>/dev/null; do :; done
     done
   '';
 
