@@ -24,6 +24,7 @@
     settings = {
       PasswordAuthentication = false;
       KbdInteractiveAuthentication = false;
+      MaxAuthTries = 24;
       # Only enable if absolutely needed
       # PermitRootLogin = true;
     };
